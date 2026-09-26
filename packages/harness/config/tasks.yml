@@ -1,0 +1,6 @@
+# Configurações das tarefas.
+
+# ID no formato <prefixo>-<número com `digits` dígitos>. Ex.: TASK-01.
+id:
+  prefix: TASK
+  digits: 2

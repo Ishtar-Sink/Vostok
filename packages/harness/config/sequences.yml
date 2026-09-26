@@ -1,0 +1,5 @@
+# Próximo número de cada sequência de IDs.
+# Mantido pelos scripts: cada criação usa o valor atual e depois o incrementa.
+# Altere à mão só para pular ou reiniciar a numeração.
+
+specs: 1

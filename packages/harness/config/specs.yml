@@ -1,0 +1,26 @@
+# Configurações das especificações (specs).
+# Variáveis de template usam o formato `#{NOME}`. Valores com `#{` precisam de aspas.
+
+# ID no formato <prefixo>-<número com `digits` dígitos>. Ex.: SPEC-001.
+# O número vem de `specs` em `sequences.yml`.
+id:
+  prefix: SPEC
+  digits: 3
+
+# Template da nova spec, relativo a `paths.templates` (main.yml).
+template: new-spec.md
+
+# Nome do arquivo criado em `paths.specs` (main.yml).
+# Variáveis: #{SPEC_ID}, #{SPEC_SLUG} (título em minúsculas, sem acentos, separado por hífens).
+file_name: "#{SPEC_ID}-#{SPEC_SLUG}.md"
+
+# Front-matter que substitui `#{FRONT_MATTER}` no template. Os `---` são adicionados pelo script.
+# Variáveis: #{SPEC_ID}, #{SPEC_TITLE}, #{AUTHOR}, #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+front_matter: |
+  id: #{SPEC_ID}
+  title: "#{SPEC_TITLE}"
+  status: draft
+  author: "#{AUTHOR}"
+  created_at: #{DATETIME}
+  updated_at: #{DATETIME}
+  tags: []

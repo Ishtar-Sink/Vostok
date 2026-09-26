@@ -1,0 +1,10 @@
+# Configurações gerais do harness.
+# Caminhos relativos partem da raiz do harness (a pasta que contém `config/`).
+
+paths:
+  root: ../
+  specs: ./work/specs
+  tasks: ./work/tasks
+  templates: ./templates
+  scripts: ./scripts
+  docs: ../docs

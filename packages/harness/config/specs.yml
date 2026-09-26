@@ -10,7 +10,11 @@ id:
 # Template da nova spec, relativo a `paths.templates` (main.yml).
 template: new-spec.md
 
-# Nome do arquivo criado em `paths.specs` (main.yml).
+# Pasta dentro de `paths.specs` (main.yml) onde a nova spec é criada.
+# A spec fica aqui como rascunho até ser aprovada.
+draft_dir: draft
+
+# Nome do arquivo criado em `draft_dir`.
 # Variáveis: #{SPEC_ID}, #{SPEC_SLUG} (título em minúsculas, sem acentos, separado por hífens).
 file_name: "#{SPEC_ID}-#{SPEC_SLUG}.md"
 

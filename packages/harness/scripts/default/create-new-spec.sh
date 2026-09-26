@@ -45,13 +45,13 @@ sequence=$((10#$sequence))
 spec_id="$(printf '%s-%0*d' "$prefix" "$digits" "$sequence")"
 
 # Destino
-specs_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.specs)")"
+draft_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.specs)")/$(config_get "$SPECS_CONFIG" draft_dir)"
 templates_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.templates)")"
 template="$templates_dir/$(config_get "$SPECS_CONFIG" template)"
 [ -f "$template" ] || die "template não encontrado: $template"
 
 file_name="$(config_get "$SPECS_CONFIG" file_name | TPL_SPEC_ID="$spec_id" TPL_SPEC_SLUG="$slug" render)"
-target="$specs_dir/$file_name"
+target="$draft_dir/$file_name"
 [ ! -e "$target" ] || die "o arquivo já existe: $target"
 
 # Front-matter: valores escapados, pois entram em YAML.
@@ -70,7 +70,7 @@ front_matter="$(
 )"
 
 # Arquivo
-mkdir -p "$specs_dir"
+mkdir -p "$draft_dir"
 TPL_FRONT_MATTER="$(printf -- '---\n%s\n---' "$front_matter")" \
 TPL_SPEC_ID="$spec_id" \
 TPL_SPEC_TITLE="$title" \

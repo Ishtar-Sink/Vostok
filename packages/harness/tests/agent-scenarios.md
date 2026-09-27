@@ -1,6 +1,6 @@
 # Cenários com agente
 
-Roteiro dos cenários que exercitam as skills com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
+Roteiro dos cenários que exercitam as skills `adjust-spec` e `approve-spec` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
 
 ## Como executar
 
@@ -18,13 +18,13 @@ Roteiro dos cenários que exercitam as skills com um agente de verdade, e os res
    | SPEC-002 | Listar tarefas | refinada |
    | SPEC-003 | Painel de métricas | rascunho |
 
-   Os cenários `ct04` e `ct09` não têm a SPEC-002, e o `ct05` só tem a SPEC-003.
+   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada.
 
 2. Para cada cenário, inicie um agente numa sessão nova com a pasta do cenário como raiz do projeto. Se houver, passe o contexto da conversa e depois a mensagem do usuário. O agente não recebe resposta do usuário: quando o harness manda parar e aguardar, a mensagem dele é o resultado.
 
 3. Confira a mensagem final e os arquivos: quais specs mudaram (compare com `cksum`), o "Histórico de ajustes" e se `adjust-spec.sh --validate` passa.
 
-## Cenários
+## Cenários de ajuste
 
 | Cenário | Caso de teste | Contexto e mensagem do usuário | Resultado esperado |
 |---|---|---|---|
@@ -40,7 +40,7 @@ Roteiro dos cenários que exercitam as skills com um agente de verdade, e os res
 | ct15 | CT-15 | "SPEC-001, na seção Requisitos funcionais, RF-03: onde está \"`memory/export.json`\", coloque \"`work/exports/memory.json`\"." | Só o trecho citado muda. |
 | ct16 | CT-16 | "Na SPEC-001: 1. O RF-02 deve aceitar só o tipo decision. 2. O RF-02 deve aceitar todos os tipos menos issue. 3. Remova o RF-07." | 1 rodada de perguntas com a contradição e o RF-07 inexistente, sem editar. |
 
-## Resultados
+## Resultados dos cenários de ajuste
 
 Execução de 2026-09-27, com Claude Code (Opus 5.5) como agente.
 
@@ -59,3 +59,27 @@ Execução de 2026-09-27, com Claude Code (Opus 5.5) como agente.
 | ct16 | passou | nenhum | Uma rodada com as duas perguntas: RF-02 contraditório e RF-07 inexistente. |
 
 Em todos os cenários que ajustaram a spec, `--record-manual` rodou antes da edição, `--validate` passou, o histórico ganhou uma única linha `agente` e nenhum rascunho foi alterado.
+
+## Cenários de aprovação
+
+Os casos de teste citados são os da spec de aprovação (skill `approve-spec`).
+
+| Cenário | Caso de teste | Mensagem do usuário | Resultado esperado |
+|---|---|---|---|
+| ap01 | CT-01 | "Aprovo a SPEC-001." | Aprova a SPEC-001: status `approved`, `approved_hash` igual ao `content_hash` e rascunho removido. |
+| ap02 | CT-02 | "Pode aprovar a spec." | Aprova a única refinada sem perguntar. |
+| ap03 | CT-03 | "Pode aprovar a spec." | Pergunta qual spec, com as duas candidatas, sem aprovar. |
+| ap04 | CT-04 | "Aprova a spec refinada." | Informa que não há spec refinada e para. |
+| ap13 | CT-13 | "Na SPEC-001, o RF-03 deve gravar a saída em `work/exports/memory.json`." | Ajusta a spec aprovada, informa que a aprovação caiu e acrescenta uma linha a "O que mudou". |
+
+## Resultados dos cenários de aprovação
+
+Execução de 2026-09-27, com Claude Code (Opus 5.5) como agente.
+
+| Cenário | Resultado | Arquivos alterados | Observação |
+|---|---|---|---|
+| ap01 | passou | refinada e rascunho da SPEC-001 | `--validate` e `--approve`; `approved_hash` igual ao `content_hash`; rascunho removido. |
+| ap02 | passou | refinada e rascunho da SPEC-001 | Identificou a única refinada sem perguntar. |
+| ap03 | passou | nenhum | Perguntou entre SPEC-001 e SPEC-002 com o template `question`. |
+| ap04 | passou | nenhum | Informou que só há a SPEC-003, em `draft`. |
+| ap13 | passou | refinada da SPEC-001 | Status voltou a `refined`, `approved_at` e `approved_hash` `null`; a resposta avisou que a aprovação caiu; "O que mudou" ganhou a linha 2. |

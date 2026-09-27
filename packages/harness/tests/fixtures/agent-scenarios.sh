@@ -2,7 +2,8 @@
 # Monta as cópias descartáveis dos cenários com agente de tests/agent-scenarios.md.
 # Cada cenário recebe uma cópia do projeto (AGENTS.md, CLAUDE.md e packages/harness) com:
 #   SPEC-001 Exportar memória em JSON (refinada), SPEC-002 Listar tarefas (refinada)
-#   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`).
+#   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`)
+#   ou já partem da SPEC-001 aprovada (ver `approve`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -64,12 +65,19 @@ prune() {
   for id in "$@"; do rm -f "$dir"/packages/harness/work/specs/*/"$id"-*.md; done
 }
 
-for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16; do
+# Aprova a SPEC-001 de um cenário.
+approve() {
+  "$1/packages/harness/skills/default/approve-spec/scripts/approve-spec.sh" --approve SPEC-001 > /dev/null
+}
+
+for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
     ct04|ct09) prune "$DEST/$scenario" SPEC-002 ;;
-    ct05) prune "$DEST/$scenario" SPEC-001 SPEC-002 ;;
+    ct05|ap04) prune "$DEST/$scenario" SPEC-001 SPEC-002 ;;
+    ap02) prune "$DEST/$scenario" SPEC-002 ;;
+    ap13) approve "$DEST/$scenario" ;;
   esac
   echo "$DEST/$scenario"
 done

@@ -259,6 +259,74 @@ if command -v git > /dev/null 2>&1; then
   check "edição em duas seções" bash -c "'$A' --record-manual SPEC-001 | grep -q 'Edição manual: .*Objetivo'"
 fi
 
+# --- Aprovação ---
+AP="$H/skills/default/approve-spec/scripts/approve-spec.sh"
+"$SP/create-new-spec.sh" 'Aprovar' > /dev/null
+"$SP/create-refined-spec.sh" SPEC-006 feature > /dev/null
+r6="$(ls "$H"/work/specs/refined/SPEC-006-*.md)"; d6="$(ls "$H"/work/specs/draft/SPEC-006-*.md)"
+$FILL "$r6" && "$SP/create-refined-spec.sh" --mark-refined SPEC-006 > /dev/null
+cp "$r6" "$r6.ok"
+fails "aprovação sem argumentos" "$AP"
+fails "aprovação de spec inexistente" "$AP" --validate SPEC-099
+check "aprovação de spec em draft informa que precisa ser refinada" bash -c "'$AP' --validate SPEC-005 2>&1 | grep -q 'ainda não foi refinada'"
+
+sed -i.bak 's/^Objetivo\.$/Objetivo mudado à mão./' "$r6" && rm -f "$r6.bak"
+check "edição manual sem registro impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q 'edição manual sem registro'"
+cp "$r6.ok" "$r6"
+sed -i.bak '/^content_hash:/d' "$r6" && rm -f "$r6.bak"
+check "spec sem content_hash impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q \"não tem 'content_hash'\""
+cp "$r6.ok" "$r6"
+sed -i.bak 's/^| - | Nenhuma | - |$/| 1 | Formato do log | JSON ou texto |/' "$r6" && rm -f "$r6.bak"
+"$A" --record-manual SPEC-006 > /dev/null
+before="$(sum "$r6")"
+check "pendência aberta é listada" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -qF 'pendência aberta: Formato do log: JSON ou texto'"
+fails "--approve com pendência aberta" "$AP" --approve SPEC-006
+check "--approve recusado não altera a refinada" [ "$(sum "$r6")" = "$before" ]
+check "--approve recusado não remove o rascunho" [ -f "$d6" ]
+cp "$r6.ok" "$r6"
+sed -i.bak '/^## Riscos$/,/^## Casos de teste$/{/^## Casos de teste$/!d;}' "$r6" && rm -f "$r6.bak"
+"$A" --record-manual SPEC-006 > /dev/null
+check "spec inválida impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q \"validação: seção ausente: '## Riscos'\""
+cp "$r6.ok" "$r6"; rm -f "$r6.ok"
+
+before="$(sum "$r6")"
+check "--validate sem impedimentos (pendência só com '-')" "$AP" --validate SPEC-006
+check "--validate não altera a refinada" [ "$(sum "$r6")" = "$before" ]
+check "--approve válido remove o rascunho" bash -c "'$AP' --approve SPEC-006 | grep -q 'Rascunho removido'"
+check "aprovada: status approved" [ "$(fm "$r6" status)" = approved ]
+check "aprovada: approved_hash igual ao content_hash" [ "$(fm "$r6" approved_hash)" = "$(fm "$r6" content_hash)" ]
+check "aprovada: approved_at igual a updated_at" [ "$(fm "$r6" approved_at)" = "$(fm "$r6" updated_at)" ]
+check "aprovada: rascunho não existe mais" [ ! -e "$d6" ]
+check "aprovada: continua em refined/" [ -f "$r6" ]
+check "aprovação não conta como ajuste" bash -c "[ '$(fm "$r6" adjustments)' = 0 ] && ! grep -qE '^\| [0-9]+ \| 20' '$r6'"
+check "aprovada: hash do conteúdo continua em dia" bash -c "'$A' --record-manual SPEC-006 | grep -qx 'Nenhuma edição manual.'"
+check "list-specs approved lista a spec uma vez" bash -c "[ \$('$SP/list-specs.sh' approved | grep -c 'SPEC-006') -eq 1 ]"
+check "aprovar de novo informa que já está aprovada" bash -c "'$AP' --approve SPEC-006 2>&1 | grep -q 'já está aprovada'"
+fails "aprovar de novo termina com erro" "$AP" --approve SPEC-006
+
+check "--validate da adjust-spec aceita spec aprovada" "$A" --validate SPEC-006
+check "ajuste do agente em spec aprovada derruba a aprovação" bash -c "'$A' --record SPEC-006 'RF-01 ajustado' | grep -q 'Aprovação de SPEC-006 derrubada'"
+check "ajuste do agente: status refined" [ "$(fm "$r6" status)" = refined ]
+check "ajuste do agente: campos da aprovação null" bash -c "[ '$(fm "$r6" approved_at)' = null ] && [ '$(fm "$r6" approved_hash)' = null ]"
+check "reaprovação sem rascunho avisa e aprova" bash -c "'$AP' --approve SPEC-006 | grep -q 'nada a remover' && [ \"\$(sed -n '2,/^---/p' '$r6' | grep '^status:')\" = 'status: approved' ]"
+sed -i.bak 's/^Objetivo\.$/Objetivo mudado à mão./' "$r6" && rm -f "$r6.bak"
+check "edição manual em spec aprovada derruba a aprovação" bash -c "'$A' --record-manual SPEC-006 | grep -q 'Aprovação de SPEC-006 derrubada'"
+check "edição manual: status refined" [ "$(fm "$r6" status)" = refined ]
+check "edição manual: approved_hash null" [ "$(fm "$r6" approved_hash)" = null ]
+
+"$SP/create-new-spec.sh" 'Rascunho protegido' > /dev/null
+"$SP/create-refined-spec.sh" SPEC-007 feature > /dev/null
+r7="$(ls "$H"/work/specs/refined/SPEC-007-*.md)"
+$FILL "$r7" && "$SP/create-refined-spec.sh" --mark-refined SPEC-007 > /dev/null
+chmod a-w "$H/work/specs/draft"
+if [ -w "$H/work/specs/draft" ]; then
+  echo "AVISO: pasta ainda gravável (root?); caso de falha na remoção do rascunho não testado"
+else
+  check "falha ao remover o rascunho: erro com o caminho" bash -c "'$AP' --approve SPEC-007 2>&1 | grep -q 'rascunho não pôde ser removido'"
+  check "falha ao remover o rascunho: aprovação gravada" [ "$(fm "$r7" status)" = approved ]
+fi
+chmod u+w "$H/work/specs/draft"
+
 # --- Skills ---
 fails "nome de skill inválido" "$C" 'Bad_Name'
 fails "nome reservado" "$C" claude-x
@@ -279,7 +347,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

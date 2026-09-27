@@ -6,7 +6,8 @@
 #      Sem argumento, pergunta o título (só em terminal interativo).
 set -euo pipefail
 
-HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
 source "$HARNESS_DIR/scripts/lib/config.sh"
 source "$HARNESS_DIR/scripts/lib/text.sh"
 
@@ -15,14 +16,6 @@ SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
 SEQUENCES_CONFIG="$HARNESS_DIR/config/sequences.yml"
 
 die() { echo "Erro: $*" >&2; exit 1; }
-
-# Caminhos da configuração são relativos à raiz do harness.
-harness_path() {
-  case "$1" in
-    /*) printf '%s' "$1" ;;
-    *) printf '%s/%s' "$HARNESS_DIR" "${1#./}" ;;
-  esac
-}
 
 # Título
 title="${1:-}"
@@ -63,6 +56,7 @@ front_matter="$(
   config_block "$SPECS_CONFIG" front_matter |
     TPL_SPEC_ID="$spec_id" \
     TPL_SPEC_TITLE="$(yaml_escape "$title")" \
+    TPL_SPEC_STATUS="$(config_get "$SPECS_CONFIG" status.draft)" \
     TPL_AUTHOR="$(yaml_escape "$author")" \
     TPL_DATE="$now_date" \
     TPL_DATETIME="$now_datetime" \

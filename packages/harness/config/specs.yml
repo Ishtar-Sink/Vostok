@@ -15,7 +15,7 @@ status:
 # --- Rascunho (create-new-spec.sh) ---
 
 # Template da nova spec, relativo a `paths.templates` (main.yml).
-template: new-spec.md
+template: spec/new.md
 
 # Pasta dentro de `paths.specs` (main.yml) onde a nova spec é criada.
 # A spec fica aqui como rascunho até ser aprovada.
@@ -40,7 +40,7 @@ front_matter: |
 # --- Refinada (create-refined-spec.sh) ---
 
 # Template da spec refinada, relativo a `paths.templates` (main.yml).
-refined_template: refined-spec.md
+refined_template: spec/refined.md
 
 # Pasta dentro de `paths.specs` (main.yml) onde a spec refinada é criada, com o mesmo nome do rascunho.
 refined_dir: refined

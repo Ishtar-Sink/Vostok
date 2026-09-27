@@ -7,7 +7,7 @@ metadata:
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/specs/create-refined-spec.sh"
-  templates: "templates/refined-spec.md"
+  templates: "templates/spec/refined.md"
 ---
 
 # Refinar spec

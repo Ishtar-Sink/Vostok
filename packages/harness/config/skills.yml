@@ -7,9 +7,9 @@ dirs:
   custom: skills/custom
 
 # Templates, relativos a `paths.templates` (main.yml).
-template: skill.md
-redirect_template: skill-redirect.md
-script_template: script.sh
+template: skill/skill.md
+redirect_template: skill/redirect.md
+script_template: skill/script.sh
 
 # Pastas onde é criado o redirecionamento para cada ferramenta, relativas a `paths.root` (main.yml).
 # O Cursor também lê `.claude/skills` e `.agents/skills`, por isso `.cursor/skills` fica desligado:

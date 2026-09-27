@@ -7,7 +7,7 @@ metadata:
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
   scripts: "scripts/default/context/load-extra-context.sh skills/default/create-skill/scripts/create-skill.sh"
-  templates: "templates/skill.md templates/skill-redirect.md templates/script.sh"
+  templates: "templates/skill/skill.md templates/skill/redirect.md templates/skill/script.sh"
 ---
 
 # Criar skill
@@ -54,7 +54,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh rules/agent/template-usage.md rules/project/naming-convention.md templates/skill.md
+packages/harness/scripts/default/context/load-extra-context.sh rules/agent/template-usage.md rules/project/naming-convention.md templates/skill/skill.md
 ```
 
 ### 2. Levantar os requisitos

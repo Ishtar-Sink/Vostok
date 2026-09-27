@@ -8,3 +8,4 @@ paths:
   templates: ./templates
   scripts: ./scripts
   docs: ../../docs
+  agent_memory: ./memory

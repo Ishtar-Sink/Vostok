@@ -132,7 +132,7 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o caminho da refinada e um resumo de 1 a 3 frases do que mudou.
 - **Pendências:** o número de pendências registradas na refinada.
-- Acrescente a [tabela de inferências](#tabela-de-inferências) depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
+- Acrescente a [tabela de inferências](#tabela-de-inferências) com o cabeçalho "Inferências" depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
 
 ## Formatos de resposta
 

@@ -1,9 +1,9 @@
 ---
 name: adjust-spec
-description: "Ajusta uma especificação (spec) já refinada, com status refined. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
+description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(packages/harness/skills/default/adjust-spec/scripts/*) Bash(packages/harness/scripts/default/*)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md skills/default/refine-spec/references/sections.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/memory/search-memory.sh skills/default/adjust-spec/scripts/adjust-spec.sh"
@@ -16,8 +16,9 @@ Aplica à spec refinada certa todos os ajustes que o usuário pediu, deixando a 
 
 ## Termos
 
-- **Refinada:** a spec em `refined/`, com status `refined`. É a única que esta skill edita.
-- **Rascunho:** a spec original, em `draft/`. Nunca é editada por esta skill.
+- **Refinada:** a spec em `refined/`, com status `refined` ou `approved`. É a única que esta skill edita.
+- **Aprovada:** a refinada com status `approved`. Todo ajuste registrado nela derruba a aprovação e volta o status para `refined`.
+- **Rascunho:** a spec original, em `draft/`. Nunca é editada por esta skill e deixa de existir quando a spec é aprovada.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto da refinada que o ajuste muda: uma seção, um ID (`RF-03`, `CB-02`) ou um trecho de texto.
@@ -27,7 +28,7 @@ Aplica à spec refinada certa todos os ajustes que o usuário pediu, deixando a 
 
 ## Regras
 
-[adjust-spec-01]: Só ajuste specs com status `refined`. Nunca edite o rascunho.
+[adjust-spec-01]: Só ajuste specs com status `refined` ou `approved`. Nunca edite o rascunho.
 [adjust-spec-02]: Nunca edite uma spec sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-spec-03]: Nunca edite à mão o front-matter nem o "Histórico de ajustes". Só o script os altera.
 [adjust-spec-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
@@ -69,17 +70,17 @@ Use a spec sem perguntar em qualquer um destes casos:
 
 - O usuário a cita por ID, título ou arquivo.
 - O pedido vem logo depois de a spec ser refinada ou ajustada nesta conversa.
-- Existe uma única spec refinada.
+- Existe uma única spec refinada ou aprovada.
 
-Para saber quais specs são refinadas, execute `packages/harness/scripts/default/specs/list-specs.sh refined` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
+Para saber quais specs podem ser ajustadas, execute `packages/harness/scripts/default/specs/list-specs.sh refined` e `packages/harness/scripts/default/specs/list-specs.sh approved` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
 
 Nos demais casos:
 
-1. Liste as specs refinadas como acima.
-2. Nenhuma spec refinada: **PARE** e informe que não há specs refinadas para ajustar.
+1. Liste as specs refinadas e aprovadas como acima.
+2. Nenhuma: **PARE** e informe que não há specs refinadas para ajustar.
 3. Mais de uma: **PARE** e pergunte qual ajustar, com o template `question`, com uma opção por spec (ID e título). Aceite também resposta livre. Não edite nada antes da resposta.
 
-Spec citada com status diferente de `refined`: **PARE** e informe o status atual. Só specs refinadas são ajustadas.
+Spec citada com status `draft`: **PARE** e informe o status atual. Só specs refinadas ou aprovadas são ajustadas.
 
 ### 3. Registrar edições manuais
 
@@ -135,7 +136,7 @@ Aplique os ajustes seguindo [sections.md](../refine-spec/references/sections.md)
 
 Atualize também as seções fixas:
 
-- **O que mudou:** continua comparando o rascunho com a versão atual da refinada. Acrescente ou ajuste as linhas dos assuntos afetados.
+- **O que mudou:** continua comparando o rascunho com a versão atual da refinada. Acrescente ou ajuste as linhas dos assuntos afetados. Se o rascunho já foi removido (spec aprovada), acrescente uma linha por assunto alterado e não apague as existentes.
 - **Registro de decisões:** uma linha por ajuste que decide algo, uma por resposta e uma por inferência. O motivo indica a origem: `ajuste N`, `ajuste N, resposta 1A` ou `ajuste N, inferência A`, em que N é o número que o ajuste terá no histórico.
 - **Pendências:** perguntas sem resposta. Remova as pendências resolvidas pelo ajuste.
 
@@ -157,7 +158,7 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 packages/harness/skills/default/adjust-spec/scripts/adjust-spec.sh --record <SPEC_ID> "RF-03 aceita o título; CB-04 removido; nova RN-05"
 ```
 
-O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
+O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa spec aprovada, ele também derruba a aprovação e avisa na saída. Se ele recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 
@@ -165,6 +166,7 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o caminho da refinada, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
+- Se o script avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
 

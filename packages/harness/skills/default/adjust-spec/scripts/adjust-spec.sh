@@ -3,6 +3,8 @@
 # Cada ajuste incrementa `adjustments`, atualiza `adjusted_at`, `updated_at` e o hash do conteúdo
 # (`content_hash_field`) e acrescenta uma linha à seção de histórico (`adjustment_history_section`).
 # A validação é a mesma do refinamento (scripts/lib/spec-validation.sh).
+# Specs aprovadas também são ajustadas: todo ajuste registrado derruba a aprovação, volta o status
+# para status.refined e grava `null` nos campos da aprovação.
 #
 # Uso: adjust-spec.sh --record-manual <SPEC_ID>
 #        Compara o hash gravado com o do conteúdo atual. Se forem diferentes, registra um ajuste
@@ -34,13 +36,16 @@ specs_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.specs)")"
 draft_dir="$specs_dir/$(config_get "$SPECS_CONFIG" draft_dir)"
 refined_dir="$specs_dir/$(config_get "$SPECS_CONFIG" refined_dir)"
 refined_status="$(config_get "$SPECS_CONFIG" status.refined)"
+approved_status="$(config_get "$SPECS_CONFIG" status.approved)"
+approved_at_field="$(config_get "$SPECS_CONFIG" approved_at_field)"
+approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
 hash_field="$(config_get "$SPECS_CONFIG" content_hash_field)"
 history_section="$(config_get "$SPECS_CONFIG" adjustment_history_section)"
 manual_origin="$(config_get "$SPECS_CONFIG" adjustment_origins.manual)"
 agent_origin="$(config_get "$SPECS_CONFIG" adjustment_origins.agent)"
 manual_summary="$(config_get "$SPECS_CONFIG" manual_adjustment_summary)"
 
-# Caminho da refinada. Falha se ela não existir ou não estiver com status.refined.
+# Caminho da refinada. Falha se ela não existir ou não estiver com status.refined ou status.approved.
 find_refined() {
   local spec_id="$1" refined status
 
@@ -51,8 +56,8 @@ find_refined() {
   fi
 
   status="$(frontmatter_get "$refined" status 2>/dev/null || true)"
-  [ "$status" = "$refined_status" ] ||
-    die "a spec $spec_id está com status '$status'; só specs com status '$refined_status' são ajustadas"
+  [ "$status" = "$refined_status" ] || [ "$status" = "$approved_status" ] ||
+    die "a spec $spec_id está com status '$status'; só specs com status '$refined_status' ou '$approved_status' são ajustadas"
   printf '%s' "$refined"
 }
 
@@ -131,6 +136,16 @@ record_adjustment() {
   printf '%s' "$count"
 }
 
+# Derruba a aprovação de uma spec aprovada e avisa. Não faz nada numa spec só refinada.
+# drop_approval <arquivo> <SPEC_ID>
+drop_approval() {
+  [ "$(frontmatter_get "$1" status 2>/dev/null || true)" = "$approved_status" ] || return 0
+  frontmatter_set "$1" status "$refined_status"
+  frontmatter_put "$1" "$approved_at_field" null
+  frontmatter_put "$1" "$approved_hash_field" null
+  echo "Aprovação de $2 derrubada: o status voltou para '$refined_status'."
+}
+
 record_manual() {
   local spec_id="$1" refined stored current sections summary count errors
 
@@ -152,6 +167,7 @@ record_manual() {
   summary="$manual_summary${sections:+: $sections}"
   count="$(record_adjustment "$refined" "$manual_origin" "$summary")"
   echo "Ajuste manual $count registrado em $spec_id: $summary"
+  drop_approval "$refined" "$spec_id"
 
   errors="$(refined_errors "$refined")"
   [ -z "$errors" ] || printf 'Problemas de validação:\n%s\n' "$errors"
@@ -179,6 +195,7 @@ record() {
 
   count="$(record_adjustment "$refined" "$agent_origin" "$summary")"
   echo "Ajuste $count registrado em $spec_id: $refined"
+  drop_approval "$refined" "$spec_id"
 }
 
 case "${1:-}" in

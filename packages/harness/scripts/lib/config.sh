@@ -15,6 +15,15 @@ _CONFIG_AWK_PATH='
   }
 '
 
+# Resolve um caminho da configuração: absoluto ou relativo à raiz do harness.
+# harness_path <caminho>   (requer HARNESS_DIR definido)
+harness_path() {
+  case "$1" in
+    /*) printf '%s' "$1" ;;
+    *) printf '%s/%s' "$HARNESS_DIR" "${1#./}" ;;
+  esac
+}
+
 # Imprime o valor escalar de uma chave. Falha se a chave não existir.
 # config_get <arquivo> <chave.subchave>
 config_get() {

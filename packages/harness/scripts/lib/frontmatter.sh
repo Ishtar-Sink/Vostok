@@ -6,6 +6,7 @@
 # frontmatter_print <arquivo>
 frontmatter_print() {
   awk '
+    { sub(/\r$/, "") }
     NR == 1 { if ($0 != "---") exit; next }
     $0 == "---" { found = 1; exit }
     { print }
@@ -14,13 +15,23 @@ frontmatter_print() {
 }
 
 # Imprime o valor de uma chave, sem aspas e com os escapes de aspas duplas resolvidos.
+# Valores em bloco (`>` ou `|`) saem numa linha só, com as linhas unidas por espaço.
 # frontmatter_get <arquivo> <chave>
 frontmatter_get() {
   frontmatter_print "$1" | awk -v want="$2" '
+    in_block {
+      if ($0 ~ /^[ \t]/ || $0 == "") {
+        line = $0; gsub(/^[ \t]+|[ \t]+$/, "", line)
+        if (line != "") block = (block == "" ? line : block " " line)
+        next
+      }
+      in_block = 0; print block; exit
+    }
     index($0, want ":") != 1 { next }
     {
       val = substr($0, length(want) + 2)
       gsub(/^[ \t]+|[ \t]+$/, "", val)
+      if (val ~ /^[>|][-+]?$/) { in_block = 1; found = 1; next }
       if (val ~ /^".*"$/) {
         val = substr(val, 2, length(val) - 2)
         out = ""
@@ -35,7 +46,7 @@ frontmatter_get() {
       }
       print val; found = 1; exit
     }
-    END { exit !found }
+    END { if (in_block) print block; exit !found }
   '
 }
 
@@ -58,8 +69,9 @@ frontmatter_set() {
   local tmp
   tmp="$(mktemp)"
   if awk -v want="$2" -v new="$3" '
-    NR == 1 && $0 == "---" { inside = 1; print; next }
-    inside && $0 == "---" { inside = 0 }
+    { plain = $0; sub(/\r$/, "", plain) }
+    NR == 1 && plain == "---" { inside = 1; print; next }
+    inside && plain == "---" { inside = 0 }
     inside && index($0, want ":") == 1 { print want ": " new; found = 1; next }
     { print }
     END { exit !found }

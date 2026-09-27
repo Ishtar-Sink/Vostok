@@ -27,6 +27,22 @@ template_leftovers() {
   grep -rnE '(^|[^`])#[{][A-Z0-9_]+[}]' "$@"
 }
 
+# Remove espaços nas pontas e falha, com mensagem, se o título não puder virar
+# cabeçalho: vazio, com quebra de linha ou com `#{`, que seria lido como variável de template.
+# clean_title <título>
+clean_title() {
+  local title
+  title="$(printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  if [ -z "$title" ]; then
+    echo "O título está vazio" >&2; return 1
+  elif [[ "$title" == *$'\n'* ]]; then
+    echo "O título não pode ter quebra de linha" >&2; return 1
+  elif [[ "$title" == *'#{'* ]]; then
+    echo "O título não pode conter '#{', reservado para variáveis de template" >&2; return 1
+  fi
+  printf '%s' "$title"
+}
+
 # Escapa um texto para uso dentro de aspas duplas em YAML.
 yaml_escape() {
   local s="${1//\\/\\\\}"

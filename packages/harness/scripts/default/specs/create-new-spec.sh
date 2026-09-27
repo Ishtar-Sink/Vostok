@@ -22,8 +22,7 @@ title="${1:-}"
 if [ -z "$title" ] && [ -t 0 ]; then
   read -rp "Título da spec: " title
 fi
-title="$(printf '%s' "$title" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-[ -n "$title" ] || die "informe o título: create-new-spec.sh \"Título da spec\""
+title="$(clean_title "$title")" || die "título inválido. Uso: create-new-spec.sh \"Título da spec\""
 
 slug="$(slugify "$title")"
 [ -n "$slug" ] || die "o título precisa ter ao menos uma letra ou número"

@@ -39,17 +39,99 @@ front_matter: |
 
 # --- Refinada (create-refined-spec.sh) ---
 
-# Template da spec refinada, relativo a `paths.templates` (main.yml).
+# Template da spec refinada, relativo a `paths.templates` (main.yml). A variável #{SECTIONS}
+# recebe as seções do tipo da spec, lidas de `sections_dir`.
 refined_template: spec/refined.md
+
+# Pasta dos templates de seção da spec, relativa a `paths.templates`. Cada seção é um arquivo
+# `<seção>.md` que começa com o título `## ...` e tem uma variável para o conteúdo.
+sections_dir: spec/sections
+
+# Tipos de spec aceitos no refinamento.
+types:
+  - feature      # recurso novo
+  - improvement  # melhoria de algo que já existe
+  - fix          # correção de defeito
+  - study        # estudo ou investigação, sem entrega de código
+  - analysis     # análise de um problema ou de uma teoria, em tese, antítese e síntese
+
+# Seções da spec refinada de cada tipo, na ordem em que aparecem.
+# Núcleo presente em todos os tipos: objective, scope, assumptions, risks, acceptance-criteria, references.
+sections_feature:
+  - objective
+  - scope
+  - functional-requirements
+  - non-functional-requirements
+  - business-rules
+  - flows
+  - edge-cases
+  - contracts
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_improvement:
+  - objective
+  - current-state
+  - scope
+  - functional-requirements
+  - non-functional-requirements
+  - business-rules
+  - flows
+  - edge-cases
+  - contracts
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_fix:
+  - objective
+  - defect
+  - scope
+  - functional-requirements
+  - edge-cases
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_study:
+  - objective
+  - scope
+  - research-questions
+  - assumptions
+  - risks
+  - acceptance-criteria
+  - references
+
+sections_analysis:
+  - objective
+  - scope
+  - thesis
+  - antithesis
+  - synthesis
+  - assumptions
+  - risks
+  - acceptance-criteria
+  - references
 
 # Pasta dentro de `paths.specs` (main.yml) onde a spec refinada é criada, com o mesmo nome do rascunho.
 refined_dir: refined
 
 # Front-matter da spec refinada: parte do front-matter do rascunho, e as chaves abaixo
 # substituem as de mesmo nome ou são acrescentadas no fim.
-# Variáveis: #{SPEC_STATUS} (status.refined), #{SOURCE_PATH} (rascunho, relativo a `paths.specs`),
-# #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+# Variáveis: #{SPEC_STATUS} (status.refined), #{SPEC_TYPE} (um dos `types`),
+# #{SOURCE_PATH} (rascunho, relativo a `paths.specs`), #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
 refined_front_matter: |
+  type: #{SPEC_TYPE}
   status: #{SPEC_STATUS}
   source: "#{SOURCE_PATH}"
   refined_at: #{DATETIME}

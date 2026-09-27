@@ -1,18 +1,18 @@
 ---
 name: refine-spec
-description: Refina uma especificação (spec) em rascunho. Lê a spec, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera a versão refinada em `refined/`. Use quando o usuário pedir para refinar, detalhar, esclarecer ou revisar uma spec, citar um ID como SPEC-001, ou perguntar quais specs em draft estão prontas para refinamento.
+description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar, esclarecer ou revisar uma spec, citar um ID como SPEC-001, ou perguntar quais specs em draft estão prontas para refinamento.
 allowed-tools: Read Edit Bash(packages/harness/scripts/default/*)
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/specs/create-refined-spec.sh"
-  templates: "templates/spec/refined.md"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/specs/create-refined-spec.sh scripts/default/memory/search-memory.sh"
+  templates: "templates/spec/refined.md templates/spec/sections"
 ---
 
 # Refinar spec
 
-Transforma uma spec com status `draft` em uma spec refinada: sem ambiguidades conhecidas e com cada decisão registrada.
+Transforma uma spec com status `draft` em uma spec refinada: concreta, sem ambiguidades conhecidas, com requisitos, testes e critérios de aceite rastreáveis e com cada decisão registrada.
 
 ## Termos
 
@@ -22,6 +22,8 @@ Transforma uma spec com status `draft` em uma spec refinada: sem ambiguidades co
 - **Conflito:** trechos da spec que se contradizem.
 - **Lacuna:** informação necessária que não está na spec.
 - **Inferência:** decisão tomada pelo agente sem perguntar ao usuário.
+- **Tipo:** a natureza da spec (`feature`, `improvement`, `fix`, `study` ou `analysis`), que define as seções da refinada.
+- **Referência:** arquivo, entrada da memória ou documento consultado na investigação.
 - **Rodada:** uma mensagem com todas as perguntas abertas, seguida da resposta do usuário.
 
 ## Regras
@@ -32,6 +34,8 @@ Transforma uma spec com status `draft` em uma spec refinada: sem ambiguidades co
 [refine-spec-04]: Não crie requisitos. Tudo o que não está no rascunho e não veio de uma resposta do usuário é inferência: aparece na tabela de inferências e no "Registro de decisões".
 [refine-spec-05]: Tabelas trazem só texto relevante para a decisão, sem links, imagens ou formatação que dificulte a leitura.
 [refine-spec-06]: Todo critério de aceite da refinada precisa ser verificável.
+[refine-spec-07]: Nenhuma seção fica genérica. Cada seção traz informação concreta do projeto (caminhos, comandos, campos, IDs), vinda do rascunho, das respostas do usuário ou da investigação (com referência), ou registrada como inferência.
+[refine-spec-08]: Uma lacuna é também uma seção do tipo que não pode ser preenchida com essa informação. Ela vira pergunta ou inferência, pelo critério do passo 4.
 
 ## Checklist
 
@@ -40,12 +44,13 @@ Copie e marque o progresso:
 ```
 - [ ] 1. Carregar o contexto
 - [ ] 2. Identificar a spec
-- [ ] 3. Ler e analisar a spec
-- [ ] 4. Rodada de perguntas (máx. 2)
-- [ ] 5. Criar a refinada
-- [ ] 6. Preencher a refinada
-- [ ] 7. Validar e finalizar
-- [ ] 8. Responder ao usuário
+- [ ] 3. Investigar o projeto
+- [ ] 4. Analisar a spec
+- [ ] 5. Rodada de perguntas (máx. 2)
+- [ ] 6. Criar a refinada
+- [ ] 7. Preencher a refinada
+- [ ] 8. Validar e finalizar
+- [ ] 9. Responder ao usuário
 ```
 
 ## Passos
@@ -73,19 +78,33 @@ packages/harness/scripts/default/context/load-extra-context.sh rules/agent/templ
 3. Uma spec: use-a.
 4. Mais de uma: **PARE** e pergunte qual refinar, com o template `question`, com uma opção por spec (ID e título).
 
-### 3. Ler e analisar a spec
+### 3. Investigar o projeto
 
-Leia o rascunho inteiro. Classifique cada problema encontrado como ambiguidade, conflito ou lacuna e decida como tratá-lo:
+Leia o rascunho inteiro. Depois, antes de qualquer pergunta:
+
+1. Busque decisões e conhecimentos com os termos do assunto, incluindo sinônimos:
+   `packages/harness/scripts/default/memory/search-memory.sh all <termos>`
+2. Leia os arquivos que o rascunho cita e os que ele envolve: os componentes que serão criados ou alterados, os scripts e configurações de que eles dependem e exemplos do mesmo tipo que já existam no projeto.
+3. Anote cada item consultado e o uso dele. Eles vão para a seção "Referências".
+
+Leia só o necessário para preencher as seções do tipo. Não altere nenhum arquivo neste passo.
+
+### 4. Analisar a spec
+
+1. Defina o tipo pela tabela de [references/sections.md](references/sections.md). Se o rascunho servir para mais de um tipo, pergunte.
+2. Para cada seção do tipo (`sections_<tipo>` em `config/specs.yml`), verifique se o rascunho, a investigação e as inferências possíveis bastam para preenchê-la ([refine-spec-08]).
+3. Classifique cada problema encontrado e decida como tratá-lo:
 
 | Situação | Ação |
 |---|---|
 | Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |
 | Há uma interpretação claramente dominante e de baixo impacto | Inferência |
 | Conflito entre trechos da spec | Pergunta, sempre |
+| O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |
 
-### 4. Rodada de perguntas
+### 5. Rodada de perguntas
 
-Sem perguntas: vá para o passo 5 e mostre as inferências na resposta final.
+Sem perguntas: vá para o passo 6 e mostre as inferências na resposta final.
 
 Com perguntas: envie numa única mensagem todas as perguntas, com o template `question`, seguidas da [tabela de inferências](#tabela-de-inferências). **PARE** e aguarde a resposta.
 
@@ -95,28 +114,21 @@ Ao receber as respostas:
 - O que continuar sem resposta depois da 2ª rodada vira pendência ([refine-spec-03]).
 - Uma inferência corrigida pelo usuário vira decisão.
 
-### 5. Criar a refinada
+### 6. Criar a refinada
 
 Execute:
 
 ```bash
-packages/harness/scripts/default/specs/create-refined-spec.sh <SPEC_ID>
+packages/harness/scripts/default/specs/create-refined-spec.sh <SPEC_ID> <tipo>
 ```
 
-O script imprime o caminho do arquivo criado. Se ele falhar, **PARE** e responda com o template `blocker`.
+O script monta a refinada com as seções do tipo e imprime o caminho do arquivo criado. Se ele falhar, **PARE** e responda com o template `blocker`.
 
-### 6. Preencher a refinada
+### 7. Preencher a refinada
 
-Edite o arquivo criado:
+Leia [references/sections.md](references/sections.md) e preencha cada seção do arquivo criado, substituindo as variáveis `#{...}`. Mantenha os títulos e os cabeçalhos das tabelas como estão. Não deixe nenhuma variável `#{...}` no arquivo.
 
-- **`#{AGENT_DETAILED_DESCRIPTION}`:** substitua pela spec refinada, com as mesmas seções do rascunho (Contexto, Recursos, Detalhes Técnicos, Roteiro de Testes, Critérios de Aceite), já com as respostas e inferências aplicadas.
-- **O que mudou:** uma linha por assunto alterado em relação ao rascunho.
-- **Registro de decisões:** uma linha por resposta do usuário e uma por inferência. No motivo, indique a origem: `resposta 1B` ou `inferência A`.
-- **Pendências:** uma linha por ambiguidade não resolvida. Se não houver nenhuma, escreva `Nenhuma` numa única linha.
-
-Não deixe nenhuma variável `#{...}` no arquivo.
-
-### 7. Validar e finalizar
+### 8. Validar e finalizar
 
 Execute:
 
@@ -124,19 +136,19 @@ Execute:
 packages/harness/scripts/default/specs/create-refined-spec.sh --finalize <SPEC_ID>
 ```
 
-O script falha se ainda houver variáveis `#{...}` e lista as linhas onde elas estão. Corrija essas linhas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O script lista todos os problemas: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
-### 8. Responder ao usuário
+### 9. Responder ao usuário
 
 Responda com o template `completion`:
 
-- **O que foi feito:** o caminho da refinada e um resumo de 1 a 3 frases do que mudou.
+- **O que foi feito:** o caminho e o tipo da refinada, um resumo de 1 a 3 frases do que mudou e a contagem de itens por seção (ex.: 8 RF, 12 CT, 6 CA).
 - **Pendências:** o número de pendências registradas na refinada.
 - Acrescente a [tabela de inferências](#tabela-de-inferências) com o cabeçalho "Inferências" depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
 
 ## Formatos de resposta
 
-Perguntas usam o template `question`. Nas rodadas do passo 4, o contexto de cada pergunta cita o trecho da spec, e o fechamento ganha a frase: `Para corrigir uma inferência, cite a letra dela.`
+Perguntas usam o template `question`. Nas rodadas do passo 5, o contexto de cada pergunta cita o trecho da spec, e o fechamento ganha a frase: `Para corrigir uma inferência, cite a letra dela.`
 
 ### Tabela de inferências
 

@@ -19,21 +19,16 @@ source "$HARNESS_DIR/scripts/lib/config.sh"
 source "$HARNESS_DIR/scripts/lib/text.sh"
 source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
 source "$HARNESS_DIR/scripts/lib/markdown.sh"
+source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
 
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
 
 USAGE="Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --finalize <SPEC_ID>"
 
-# Ações aceitas na tabela de componentes afetados. `criar` exige que o caminho ainda não exista;
-# `alterar` e `remover` exigem que exista. Caminhos são relativos a `paths.root`.
-COMPONENT_ACTIONS="criar alterar remover"
-
 die() { echo "Erro: $*" >&2; exit 1; }
 
-root_dir="$(cd "$(harness_path "$(config_get "$MAIN_CONFIG" paths.root)")" && pwd)"
 templates_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.templates)")"
-sections_dir="$templates_dir/$(config_get "$SPECS_CONFIG" sections_dir)"
 specs_dir="$(harness_path "$(config_get "$MAIN_CONFIG" paths.specs)")"
 draft_dir="$specs_dir/$(config_get "$SPECS_CONFIG" draft_dir)"
 refined_dir="$specs_dir/$(config_get "$SPECS_CONFIG" refined_dir)"
@@ -49,15 +44,6 @@ sections_for_type() {
   config_list "$SPECS_CONFIG" types | grep -qxF "$1" ||
     die "tipo inválido '$1'. Tipos: $(config_list "$SPECS_CONFIG" types | tr '\n' ' ')"
   config_list "$SPECS_CONFIG" "sections_$1"
-}
-
-section_template() {
-  printf '%s/%s.md' "$sections_dir" "$1"
-}
-
-# Título da seção, lido da primeira linha do template (`## Título`).
-section_heading() {
-  head -n 1 "$(section_template "$1")" | sed 's/^## //'
 }
 
 create_refined() {
@@ -78,8 +64,8 @@ create_refined() {
   [ -f "$template" ] || die "template não encontrado: $template"
 
   while IFS= read -r section; do
-    [ -f "$(section_template "$section")" ] || die "template de seção não encontrado: $(section_template "$section")"
-    content+="$(cat "$(section_template "$section")")"$'\n\n'
+    [ -f "$(spec_section_template "$section")" ] || die "template de seção não encontrado: $(spec_section_template "$section")"
+    content+="$(cat "$(spec_section_template "$section")")"$'\n\n'
   done <<< "$sections"
 
   now_datetime="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -102,85 +88,6 @@ create_refined() {
     render "$template" > "$target"
 
   echo "Spec refinada $spec_id ($type) criada em $target"
-}
-
-# Imprime um erro por linha para cada problema da refinada. Não imprime nada se ela estiver válida.
-refined_errors() {
-  local file="$1" type sections section heading text requirement row path action
-
-  template_leftovers "$file" | sed 's/^/variável sem preencher: /' || true
-
-  type="$(frontmatter_get "$file" type 2>/dev/null || true)"
-  if ! config_list "$SPECS_CONFIG" types | grep -qxF "$type"; then
-    echo "o campo 'type' do front-matter é inválido: '$type'"
-    return
-  fi
-  sections="$(config_list "$SPECS_CONFIG" "sections_$type")"
-
-  # Toda seção do tipo existe e tem conteúdo; seções com tabela têm ao menos uma linha.
-  while IFS= read -r section; do
-    heading="$(section_heading "$section")"
-    if ! text="$(markdown_section "$file" "$heading")"; then
-      echo "seção ausente: '## $heading'"
-    elif grep -q '^|' "$(section_template "$section")"; then
-      [ -n "$(markdown_table_rows <<< "$text")" ] ||
-        echo "a tabela da seção '$heading' está vazia (use uma linha com '-' se não se aplica)"
-    elif ! grep -q '[^[:space:]]' <<< "$text"; then
-      echo "a seção '$heading' está vazia"
-    fi
-  done <<< "$sections"
-
-  # Todo requisito funcional aparece em algum caso de teste e em algum critério de aceite.
-  if grep -qxF functional-requirements <<< "$sections"; then
-    while IFS= read -r row; do
-      requirement="$(markdown_cell "$row" 1)"
-      [ "$requirement" != "-" ] || continue
-      if [[ ! "$requirement" =~ ^RF-[0-9]+$ ]]; then
-        echo "ID de requisito funcional inválido: '$requirement' (use RF-01, RF-02...)"
-        continue
-      fi
-      for section in test-cases acceptance-criteria; do
-        grep -qxF "$section" <<< "$sections" || continue
-        heading="$(section_heading "$section")"
-        markdown_section "$file" "$heading" 2>/dev/null | grep -qE "(^|[^A-Z0-9-])$requirement([^0-9]|\$)" ||
-          echo "$requirement não aparece em '$heading'"
-      done
-    done <<< "$(markdown_section "$file" "$(section_heading functional-requirements)" 2>/dev/null | markdown_table_rows)"
-  fi
-
-  # Análise: todo argumento da tese e da antítese é considerado em alguma conclusão da síntese.
-  if grep -qxF synthesis <<< "$sections"; then
-    text="$(markdown_section "$file" "$(section_heading synthesis)" 2>/dev/null | markdown_table_rows)"
-    for section in thesis antithesis; do
-      grep -qxF "$section" <<< "$sections" || continue
-      while IFS= read -r row; do
-        [ -n "$row" ] || continue
-        requirement="$(markdown_cell "$row" 1)"
-        [ "$requirement" != "-" ] || continue
-        grep -qE "(^|[^A-Z0-9-])$requirement([^0-9]|\$)" <<< "$text" ||
-          echo "$requirement ('$(section_heading "$section")') não é considerado em nenhuma conclusão da síntese"
-      done <<< "$(markdown_section "$file" "$(section_heading "$section")" 2>/dev/null | markdown_table_rows)"
-    done
-  fi
-
-  # Componentes afetados: ação conhecida e caminho coerente com ela.
-  if grep -qxF affected-components <<< "$sections"; then
-    while IFS= read -r row; do
-      [ -n "$row" ] || continue
-      path="$(markdown_cell "$row" 1 | tr -d '`')"
-      action="$(markdown_cell "$row" 2)"
-      [ "$path" != "-" ] || continue
-      case " $COMPONENT_ACTIONS " in
-        *" $action "*) ;;
-        *) echo "ação inválida para '$path': '$action' (use: $COMPONENT_ACTIONS)"; continue ;;
-      esac
-      if [ "$action" = criar ] && [ -e "$root_dir/$path" ]; then
-        echo "'$path' já existe; use a ação 'alterar'"
-      elif [ "$action" != criar ] && [ ! -e "$root_dir/$path" ]; then
-        echo "'$path' não existe em $root_dir; use a ação 'criar' ou corrija o caminho"
-      fi
-    done <<< "$(markdown_section "$file" "$(section_heading affected-components)" 2>/dev/null | markdown_table_rows)"
-  fi
 }
 
 finalize_refined() {

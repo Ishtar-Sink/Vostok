@@ -1,6 +1,7 @@
 # Leitura e escrita dos arquivos em `config/`.
 # Suporta o subconjunto de YAML usado ali: `chave: valor` em até dois níveis
-# (acessados como `pai.filho`) e blocos literais de primeiro nível (`chave: |`).
+# (acessados como `pai.filho`), blocos literais de primeiro nível (`chave: |`)
+# e listas de primeiro nível (`chave:` seguida de itens `- valor`).
 # Uso: source "$HARNESS_DIR/scripts/lib/config.sh"
 
 # Caminho percorrido pelo awk para cada linha: define `path`, `line` e `indent`.
@@ -44,6 +45,26 @@ config_block() {
     }
     END { exit !found }
   ' "$1" || { echo "Bloco '$2' não encontrado em $1" >&2; return 1; }
+}
+
+# Imprime os itens de uma lista de primeiro nível, um por linha.
+# config_list <arquivo> <chave>
+config_list() {
+  awk -v want="$2" '
+    !inlist && $0 ~ ("^" want ":[ \t]*$") { inlist = 1; found = 1; next }
+    inlist && /^[ \t]*(#|$)/ { next }
+    inlist && /^[ \t]*-[ \t]/ {
+      item = $0
+      sub(/^[ \t]*-[ \t]+/, "", item)
+      sub(/[ \t]+#.*$/, "", item)
+      gsub(/[ \t]+$/, "", item)
+      if (item ~ /^".*"$/ || item ~ /^\047.*\047$/) item = substr(item, 2, length(item) - 2)
+      print item
+      next
+    }
+    inlist { exit }
+    END { exit !found }
+  ' "$1" || { echo "Lista '$2' não encontrada em $1" >&2; return 1; }
 }
 
 # Troca o valor escalar de uma chave existente, preservando o resto do arquivo.

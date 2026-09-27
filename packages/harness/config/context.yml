@@ -1,0 +1,8 @@
+# Contexto carregado para o agente.
+
+# Carregado por `load-context.sh` no início do trabalho, sempre.
+# Pastas (carregadas por inteiro) e arquivos específicos, relativos à raiz do harness,
+# na ordem em que aparecem aqui.
+required:
+  - context
+  - rules/agent

@@ -31,6 +31,7 @@ Cria uma skill no local certo e no formato padrão do harness, pronta para ser i
 [create-skill-05]: Use um único termo para cada conceito, definido em "Termos".
 [create-skill-06]: Todo ponto em que a skill deve parar e esperar o usuário é marcado com **PARE** e a condição.
 [create-skill-07]: No máximo 1 rodada de perguntas ao usuário. O que continuar em aberto vira decisão sua, informada na resposta final.
+[create-skill-08]: Respostas ao usuário na skill criada usam os templates de `templates/responses/` ([agent/responses-01]). A seção "Formatos de resposta" traz só formatos próprios da skill.
 
 ## Checklist
 
@@ -70,7 +71,7 @@ Extraia do pedido do usuário:
 | Operações determinísticas | listar arquivos, validar formato |
 | Escopo: `custom` ou `default` | `custom`, a menos que o usuário peça uma skill do próprio harness |
 
-Se faltar algum item que não pode ser inferido, **PARE** e pergunte, no [formato de pergunta](#formato-de-pergunta), numa única mensagem.
+Se faltar algum item que não pode ser inferido, **PARE** e pergunte com o template `question`, numa única mensagem.
 
 ### 3. Criar a skill
 
@@ -80,7 +81,7 @@ Execute:
 packages/harness/skills/default/create-skill/scripts/create-skill.sh <nome>
 ```
 
-Para uma skill do próprio harness, use `--default <nome>`. Se o script falhar (nome inválido ou skill já existente), **PARE** e mostre o erro ao usuário.
+Para uma skill do próprio harness, use `--default <nome>`. Se o script falhar (nome inválido ou skill já existente), **PARE** e responda com o template `blocker`.
 
 ### 4. Criar e implementar os scripts
 
@@ -117,7 +118,7 @@ Substitua as variáveis do template:
 | `#{SKILL_RULES}` | Uma regra por linha, no formato `[<nome>-NN]: regra.` | Sim |
 | `#{SKILL_CHECKLIST}` | Uma linha `- [ ] N. Passo` para cada passo. | Não |
 | `#{SKILL_STEPS}` | Uma seção `### N. Passo` para cada passo, com comandos exatos e condições **PARE**. | Não |
-| `#{SKILL_RESPONSE_FORMATS}` | Templates exatos das mensagens ao usuário. | Sim |
+| `#{SKILL_RESPONSE_FORMATS}` | Só formatos próprios da skill, como uma tabela extra. Perguntas, conclusão e bloqueios usam `templates/responses/`. | Sim |
 
 Para um campo opcional que não se aplica, remova a linha dele do front-matter. Para uma seção opcional que não se aplica, remova a seção inteira.
 
@@ -133,29 +134,11 @@ packages/harness/skills/default/create-skill/scripts/create-skill.sh --finalize 
 
 O script valida a skill e lista todos os problemas encontrados: variáveis sem preencher, `name` diferente do nome da pasta, `description` vazia, longa demais ou com tags XML, SKILL.md com mais de 500 linhas e caminhos de `metadata` que não existem. Sem problemas, ele gera os redirecionamentos e atualiza o catálogo.
 
-Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e mostre os erros ao usuário.
+Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 ### 7. Responder ao usuário
 
-Responda com:
+Responda com o template `completion`:
 
-1. O caminho do SKILL.md e dos scripts criados.
-2. Os redirecionamentos gerados.
-3. As decisões tomadas sem perguntar ([create-skill-07]).
-
-## Formatos de resposta
-
-### Formato de pergunta
-
-```markdown
-# 1. Título da pergunta
-
-Contexto da pergunta, em até 3 frases.
-
-| Opção | Descrição |
-|---|---|
-| A | Descrição em prosa da opção. |
-| B | Descrição em prosa da opção. |
-```
-
-Feche a mensagem com: `Responda com o número e a letra (ex.: 1A, 2B).`
+- **O que foi feito:** o caminho do SKILL.md, dos scripts criados e dos redirecionamentos gerados.
+- **Pendências:** as decisões tomadas sem perguntar ([create-skill-07]).

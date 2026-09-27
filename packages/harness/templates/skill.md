@@ -36,4 +36,6 @@ Copie e marque o progresso:
 
 ## Formatos de resposta
 
+Respostas ao usuário usam os templates de `templates/responses/`. Formatos próprios desta skill:
+
 #{SKILL_RESPONSE_FORMATS}

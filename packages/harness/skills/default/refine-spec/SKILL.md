@@ -71,7 +71,7 @@ packages/harness/scripts/default/context/load-extra-context.sh rules/agent/templ
 1. Execute `packages/harness/scripts/default/specs/list-specs.sh draft`.
 2. Nenhuma spec: **PARE** e informe que não há specs em draft.
 3. Uma spec: use-a.
-4. Mais de uma: **PARE** e pergunte qual refinar, no [formato de pergunta](#formato-de-pergunta), com uma opção por spec (ID e título).
+4. Mais de uma: **PARE** e pergunte qual refinar, com o template `question`, com uma opção por spec (ID e título).
 
 ### 3. Ler e analisar a spec
 
@@ -87,7 +87,7 @@ Leia o rascunho inteiro. Classifique cada problema encontrado como ambiguidade, 
 
 Sem perguntas: vá para o passo 5 e mostre as inferências na resposta final.
 
-Com perguntas: envie numa única mensagem todas as perguntas, no [formato de pergunta](#formato-de-pergunta), seguidas da [tabela de inferências](#tabela-de-inferências). **PARE** e aguarde a resposta.
+Com perguntas: envie numa única mensagem todas as perguntas, com o template `question`, seguidas da [tabela de inferências](#tabela-de-inferências). **PARE** e aguarde a resposta.
 
 Ao receber as respostas:
 
@@ -103,7 +103,7 @@ Execute:
 packages/harness/scripts/default/specs/create-refined-spec.sh <SPEC_ID>
 ```
 
-O script imprime o caminho do arquivo criado. Se ele falhar, **PARE** e mostre o erro ao usuário.
+O script imprime o caminho do arquivo criado. Se ele falhar, **PARE** e responda com o template `blocker`.
 
 ### 6. Preencher a refinada
 
@@ -124,35 +124,19 @@ Execute:
 packages/harness/scripts/default/specs/create-refined-spec.sh --finalize <SPEC_ID>
 ```
 
-O script falha se ainda houver variáveis `#{...}` e lista as linhas onde elas estão. Corrija essas linhas e execute de novo. Se falhar pela segunda vez, **PARE** e mostre o erro ao usuário.
+O script falha se ainda houver variáveis `#{...}` e lista as linhas onde elas estão. Corrija essas linhas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 ### 8. Responder ao usuário
 
-Responda com:
+Responda com o template `completion`:
 
-1. O caminho da refinada.
-2. Um resumo de 1 a 3 frases do que mudou.
-3. A [tabela de inferências](#tabela-de-inferências), se ela ainda não foi mostrada numa rodada.
-4. O número de pendências, se houver.
+- **O que foi feito:** o caminho da refinada e um resumo de 1 a 3 frases do que mudou.
+- **Pendências:** o número de pendências registradas na refinada.
+- Acrescente a [tabela de inferências](#tabela-de-inferências) depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
 
 ## Formatos de resposta
 
-### Formato de pergunta
-
-Numere as perguntas a partir de 1. Identifique as opções por letras, a partir de A.
-
-```markdown
-# 1. Título da pergunta
-
-Contexto da pergunta: o trecho da spec e por que ele é ambíguo, em até 3 frases.
-
-| Opção | Descrição |
-|---|---|
-| A | Descrição em prosa da opção. |
-| B | Descrição em prosa da opção. |
-```
-
-Feche a mensagem com: `Responda com o número e a letra (ex.: 1A, 2B). Para corrigir uma inferência, cite a letra dela.`
+Perguntas usam o template `question`. Nas rodadas do passo 4, o contexto de cada pergunta cita o trecho da spec, e o fechamento ganha a frase: `Para corrigir uma inferência, cite a letra dela.`
 
 ### Tabela de inferências
 

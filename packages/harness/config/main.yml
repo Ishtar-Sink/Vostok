@@ -2,9 +2,9 @@
 # Caminhos relativos partem da raiz do harness (a pasta que contém `config/`).
 
 paths:
-  root: ../
+  root: ../../
   specs: ./work/specs
   tasks: ./work/tasks
   templates: ./templates
   scripts: ./scripts
-  docs: ../docs
+  docs: ../../docs

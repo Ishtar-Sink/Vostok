@@ -6,7 +6,8 @@
 #      Termina com erro se algum caminho não for encontrado, depois de carregar os demais.
 set -euo pipefail
 
-HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
 source "$HARNESS_DIR/scripts/lib/context.sh"
 
 # Resolve um caminho: absoluto, relativo à raiz do harness ou relativo ao diretório atual.

@@ -3,8 +3,8 @@
 # A lista de fontes fica em `required`, no `config/context.yml`.
 set -euo pipefail
 
-# Raiz do harness, resolvida a partir do próprio script para funcionar de qualquer diretório.
-HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
 source "$HARNESS_DIR/scripts/lib/config.sh"
 source "$HARNESS_DIR/scripts/lib/context.sh"
 

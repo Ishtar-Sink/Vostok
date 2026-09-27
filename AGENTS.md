@@ -1,5 +1,5 @@
 > Este arquivo é o roteamento para o harness do projeto.
-> Execute o script `packages/harness/scripts/default/load-context.sh` para carregar o contexto obrigatório.
+> Execute o script `packages/harness/scripts/default/context/load-context.sh` para carregar o contexto obrigatório.
 
 Lista os projetos em cada conector utilizado pelo projeto. Os valores estão em variáveis ambientes.
 

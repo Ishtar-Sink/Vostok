@@ -359,10 +359,10 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
    ===================================================================== */
 const DATA = {
   updatedAt: "2026-09-27",
-  head: "f3f5d2d",
+  head: "f7c292b",
 
   phases: [
-    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 70 },
+    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 75 },
     { n: "Fase 2", t: "Serviços e painel", s: "Servidor HTTP com MongoDB, servidor MCP e painel web.", status: "planned", progress: 0 },
     { n: "Fase 3", t: "Harness nos dois sentidos", s: "Harness local sincronizado com os serviços.", status: "planned", progress: 0 }
   ],
@@ -376,12 +376,12 @@ const DATA = {
       intro: {
         kicker: "Visão geral",
         title: "Harness passivo, serviços por pull",
-        text: "O agente trabalha na ferramenta do desenvolvedor, seguindo o harness. Nas próximas fases, ele busca trabalho no servidor MCP; o servidor HTTP é o único que grava no MongoDB, e aprovações acontecem só pelo painel web.",
+        text: "O agente trabalha na ferramenta do desenvolvedor, seguindo o harness. Nas próximas fases, ele busca trabalho no servidor MCP; o servidor HTTP é o único que grava no MongoDB. Specs são aprovadas na ferramenta de IA, com envio ao servidor pelo MCP, ou pelo painel web.",
         list: ["Clique em um bloco para ver os detalhes.", "Blocos tracejados ainda não existem."]
       },
       nodes: [
         { id: "dev", x: 30, y: 250, w: 150, label: "Desenvolvedor", sub: "pede e revisa", status: "done",
-          d: { text: "Quem conversa com o agente na ferramenta de IA e aprova o trabalho.", list: ["Pede specs, refinamentos e ajustes em linguagem natural.", "Na fase 2, aprova specs e tarefas pelo painel web."] } },
+          d: { text: "Quem conversa com o agente na ferramenta de IA e aprova o trabalho.", list: ["Pede specs, refinamentos e ajustes em linguagem natural.", "Aprova specs na ferramenta de IA (approve-spec) e, na fase 2, também pelo painel web."] } },
         { id: "tools", x: 215, y: 250, w: 205, label: "Ferramentas de IA", sub: "Claude Code, Codex, Cursor", status: "done",
           d: { text: "O agente roda dentro da ferramenta do desenvolvedor. O harness não depende de nenhuma delas.", list: ["Claude Code lê `.claude/skills/`.", "Codex lê `.agents/skills/`.", "Cursor lê as duas pastas; por isso `.cursor/skills` fica desligado."] } },
         { id: "harness", x: 450, y: 250, w: 170, label: "Harness", sub: "packages/harness", status: "wip",
@@ -393,12 +393,12 @@ const DATA = {
         { id: "mongo", x: 862, y: 90, w: 128, label: "MongoDB", sub: "estado e eventos", status: "planned",
           d: { text: "Banco dos serviços. Só o servidor HTTP grava nele.", list: [] } },
         { id: "web", x: 220, y: 420, w: 180, label: "Painel web", sub: "apps/web", status: "planned",
-          d: { text: "Interface do desenvolvedor. Aprovações acontecem só por aqui.", list: ["Exibe specs, tarefas e a memória do agente."] } }
+          d: { text: "Interface do desenvolvedor. Também permite aprovar specs.", list: ["Exibe specs, tarefas e a memória do agente."] } }
       ],
       edges: [
         { from: "dev", to: "tools", label: "pede em linguagem natural" },
         { from: "tools", to: "harness", label: "carrega regras e skills" },
-        { from: "tools", to: "mcp", label: "busca trabalho (pull)", planned: true },
+        { from: "tools", to: "mcp", label: "busca trabalho e envia aprovações", planned: true },
         { from: "mcp", to: "server", label: "API", planned: true },
         { from: "server", to: "mongo", label: "único escritor", planned: true },
         { from: "dev", to: "web", label: "aprova pela web", planned: true },
@@ -459,10 +459,10 @@ const DATA = {
       id: "specs",
       tab: "Ciclo da spec",
       title: "Ciclo de vida de uma spec",
-      text: "Do pedido ao rascunho, do rascunho à refinada e dos ajustes à refinada. Aprovação e tarefas vêm depois.",
+      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação. Tarefas e execução vêm depois.",
       intro: {
         kicker: "Specs",
-        title: "Rascunho, refinada, ajustes",
+        title: "Rascunho, refinada, ajustes, aprovação",
         text: "Cada etapa tem uma skill e um script. O agente escreve o conteúdo; os scripts criam arquivos, validam e registram.",
         list: ["IDs no formato SPEC-001, com a sequência em `config/sequences.yml`.", "Cinco tipos: feature, improvement, fix, study e analysis."]
       },
@@ -476,13 +476,13 @@ const DATA = {
         { id: "refine", x: 600, y: 90, w: 170, label: "refine-spec", sub: "skill · 9 passos", status: "done",
           d: { kicker: "Skill", text: "Investiga memória e código, pergunta em até 2 rodadas e monta a refinada com as seções do tipo.", cmds: ["create-refined-spec.sh <SPEC_ID> <tipo>", "create-refined-spec.sh --validate <SPEC_ID>", "create-refined-spec.sh --mark-refined <SPEC_ID>"], list: ["IDs rastreáveis: RF, RNF, RN, CB, CT, CA, PQ, T, A, S.", "A validação confere seções, tabelas, RF sem teste ou critério e componentes afetados.", "`--mark-refined` grava o `content_hash` e muda o rascunho para refined."] } },
         { id: "refined", x: 805, y: 90, w: 160, label: "refined", sub: "work/specs/refined", state: true, status: "done",
-          d: { kicker: "Estado", text: "Spec refinada, com seções por tipo, registro de decisões e histórico de ajustes.", list: ["Front-matter: type, source, refined_at, adjustments, adjusted_at, content_hash."] } },
+          d: { kicker: "Estado", text: "Spec refinada, com seções por tipo, registro de decisões e histórico de ajustes. Depois da aprovação, continua aqui com status `approved`.", list: ["Front-matter: type, source, refined_at, adjustments, adjusted_at, content_hash.", "Aprovada: approved_at e approved_hash; o rascunho é removido."] } },
         { id: "adjust", x: 805, y: 300, w: 160, label: "adjust-spec", sub: "skill · 10 passos", status: "done",
           d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem, em prosa, em lista ou citando o trecho exato.", cmds: ["adjust-spec.sh --record-manual <SPEC_ID>", "adjust-spec.sh --validate <SPEC_ID>", "adjust-spec.sh --record <SPEC_ID> \"resumo\""], list: ["No máximo 1 rodada de perguntas, antes de qualquer edição.", "Todos os ajustes de uma mensagem viram uma linha no histórico.", "Validado em 11 cenários com agente."] } },
         { id: "manual", x: 805, y: 460, w: 160, label: "Edição manual", sub: "feita à mão", status: "done",
           d: { text: "Mudanças feitas direto no arquivo. O `--record-manual` as detecta pelo hash do conteúdo e registra como ajuste de origem manual.", list: ["Fora do git, o resumo é \"Edição manual\"; versionado, lista as seções alteradas."] } },
-        { id: "approve", x: 560, y: 300, w: 170, label: "Aprovação", sub: "pelo painel web", status: "planned",
-          d: { text: "Fluxo ainda não definido. Na fase 2, a aprovação acontece só pelo painel web.", list: [] } },
+        { id: "approve", x: 560, y: 300, w: 170, label: "approve-spec", sub: "skill · 4 passos", status: "done",
+          d: { kicker: "Skill", text: "Aprova a spec refinada: confere os impedimentos, muda o status para `approved`, grava a versão aprovada e remove o rascunho. A spec continua em `refined/`.", cmds: ["approve-spec.sh --validate <SPEC_ID>", "approve-spec.sh --approve <SPEC_ID>"], list: ["Impedimentos: spec inválida, pendência aberta, spec sem `content_hash` ou edição manual sem registro.", "`approved_hash` guarda o `content_hash` aprovado, para a granularização conferir depois.", "Um ajuste depois da aprovação a derruba: o status volta a `refined`.", "Na fase 2, a aprovação feita na ferramenta é enviada ao servidor pelo MCP; também será possível aprovar pela web.", "Validado em 5 cenários com agente."] } },
         { id: "tasks", x: 330, y: 300, w: 170, label: "Tarefas", sub: "granularização", status: "planned",
           d: { text: "Quebra da spec aprovada em tarefas. O caminho `work/tasks` já está em `config/main.yml`.", list: [] } },
         { id: "exec", x: 100, y: 300, w: 170, label: "Execução", sub: "agente implementa", status: "planned",
@@ -496,8 +496,9 @@ const DATA = {
         { from: "refined", to: "adjust", label: "pedido de ajuste", bend: -34 },
         { from: "adjust", to: "refined", label: "--record", bend: 34 },
         { from: "manual", to: "adjust", label: "--record-manual detecta" },
-        { from: "refined", to: "approve", label: "aprovar", planned: true, sides: ["b", "r"], so: [-60, 0] },
-        { from: "approve", to: "tasks", label: "granularizar", planned: true },
+        { from: "refined", to: "approve", label: "--approve", sides: ["b", "r"], so: [-60, 0] },
+        { from: "approve", to: "adjust", label: "ajuste derruba a aprovação", sides: ["r", "l"] },
+        { from: "approve", to: "tasks", label: "granularizar a aprovada", planned: true },
         { from: "tasks", to: "exec", label: "executar", planned: true }
       ]
     },
@@ -556,8 +557,8 @@ const DATA = {
       nodes: [
         { id: "create", x: 30, y: 210, w: 180, label: "create-skill", sub: "skill · 7 passos", status: "done",
           d: { kicker: "Skill", text: "Cria skills no formato padrão, com scripts, redirecionamentos e entrada no catálogo.", cmds: ["create-skill.sh [--default] <nome>", "create-skill.sh --script <nome> <script>", "create-skill.sh --finalize <nome>"], list: ["O `--finalize` valida o SKILL.md e gera redirecionamentos e catálogo."] } },
-        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "3 skills padrão", mono: true, status: "done",
-          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.0.0)", "create-skill (v1.0.0)"] } },
+        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "4 skills padrão", mono: true, status: "done",
+          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.1.0)", "approve-spec (v1.0.0)", "create-skill (v1.0.0)"] } },
         { id: "claudeDir", x: 580, y: 50, w: 190, label: ".claude/skills/", sub: "redirecionamento", mono: true, status: "done",
           d: { text: "Lido pelo Claude Code e pelo Cursor.", list: [] } },
         { id: "agentsDir", x: 580, y: 220, w: 190, label: ".agents/skills/", sub: "redirecionamento", mono: true, status: "done",
@@ -582,11 +583,11 @@ const DATA = {
 
     { id: "estrutura", tab: "Estrutura", kind: "folders", title: "Estrutura do harness",
       text: "Pastas de `packages/harness/`. Clique em uma pasta para ver os arquivos.",
-      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 134 cenários passam no Linux e no macOS."] } },
+      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 167 casos passam no Linux e no macOS."] } },
 
     { id: "historico", tab: "Histórico", kind: "timeline", title: "Histórico de commits",
       text: "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
-      intro: { kicker: "Histórico", title: "26 commits em 2 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
+      intro: { kicker: "Histórico", title: "27 commits em 2 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
   ],
 
   folders: [
@@ -612,12 +613,13 @@ const DATA = {
       ["text.sh", "render, template_leftovers, clean_title, slugify, sha256_hash."],
       ["frontmatter.sh", "Leitura e escrita de front-matter, CRLF e blocos."],
       ["markdown.sh", "Seções e tabelas, ignorando blocos de código."],
-      ["spec-validation.sh", "refined_errors e spec_content_hash."],
+      ["spec-validation.sh", "refined_errors, spec_content_hash e spec_open_pending."],
       ["memory.sh", "Tipos, arquivos e IDs da memória."],
       ["context.sh", "Impressão das fontes de contexto."]] },
     { path: "skills/", desc: "Skills padrão e customizadas", files: [
       ["default/refine-spec/", "Refina rascunhos em specs detalhadas."],
-      ["default/adjust-spec/", "Ajusta specs refinadas."],
+      ["default/adjust-spec/", "Ajusta specs refinadas e aprovadas."],
+      ["default/approve-spec/", "Aprova specs refinadas."],
       ["default/create-skill/", "Cria novas skills."],
       ["custom/", "Skills do usuário (vazia)."]] },
     { path: "templates/", desc: "Modelos usados pelos scripts", files: [
@@ -640,8 +642,8 @@ const DATA = {
     { path: "work/", desc: "Specs e tarefas em andamento", files: [
       ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas."], ["tasks/", "Tarefas (planejado)."]] },
     { path: "tests/", desc: "Testes dos scripts e cenários", files: [
-      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (134 casos)."],
-      ["agent-scenarios.md", "Roteiro e resultados dos 11 cenários com agente."],
+      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (167 casos)."],
+      ["agent-scenarios.md", "Roteiro e resultados dos 16 cenários com agente."],
       ["fixtures/agent-scenarios.sh", "Monta as cópias dos cenários."],
       ["fixtures/fill-refined.py", "Preenche specs refinadas de teste."]] }
   ],
@@ -672,11 +674,13 @@ const DATA = {
     ["7aa4450", "2026-09-27", "feat(specs): record content hash and adjustment history in refined specs"],
     ["aad37c8", "2026-09-27", "feat(adjust-spec): add skill to adjust refined specs"],
     ["558d885", "2026-09-27", "test(harness): add script test suite and agent scenarios"],
-    ["f3f5d2d", "2026-09-27", "fix(refine-spec): limit description to draft specs"]
+    ["f3f5d2d", "2026-09-27", "fix(refine-spec): limit description to draft specs"],
+    ["f7c292b", "2026-09-27", "docs: adds diagrams panel"]
   ],
 
   changes: [
-    ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."]
+    ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."],
+    ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura, ainda sem commit; aprovação também pela ferramenta de IA na arquitetura."]
   ]
 };
 

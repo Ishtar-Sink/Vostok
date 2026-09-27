@@ -1,9 +1,9 @@
 ---
 name: refine-spec
-description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar, esclarecer ou revisar uma spec, citar um ID como SPEC-001, ou perguntar quais specs em draft estão prontas para refinamento.
+description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.
 allowed-tools: Read Edit Bash(packages/harness/scripts/default/*)
 metadata:
-  version: "2.1.0"
+  version: "2.1.1"
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/specs/create-refined-spec.sh scripts/default/memory/search-memory.sh"

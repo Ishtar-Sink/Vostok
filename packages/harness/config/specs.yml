@@ -7,6 +7,13 @@ id:
   prefix: SPEC
   digits: 3
 
+# Valores do campo `status` no front-matter, em cada etapa.
+status:
+  draft: draft
+  refined: refined
+
+# --- Rascunho (create-new-spec.sh) ---
+
 # Template da nova spec, relativo a `paths.templates` (main.yml).
 template: new-spec.md
 
@@ -19,12 +26,33 @@ draft_dir: draft
 file_name: "#{SPEC_ID}-#{SPEC_SLUG}.md"
 
 # Front-matter que substitui `#{FRONT_MATTER}` no template. Os `---` são adicionados pelo script.
-# Variáveis: #{SPEC_ID}, #{SPEC_TITLE}, #{AUTHOR}, #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+# Variáveis: #{SPEC_ID}, #{SPEC_TITLE}, #{SPEC_STATUS} (status.draft), #{AUTHOR},
+# #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
 front_matter: |
   id: #{SPEC_ID}
   title: "#{SPEC_TITLE}"
-  status: draft
+  status: #{SPEC_STATUS}
   author: "#{AUTHOR}"
   created_at: #{DATETIME}
   updated_at: #{DATETIME}
   tags: []
+
+# --- Refinada (create-refined-spec.sh) ---
+
+# Template da spec refinada, relativo a `paths.templates` (main.yml).
+refined_template: refined-spec.md
+
+# Pasta dentro de `paths.specs` (main.yml) onde a spec refinada é criada, com o mesmo nome do rascunho.
+refined_dir: refined
+
+# Front-matter da spec refinada: parte do front-matter do rascunho, e as chaves abaixo
+# substituem as de mesmo nome ou são acrescentadas no fim.
+# Variáveis: #{SPEC_STATUS} (status.refined), #{SOURCE_PATH} (rascunho, relativo a `paths.specs`),
+# #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+refined_front_matter: |
+  status: #{SPEC_STATUS}
+  source: "#{SOURCE_PATH}"
+  refined_at: #{DATETIME}
+  updated_at: #{DATETIME}
+  adjustments: 0
+  adjusted_at: null

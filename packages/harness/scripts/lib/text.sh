@@ -19,6 +19,14 @@ render() {
   ' "$@"
 }
 
+# Lista, com arquivo e linha, as variáveis `#{NOME}` que ainda não foram preenchidas.
+# Variáveis entre crases são menções em documentação e não contam.
+# Termina com sucesso só se encontrar alguma.
+# template_leftovers <arquivo|pasta>...
+template_leftovers() {
+  grep -rnE '(^|[^`])#[{][A-Z0-9_]+[}]' "$@"
+}
+
 # Escapa um texto para uso dentro de aspas duplas em YAML.
 yaml_escape() {
   local s="${1//\\/\\\\}"

@@ -112,3 +112,15 @@ refined_errors() {
 spec_content_hash() {
   frontmatter_body "$1" | sha256_hash
 }
+
+# Imprime, uma por linha, as pendências abertas da refinada: linhas de dados da seção
+# `pending_heading` cuja primeira coluna é diferente de `-`. Imprime "Pendência: opções".
+# spec_open_pending <arquivo>
+spec_open_pending() {
+  local row
+  while IFS= read -r row; do
+    [ -n "$row" ] || continue
+    [ "$(markdown_cell "$row" 1)" != "-" ] || continue
+    printf '%s: %s\n' "$(markdown_cell "$row" 2)" "$(markdown_cell "$row" 3)"
+  done <<< "$(markdown_section "$1" "$(config_get "$(_spec_config)" pending_heading)" 2>/dev/null | markdown_table_rows)"
+}

@@ -11,6 +11,7 @@ id:
 status:
   draft: draft
   refined: refined
+  approved: approved
 
 # --- Rascunho (create-new-spec.sh) ---
 
@@ -157,3 +158,14 @@ adjustment_origins:
 # Resumo de um ajuste manual. Se o arquivo estiver versionado no git, o script acrescenta
 # as seções alteradas desde o último commit. Ex.: "Edição manual: Riscos, Casos de teste".
 manual_adjustment_summary: Edição manual
+
+# Título da seção de pendências da refinada (templates/spec/refined.md), sem `## `.
+# Uma pendência aberta é uma linha de dados cuja primeira coluna é diferente de `-`.
+pending_heading: Pendências
+
+# --- Aprovação (approve-spec.sh) ---
+
+# Campos do front-matter gravados na aprovação: a data e o hash do conteúdo aprovado
+# (igual a `content_hash_field` no momento da aprovação). Um ajuste grava `null` nos dois.
+approved_at_field: approved_at
+approved_hash_field: approved_hash

@@ -7,3 +7,4 @@ required:
   - context
   - rules/agent
   - rules/project/language.md
+  - templates/responses

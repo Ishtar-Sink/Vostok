@@ -3,7 +3,7 @@ name: refine-spec
 description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar, esclarecer ou revisar uma spec, citar um ID como SPEC-001, ou perguntar quais specs em draft estão prontas para refinamento.
 allowed-tools: Read Edit Bash(packages/harness/scripts/default/*)
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/specs/create-refined-spec.sh scripts/default/memory/search-memory.sh"
@@ -28,7 +28,7 @@ Transforma uma spec com status `draft` em uma spec refinada: concreta, sem ambig
 
 ## Regras
 
-[refine-spec-01]: Nunca edite o rascunho. Só o script muda o status dele, no passo 8.
+[refine-spec-01]: Nunca edite o rascunho. Só o script muda o status dele, no passo 8. Não edite o "Histórico de ajustes": ele é do script da skill `adjust-spec`.
 [refine-spec-02]: Não pergunte durante a análise. Junte todas as perguntas e envie-as numa única mensagem por rodada.
 [refine-spec-03]: No máximo 2 rodadas. O que continuar em aberto vai para a seção "Pendências" da refinada.
 [refine-spec-04]: Não crie requisitos. Tudo o que não está no rascunho e não veio de uma resposta do usuário é inferência: aparece na tabela de inferências e no "Registro de decisões".
@@ -49,7 +49,7 @@ Copie e marque o progresso:
 - [ ] 5. Rodada de perguntas (máx. 2)
 - [ ] 6. Criar a refinada
 - [ ] 7. Preencher a refinada
-- [ ] 8. Validar e finalizar
+- [ ] 8. Validar e marcar como refinada
 - [ ] 9. Responder ao usuário
 ```
 
@@ -128,15 +128,23 @@ O script monta a refinada com as seções do tipo e imprime o caminho do arquivo
 
 Leia [references/sections.md](references/sections.md) e preencha cada seção do arquivo criado, substituindo as variáveis `#{...}`. Mantenha os títulos e os cabeçalhos das tabelas como estão. Não deixe nenhuma variável `#{...}` no arquivo.
 
-### 8. Validar e finalizar
+### 8. Validar e marcar como refinada
 
 Execute:
 
 ```bash
-packages/harness/scripts/default/specs/create-refined-spec.sh --finalize <SPEC_ID>
+packages/harness/scripts/default/specs/create-refined-spec.sh --validate <SPEC_ID>
 ```
 
-O script lista todos os problemas: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O script lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+
+Com a refinada válida, execute:
+
+```bash
+packages/harness/scripts/default/specs/create-refined-spec.sh --mark-refined <SPEC_ID>
+```
+
+O script grava o hash do conteúdo da refinada e muda o status do rascunho para `refined`.
 
 ### 9. Responder ao usuário
 

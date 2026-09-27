@@ -105,3 +105,10 @@ refined_errors() {
     done <<< "$(markdown_section "$file" "$(spec_section_heading affected-components)" 2>/dev/null | markdown_table_rows)"
   fi
 }
+
+# Imprime o hash do conteúdo da spec depois do front-matter, com `\r` removido,
+# para que uma troca de fim de linha não conte como edição.
+# spec_content_hash <arquivo>
+spec_content_hash() {
+  frontmatter_body "$1" | sha256_hash
+}

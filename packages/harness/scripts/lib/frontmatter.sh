@@ -85,6 +85,40 @@ frontmatter_set() {
   fi
 }
 
+# Como frontmatter_set, mas acrescenta a chave no fim do front-matter se ela não existir.
+# frontmatter_put <arquivo> <chave> <valor>
+frontmatter_put() {
+  local tmp
+  frontmatter_set "$1" "$2" "$3" 2> /dev/null && return 0
+  tmp="$(mktemp)"
+  if awk -v want="$2" -v new="$3" '
+    { plain = $0; sub(/\r$/, "", plain) }
+    NR == 1 && plain == "---" { inside = 1; print; next }
+    inside && plain == "---" { print want ": " new; inside = 0; found = 1 }
+    { print }
+    END { exit !found }
+  ' "$1" > "$tmp"; then
+    cat "$tmp" > "$1"
+    rm -f "$tmp"
+  else
+    rm -f "$tmp"
+    echo "Front-matter não encontrado em $1" >&2
+    return 1
+  fi
+}
+
+# Imprime o conteúdo depois do front-matter, sem `\r` no fim das linhas.
+# Sem front-matter, imprime o arquivo inteiro.
+# frontmatter_body <arquivo>
+frontmatter_body() {
+  awk '
+    { sub(/\r$/, "") }
+    NR == 1 && $0 == "---" { inside = 1; next }
+    inside && $0 == "---" { inside = 0; next }
+    !inside { print }
+  ' "$1"
+}
+
 # Junta dois front-matters. Cada chave de <sobrepor> substitui a de mesmo nome em <base>,
 # na mesma posição e inclusive quando o valor antigo ocupa várias linhas.
 # Chaves novas entram no fim. Em <sobrepor>, cada chave ocupa uma linha.

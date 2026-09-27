@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Cria a spec refinada a partir de um rascunho e, depois de preenchida pelo agente, a valida e finaliza.
+# Cria a spec refinada a partir de um rascunho e, depois de preenchida pelo agente, a valida e a marca como refinada.
 # As seções da refinada dependem do tipo da spec (`types` e `sections_<tipo>` em config/specs.yml).
 # O front-matter parte do rascunho, com o tipo, a referência ao rascunho, o número de ajustes
 # e a data do último ajuste (ver `refined_front_matter`).
 #
 # Uso: create-refined-spec.sh <SPEC_ID> <tipo>
 #        Cria a refinada em `refined_dir` com as seções do tipo. Só aceita rascunhos com status.draft.
-#      create-refined-spec.sh --finalize <SPEC_ID>
-#        Valida a refinada e, se estiver tudo certo, muda o status do rascunho para status.refined.
-#        Lista todos os problemas encontrados: variáveis sem preencher, seções ausentes ou vazias,
-#        requisitos sem caso de teste ou critério de aceite, argumentos da tese ou da antítese
-#        fora da síntese e componentes afetados inconsistentes.
+#      create-refined-spec.sh --validate <SPEC_ID>
+#        Lista todos os problemas da refinada, sem alterar nada: variáveis sem preencher, seções
+#        ausentes ou vazias, requisitos sem caso de teste ou critério de aceite, argumentos da tese
+#        ou da antítese fora da síntese e componentes afetados inconsistentes (spec-validation.sh).
+#      create-refined-spec.sh --mark-refined <SPEC_ID>
+#        Valida a refinada e, se estiver tudo certo, grava o hash do conteúdo (`content_hash_field`)
+#        e muda o status do rascunho para status.refined. Com problemas, não altera nada.
 set -euo pipefail
 
 # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
@@ -24,7 +26,7 @@ source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
 
-USAGE="Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --finalize <SPEC_ID>"
+USAGE="Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --validate <SPEC_ID> | --mark-refined <SPEC_ID>"
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
@@ -34,9 +36,16 @@ draft_dir="$specs_dir/$(config_get "$SPECS_CONFIG" draft_dir)"
 refined_dir="$specs_dir/$(config_get "$SPECS_CONFIG" refined_dir)"
 draft_status="$(config_get "$SPECS_CONFIG" status.draft)"
 refined_status="$(config_get "$SPECS_CONFIG" status.refined)"
+hash_field="$(config_get "$SPECS_CONFIG" content_hash_field)"
+history_section="$(config_get "$SPECS_CONFIG" adjustment_history_section)"
 
 find_draft() {
   spec_find_by_id "$draft_dir" "$1" || die "spec $1 não encontrada em $draft_dir"
+}
+
+find_refined() {
+  spec_find_by_id "$refined_dir" "$1" ||
+    die "spec refinada $1 não encontrada em $refined_dir. Crie-a com: create-refined-spec.sh $1 <tipo>"
 }
 
 # Seções do tipo, uma por linha. Falha se o tipo não existir.
@@ -58,10 +67,12 @@ create_refined() {
 
   target="$refined_dir/$(basename "$draft")"
   [ ! -e "$target" ] ||
-    die "a spec refinada já existe: $target. Preencha-a e rode: create-refined-spec.sh --finalize $spec_id"
+    die "a spec refinada já existe: $target. Preencha-a e rode: create-refined-spec.sh --validate $spec_id"
 
   template="$templates_dir/$(config_get "$SPECS_CONFIG" refined_template)"
   [ -f "$template" ] || die "template não encontrado: $template"
+  [ -f "$(spec_section_template "$history_section")" ] ||
+    die "template de seção não encontrado: $(spec_section_template "$history_section")"
 
   while IFS= read -r section; do
     [ -f "$(spec_section_template "$section")" ] || die "template de seção não encontrado: $(spec_section_template "$section")"
@@ -85,29 +96,43 @@ create_refined() {
   TPL_SPEC_ID="$spec_id" \
   TPL_SPEC_TITLE="$(frontmatter_get "$draft" title)" \
   TPL_SECTIONS="${content%$'\n\n'}" \
+  TPL_ADJUSTMENT_HISTORY="$(cat "$(spec_section_template "$history_section")")" \
     render "$template" > "$target"
 
   echo "Spec refinada $spec_id ($type) criada em $target"
 }
 
-finalize_refined() {
-  local spec_id="$1" refined errors draft
+validate_refined() {
+  local spec_id="$1" refined errors
 
-  refined="$(spec_find_by_id "$refined_dir" "$spec_id")" ||
-    die "spec refinada $spec_id não encontrada em $refined_dir. Crie-a com: create-refined-spec.sh $spec_id <tipo>"
+  refined="$(find_refined "$spec_id")"
+  errors="$(refined_errors "$refined")"
+  [ -z "$errors" ] || die "a spec refinada $spec_id tem problemas:"$'\n'"$errors"
+  echo "Spec refinada $spec_id válida: $refined"
+}
+
+mark_refined() {
+  local spec_id="$1" refined draft status errors
+
+  refined="$(find_refined "$spec_id")"
+  draft="$(find_draft "$spec_id")"
+  status="$(frontmatter_get "$draft" status)"
+  [ "$status" = "$draft_status" ] ||
+    die "o rascunho de $spec_id já está com status '$status'. Para mudar a refinada, use a skill adjust-spec"
 
   errors="$(refined_errors "$refined")"
   [ -z "$errors" ] || die "a spec refinada $spec_id tem problemas:"$'\n'"$errors"
 
-  draft="$(find_draft "$spec_id")"
+  frontmatter_put "$refined" "$hash_field" "$(spec_content_hash "$refined")"
   frontmatter_set "$draft" status "$refined_status"
 
-  echo "Spec $spec_id finalizada: $refined"
+  echo "Spec $spec_id marcada como refinada: $refined"
   echo "Status do rascunho alterado para '$refined_status': $draft"
 }
 
 case "${1:-}" in
-  --finalize) [ -n "${2:-}" ] || die "$USAGE"; finalize_refined "$2" ;;
+  --validate) [ -n "${2:-}" ] || die "$USAGE"; validate_refined "$2" ;;
+  --mark-refined) [ -n "${2:-}" ] || die "$USAGE"; mark_refined "$2" ;;
   -*|"") die "$USAGE" ;;
   *) [ -n "${2:-}" ] || die "informe o tipo. $USAGE"; create_refined "$1" "$2" ;;
 esac

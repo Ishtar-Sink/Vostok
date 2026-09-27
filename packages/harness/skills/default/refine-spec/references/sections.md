@@ -80,3 +80,4 @@ A análise segue tese, antítese e síntese. O objetivo é chegar a uma conclus�
 | O que mudou | Uma linha por assunto alterado em relação ao rascunho. |
 | Registro de decisões | Uma linha por resposta do usuário e uma por inferência. O motivo indica a origem: `resposta 1B` ou `inferência A`. |
 | Pendências | Uma linha por ambiguidade não resolvida, ou uma linha com `-` e `Nenhuma`. |
+| Histórico de ajustes | Não preencha. O script da skill `adjust-spec` acrescenta uma linha a cada ajuste. |

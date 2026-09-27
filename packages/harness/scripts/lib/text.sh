@@ -49,6 +49,16 @@ yaml_escape() {
   printf '%s' "${s//\"/\\\"}"
 }
 
+# Imprime o SHA-256 da entrada padrão, com `sha256sum` (Linux) ou `shasum -a 256` (macOS).
+# sha256_hash < conteúdo
+sha256_hash() {
+  if command -v sha256sum > /dev/null 2>&1; then
+    sha256sum | cut -d ' ' -f 1
+  else
+    shasum -a 256 | cut -d ' ' -f 1
+  fi
+}
+
 # Converte um texto em slug: minúsculas, sem acentos, palavras separadas por hífen.
 slugify() {
   printf '%s' "$1" | LC_ALL=C sed -E '

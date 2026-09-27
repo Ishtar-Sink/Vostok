@@ -138,3 +138,22 @@ refined_front_matter: |
   updated_at: #{DATETIME}
   adjustments: 0
   adjusted_at: null
+
+# Campo do front-matter da refinada com o hash do conteúdo que vem depois do front-matter.
+# Gravado ao marcar a spec como refinada e a cada ajuste; um hash diferente indica edição manual.
+content_hash_field: content_hash
+
+# --- Ajuste (adjust-spec.sh) ---
+
+# Seção fixa do histórico de ajustes, em `sections_dir`. Ela fica no fim da refinada e
+# recebe uma linha por ajuste, sempre escrita pelo script.
+adjustment_history_section: adjustment-history
+
+# Origem registrada no histórico: edição feita à mão ou ajuste feito pelo agente.
+adjustment_origins:
+  manual: manual
+  agent: agente
+
+# Resumo de um ajuste manual. Se o arquivo estiver versionado no git, o script acrescenta
+# as seções alteradas desde o último commit. Ex.: "Edição manual: Riscos, Casos de teste".
+manual_adjustment_summary: Edição manual

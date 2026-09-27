@@ -23,3 +23,5 @@
 | # | Pendência | Opções em aberto |
 |---|---|---|
 #{PENDING}
+
+#{ADJUSTMENT_HISTORY}

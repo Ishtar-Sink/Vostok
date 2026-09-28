@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mapa do AI Hub</title>
+<title>Mapa do Vostok</title>
 <!--
-  Mapa do AI Hub: diagramas interativos do monorepo.
+  Mapa do Vostok: diagramas interativos do monorepo.
   Arquivo autocontido: abre direto no navegador, sem internet (fontes embutidas).
   Versão publicada: https://claude.ai/artifact/Fq53Zy42crGDLH4GiMzpPd
   Para atualizar, edite só o bloco DATA do script no fim do arquivo.
@@ -326,8 +326,8 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
   <header>
     <div class="brand">
       <div>
-        <div class="eyebrow">Monorepo ai-hub · mapa de desenvolvimento</div>
-        <h1>Mapa do AI Hub</h1>
+        <div class="eyebrow">Monorepo Vostok · mapa de desenvolvimento</div>
+        <h1>Mapa do Vostok</h1>
         <p class="lede">O que já foi construído e como as partes se conectam. Passe o mouse sobre um bloco para ver as conexões e clique nele para abrir os detalhes.</p>
       </div>
       <div class="updated" id="updated"></div>
@@ -358,8 +358,8 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
    status: "done" (feito), "wip" (em andamento), "planned" (planejado)
    ===================================================================== */
 const DATA = {
-  updatedAt: "2026-09-27",
-  head: "f7c292b",
+  updatedAt: "28/09/2026 - 07:49:22",
+  head: "8d05809",
 
   phases: [
     { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 75 },
@@ -371,7 +371,7 @@ const DATA = {
     {
       id: "arquitetura",
       tab: "Arquitetura",
-      title: "Arquitetura do AI Hub",
+      title: "Arquitetura do Vostok",
       text: "Visão geral do monorepo. Só o harness existe hoje; os serviços estão planejados para a fase 2.",
       intro: {
         kicker: "Visão geral",
@@ -587,7 +587,7 @@ const DATA = {
 
     { id: "historico", tab: "Histórico", kind: "timeline", title: "Histórico de commits",
       text: "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
-      intro: { kicker: "Histórico", title: "27 commits em 2 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
+      intro: { kicker: "Histórico", title: "32 commits em 2 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
   ],
 
   folders: [
@@ -675,12 +675,18 @@ const DATA = {
     ["aad37c8", "2026-09-27", "feat(adjust-spec): add skill to adjust refined specs"],
     ["558d885", "2026-09-27", "test(harness): add script test suite and agent scenarios"],
     ["f3f5d2d", "2026-09-27", "fix(refine-spec): limit description to draft specs"],
-    ["f7c292b", "2026-09-27", "docs: adds diagrams panel"]
+    ["f7c292b", "2026-09-27", "docs: adds diagrams panel"],
+    ["bc329f9", "2026-09-27", "feat(specs): add approved status and open pending check"],
+    ["97cde60", "2026-09-27", "feat(approve-spec): add skill to approve refined specs"],
+    ["5f042d5", "2026-09-27", "feat(adjust-spec): drop approval when adjusting approved specs"],
+    ["dbede62", "2026-09-27", "test(harness): cover spec approval"],
+    ["8d05809", "2026-09-27", "docs: add spec approval to the diagrams panel"]
   ],
 
   changes: [
     ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."],
-    ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura, ainda sem commit; aprovação também pela ferramenta de IA na arquitetura."]
+    ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura; aprovação também pela ferramenta de IA na arquitetura."],
+    ["2026-09-28", "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."]
   ]
 };
 
@@ -743,7 +749,7 @@ function showView(id, remember) {
   current = v; selected = null;
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v.id));
   if (remember) {
-    store("aihub-map-view", v.id);
+    store("vostok-map-view", v.id);
     try { history.replaceState(null, "", "#" + v.id); } catch (e) {}
   }
   const board = $("#board");
@@ -955,7 +961,7 @@ function renderTimeline(board) {
 /* ---------- Início ---------- */
 renderHeader();
 const fromHash = location.hash.replace("#", "");
-const start = DATA.views.some(v => v.id === fromHash) ? fromHash : (recall("aihub-map-view") || DATA.views[0].id);
+const start = DATA.views.some(v => v.id === fromHash) ? fromHash : (recall("vostok-map-view") || DATA.views[0].id);
 showView(start, false);
 </script>
 </body>

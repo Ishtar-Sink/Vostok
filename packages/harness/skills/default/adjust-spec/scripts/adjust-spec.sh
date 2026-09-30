@@ -8,8 +8,8 @@
 #
 # Uso: adjust-spec.sh --record-manual <SPEC_ID>
 #        Compara o hash gravado com o do conteúdo atual. Se forem diferentes, registra um ajuste
-#        de origem manual e lista os problemas de validação, se houver. Se a spec não tiver hash,
-#        só grava o hash atual.
+#        de origem manual e lista os problemas de validação, se houver. Spec sem hash conta como
+#        editada à mão.
 #      adjust-spec.sh --validate <SPEC_ID>
 #        Lista os problemas da refinada, sem alterar nada. Termina com erro se houver problemas.
 #      adjust-spec.sh --record <SPEC_ID> "resumo"
@@ -24,6 +24,7 @@ source "$HARNESS_DIR/scripts/lib/text.sh"
 source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
 source "$HARNESS_DIR/scripts/lib/markdown.sh"
 source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
+source "$HARNESS_DIR/scripts/lib/adjustments.sh"
 
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
@@ -39,11 +40,7 @@ refined_status="$(config_get "$SPECS_CONFIG" status.refined)"
 approved_status="$(config_get "$SPECS_CONFIG" status.approved)"
 approved_at_field="$(config_get "$SPECS_CONFIG" approved_at_field)"
 approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
-hash_field="$(config_get "$SPECS_CONFIG" content_hash_field)"
-history_section="$(config_get "$SPECS_CONFIG" adjustment_history_section)"
-manual_origin="$(config_get "$SPECS_CONFIG" adjustment_origins.manual)"
-agent_origin="$(config_get "$SPECS_CONFIG" adjustment_origins.agent)"
-manual_summary="$(config_get "$SPECS_CONFIG" manual_adjustment_summary)"
+planned_status="$(config_get "$SPECS_CONFIG" status.planned)"
 
 # Caminho da refinada. Falha se ela não existir ou não estiver com status.refined ou status.approved.
 find_refined() {
@@ -56,84 +53,11 @@ find_refined() {
   fi
 
   status="$(frontmatter_get "$refined" status 2>/dev/null || true)"
+  [ "$status" != "$planned_status" ] ||
+    die "a spec $spec_id está com status '$status': as tarefas já foram criadas, e mudá-la exige um novo ciclo"
   [ "$status" = "$refined_status" ] || [ "$status" = "$approved_status" ] ||
     die "a spec $spec_id está com status '$status'; só specs com status '$refined_status' ou '$approved_status' são ajustadas"
   printf '%s' "$refined"
-}
-
-# Seções (títulos `## `) com linhas alteradas desde o último commit, separadas por vírgula.
-# Não imprime nada se o arquivo não estiver versionado no git ou não tiver alterações.
-changed_sections() {
-  local dir base lines
-  dir="$(dirname "$1")"
-  base="$(basename "$1")"
-
-  command -v git > /dev/null 2>&1 || return 0
-  git -C "$dir" ls-files --error-unmatch -- "$base" > /dev/null 2>&1 || return 0
-  lines="$(git -C "$dir" diff -U0 HEAD -- "$base" 2>/dev/null | sed -nE 's/^@@ -[0-9,]+ \+([0-9]+).*/\1/p')"
-  [ -n "$lines" ] || return 0
-
-  CHANGED_LINES="$lines" SKIP_HEADING="$(spec_section_heading "$history_section")" awk '
-    BEGIN { n = split(ENVIRON["CHANGED_LINES"], list, "\n"); for (i = 1; i <= n; i++) changed[list[i]] = 1 }
-    { sub(/\r$/, "") }
-    NR == 1 && $0 == "---" { in_fm = 1; next }
-    in_fm { if ($0 == "---") in_fm = 0; next }
-    /^[ \t]*```/ { in_code = !in_code }
-    !in_code && /^## / { heading = substr($0, 4) }
-    (NR in changed) && heading != "" && heading != ENVIRON["SKIP_HEADING"] && !(heading in seen) {
-      seen[heading] = 1
-      out = (out == "" ? heading : out ", " heading)
-    }
-    END { if (out != "") print out }
-  ' "$1"
-}
-
-# Acrescenta uma linha à tabela da seção de histórico. Sem a seção, cria-a no fim do arquivo.
-# append_history_row <arquivo> <linha>
-append_history_row() {
-  local file="$1" row="$2" tmp
-  tmp="$(mktemp)"
-
-  if HISTORY_HEADING="## $(spec_section_heading "$history_section")" HISTORY_ROW="$row" awk '
-    FNR == 1 { pass++ }
-    { plain = $0; sub(/\r$/, "", plain) }
-    pass == 1 {
-      if (plain ~ /^[ \t]*```/) { in_code = !in_code; next }
-      if (in_code) next
-      if (plain == ENVIRON["HISTORY_HEADING"]) { inside = 1; at = FNR; next }
-      if (inside && plain ~ /^## /) inside = 0
-      if (inside && plain ~ /^\|/) at = FNR
-      next
-    }
-    { print }
-    FNR == at { print ENVIRON["HISTORY_ROW"] }
-    END { exit !at }
-  ' "$file" "$file" > "$tmp"; then
-    cat "$tmp" > "$file"
-  else
-    [ -z "$(tail -c 1 "$file")" ] || echo >> "$file"
-    { echo; cat "$(spec_section_template "$history_section")"; echo "$row"; } >> "$file"
-  fi
-  rm -f "$tmp"
-}
-
-# Registra um ajuste: linha no histórico, contagem, datas e, por último, o hash do conteúdo.
-# record_adjustment <arquivo> <origem> <resumo>
-record_adjustment() {
-  local file="$1" origin="$2" summary="$3" count now
-
-  count="$(frontmatter_get "$file" adjustments 2>/dev/null || true)"
-  [[ "$count" =~ ^[0-9]+$ ]] || count=0
-  count=$((10#$count + 1))
-  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-  # Barras verticais do resumo são escapadas para não quebrar a tabela.
-  append_history_row "$file" "| $count | ${now%%T*} | $origin | $(printf '%s' "$summary" | sed 's/|/\\|/g') |"
-  frontmatter_put "$file" adjustments "$count"
-  frontmatter_put "$file" adjusted_at "$now"
-  frontmatter_put "$file" updated_at "$now"
-  frontmatter_put "$file" "$hash_field" "$(spec_content_hash "$file")"
-  printf '%s' "$count"
 }
 
 # Derruba a aprovação de uma spec aprovada e avisa. Não faz nada numa spec só refinada.
@@ -147,25 +71,16 @@ drop_approval() {
 }
 
 record_manual() {
-  local spec_id="$1" refined stored current sections summary count errors
+  local spec_id="$1" refined summary count errors
 
   refined="$(find_refined "$spec_id")"
-  stored="$(frontmatter_get "$refined" "$hash_field" 2>/dev/null || true)"
-  current="$(spec_content_hash "$refined")"
-
-  if [ -z "$stored" ] || [ "$stored" = null ]; then
-    frontmatter_put "$refined" "$hash_field" "$current"
-    echo "Hash do conteúdo gravado em $spec_id. Nenhum ajuste registrado."
-    return
-  fi
-  if [ "$stored" = "$current" ]; then
+  if [ "$(adjustment_hash_state "$refined")" = same ]; then
     echo "Nenhuma edição manual."
     return
   fi
 
-  sections="$(changed_sections "$refined")"
-  summary="$manual_summary${sections:+: $sections}"
-  count="$(record_adjustment "$refined" "$manual_origin" "$summary")"
+  summary="$(adjustment_manual_summary "$refined")"
+  count="$(adjustment_record "$refined" "$(adjustment_origin manual)" "$summary")"
   echo "Ajuste manual $count registrado em $spec_id: $summary"
   drop_approval "$refined" "$spec_id"
 
@@ -185,15 +100,13 @@ validate() {
 record() {
   local spec_id="$1" summary refined errors count
 
-  summary="$(printf '%s' "$2" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-  [ -n "$summary" ] || die "o resumo do ajuste está vazio"
-  [[ "$summary" != *$'\n'* ]] || die "o resumo não pode ter quebra de linha; separe os itens com '; '"
+  summary="$(adjustment_clean_summary "$2" 2>&1)" || die "$summary"
 
   refined="$(find_refined "$spec_id")"
   errors="$(refined_errors "$refined")"
   [ -z "$errors" ] || die "a spec refinada $spec_id tem problemas; nenhum ajuste registrado:"$'\n'"$errors"
 
-  count="$(record_adjustment "$refined" "$agent_origin" "$summary")"
+  count="$(adjustment_record "$refined" "$(adjustment_origin agent)" "$summary")"
   echo "Ajuste $count registrado em $spec_id: $refined"
   drop_approval "$refined" "$spec_id"
 }

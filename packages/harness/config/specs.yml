@@ -12,6 +12,7 @@ status:
   draft: draft
   refined: refined
   approved: approved
+  planned: planned
 
 # --- Rascunho (create-new-spec.sh) ---
 

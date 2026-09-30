@@ -3,7 +3,7 @@ name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(packages/harness/skills/default/adjust-spec/scripts/*) Bash(packages/harness/scripts/default/*)
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: "Victor Batalha"
   requires: "rules/agent/template-usage.md rules/project/naming-convention.md skills/default/refine-spec/references/sections.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/memory/search-memory.sh skills/default/adjust-spec/scripts/adjust-spec.sh"
@@ -28,7 +28,7 @@ Aplica à spec refinada certa todos os ajustes que o usuário pediu, deixando a 
 
 ## Regras
 
-[adjust-spec-01]: Só ajuste specs com status `refined` ou `approved`. Nunca edite o rascunho.
+[adjust-spec-01]: Só ajuste specs com status `refined` ou `approved`. Nunca edite o rascunho nem uma spec com status `planned`.
 [adjust-spec-02]: Nunca edite uma spec sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-spec-03]: Nunca edite à mão o front-matter nem o "Histórico de ajustes". Só o script os altera.
 [adjust-spec-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
@@ -81,6 +81,8 @@ Nos demais casos:
 3. Mais de uma: **PARE** e pergunte qual ajustar, com o template `question`, com uma opção por spec (ID e título). Aceite também resposta livre. Não edite nada antes da resposta.
 
 Spec citada com status `draft`: **PARE** e informe o status atual. Só specs refinadas ou aprovadas são ajustadas.
+
+Spec citada com status `planned`: **PARE** e informe que as tarefas dela já foram criadas e que mudá-la exige um novo ciclo, com uma nova spec.
 
 ### 3. Registrar edições manuais
 

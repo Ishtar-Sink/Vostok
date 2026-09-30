@@ -15,6 +15,20 @@ markdown_section() {
   ' "$1"
 }
 
+# Imprime o conteúdo de uma subseção `### <subtítulo>` dentro da seção `## <título>`, até o próximo
+# `### ` ou `## `, sem o subtítulo. Títulos em blocos de código não contam. Falha se não existir.
+# markdown_subsection <arquivo> <título> <subtítulo>
+markdown_subsection() {
+  awk -v heading="## $2" -v sub_heading="### $3" '
+    { sub(/\r$/, "") }
+    /^[ \t]*```/ { in_code = !in_code; if (inside) print; next }
+    !in_code && /^## / { in_section = ($0 == heading); inside = 0; next }
+    !in_code && in_section && /^### / { inside = ($0 == sub_heading); if (inside) found = 1; next }
+    inside { print }
+    END { exit !found }
+  ' "$1"
+}
+
 # Imprime as linhas de dados das tabelas recebidas na entrada, sem cabeçalho e separador.
 # markdown_table_rows < conteúdo
 markdown_table_rows() {

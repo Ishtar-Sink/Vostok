@@ -4,6 +4,7 @@
 paths:
   root: ../../
   specs: ./work/specs
+  plans: ./work/plans
   tasks: ./work/tasks
   templates: ./templates
   scripts: ./scripts

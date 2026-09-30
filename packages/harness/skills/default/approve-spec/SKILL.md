@@ -71,7 +71,7 @@ O script lista cada impedimento, sem alterar nada. Com impedimentos, **PARE** e 
 |---|---|
 | Problema de validação | Ajustar a spec com a skill `adjust-spec`. |
 | Pendência aberta | Responder à pendência; o ajuste é feito com a skill `adjust-spec`. |
-| Spec sem `content_hash` ou edição manual sem registro | Executar o comando indicado pelo script (`adjust-spec.sh --record-manual`) ou pedir um ajuste. |
+| Edição manual sem registro (inclusive spec sem `content_hash`) | Executar o comando indicado pelo script (`adjust-spec.sh --record-manual`) ou pedir um ajuste. |
 
 ### 3. Aprovar
 

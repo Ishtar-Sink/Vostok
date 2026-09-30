@@ -5,8 +5,8 @@
 #
 # Uso: approve-spec.sh --validate <SPEC_ID>
 #        Lista os impedimentos à aprovação, um por linha, sem alterar nada: status diferente de
-#        status.refined, problemas da validação do refinamento, pendências abertas, spec sem hash
-#        do conteúdo e edição manual sem registro. Termina com erro se houver algum.
+#        status.refined, problemas da validação do refinamento, pendências abertas e edição
+#        manual sem registro (inclusive spec sem hash do conteúdo). Termina com erro se houver algum.
 #      approve-spec.sh --approve <SPEC_ID>
 #        Confere os impedimentos, grava a aprovação e remove o rascunho.
 #        Com impedimentos, termina com erro sem alterar nada.
@@ -50,7 +50,7 @@ find_refined() {
 # Imprime um impedimento por linha. Não imprime nada se a spec puder ser aprovada.
 # approval_blockers <SPEC_ID> <arquivo>
 approval_blockers() {
-  local spec_id="$1" file="$2" status stored
+  local spec_id="$1" file="$2" status
 
   status="$(frontmatter_get "$file" status 2>/dev/null || true)"
   if [ "$status" = "$approved_status" ]; then
@@ -64,12 +64,8 @@ approval_blockers() {
   refined_errors "$file" | sed 's/^/validação: /'
   spec_open_pending "$file" | sed 's/^/pendência aberta: /'
 
-  stored="$(frontmatter_get "$file" "$hash_field" 2>/dev/null || true)"
-  if [ -z "$stored" ] || [ "$stored" = null ]; then
-    echo "a spec não tem '$hash_field'; grave-o com: adjust-spec.sh --record-manual $spec_id"
-  elif [ "$stored" != "$(spec_content_hash "$file")" ]; then
+  [ "$(frontmatter_get "$file" "$hash_field" 2>/dev/null || true)" = "$(spec_content_hash "$file")" ] ||
     echo "edição manual sem registro; registre-a com: adjust-spec.sh --record-manual $spec_id"
-  fi
 }
 
 validate() {

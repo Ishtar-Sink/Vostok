@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preenche uma spec refinada de teste. Uso: fill-refined.py <arquivo> [VAR=valor ...]
+"""Preenche uma spec refinada, um plano ou uma tarefa de teste. Uso: fill-refined.py <arquivo> [VAR=valor ...]
 Valores padrão são válidos; os argumentos sobrescrevem variáveis específicas."""
 import re
 import sys
@@ -29,6 +29,21 @@ DEFAULTS = {
     'WHAT_CHANGED': '| 1 | Assunto | Antes | Depois |',
     'DECISIONS': '| 1 | Decisão | Alternativa | inferência A |',
     'PENDING': '| - | Nenhuma | - |',
+    # Plano de tarefas (templates/plan/plan.md): cobre RF-01, RF-02 e CT-01 da spec acima.
+    # TASK-01 soma 4 pontos (simples) e TASK-02 soma 5 (moderada) com os pesos padrão.
+    'PLAN_OVERVIEW': 'Visão geral do plano.',
+    'PLAN_TASKS': '| TASK-01 | Criar script | Cria o script. | tarefa | - | - | RF-01, CT-01 |\n| TASK-02 | Documentar | Documenta o uso. | historia | - | TASK-01 | RF-02 |',
+    'PLAN_FACTS': '| TASK-01 | 1 | 0 | não | não | não |\n| TASK-02 | 0 | 2 | não | sim | não |',
+    # Tarefa (templates/task/task.md).
+    'TASK_READ': '- `AGENTS.md`',
+    'TASK_CHANGE': '- `nao/existe/novo.sh` (criar): script novo.\n- `AGENTS.md` (alterar): cita o script.',
+    'TASK_STEPS': '1. Criar o script.',
+    'TASK_VERIFY': '```bash\ntrue\n```',
+    'TASK_DONE': '- O script existe.',
+    'TASK_EXECUTIVE_SUMMARY': 'Entrega o script que permite exportar dados.',
+    'TASK_TECHNICAL_DETAILS': 'Abordagem em bash, com referência a RF-01.',
+    'TASK_CARD_DESCRIPTION': 'Cria o script.',
+    'TASK_CARD_CRITERIA': '  - [ ] O script existe.',
 }
 
 path = sys.argv[1]

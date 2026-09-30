@@ -2,8 +2,9 @@
 # Monta as cópias descartáveis dos cenários com agente de tests/agent-scenarios.md.
 # Cada cenário recebe uma cópia do projeto (AGENTS.md, CLAUDE.md e packages/harness) com:
 #   SPEC-001 Exportar memória em JSON (refinada), SPEC-002 Listar tarefas (refinada)
-#   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`)
-#   ou já partem da SPEC-001 aprovada (ver `approve`).
+#   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`),
+#   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`) ou da
+#   SPEC-001 já planejada (ver `planned`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -65,19 +66,48 @@ prune() {
   for id in "$@"; do rm -f "$dir"/packages/harness/work/specs/*/"$id"-*.md; done
 }
 
-# Aprova a SPEC-001 de um cenário.
+# Aprova as specs informadas de um cenário (SPEC-001 sem argumentos).
 approve() {
-  "$1/packages/harness/skills/default/approve-spec/scripts/approve-spec.sh" --approve SPEC-001 > /dev/null
+  local dir="$1" id
+  shift
+  for id in "${@:-SPEC-001}"; do
+    "$dir/packages/harness/skills/default/approve-spec/scripts/approve-spec.sh" --approve "$id" > /dev/null
+  done
 }
 
-for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13; do
+# Cria e pontua o plano de tarefas da SPEC-001 (aprovada) de um cenário:
+# TASK-01 exporta um tipo, TASK-02 exporta todos e TASK-03 reúne os testes.
+plan() {
+  local ph="$1/packages/harness"
+  "$ph/skills/default/plan-tasks/scripts/plan-tasks.sh" --create SPEC-001 > /dev/null
+  F "$ph/work/plans/SPEC-001.md" \
+   'PLAN_OVERVIEW=O trabalho começa pelo script que exporta um tipo de memória (TASK-01), base das demais. A exportação de todos os tipos (TASK-02) reaproveita esse script. Os testes (TASK-03) fecham o plano e dependem das duas tarefas.' \
+   'PLAN_TASKS=| TASK-01 | Exportar um tipo de memória | Cria `export-memory.sh` com a exportação de um tipo e a gravação em `memory/export.json`. | tarefa | - | - | RF-01, RF-03 |\n| TASK-02 | Exportar todos os tipos | Acrescenta o tipo `all`, que junta os três tipos num único arquivo. | tarefa | - | TASK-01 | RF-02 |\n| TASK-03 | Testes da exportação | Cobre a exportação de um tipo e de todos na suíte de testes. | tarefa | - | TASK-01, TASK-02 | CT-01, CT-02 |' \
+   'PLAN_FACTS=| TASK-01 | 1 | 0 | sim | não | não |\n| TASK-02 | 0 | 1 | não | não | não |\n| TASK-03 | 0 | 1 | não | não | não |'
+  "$ph/skills/default/plan-tasks/scripts/plan-tasks.sh" --score SPEC-001 > /dev/null
+}
+
+# Aprova o plano da SPEC-001 com tarefas preenchidas pela fixture e marca a spec como planejada.
+planned() {
+  local ph="$1/packages/harness" task
+  "$ph/skills/default/approve-plan/scripts/approve-plan.sh" --create-tasks SPEC-001 > /dev/null
+  for task in "$ph"/work/tasks/SPEC-001/*.md; do F "$task"; done
+  "$ph/skills/default/approve-plan/scripts/approve-plan.sh" --mark-planned SPEC-001 > /dev/null
+}
+
+for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13 \
+  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
     ct04|ct09) prune "$DEST/$scenario" SPEC-002 ;;
     ct05|ap04) prune "$DEST/$scenario" SPEC-001 SPEC-002 ;;
     ap02) prune "$DEST/$scenario" SPEC-002 ;;
-    ap13) approve "$DEST/$scenario" ;;
+    ap13|pl01) approve "$DEST/$scenario" ;;
+    pl03) approve "$DEST/$scenario" SPEC-001 SPEC-002 ;;
+    pl06|pl06b|pl07) approve "$DEST/$scenario"; plan "$DEST/$scenario" ;;
+    pl11) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
+    pl13a|pl13b|pl13c) approve "$DEST/$scenario" SPEC-001 SPEC-002; plan "$DEST/$scenario" ;;
   esac
   echo "$DEST/$scenario"
 done

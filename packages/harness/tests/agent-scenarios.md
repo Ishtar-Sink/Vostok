@@ -1,6 +1,6 @@
 # Cenários com agente
 
-Roteiro dos cenários que exercitam as skills `adjust-spec` e `approve-spec` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
+Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan` e `approve-plan` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
 
 ## Como executar
 
@@ -18,7 +18,7 @@ Roteiro dos cenários que exercitam as skills `adjust-spec` e `approve-spec` com
    | SPEC-002 | Listar tarefas | refinada |
    | SPEC-003 | Painel de métricas | rascunho |
 
-   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada.
+   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada. Os cenários de planejamento (`pl`) partem de specs aprovadas, com ou sem plano; veja a tabela deles.
 
 2. Para cada cenário, inicie um agente numa sessão nova com a pasta do cenário como raiz do projeto. Se houver, passe o contexto da conversa e depois a mensagem do usuário. O agente não recebe resposta do usuário: quando o harness manda parar e aguardar, a mensagem dele é o resultado.
 
@@ -83,3 +83,40 @@ Execução de 2026-09-27, com Claude Code (Opus 5.5) como agente.
 | ap03 | passou | nenhum | Perguntou entre SPEC-001 e SPEC-002 com o template `question`. |
 | ap04 | passou | nenhum | Informou que só há a SPEC-003, em `draft`. |
 | ap13 | passou | refinada da SPEC-001 | Status voltou a `refined`, `approved_at` e `approved_hash` `null`; a resposta avisou que a aprovação caiu; "O que mudou" ganhou a linha 2. |
+
+## Cenários de planejamento
+
+Os casos de teste citados são os da spec de granularização (skills `plan-tasks`, `adjust-plan` e `approve-plan`). O plano da fixture (`plan` em `fixtures/agent-scenarios.sh`) tem três tarefas para a SPEC-001: TASK-01 exporta um tipo, TASK-02 exporta todos e TASK-03 reúne os testes.
+
+| Cenário | Caso de teste | Specs e plano | Mensagem do usuário | Resultado esperado |
+|---|---|---|---|---|
+| pl01 | CT-01 | SPEC-001 aprovada, sem plano | "Planeja as tarefas da SPEC-001." | Plano criado, preenchido, pontuado e válido; resposta com a visão geral, as tarefas e os níveis. |
+| pl03 | CT-03 | SPEC-001 e SPEC-002 aprovadas, sem plano | "Quebra em tarefas a spec aprovada." | Pergunta qual spec, com as duas candidatas, sem criar nada. |
+| pl06 | CT-06 | SPEC-001 aprovada, com plano | "No plano da SPEC-001, divida a TASK-01 em duas: uma para a exportação de um tipo e outra para a gravação em memory/export.json. E remova a TASK-03, passando cada caso de teste para a tarefa que ele testa." | Ajusta o plano ou pergunta pelo que ficou ambíguo, sem editar antes da resposta. |
+| pl06b | CT-06 | SPEC-001 aprovada, com plano | "No plano da SPEC-001, divida a TASK-01 em duas: uma para a exportação de um tipo (RF-01) e outra para a gravação em memory/export.json (RF-03). E remova a TASK-03: o CT-01 passa para a tarefa de gravação e o CT-02 para a tarefa do tipo all." | Dois ajustes aplicados, níveis recalculados e uma linha `agente` no histórico do plano. |
+| pl07 | CT-07, CT-18 | SPEC-001 aprovada, com plano | "Aprovo o plano de tarefas da SPEC-001." | Tarefas criadas e detalhadas, plano removido e spec `planned`; tarefas prontas para o board. |
+| pl11 | CT-11 | SPEC-001 planejada | "Na SPEC-001, acrescenta um RF para exportar também em CSV." | Recusa, informando que mudar a spec exige um novo ciclo. |
+| pl13a | CT-13 | SPEC-001 com plano e SPEC-002 sem plano, ambas aprovadas | "Planeja a SPEC-002." | Planeja a SPEC-002 sem tocar no plano da SPEC-001. |
+| pl13b | CT-13 | Como o pl13a | "Planeja a SPEC-001." | Informa que o plano existe e não o altera. |
+| pl13c | CB-14 | Como o pl13a | "Planeja a spec aprovada." | Planeja a SPEC-002, a única sem plano, sem perguntar. |
+
+Confira também se `plan-tasks.sh --validate` (ou `approve-plan.sh --validate`) passa e se `adjust-plan.sh --record-manual` responde "Nenhuma edição manual.".
+
+## Resultados dos cenários de planejamento
+
+Execução de 2026-09-28, com Claude Code (Opus 5.5) como agente.
+
+| Cenário | Resultado | Arquivos alterados | Observação |
+|---|---|---|---|
+| pl01 | passou | plano da SPEC-001 | Duas tarefas (moderada e simples), cobrindo RF-01 a RF-03, CT-01 e CT-02; `--validate` passou. |
+| pl03 | passou | nenhum | Perguntou entre SPEC-001 e SPEC-002 com o template `question`. |
+| pl06 | passou, com pergunta | nenhum | Perguntou para qual tarefa vai o CT-01, que testa as duas metades da TASK-01 dividida; não editou antes da resposta ([adjust-plan-05]). A mensagem era ambígua; o pl06b repete o pedido sem a ambiguidade. |
+| pl06b | passou | plano da SPEC-001 | Dois ajustes listados; níveis recalculados; uma linha `agente` no histórico; dependências renumeradas registradas como inferência. |
+| pl07 | falhou (bug no script) | tarefas da SPEC-001 | O `--validate` recusava `alterar` num arquivo criado pela TASK-01, de que a TASK-02 depende. O agente parou com o template `blocker` sem trocar a ação. Corrigido: caminhos criados por tarefas de que a tarefa depende contam como existentes. |
+| pl07 (repetição) | passou | spec, plano e tarefas da SPEC-001 | Três tarefas detalhadas, plano removido e spec `planned`. Na TASK-02, resumo executivo em linguagem de negócio, detalhes técnicos com RF-02 e RN-01, card completo, `type` e `labels` no front-matter (CT-18). `load-task.sh` não imprime a "Descrição". |
+| pl11 | passou | nenhum | Recusou e informou que mudar a spec `planned` exige um novo ciclo. |
+| pl13a | passou | plano da SPEC-002 | Plano da SPEC-001 intacto. |
+| pl13b | passou | nenhum | Informou que o plano da SPEC-001 existe e está atualizado, sem alterá-lo. |
+| pl13c | passou | plano da SPEC-002 | Escolheu a única spec aprovada sem plano, sem perguntar. |
+
+Em todos os cenários, os planos e as tarefas criados passaram na validação, `adjust-plan.sh --record-manual` respondeu "Nenhuma edição manual." e nenhum arquivo fora do esperado mudou (conferido com `cksum`).

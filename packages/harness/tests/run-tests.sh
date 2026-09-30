@@ -200,10 +200,9 @@ check "--validate não altera a spec válida" [ "$(sum "$ref")" = "$before" ]
 
 cp "$ref" "$ref.orig"
 sed -i.bak '/^content_hash:/d' "$ref" && rm -f "$ref.bak"
-check "sem content_hash: só grava o hash" bash -c "'$A' --record-manual SPEC-001 | grep -q 'Nenhum ajuste registrado'"
-check "sem content_hash: adjustments não muda" [ "$(fm "$ref" adjustments)" = 0 ]
-check "sem content_hash: hash gravado igual ao do refinamento" [ "$(fm "$ref" content_hash)" = "$(fm "$ref.orig" content_hash)" ]
-rm -f "$ref.orig"
+check "sem content_hash: conta como edição manual" bash -c "'$A' --record-manual SPEC-001 | grep -q 'Ajuste manual 1 registrado'"
+check "sem content_hash: hash gravado" bash -c "'$A' --record-manual SPEC-001 | grep -qx 'Nenhuma edição manual.'"
+mv "$ref.orig" "$ref"
 
 sed -i.bak 's/$/\r/' "$ref" && rm -f "$ref.bak"
 check "troca de fim de linha para CRLF não conta como edição" bash -c "'$A' --record-manual SPEC-001 | grep -qx 'Nenhuma edição manual.'"
@@ -237,14 +236,16 @@ check "--record: hash atualizado" bash -c "'$A' --record-manual SPEC-001 | grep 
 check "--record: status continua refined" [ "$(fm "$ref" status)" = refined ]
 check "--record: updated_at igual a adjusted_at" [ "$(fm "$ref" updated_at)" = "$(fm "$ref" adjusted_at)" ]
 
+cp "$ref" "$ref.orig"
 python3 - "$ref" <<'PY'
-import sys, re; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
 s = s[:s.index('\n## Histórico de ajustes')] + '\n'
-s = re.sub(r'\ncontent_hash: .*', '', s)
 open(p, 'w', encoding='utf-8').write(s)
 PY
-"$A" --record-manual SPEC-001 > /dev/null
-check "spec sem a seção de histórico: --record cria a seção" bash -c "'$A' --record SPEC-001 'Ajuste' >/dev/null && [ \$(grep -c '^## Histórico de ajustes\$' '$ref') -eq 1 ] && tail -1 '$ref' | grep -q '| agente | Ajuste |'"
+before="$(sum "$ref")"
+check "spec sem a seção de histórico: --record-manual recusa" bash -c "'$A' --record-manual SPEC-001 2>&1 | grep -q \"seção ausente: '## Histórico de ajustes'\""
+check "spec sem a seção de histórico: nada é alterado" [ "$(sum "$ref")" = "$before" ]
+mv "$ref.orig" "$ref"
 
 sed -i.bak 's/^status: refined$/status: draft/' "$ref" && rm -f "$ref.bak"
 fails "refinada com status diferente de refined" "$A" --validate SPEC-001
@@ -274,7 +275,7 @@ sed -i.bak 's/^Objetivo\.$/Objetivo mudado à mão./' "$r6" && rm -f "$r6.bak"
 check "edição manual sem registro impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q 'edição manual sem registro'"
 cp "$r6.ok" "$r6"
 sed -i.bak '/^content_hash:/d' "$r6" && rm -f "$r6.bak"
-check "spec sem content_hash impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q \"não tem 'content_hash'\""
+check "spec sem content_hash impede a aprovação" bash -c "'$AP' --validate SPEC-006 2>&1 | grep -q 'edição manual sem registro'"
 cp "$r6.ok" "$r6"
 sed -i.bak 's/^| - | Nenhuma | - |$/| 1 | Formato do log | JSON ou texto |/' "$r6" && rm -f "$r6.bak"
 "$A" --record-manual SPEC-006 > /dev/null
@@ -327,6 +328,243 @@ else
 fi
 chmod u+w "$H/work/specs/draft"
 
+# --- Planejamento ---
+PT="$H/skills/default/plan-tasks/scripts/plan-tasks.sh"
+AJP="$H/skills/default/adjust-plan/scripts/adjust-plan.sh"
+APP="$H/skills/default/approve-plan/scripts/approve-plan.sh"
+LT="$H/scripts/default/tasks/load-task.sh"
+PLANS="$H/work/plans"
+TASKS="$H/work/tasks"
+levels() { sed -n '/^## Tarefas$/,/^## /p' "$1" | grep '^| TASK-' | cut -d'|' -f6 | tr -d ' ' | paste -sd ' ' -; }
+# Monta linhas de tabela a partir de "ID|col|col..." (uma por argumento).
+rows() { local r; for r in "$@"; do printf '| %s |\\n' "$(printf '%s' "$r" | sed 's/|/ | /g')"; done | sed 's/\\n$//'; }
+
+"$SP/create-new-spec.sh" 'Planejar' > /dev/null
+"$SP/create-refined-spec.sh" SPEC-008 feature > /dev/null
+r8="$(ls "$H"/work/specs/refined/SPEC-008-*.md)"
+$FILL "$r8" && "$SP/create-refined-spec.sh" --mark-refined SPEC-008 > /dev/null
+p8="$PLANS/SPEC-008.md"
+
+fails "planejamento sem argumentos" "$PT"
+fails "planejamento de spec inexistente" "$PT" --create SPEC-099
+check "spec refined não é planejada" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q \"status 'refined'; só specs com status 'approved'\""
+"$AP" --approve SPEC-008 > /dev/null
+cp "$r8" "$r8.ok"
+sed -i.bak 's/^Objetivo\.$/Objetivo mudado à mão./' "$r8" && rm -f "$r8.bak"
+check "spec aprovada alterada à mão não é planejada" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q 'mudou depois da aprovação'"
+cp "$r8.ok" "$r8"
+sed -i.bak 's/^approved_hash: .*/approved_hash: outro/' "$r8" && rm -f "$r8.bak"
+check "approved_hash diferente do content_hash não é planejado" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q 'mudou depois da aprovação'"
+cp "$r8.ok" "$r8"
+check "nenhum plano criado nas recusas" [ ! -e "$p8" ]
+
+check "--create cria o plano" "$PT" --create SPEC-008
+check "plano: spec_hash igual ao approved_hash" [ "$(fm "$p8" spec_hash)" = "$(fm "$r8" approved_hash)" ]
+check "plano: adjustments 0 e content_hash gravado" bash -c "[ '$(fm "$p8" adjustments)' = 0 ] && [ '$(fm "$p8" content_hash)' != null ]"
+check "plano: histórico e níveis do config" bash -c "grep -q '^## Histórico de ajustes\$' '$p8' && grep -qF '| critica | Contrato público' '$p8'"
+before="$(sum "$p8")"
+check "--create com plano atualizado informa que existe" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q 'já tem um plano atualizado'"
+check "--create recusado não altera o plano" [ "$(sum "$p8")" = "$before" ]
+fails "--validate com variáveis sem preencher" "$PT" --validate SPEC-008
+
+# Níveis: pontuação só por arquivos a alterar nos limites (4, 5, 9, 10, 15, 16), cada peso isolado
+# e as somas 3, 7, 12 e 20.
+$FILL "$p8" "PLAN_TASKS=$(rows 'TASK-01|a|a|tarefa|-|-|RF-01, RF-02, CT-01' 'TASK-02|a|a|tarefa|-|-|-' 'TASK-03|a|a|tarefa|-|-|-' 'TASK-04|a|a|tarefa|-|-|-' 'TASK-05|a|a|tarefa|-|-|-' 'TASK-06|a|a|tarefa|-|-|-' 'TASK-07|a|a|tarefa|-|-|-' 'TASK-08|a|a|tarefa|-|-|-' 'TASK-09|a|a|tarefa|-|-|-' 'TASK-10|a|a|tarefa|-|-|-' 'TASK-11|a|a|tarefa|-|-|-' 'TASK-12|a|a|tarefa|-|-|-' 'TASK-13|a|a|tarefa|-|-|-' 'TASK-14|a|a|tarefa|-|-|-')" \
+  "PLAN_FACTS=$(rows 'TASK-01|0|0|não|não|não' 'TASK-02|0|4|não|não|não' 'TASK-03|0|5|não|não|não' 'TASK-04|0|9|não|não|não' 'TASK-05|0|10|não|não|não' 'TASK-06|0|15|não|não|não' 'TASK-07|0|16|não|não|não' 'TASK-08|1|3|não|sim|não' 'TASK-09|0|4|sim|não|sim' 'TASK-10|4|4|sim|não|sim' 'TASK-11|2|0|não|não|não' 'TASK-12|0|2|não|sim|não' 'TASK-13|0|0|sim|não|não' 'TASK-14|0|0|não|não|sim')"
+expected='simples simples moderada moderada complexa complexa critica moderada complexa critica simples simples simples simples'
+check "--score grava os níveis" "$PT" --score SPEC-008
+check "níveis calculados pelos pesos e limites" [ "$(levels "$p8")" = "$expected" ]
+check "--score de novo resulta nos mesmos níveis" bash -c "'$PT' --score SPEC-008 >/dev/null && [ \"\$(sed -n '/^## Tarefas\$/,/^## Fatos/p' '$p8')\" = \"$(sed -n '/^## Tarefas$/,/^## Fatos/p' "$p8")\" ]"
+check "--score atualiza o hash do conteúdo" bash -c "'$AJP' --record-manual SPEC-008 | grep -qx 'Nenhuma edição manual.'"
+check "--validate do plano válido" "$PT" --validate SPEC-008
+
+# Problemas do plano.
+cp "$p8" "$p8.ok"
+sed -i.bak 's/^| TASK-03 | a | a | tarefa | moderada | - | - |$/| TASK-03 | a | a | tarefa | simples | - | - |/' "$p8" && rm -f "$p8.bak"
+check "nível gravado à mão diferente do calculado" bash -c "'$PT' --validate SPEC-008 2>&1 | grep -qF 'TASK-03: nível \"simples\" diferente do calculado \"moderada\"'"
+cp "$p8.ok" "$p8"
+python3 - "$p8" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('| TASK-01 | a | a | tarefa | simples | - | RF-01, RF-02, CT-01 |', '| TASK-01 | a | a | tarefa | simples | TASK-02 | RF-01, CT-01 |')
+s = s.replace('| TASK-02 | a | a | tarefa | simples | - | - |', '| TASK-02 | a | a | tarefa | simples | TASK-01, TASK-40 | - |')
+s = s.replace('| TASK-13 | 0 | 0 | sim | não | não |', '| TASK-13 | 0 | x | talvez | não | não |')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+before="$(sum "$p8")"
+fails "--validate com problemas" "$PT" --validate SPEC-008
+"$PT" --validate SPEC-008 > "$R/.plan-errors" 2>&1
+check "problema: ID da spec sem tarefa" grep -qF 'RF-02 não é coberto por nenhuma tarefa' "$R/.plan-errors"
+check "problema: dependência em ciclo" grep -q 'dependência em ciclo envolvendo TASK-0[12]' "$R/.plan-errors"
+check "problema: dependência inexistente" grep -qF 'TASK-02: dependência inexistente TASK-40' "$R/.plan-errors"
+check "problema: fato numérico inválido" grep -qF 'TASK-13: fato "Arquivos a alterar" inválido: "x"' "$R/.plan-errors"
+check "problema: fato sim/não inválido" grep -qF 'TASK-13: fato "Contrato público" inválido: "talvez"' "$R/.plan-errors"
+check "--validate não altera o plano com problemas" [ "$(sum "$p8")" = "$before" ]
+fails "--score com fato inválido" "$PT" --score SPEC-008
+check "--score recusado não altera o plano" [ "$(sum "$p8")" = "$before" ]
+cp "$p8.ok" "$p8"
+python3 - "$p8" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('| TASK-02 | a | a | tarefa | simples | - | - |', '| TASK-02 | a | a | épico | simples | - | RF-09 |\n| TASK-02 | b | b | tarefa | - | TASK-02 | - |\n| TASK-1 | c | c | bug | - | - |')
+s = s.replace('| TASK-14 | 0 | 0 | não | não | sim |', '| TASK-14 | 0 | 0 | não | não | sim |\n| TASK-99 | 0 | 0 | não | não | não |')
+s = s.replace('| TASK-12 | 0 | 2 | não | sim | não |\n', '')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+"$PT" --validate SPEC-008 > "$R/.plan-errors" 2>&1
+check "problema: tipo inválido" grep -qF 'TASK-02: tipo inválido "épico"' "$R/.plan-errors"
+check "problema: ID repetido" grep -qF 'ID de tarefa repetido: TASK-02' "$R/.plan-errors"
+check "problema: dependência de si mesma" grep -qF 'TASK-02: depende de si mesma' "$R/.plan-errors"
+check "problema: linha com colunas faltando" grep -qF 'linha da tabela de tarefas com 6 colunas' "$R/.plan-errors"
+check "problema: tarefa sem fatos" grep -qF 'TASK-12: sem fatos de esforço' "$R/.plan-errors"
+check "problema: fatos de tarefa inexistente" grep -qF 'fatos de esforço de uma tarefa inexistente: TASK-99' "$R/.plan-errors"
+check "problema: cobre ID que não existe na spec" grep -qF 'a tarefa cobre RF-09, que não existe na spec' "$R/.plan-errors"
+cp "$p8.ok" "$p8"; rm -f "$p8.ok"
+
+# Plano padrão da fixture: TASK-01 (simples) e TASK-02 (moderada), cobrindo RF-01, RF-02 e CT-01.
+rm -f "$p8"; "$PT" --create SPEC-008 > /dev/null; $FILL "$p8"; "$PT" --score SPEC-008 > /dev/null
+
+# Ajuste do plano.
+fails "ajuste de plano sem argumentos" "$AJP"
+check "ajuste de spec sem plano" bash -c "'$AJP' --validate SPEC-006 2>&1 | grep -q 'não tem plano de tarefas'"
+fails "--record sem resumo" "$AJP" --record SPEC-008
+check "adjust-plan --validate de plano válido" "$AJP" --validate SPEC-008
+sed -i.bak 's/^Visão geral do plano\.$/Visão geral mudada à mão./' "$p8" && rm -f "$p8.bak"
+before="$(sum "$p8")"
+check "edição manual do plano impede a criação das tarefas" bash -c "'$APP' --create-tasks SPEC-008 2>&1 | grep -q 'edição manual no plano sem registro; registre-a com: adjust-plan.sh --record-manual SPEC-008'"
+check "--create-tasks recusado não altera nada" bash -c "[ '$(sum "$p8")' = \"\$(cksum < '$p8')\" ] && [ ! -e '$TASKS/SPEC-008' ]"
+check "edição manual do plano registrada" bash -c "'$AJP' --record-manual SPEC-008 | grep -q 'Ajuste manual 1 registrado'"
+check "edição manual: linha manual no histórico do plano" grep -qE '^\| 1 \| [0-9-]{10} \| manual \| Edição manual' "$p8"
+sed -i.bak 's/^| TASK-02 | Documentar | Documenta o uso\. | historia | moderada | TASK-01 | RF-02 |$/| TASK-02 | Documentar | Documenta o uso. | historia | moderada | TASK-01 | - |/' "$p8" && rm -f "$p8.bak"
+before="$(sum "$p8")"
+check "adjust-plan --validate aponta RF sem tarefa" bash -c "'$AJP' --validate SPEC-008 2>&1 | grep -q 'RF-02 não é coberto'"
+fails "--record com RF sem tarefa" "$AJP" --record SPEC-008 "Remove cobertura"
+check "--record recusado não altera o plano" [ "$(sum "$p8")" = "$before" ]
+sed -i.bak 's/^| TASK-02 | Documentar | Documenta o uso\. | historia | moderada | TASK-01 | - |$/| TASK-02 | Documentar | Documenta o uso. | historia | - | TASK-01 | RF-02 |/; s/^| TASK-02 | 0 | 2 | não | sim | não |$/| TASK-02 | 0 | 8 | não | sim | não |/' "$p8" && rm -f "$p8.bak"
+check "--record recalcula, valida e registra" bash -c "'$AJP' --record SPEC-008 'TASK-02 com mais arquivos' | grep -q 'Ajuste 2 registrado'"
+check "--record: nível recalculado" [ "$(levels "$p8")" = "simples complexa" ]
+check "--record: adjustments 2 e linha agente" bash -c "[ '$(fm "$p8" adjustments)' = 2 ] && grep -qF '| agente | TASK-02 com mais arquivos |' '$p8'"
+check "--record: hash atualizado" bash -c "'$AJP' --record-manual SPEC-008 | grep -qx 'Nenhuma edição manual.'"
+
+# Criação das tarefas.
+fails "aprovação de plano sem argumentos" "$APP"
+check "aprovação de spec sem plano" bash -c "'$APP' --create-tasks SPEC-006 2>&1 | grep -q 'não tem plano de tarefas'"
+check "--validate antes de criar as tarefas" bash -c "'$APP' --validate SPEC-008 2>&1 | grep -q 'ainda não foram criadas'"
+mkdir -p "$TASKS/SPEC-008"
+before="$(sum "$p8")"
+check "pasta de tarefas existente é recusada" bash -c "'$APP' --create-tasks SPEC-008 2>&1 | grep -q 'pasta de tarefas de SPEC-008 já existe'"
+check "recusa com pasta existente não cria tarefas" bash -c "[ -z \"\$(ls -A '$TASKS/SPEC-008')\" ] && [ '$before' = \"\$(cksum < '$p8')\" ]"
+rmdir "$TASKS/SPEC-008"
+check "--create-tasks cria uma tarefa por linha do plano" bash -c "'$APP' --create-tasks SPEC-008 >/dev/null && [ \"\$(ls '$TASKS/SPEC-008' | paste -sd ' ' -)\" = 'TASK-01.md TASK-02.md' ]"
+t1="$TASKS/SPEC-008/TASK-01.md"; t2="$TASKS/SPEC-008/TASK-02.md"
+check "tarefa: front-matter do plano" bash -c "[ '$(fm "$t2" id)|$(fm "$t2" spec)|$(fm "$t2" title)|$(fm "$t2" effort)|$(fm "$t2" depends_on)|$(fm "$t2" covers)|$(fm "$t2" type)|$(fm "$t2" labels)|$(fm "$t2" status)' = 'TASK-02|SPEC-008|\"Documentar\"|complexa|[TASK-01]|[RF-02]|historia|[SPEC-008, complexa]|pending' ]"
+check "tarefa sem dependências: depends_on vazio e card sem bloqueio" bash -c "[ '$(fm "$t1" depends_on)' = '[]' ] && grep -qF -- '- **Bloqueada por:** -' '$t1' && grep -qF -- '- **Bloqueada por:** TASK-01' '$t2'"
+check "tarefa: arquivos com as permissões padrão" bash -c "ls -l '$t1' | grep -q '^-rw-r--r--'"
+check "--validate aponta variáveis das tarefas" bash -c "'$APP' --validate SPEC-008 2>&1 | grep -qF 'TASK-01: variável sem preencher'"
+fails "--mark-planned com tarefas sem preencher" "$APP" --mark-planned SPEC-008
+$FILL "$t1"; $FILL "$t2"
+check "--validate das tarefas preenchidas" "$APP" --validate SPEC-008
+
+# Tarefas mal detalhadas.
+cp "$t1" "$t1.ok"; cp "$t2" "$t2.ok"
+python3 - "$t1" "$t2" <<'PY'
+import sys, re
+a, b = sys.argv[1], sys.argv[2]
+s = open(a, encoding='utf-8').read()
+s = s.replace('```bash\ntrue\n```', '')
+s = s.replace('- `AGENTS.md` (alterar): cita o script.', '- `nao/existe.md` (alterar): outro.\n- `AGENTS.md` (criar): já existe.\n- `AGENTS.md` (mover): ação.')
+open(a, 'w', encoding='utf-8').write(s)
+s = open(b, encoding='utf-8').read()
+s = re.sub(r'(### Card\n)[\s\S]*$', r'\1\n', s)
+s = s.replace('Entrega o script que permite exportar dados.', '\n'.join('Linha %d.' % i for i in range(1, 8)))
+s = s.replace('covers: [RF-02]', 'covers: [RF-01]')
+open(b, 'w', encoding='utf-8').write(s)
+PY
+before="$(sum "$r8")"
+"$APP" --validate SPEC-008 > "$R/.task-errors" 2>&1
+check "tarefa: 'Verificação' vazia" grep -qF "TASK-01: a subseção 'Verificação' está vazia" "$R/.task-errors"
+check "tarefa: caminho a alterar inexistente" grep -qF "TASK-01: 'nao/existe.md' não existe" "$R/.task-errors"
+check "tarefa: criar caminho existente" grep -qF "TASK-01: 'AGENTS.md' já existe" "$R/.task-errors"
+check "tarefa: ação inválida" grep -qF "TASK-01: ação inválida para 'AGENTS.md': 'mover'" "$R/.task-errors"
+check "tarefa: 'Card' vazio" grep -qF "TASK-02: a subseção 'Card' está vazia" "$R/.task-errors"
+check "tarefa: campo do card ausente" grep -qF "TASK-02: campo do card ausente: 'Critérios de aceite'" "$R/.task-errors"
+check "tarefa: resumo executivo longo" grep -qF 'TASK-02: o resumo executivo tem 7 linhas (máximo: 5)' "$R/.task-errors"
+check "tarefa: cobertura diferente da do plano" grep -qF "TASK-02: cobertura 'RF-01' diferente da do plano 'RF-02'" "$R/.task-errors"
+fails "--mark-planned com tarefas inválidas" "$APP" --mark-planned SPEC-008
+check "--mark-planned recusado não altera a spec nem remove o plano" bash -c "[ '$before' = \"\$(cksum < '$r8')\" ] && [ -f '$p8' ]"
+cp "$t1.ok" "$t1"; cp "$t2.ok" "$t2"
+python3 - "$t1" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('### Passos\n\n1. Criar o script.\n\n', '').replace('- `nao/existe/novo.sh` (criar): script novo.\n- `AGENTS.md` (alterar): cita o script.', 'Arquivos: AGENTS.md')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+cp "$t2" "$TASKS/SPEC-008/TASK-03.md"; rm -f "$t2"
+"$APP" --validate SPEC-008 > "$R/.task-errors" 2>&1
+check "tarefa: subseção ausente" grep -qF "TASK-01: subseção ausente: '### Passos'" "$R/.task-errors"
+check "tarefa: 'Mudar' sem item no formato" grep -qF "TASK-01: 'Mudar' sem nenhum item no formato" "$R/.task-errors"
+check "tarefa do plano sem arquivo" grep -qF 'TASK-02: arquivo da tarefa ausente' "$R/.task-errors"
+check "arquivo de tarefa fora do plano" grep -qF 'TASK-03: tarefa que não existe no plano' "$R/.task-errors"
+rm -f "$TASKS/SPEC-008/TASK-03.md"; mv "$t1.ok" "$t1"; mv "$t2.ok" "$t2"
+check "--validate das tarefas corrigidas" "$APP" --validate SPEC-008
+cp "$t1" "$t1.ok"; cp "$t2" "$t2.ok"
+sed -i.bak 's|^- `nao/existe/novo.sh` (criar): script novo\.$|- `nao/existe/novo.sh` (alterar): muda o script.|' "$t2" && rm -f "$t2.bak"
+check "tarefa altera caminho criado pela tarefa de que depende" "$APP" --validate SPEC-008
+sed -i.bak 's|^- `AGENTS.md` (alterar): cita o script\.$|- `nao/existe/outro.sh` (criar): outro.|' "$t2" && rm -f "$t2.bak"
+sed -i.bak 's|^- `AGENTS.md` (alterar): cita o script\.$|- `nao/existe/outro.sh` (alterar): usa o outro.|' "$t1" && rm -f "$t1.bak"
+check "tarefa não altera caminho criado por tarefa de que não depende" bash -c "'$APP' --validate SPEC-008 2>&1 | grep -qF \"TASK-01: 'nao/existe/outro.sh' não existe nem é criado por uma tarefa de que ela depende\""
+mv "$t1.ok" "$t1"; mv "$t2.ok" "$t2"
+
+# Carregar tarefa.
+fails "load-task sem argumentos" "$LT"
+fails "load-task de tarefa inexistente" "$LT" SPEC-008 TASK-09
+"$LT" SPEC-008 TASK-02 > "$R/.task-load" 2>&1
+check "load-task imprime o front-matter" bash -c "head -1 '$R/.task-load' | grep -qx -- '---' && grep -qx 'id: TASK-02' '$R/.task-load'"
+check "load-task imprime a Execução" bash -c "grep -qx '## Execução' '$R/.task-load' && grep -qx '### Concluída quando' '$R/.task-load'"
+check "load-task não imprime a Descrição" bash -c "! grep -q -e '^## Descrição' -e 'Resumo executivo' -e '^### Card' '$R/.task-load'"
+
+# Plano desatualizado.
+cp "$r8" "$r8.ok"; cp "$p8" "$p8.ok"
+"$A" --record SPEC-008 'RF-01 ajustado' > /dev/null && "$AP" --approve SPEC-008 > /dev/null
+rm -rf "$TASKS/SPEC-008.bak"; mv "$TASKS/SPEC-008" "$TASKS/SPEC-008.bak"
+check "plano desatualizado impede a criação das tarefas" bash -c "'$APP' --create-tasks SPEC-008 2>&1 | grep -q 'feito para outra versão da spec SPEC-008'"
+check "plano desatualizado: adjust-plan --validate aponta" bash -c "'$AJP' --validate SPEC-008 2>&1 | head -2 | grep -q 'feito para outra versão da spec SPEC-008'"
+check "plano desatualizado: --create recria e avisa" bash -c "'$PT' --create SPEC-008 | grep -q 'será recriado'"
+check "plano recriado: spec_hash da nova aprovação e sem ajustes" bash -c "[ '$(fm "$r8" approved_hash)' = \"\$(sed -n '2,/^---/p' '$p8' | grep '^spec_hash:' | sed 's/^spec_hash: //')\" ] && grep -q '^adjustments: 0\$' '$p8'"
+cp "$r8.ok" "$r8"; cp "$p8.ok" "$p8"; rm -f "$r8.ok" "$p8.ok"
+rm -rf "$TASKS/SPEC-008"; mv "$TASKS/SPEC-008.bak" "$TASKS/SPEC-008"
+
+# Conclusão do planejamento.
+check "--mark-planned conclui" bash -c "'$APP' --mark-planned SPEC-008 | grep -q 'Plano removido'"
+check "planejada: status planned e plano removido" bash -c "[ '$(fm "$r8" status)' = planned ] && [ ! -e '$p8' ]"
+check "planejada: tarefas mantidas" bash -c "[ \"\$(ls '$TASKS/SPEC-008' | wc -l | tr -d ' ')\" = 2 ]"
+check "planejada: adjust-spec recusa e cita o novo ciclo" bash -c "'$A' --validate SPEC-008 2>&1 | grep -q 'exige um novo ciclo'"
+check "planejada: plan-tasks recusa" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q \"já está com status 'planned'\""
+check "planejada: approve-spec recusa" bash -c "! '$AP' --approve SPEC-008 >/dev/null 2>&1"
+
+# Cobertura de spec do tipo study: PQ.
+"$SP/create-new-spec.sh" 'Estudo' > /dev/null
+"$SP/create-refined-spec.sh" SPEC-009 study > /dev/null
+r9="$(ls "$H"/work/specs/refined/SPEC-009-*.md)"
+$FILL "$r9" && "$SP/create-refined-spec.sh" --mark-refined SPEC-009 > /dev/null && "$AP" --approve SPEC-009 > /dev/null
+"$PT" --create SPEC-009 > /dev/null
+$FILL "$PLANS/SPEC-009.md" "PLAN_TASKS=$(rows 'TASK-01|a|a|tarefa|-|-|PQ-01')" "PLAN_FACTS=$(rows 'TASK-01|0|1|não|não|não')"
+"$PT" --score SPEC-009 > /dev/null
+check "study: plano cobrindo PQ é válido" "$PT" --validate SPEC-009
+sed -i.bak 's/| PQ-01 |$/| RF-01 |/' "$PLANS/SPEC-009.md" && rm -f "$PLANS/SPEC-009.md.bak"
+check "study: RF não existe e PQ fica sem tarefa" bash -c "out=\$('$PT' --validate SPEC-009 2>&1); grep -q 'PQ-01 não é coberto' <<< \"\$out\" && grep -q 'cobre RF-01, que não existe' <<< \"\$out\""
+sed -i.bak 's/| RF-01 |$/| PQ-01 |/' "$PLANS/SPEC-009.md" && rm -f "$PLANS/SPEC-009.md.bak"
+$FILL "$PLANS/SPEC-009.md" > /dev/null
+python3 - "$PLANS/SPEC-009.md" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('| TASK-01 | a | a | tarefa | simples | - | PQ-01 |', '| TASK-01 | a | a | tarefa | simples | - | PQ-01 |\n| TASK-02 | b | b | tarefa | simples | TASK-01 | - |\n| TASK-03 | c | c | tarefa | simples | TASK-02 | - |')
+s = s.replace('| TASK-01 | 0 | 1 | não | não | não |', '| TASK-01 | 0 | 1 | não | não | não |\n| TASK-02 | 0 | 1 | não | não | não |\n| TASK-03 | 0 | 1 | não | não | não |')
+open(p, 'w', encoding='utf-8').write(s)
+PY
+"$AJP" --record-manual SPEC-009 > /dev/null; "$APP" --create-tasks SPEC-009 > /dev/null
+$FILL "$TASKS/SPEC-009/TASK-01.md"
+$FILL "$TASKS/SPEC-009/TASK-02.md" 'TASK_CHANGE=- `AGENTS.md` (alterar): cita o script.'
+$FILL "$TASKS/SPEC-009/TASK-03.md" 'TASK_CHANGE=- `nao/existe/novo.sh` (remover): substituído.'
+check "tarefa remove caminho criado por dependência indireta" "$APP" --validate SPEC-009
+check "o plano de uma spec não interfere no de outra" bash -c "[ ! -e '$p8' ] && [ -d '$TASKS/SPEC-008' ] && [ '$(fm "$r8" status)' = planned ]"
+
 # --- Skills ---
 fails "nome de skill inválido" "$C" 'Bad_Name'
 fails "nome reservado" "$C" claude-x
@@ -347,7 +585,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

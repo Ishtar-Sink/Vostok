@@ -358,11 +358,11 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
    status: "done" (feito), "wip" (em andamento), "planned" (planejado)
    ===================================================================== */
 const DATA = {
-  updatedAt: "28/09/2026 - 07:49:22",
-  head: "8d05809",
+  updatedAt: "28/09/2026 - 08:42:32",
+  head: "511c23d",
 
   phases: [
-    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 75 },
+    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 85 },
     { n: "Fase 2", t: "Serviços e painel", s: "Servidor HTTP com MongoDB, servidor MCP e painel web.", status: "planned", progress: 0 },
     { n: "Fase 3", t: "Harness nos dois sentidos", s: "Harness local sincronizado com os serviços.", status: "planned", progress: 0 }
   ],
@@ -440,7 +440,7 @@ const DATA = {
         { id: "extra", x: 440, y: 430, w: 205, label: "load-extra-context.sh", sub: "arquivos específicos", mono: true, status: "done",
           d: { text: "Carrega pastas ou arquivos pedidos, relativos à raiz do harness.", cmds: ["load-extra-context.sh rules/agent/template-usage.md \\\n  rules/project/naming-convention.md"] } },
         { id: "extras", x: 700, y: 430, w: 250, label: "Regras e referências", sub: "naming-convention, sections.md…", status: "done",
-          d: { text: "O que cada skill declara em `metadata.requires`.", list: ["refine-spec e adjust-spec: template-usage, naming-convention.", "adjust-spec também carrega `refine-spec/references/sections.md`."] } }
+          d: { text: "O que cada skill declara em `metadata.requires`.", list: ["refine-spec e adjust-spec: template-usage, naming-convention.", "adjust-spec também carrega `refine-spec/references/sections.md`.", "plan-tasks e approve-plan: template-usage e `config/tasks.yml`."] } }
       ],
       edges: [
         { from: "claude", to: "agents", label: "lê" },
@@ -459,7 +459,7 @@ const DATA = {
       id: "specs",
       tab: "Ciclo da spec",
       title: "Ciclo de vida de uma spec",
-      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação. Tarefas e execução vêm depois.",
+      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação ao planejamento. A execução vem depois.",
       intro: {
         kicker: "Specs",
         title: "Rascunho, refinada, ajustes, aprovação",
@@ -478,13 +478,13 @@ const DATA = {
         { id: "refined", x: 805, y: 90, w: 160, label: "refined", sub: "work/specs/refined", state: true, status: "done",
           d: { kicker: "Estado", text: "Spec refinada, com seções por tipo, registro de decisões e histórico de ajustes. Depois da aprovação, continua aqui com status `approved`.", list: ["Front-matter: type, source, refined_at, adjustments, adjusted_at, content_hash.", "Aprovada: approved_at e approved_hash; o rascunho é removido."] } },
         { id: "adjust", x: 805, y: 300, w: 160, label: "adjust-spec", sub: "skill · 10 passos", status: "done",
-          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem, em prosa, em lista ou citando o trecho exato.", cmds: ["adjust-spec.sh --record-manual <SPEC_ID>", "adjust-spec.sh --validate <SPEC_ID>", "adjust-spec.sh --record <SPEC_ID> \"resumo\""], list: ["No máximo 1 rodada de perguntas, antes de qualquer edição.", "Todos os ajustes de uma mensagem viram uma linha no histórico.", "Validado em 11 cenários com agente."] } },
+          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem, em prosa, em lista ou citando o trecho exato.", cmds: ["adjust-spec.sh --record-manual <SPEC_ID>", "adjust-spec.sh --validate <SPEC_ID>", "adjust-spec.sh --record <SPEC_ID> \"resumo\""], list: ["No máximo 1 rodada de perguntas, antes de qualquer edição.", "Todos os ajustes de uma mensagem viram uma linha no histórico.", "Specs `planned` são recusadas: mudá-las exige um novo ciclo.", "Validado em 12 cenários com agente."] } },
         { id: "manual", x: 805, y: 460, w: 160, label: "Edição manual", sub: "feita à mão", status: "done",
           d: { text: "Mudanças feitas direto no arquivo. O `--record-manual` as detecta pelo hash do conteúdo e registra como ajuste de origem manual.", list: ["Fora do git, o resumo é \"Edição manual\"; versionado, lista as seções alteradas."] } },
         { id: "approve", x: 560, y: 300, w: 170, label: "approve-spec", sub: "skill · 4 passos", status: "done",
           d: { kicker: "Skill", text: "Aprova a spec refinada: confere os impedimentos, muda o status para `approved`, grava a versão aprovada e remove o rascunho. A spec continua em `refined/`.", cmds: ["approve-spec.sh --validate <SPEC_ID>", "approve-spec.sh --approve <SPEC_ID>"], list: ["Impedimentos: spec inválida, pendência aberta, spec sem `content_hash` ou edição manual sem registro.", "`approved_hash` guarda o `content_hash` aprovado, para a granularização conferir depois.", "Um ajuste depois da aprovação a derruba: o status volta a `refined`.", "Na fase 2, a aprovação feita na ferramenta é enviada ao servidor pelo MCP; também será possível aprovar pela web.", "Validado em 5 cenários com agente."] } },
-        { id: "tasks", x: 330, y: 300, w: 170, label: "Tarefas", sub: "granularização", status: "planned",
-          d: { text: "Quebra da spec aprovada em tarefas. O caminho `work/tasks` já está em `config/main.yml`.", list: [] } },
+        { id: "tasks", x: 330, y: 300, w: 170, label: "Planejamento", sub: "plan-tasks · approve-plan", status: "done",
+          d: { text: "Quebra da spec aprovada em tarefas, com plano para revisão, ajustes e aprovação. Detalhes na aba Planejamento.", list: ["Ao aprovar o plano, a spec passa a `planned`."] } },
         { id: "exec", x: 100, y: 300, w: 170, label: "Execução", sub: "agente implementa", status: "planned",
           d: { text: "O agente executa as tarefas seguindo o harness.", list: [] } }
       ],
@@ -498,8 +498,55 @@ const DATA = {
         { from: "manual", to: "adjust", label: "--record-manual detecta" },
         { from: "refined", to: "approve", label: "--approve", sides: ["b", "r"], so: [-60, 0] },
         { from: "approve", to: "adjust", label: "ajuste derruba a aprovação", sides: ["r", "l"] },
-        { from: "approve", to: "tasks", label: "granularizar a aprovada", planned: true },
+        { from: "approve", to: "tasks", label: "planejar a aprovada" },
         { from: "tasks", to: "exec", label: "executar", planned: true }
+      ]
+    },
+
+    {
+      id: "planejamento",
+      tab: "Planejamento",
+      title: "Planejamento de tarefas",
+      text: "Da spec aprovada ao plano para revisão, dos ajustes do plano às tarefas prontas para o agente e para o board.",
+      intro: {
+        kicker: "Planejamento",
+        title: "Plano, ajustes, tarefas",
+        text: "A `plan-tasks` propõe um plano só para revisão. A `adjust-plan` o ajusta; a `approve-plan`, só a pedido do usuário, cria as tarefas, remove o plano e marca a spec como `planned`.",
+        list: ["O nível de esforço é calculado por script e é só uma sugestão; nunca indica um modelo.", "Uma spec `planned` não é ajustada, reaprovada nem planejada de novo."]
+      },
+      nodes: [
+        { id: "papproved", x: 20, y: 200, w: 140, label: "approved", sub: "spec aprovada", state: true, status: "done",
+          d: { kicker: "Estado", text: "Só specs com status `approved` e `approved_hash` igual ao hash do conteúdo são planejadas.", list: [] } },
+        { id: "ptasks", x: 195, y: 200, w: 160, label: "plan-tasks", sub: "skill · 7 passos", status: "done",
+          d: { kicker: "Skill", text: "Identifica a spec entre as aprovadas sem plano atualizado, cria o plano e preenche a visão geral, as tarefas e os fatos de esforço.", cmds: ["plan-tasks.sh --create <SPEC_ID>", "plan-tasks.sh --score <SPEC_ID>", "plan-tasks.sh --validate <SPEC_ID>"], list: ["Spec citada com plano atualizado: informa e para, sem iniciar um ajuste.", "Plano desatualizado (spec reaprovada depois) é recriado com aviso.", "A validação confere cobertura dos IDs, dependências sem ciclo, fatos e níveis."] } },
+        { id: "pplan", x: 405, y: 200, w: 150, label: "plano", sub: "work/plans", state: true, status: "done",
+          d: { kicker: "Estado", text: "Documento de revisão: visão geral, tabela de tarefas, fatos de esforço, níveis e histórico de ajustes. É removido quando aprovado.", list: ["Front-matter: spec, spec_hash, content_hash, adjustments e datas."] } },
+        { id: "padjust", x: 405, y: 30, w: 150, label: "adjust-plan", sub: "skill · 10 passos", status: "done",
+          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem: dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos.", cmds: ["adjust-plan.sh --record-manual <SPEC_ID>", "adjust-plan.sh --validate <SPEC_ID>", "adjust-plan.sh --record <SPEC_ID> \"resumo\""], list: ["Mesmo registro de ajustes da spec, numa lib compartilhada (`adjustments.sh`).", "O `--record` recalcula os níveis e recusa um plano inválido sem alterá-lo."] } },
+        { id: "pmanual", x: 605, y: 30, w: 150, label: "Edição manual", sub: "feita à mão", status: "done",
+          d: { text: "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, o plano não é aprovado.", list: [] } },
+        { id: "peffort", x: 195, y: 390, w: 160, label: "Nível de esforço", sub: "config/tasks.yml", status: "done",
+          d: { text: "Soma ponderada dos fatos; o nível é o primeiro cujo limite é maior ou igual à pontuação.", list: ["simples (até 4), moderada (até 9), complexa (até 15) e critica.", "Pesos: criar 2, alterar 1, ID coberto 1, contrato público 4, inferência 2, risco alto 4."] } },
+        { id: "papprove", x: 605, y: 200, w: 150, label: "approve-plan", sub: "skill · 7 passos", status: "done",
+          d: { kicker: "Skill", text: "Só a pedido do usuário. Cria um arquivo por tarefa, detalha cada uma e conclui o planejamento.", cmds: ["approve-plan.sh --create-tasks <SPEC_ID>", "approve-plan.sh --validate <SPEC_ID>", "approve-plan.sh --mark-planned <SPEC_ID>"], list: ["Recusa spec alterada, plano desatualizado ou edição manual sem registro.", "A validação confere subseções, resumo executivo de até 5 linhas, campos do card, caminhos a mudar e cobertura."] } },
+        { id: "ptaskfiles", x: 805, y: 200, w: 150, label: "tarefas", sub: "work/tasks", state: true, status: "done",
+          d: { kicker: "Estado", text: "Um `TASK-NN.md` por tarefa, com front-matter (effort, depends_on, covers, type, labels) e duas seções.", list: ["Execução, para o agente: Ler, Mudar, Passos, Verificação e Concluída quando.", "Descrição, para pessoas: Resumo executivo, Detalhes técnicos e Card pronto para Jira ou Businessmap."] } },
+        { id: "pplanned", x: 605, y: 390, w: 150, label: "planned", sub: "spec planejada", state: true, status: "done",
+          d: { kicker: "Estado", text: "A spec fica com status `planned` e o plano é removido. Mudá-la exige um novo ciclo.", list: [] } },
+        { id: "pload", x: 805, y: 390, w: 150, label: "load-task.sh", sub: "scripts/default/tasks", mono: true, status: "done",
+          d: { text: "Imprime o front-matter e a seção \"Execução\" de uma tarefa, sem a \"Descrição\": só o que o agente precisa para executar.", cmds: ["load-task.sh <SPEC_ID> <TASK_ID>"] } }
+      ],
+      edges: [
+        { from: "papproved", to: "ptasks", label: "planejar" },
+        { from: "ptasks", to: "pplan", label: "--create e --score" },
+        { from: "peffort", to: "ptasks", label: "calcula o nível", sides: ["t", "b"] },
+        { from: "pplan", to: "padjust", label: "pedido de ajuste", sides: ["t", "b"], so: [-30, 0], to_: [-30, 0] },
+        { from: "padjust", to: "pplan", label: "--record", sides: ["b", "t"], so: [30, 0], to_: [30, 0] },
+        { from: "pmanual", to: "padjust", label: "--record-manual detecta", sides: ["l", "r"] },
+        { from: "pplan", to: "papprove", label: "aprovado pelo usuário" },
+        { from: "papprove", to: "ptaskfiles", label: "--create-tasks" },
+        { from: "papprove", to: "pplanned", label: "--mark-planned", sides: ["b", "t"] },
+        { from: "ptaskfiles", to: "pload", label: "carrega a Execução", sides: ["b", "t"] }
       ]
     },
 
@@ -557,8 +604,8 @@ const DATA = {
       nodes: [
         { id: "create", x: 30, y: 210, w: 180, label: "create-skill", sub: "skill · 7 passos", status: "done",
           d: { kicker: "Skill", text: "Cria skills no formato padrão, com scripts, redirecionamentos e entrada no catálogo.", cmds: ["create-skill.sh [--default] <nome>", "create-skill.sh --script <nome> <script>", "create-skill.sh --finalize <nome>"], list: ["O `--finalize` valida o SKILL.md e gera redirecionamentos e catálogo."] } },
-        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "4 skills padrão", mono: true, status: "done",
-          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.1.0)", "approve-spec (v1.0.0)", "create-skill (v1.0.0)"] } },
+        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "7 skills padrão", mono: true, status: "done",
+          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.2.0)", "approve-spec (v1.0.0)", "plan-tasks (v1.0.0)", "adjust-plan (v1.0.0)", "approve-plan (v1.0.0)", "create-skill (v1.0.0)"] } },
         { id: "claudeDir", x: 580, y: 50, w: 190, label: ".claude/skills/", sub: "redirecionamento", mono: true, status: "done",
           d: { text: "Lido pelo Claude Code e pelo Cursor.", list: [] } },
         { id: "agentsDir", x: 580, y: 220, w: 190, label: ".agents/skills/", sub: "redirecionamento", mono: true, status: "done",
@@ -583,22 +630,22 @@ const DATA = {
 
     { id: "estrutura", tab: "Estrutura", kind: "folders", title: "Estrutura do harness",
       text: "Pastas de `packages/harness/`. Clique em uma pasta para ver os arquivos.",
-      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 167 casos passam no Linux e no macOS."] } },
+      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 265 casos passam no Linux e no macOS."] } },
 
     { id: "historico", tab: "Histórico", kind: "timeline", title: "Histórico de commits",
       text: "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
-      intro: { kicker: "Histórico", title: "32 commits em 2 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
+      intro: { kicker: "Histórico", title: "35 commits em 3 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
   ],
 
   folders: [
     { path: "config/", desc: "Tudo o que é configurável", files: [
-      ["main.yml", "Caminhos: raiz, specs, tarefas, templates, scripts, docs, memória."],
+      ["main.yml", "Caminhos: raiz, specs, planos, tarefas, templates, scripts, docs, memória."],
       ["context.yml", "Fontes carregadas em toda sessão."],
-      ["specs.yml", "IDs, status, tipos, seções por tipo, front-matter, hash e histórico."],
+      ["specs.yml", "IDs, status (até planned), tipos, seções por tipo, front-matter, hash e histórico."],
       ["skills.yml", "Pastas, templates, redirecionamentos e catálogo."],
       ["memory.yml", "Tipos, prefixos, status, categorias e limite de busca."],
       ["sequences.yml", "Próximo número de cada sequência de IDs."],
-      ["tasks.yml", "Formato do ID das tarefas."]] },
+      ["tasks.yml", "ID, tipos, níveis, pesos e limites de esforço, templates e seções das tarefas."]] },
     { path: "scripts/default/", desc: "Scripts chamados pelo agente", files: [
       ["context/load-context.sh", "Carrega o contexto obrigatório."],
       ["context/load-extra-context.sh", "Carrega arquivos específicos."],
@@ -607,24 +654,32 @@ const DATA = {
       ["specs/create-refined-spec.sh", "Cria, valida e marca a refinada."],
       ["memory/add-memory.sh", "Cria entradas de memória."],
       ["memory/search-memory.sh", "Busca na memória."],
-      ["memory/update-memory.sh", "Altera um campo de uma entrada."]] },
+      ["memory/update-memory.sh", "Altera um campo de uma entrada."],
+      ["tasks/load-task.sh", "Carrega a execução de uma tarefa."]] },
     { path: "scripts/lib/", desc: "Funções compartilhadas", files: [
       ["config.sh", "config_get, config_list, config_block, config_set."],
       ["text.sh", "render, template_leftovers, clean_title, slugify, sha256_hash."],
       ["frontmatter.sh", "Leitura e escrita de front-matter, CRLF e blocos."],
-      ["markdown.sh", "Seções e tabelas, ignorando blocos de código."],
+      ["markdown.sh", "Seções, subseções e tabelas, ignorando blocos de código."],
       ["spec-validation.sh", "refined_errors, spec_content_hash e spec_open_pending."],
+      ["adjustments.sh", "Registro de ajustes compartilhado por specs e planos."],
+      ["plan.sh", "Níveis, cobertura, dependências e validação do plano."],
       ["memory.sh", "Tipos, arquivos e IDs da memória."],
       ["context.sh", "Impressão das fontes de contexto."]] },
     { path: "skills/", desc: "Skills padrão e customizadas", files: [
       ["default/refine-spec/", "Refina rascunhos em specs detalhadas."],
       ["default/adjust-spec/", "Ajusta specs refinadas e aprovadas."],
       ["default/approve-spec/", "Aprova specs refinadas."],
+      ["default/plan-tasks/", "Planeja as tarefas de specs aprovadas."],
+      ["default/adjust-plan/", "Ajusta planos de tarefas."],
+      ["default/approve-plan/", "Aprova planos e cria as tarefas."],
       ["default/create-skill/", "Cria novas skills."],
       ["custom/", "Skills do usuário (vazia)."]] },
     { path: "templates/", desc: "Modelos usados pelos scripts", files: [
       ["responses/", "6 templates de resposta ao usuário."],
       ["spec/", "new.md, refined.md e 21 seções em sections/."],
+      ["plan/", "Plano de tarefas."],
+      ["task/", "Tarefa, com Execução e Descrição."],
       ["skill/", "SKILL.md, redirecionamento e script."],
       ["memory/", "Arquivo e entradas de cada tipo."]] },
     { path: "rules/", desc: "Regras do agente e do projeto", files: [
@@ -640,12 +695,12 @@ const DATA = {
     { path: "memory/", desc: "Memória do agente", files: [
       ["decisions.md", "Decisões (DEC)."], ["issues.md", "Issues (ISS)."], ["knowledge.md", "Conhecimento (KNW)."]] },
     { path: "work/", desc: "Specs e tarefas em andamento", files: [
-      ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas."], ["tasks/", "Tarefas (planejado)."]] },
+      ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas, aprovadas e planejadas."], ["plans/", "Planos em revisão."], ["tasks/", "Tarefas por spec."]] },
     { path: "tests/", desc: "Testes dos scripts e cenários", files: [
-      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (167 casos)."],
-      ["agent-scenarios.md", "Roteiro e resultados dos 16 cenários com agente."],
+      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (265 casos)."],
+      ["agent-scenarios.md", "Roteiro e resultados dos 30 cenários com agente."],
       ["fixtures/agent-scenarios.sh", "Monta as cópias dos cenários."],
-      ["fixtures/fill-refined.py", "Preenche specs refinadas de teste."]] }
+      ["fixtures/fill-refined.py", "Preenche specs, planos e tarefas de teste."]] }
   ],
 
   commits: [
@@ -680,13 +735,17 @@ const DATA = {
     ["97cde60", "2026-09-27", "feat(approve-spec): add skill to approve refined specs"],
     ["5f042d5", "2026-09-27", "feat(adjust-spec): drop approval when adjusting approved specs"],
     ["dbede62", "2026-09-27", "test(harness): cover spec approval"],
-    ["8d05809", "2026-09-27", "docs: add spec approval to the diagrams panel"]
+    ["8d05809", "2026-09-27", "docs: add spec approval to the diagrams panel"],
+    ["4860ab5", "2026-09-28", "docs(memory): record Vostok as the product name"],
+    ["c456b11", "2026-09-28", "docs: rename diagrams panel to Vostok and timestamp updates"],
+    ["511c23d", "2026-09-28", "docs: add project README"]
   ],
 
   changes: [
     ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."],
     ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura; aprovação também pela ferramenta de IA na arquitetura."],
-    ["2026-09-28", "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."]
+    ["2026-09-28", "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."],
+    ["2026-09-28", "Planejamento de tarefas (plan-tasks, adjust-plan, approve-plan e load-task.sh): nova aba, ciclo da spec até planned, skills, estrutura e histórico até 511c23d."]
   ]
 };
 

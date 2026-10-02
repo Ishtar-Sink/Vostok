@@ -505,12 +505,15 @@ check "--mark-planned recusado não altera a spec nem remove o plano" bash -c "[
 cp "$t1.ok" "$t1"; cp "$t2.ok" "$t2"
 python3 - "$t1" <<'PY'
 import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
-s = s.replace('### Passos\n\n1. Criar o script.\n\n', '').replace('- `nao/existe/novo.sh` (criar): script novo.\n- `AGENTS.md` (alterar): cita o script.', 'Arquivos: AGENTS.md')
+s = s.replace('### Passos\n\n1. Criar o script.\n\n', '')
+s = s.replace('\n## Registro de execução\n', '\n').replace('| # | Data | Origem | Resumo |\n|---|---|---|---|\n', '').replace('- `nao/existe/novo.sh` (criar): script novo.\n- `AGENTS.md` (alterar): cita o script.', 'Arquivos: AGENTS.md')
 open(p, 'w', encoding='utf-8').write(s)
 PY
 cp "$t2" "$TASKS/SPEC-008/TASK-03.md"; rm -f "$t2"
 "$APP" --validate SPEC-008 > "$R/.task-errors" 2>&1
 check "tarefa: subseção ausente" grep -qF "TASK-01: subseção ausente: '### Passos'" "$R/.task-errors"
+check "tarefa: seção fixa ausente" grep -qF "TASK-01: seção ausente: '## Registro de execução'" "$R/.task-errors"
+check "tarefa: seção fixa sem a tabela" grep -qF "TASK-01: a seção '## Histórico de ajustes' está sem a tabela" "$R/.task-errors"
 check "tarefa: 'Mudar' sem item no formato" grep -qF "TASK-01: 'Mudar' sem nenhum item no formato" "$R/.task-errors"
 check "tarefa do plano sem arquivo" grep -qF 'TASK-02: arquivo da tarefa ausente' "$R/.task-errors"
 check "arquivo de tarefa fora do plano" grep -qF 'TASK-03: tarefa que não existe no plano' "$R/.task-errors"

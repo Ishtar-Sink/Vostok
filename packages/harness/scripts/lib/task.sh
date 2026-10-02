@@ -124,6 +124,16 @@ task_errors() {
 
   template_leftovers "$file" | sed "s|^|$id: variável sem preencher: |" || true
 
+  # Seções fixas, escritas só pelos scripts: precisam existir com a tabela, para receber as linhas.
+  for section in "$(config_get "$cfg" record_section)" \
+    "$(spec_section_heading "$(config_get "$HARNESS_DIR/config/specs.yml" adjustment_history_section)")"; do
+    if ! text="$(markdown_section "$file" "$section" 2>/dev/null)"; then
+      echo "$id: seção ausente: '## $section'"
+    elif ! grep -q '^|' <<< "$text"; then
+      echo "$id: a seção '## $section' está sem a tabela"
+    fi
+  done
+
   for section in execution description; do
     while IFS= read -r sub; do
       if ! text="$(markdown_subsection "$file" "$(config_get "$cfg" "${section}_section")" "$sub")"; then

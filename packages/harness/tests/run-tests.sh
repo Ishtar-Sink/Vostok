@@ -819,6 +819,64 @@ check "registro: uma linha por etapa" bash -c "[ \"\$(sed -n '/^## Registro de e
 check "registro: hash do conteúdo atualizado" hash_ok "$t1"
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"; rm -f "$R/estado.txt" "$R/.falha"
 
+# Validação de tarefas: evidências e conclusão.
+cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"; cp "$r8" "$R/.r8-ok"
+python3 - "$t1" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('- `saida.txt` (automática): `echo ok`', '- `saida.txt` (automática): `echo ok; ls AGENTS.md`\n- `nota.txt` (manual): anotação do usuário', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+store_hash "$t1"; "$AT" --approve SPEC-008 TASK-01 > /dev/null
+"$ET" --start SPEC-008 TASK-01 > /dev/null; "$ET" --baseline SPEC-008 TASK-01 > /dev/null
+"$VT" --tests SPEC-008 TASK-01 > /dev/null; "$VT" --regression SPEC-008 TASK-01 > /dev/null
+check "--finish recusa evidências não feitas" bash -c "'$VT' --finish SPEC-008 TASK-01 2>&1 | grep -qF \"evidence_result: 'null' (precisa ser 'passed')\""
+"$VT" --evidence SPEC-008 TASK-01 > "$R/.vt" 2>&1; code=$?
+check "evidência gravada com as permissões padrão" bash -c "ls -l '$EV/TASK-01/saida.txt' | grep -q '^-rw-r--r--'"
+check "--evidence grava a automática, a partir da raiz" bash -c "[ $code -eq 0 ] && [ \"\$(cat '$EV/TASK-01/saida.txt')\" = \"\$(printf 'ok\nAGENTS.md')\" ]"
+check "--evidence aponta a manual sem arquivo" grep -qF "/work/tasks/SPEC-008/evidence/TASK-01/nota.txt: anotação do usuário" "$R/.vt"
+check "evidência manual pendente: pending e registro" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'evidence_result: pending' && grep -qF '| evidências | pending | evidência manual sem arquivo |' '$t1'"
+check "--finish recusa evidência pending" bash -c "'$VT' --finish SPEC-008 TASK-01 2>&1 | grep -qF \"evidence_result: 'pending'\""
+: > "$EV/TASK-01/nota.txt"
+check "arquivo manual vazio continua pendente" bash -c "'$VT' --evidence SPEC-008 TASK-01 | grep -qF 'nota.txt: anotação do usuário'"
+echo 'anexo' > "$EV/TASK-01/nota.txt"
+check "--evidence com a manual anexada passa" bash -c "'$VT' --evidence SPEC-008 TASK-01 | grep -qF 'Resultado: passed' && sed -n '2,/^---/p' '$t1' | grep -qx 'evidence_result: passed'"
+check "--evidence não sobrescreve o anexo manual" grep -qx 'anexo' "$EV/TASK-01/nota.txt"
+before="$(sum "$t1")"
+check "--finish recusa critério de conclusão sem marcar" bash -c "'$VT' --finish SPEC-008 TASK-01 2>&1 | grep -qF 'critérios de conclusão sem marcar' && '$VT' --finish SPEC-008 TASK-01 2>&1 | grep -qF -- '- [ ] O script existe (RF-01).'"
+check "--finish recusado não altera a tarefa" [ "$before" = "$(sum "$t1")" ]
+sed -i.bak 's/^- \[ \] O script existe/- [x] O script existe/' "$t1" && rm -f "$t1.bak"
+check "--finish conclui a tarefa" bash -c "'$VT' --finish SPEC-008 TASK-01 | grep -qF \"Tarefa TASK-01 concluída: status 'done'.\""
+check "concluída: done, registro e hash" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'status: done' && grep -qF '| conclusão | done | testes, regressão e evidências passed' '$t1'" 
+check "concluída: hash do conteúdo atualizado" hash_ok "$t1"
+check "com outra tarefa pendente, a spec não muda" bash -c "sed -n '2,/^---/p' '$r8' | grep -qx 'status: planned'"
+fails "--finish de tarefa já concluída" "$VT" --finish SPEC-008 TASK-01
+fails "--evidence de tarefa já concluída" "$VT" --evidence SPEC-008 TASK-01
+
+# Segunda tarefa: evidência automática com erro, nomes inválidos, etapas puladas e "Não se aplica.".
+store_hash "$t2"; "$AT" --approve SPEC-008 TASK-02 > /dev/null
+"$ET" --start SPEC-008 TASK-02 > /dev/null; "$ET" --baseline SPEC-008 TASK-02 > /dev/null; "$VT" --tests SPEC-008 TASK-02 > /dev/null
+check "--finish recusa regressão não feita" bash -c "'$VT' --finish SPEC-008 TASK-02 2>&1 | grep -qF \"regression_result: 'null' (precisa ser 'passed')\""
+"$VT" --regression SPEC-008 TASK-02 > /dev/null
+sed -i.bak 's/^- `saida.txt` (automática): `echo ok`$/- `erro.txt` (automática): `false`/' "$t2" && rm -f "$t2.bak"
+check "--evidence com automática que falha" bash -c "'$VT' --evidence SPEC-008 TASK-02 2>&1 | grep -qF 'erro.txt: \`false\` terminou com erro'"
+check "evidência com erro não grava resultado" bash -c "sed -n '2,/^---/p' '$t2' | grep -qx 'evidence_result: null'"
+check "evidência com erro não deixa arquivo" [ ! -e "$EV/TASK-02/erro.txt" ]
+for bad in '../fora.txt' 'baseline' 'sub/x.txt' '.oculto'; do
+  sed -i.bak "s|^- \`[^\`]*\` (automática): .*|- \`$bad\` (automática): \`echo x\`|" "$t2" && rm -f "$t2.bak"
+  check "--evidence recusa o nome '$bad'" bash -c "'$VT' --evidence SPEC-008 TASK-02 2>&1 | grep -qF \"nome de evidência inválido: '$bad'\""
+done
+check "nome inválido não grava fora da pasta" [ ! -e "$TASKS/SPEC-008/evidence/fora.txt" ]
+sed -i.bak "s|^- \`[^\`]*\` (automática): .*|Não se aplica.|" "$t2" && rm -f "$t2.bak"
+check "--evidence com 'Não se aplica.' passa sem arquivos" bash -c "'$VT' --evidence SPEC-008 TASK-02 | grep -qF 'Não se aplica. Resultado: passed' && [ \"\$(ls '$EV/TASK-02' | paste -sd ' ' -)\" = 'baseline validation' ]"
+"$VT" --tests SPEC-008 TASK-02 > /dev/null
+check "--tests que passam de novo mantêm as evidências" bash -c "sed -n '2,/^---/p' '$t2' | grep -qx 'evidence_result: passed'"
+sed -i.bak 's/^- \[ \] O script existe/- [x] O script existe/' "$t2" && rm -f "$t2.bak"
+check "última tarefa concluída leva a spec a implemented" bash -c "'$VT' --finish SPEC-008 TASK-02 | grep -qF \"Todas as tarefas de SPEC-008 concluídas: spec marcada como 'implemented'.\""
+check "spec implemented com updated_at" bash -c "sed -n '2,/^---/p' '$r8' | grep -qx 'status: implemented' && sed -n '2,/^---/p' '$r8' | grep -q '^updated_at: [0-9T:-]*Z\$'"
+check "implemented: adjust-spec recusa" bash -c "'$A' --validate SPEC-008 2>&1 | grep -qF \"a spec SPEC-008 está com status 'implemented'\""
+check "implemented: plan-tasks recusa" bash -c "! '$PT' --create SPEC-008 >/dev/null 2>&1"
+rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"; mv "$R/.r8-ok" "$r8"
+
 # Cobertura de spec do tipo study: PQ.
 "$SP/create-new-spec.sh" 'Estudo' > /dev/null
 "$SP/create-refined-spec.sh" SPEC-009 study > /dev/null

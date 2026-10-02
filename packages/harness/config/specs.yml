@@ -13,6 +13,7 @@ status:
   refined: refined
   approved: approved
   planned: planned
+  implemented: implemented   # todas as tarefas da spec concluídas (validate-task.sh --finish)
 
 # --- Rascunho (create-new-spec.sh) ---
 

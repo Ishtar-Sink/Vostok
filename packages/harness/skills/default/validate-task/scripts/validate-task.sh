@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Valida uma tarefa em execução: testes da "Verificação", regressão contra o baseline e retomada de uma
-# tarefa bloqueada. Cada etapa ganha uma linha no "Registro de execução". As saídas ficam em
-# `paths.tasks`/<SPEC_ID>/`evidence_dir`/<TASK_ID>/validation/.
+# Valida e conclui uma tarefa em execução: testes da "Verificação", regressão contra o baseline,
+# evidências, conclusão e retomada de uma tarefa bloqueada. Cada etapa ganha uma linha no "Registro de
+# execução". As evidências ficam em `paths.tasks`/<SPEC_ID>/`evidence_dir`/<TASK_ID>/, e as saídas da
+# validação, em validation/ dentro dela.
 #
 # Uso: validate-task.sh --tests <SPEC_ID> <TASK_ID>
 #        Só em `in_progress` ou `validating`. Executa o bloco `bash` de "Verificação" a partir da raiz do
@@ -12,6 +13,15 @@
 #        Só em `in_progress` ou `validating`, com o baseline coletado. Executa de novo cada comando de
 #        "Baseline" e compara o código de saída e a saída. Com diferença, `regression_result: failed`, a
 #        tarefa fica `blocked` e os comandos são listados. Termina com erro se houver regressão.
+#      validate-task.sh --evidence <SPEC_ID> <TASK_ID>
+#        Só em `in_progress` ou `validating`. Executa cada evidência automática a partir da raiz do projeto e
+#        grava a saída no arquivo dela; lista as manuais cujo arquivo ainda não foi anexado. Tudo presente,
+#        ou "Não se aplica.", `evidence_result: passed`; faltando manual, `pending`. Uma evidência
+#        automática com código de saída diferente de zero termina com erro, sem gravar o resultado.
+#      validate-task.sh --finish <SPEC_ID> <TASK_ID>
+#        Exige testes, regressão e evidências `passed` e todos os critérios de "Concluída quando" marcados
+#        (check-done.sh). Grava `done` e, se todas as tarefas da spec estiverem `done`, muda o status da
+#        spec para `implemented`.
 #      validate-task.sh --resume <SPEC_ID> <TASK_ID> "decisão do usuário"
 #        Só em `blocked`. Volta a `validating`, zera `attempts` e os resultados e registra a decisão.
 set -euo pipefail
@@ -28,9 +38,10 @@ source "$HARNESS_DIR/scripts/lib/plan.sh"
 source "$HARNESS_DIR/scripts/lib/task.sh"
 
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
 TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
 
-USAGE='Uso: validate-task.sh --tests <SPEC_ID> <TASK_ID> | --regression <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"'
+USAGE='Uso: validate-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"'
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
@@ -38,6 +49,8 @@ tasks_root="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")"
 in_progress_status="$(config_get "$TASKS_CONFIG" status.in_progress)"
 validating_status="$(config_get "$TASKS_CONFIG" status.validating)"
 blocked_status="$(config_get "$TASKS_CONFIG" status.blocked)"
+done_status="$(config_get "$TASKS_CONFIG" status.done)"
+implemented_status="$(config_get "$SPECS_CONFIG" status.implemented)"
 max_attempts="$(config_get "$TASKS_CONFIG" max_attempts)"
 task_prefix="$(config_get "$TASKS_CONFIG" id.prefix)"
 
@@ -173,6 +186,91 @@ regression() {
   die "a tarefa $2 ficou bloqueada por regressão. PARE: responda com o template \`blocker\`, mostrando os comandos, e aguarde a decisão do usuário"
 }
 
+evidence() {
+  local file dir text none auto manual item name kind rest out missing="" failed="" n=0
+  file="$(find_task "$1" "$2")"
+  require_running "$file" "$2"
+  dir="$(task_evidence_path "$file")"
+  text="$(task_subsection "$file" evidence_subsection | grep '[^[:space:]]' || true)"
+  none="$(config_get "$TASKS_CONFIG" evidence_none)"
+  auto="$(config_get "$TASKS_CONFIG" evidence_automatic)"
+  manual="$(config_get "$TASKS_CONFIG" evidence_manual)"
+
+  if [ "$(printf '%s' "$text" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')" = "$none" ]; then
+    frontmatter_set "$file" evidence_result passed
+    task_record_step "$file" evidências passed "$none"
+    echo "Evidências de $2: $none Resultado: passed."
+    return
+  fi
+
+  mkdir -p "$dir"
+  while IFS= read -r item; do
+    [[ "$item" =~ ^-\ \`([^\`]+)\`\ \(([^\)]+)\):\ (.+)$ ]] || die "item de evidência fora do formato: $item"
+    name="${BASH_REMATCH[1]}" kind="${BASH_REMATCH[2]}" rest="${BASH_REMATCH[3]}"
+    # O nome é um arquivo dentro da pasta de evidências; as pastas do baseline e da validação são reservadas.
+    case "$name" in */*|.*|baseline|validation) die "nome de evidência inválido: '$name'" ;; esac
+    n=$((n + 1))
+    if [ "$kind" = "$auto" ]; then
+      [[ "$rest" =~ ^\`(.+)\`$ ]] || die "evidência automática sem comando: $item"
+      # A saída só vira evidência se o comando terminar sem erro; com erro, ela vai para a mensagem.
+      out="$(mktemp)"
+      if (cd "$(_task_root_dir)" && bash -c "${BASH_REMATCH[1]}") > "$out" 2>&1 < /dev/null; then
+        mv "$out" "$dir/$name"
+        chmod 644 "$dir/$name"
+      else
+        failed="$failed- $name: \`${BASH_REMATCH[1]}\` terminou com erro"$'\n'"$(tail -n 5 "$out" | sed 's/^/    /')"$'\n'
+        rm -f "$out" "$dir/$name"
+      fi
+    elif [ "$kind" = "$manual" ]; then
+      [ -s "$dir/$name" ] || missing="$missing- $dir/$name: $rest"$'\n'
+    fi
+  done <<< "$text"
+
+  if [ -n "$failed" ]; then
+    task_record_step "$file" evidências erro "evidência automática com erro"
+    die "evidências automáticas de $2 com erro; corrija e execute --evidence de novo:"$'\n'"$failed"
+  fi
+  if [ -n "$missing" ]; then
+    frontmatter_set "$file" evidence_result pending
+    task_record_step "$file" evidências pending "evidência manual sem arquivo"
+    printf 'Evidências manuais de %s sem arquivo; peça ao usuário para anexá-las e execute --evidence de novo:\n%s' "$2" "$missing"
+    return
+  fi
+  frontmatter_set "$file" evidence_result passed
+  task_record_step "$file" evidências passed "$n evidência(s) em $(basename "$(dirname "$dir")")/$2/"
+  echo "Evidências de $2 gravadas em $dir: $n item(ns). Resultado: passed."
+}
+
+finish() {
+  local file key value problems="" done_out spec others other
+  file="$(find_task "$1" "$2")"
+  require_running "$file" "$2"
+  for key in tests_result regression_result evidence_result; do
+    value="$(frontmatter_get "$file" "$key" 2>/dev/null || true)"
+    [ "$value" = passed ] || problems="$problems- $key: '$value' (precisa ser 'passed')"$'\n'
+  done
+  done_out="$("$HARNESS_DIR/scripts/default/tasks/check-done.sh" "$1" "$2" 2>&1)" ||
+    problems="$problems- $(printf '%s' "$done_out" | sed 's/^Erro: //')"$'\n'
+  [ -z "$problems" ] || die "a tarefa $2 não pode ser concluída; nada foi alterado:"$'\n'"$problems"
+
+  frontmatter_set "$file" status "$done_status"
+  task_record_step "$file" conclusão "$done_status" "testes, regressão e evidências passed; critérios de conclusão marcados"
+  echo "Tarefa $2 concluída: status '$done_status'."
+
+  others=""
+  for other in "$(dirname "$file")"/*.md; do
+    [ "$(status_of "$other")" = "$done_status" ] || others="$others $(basename "$other" .md)"
+  done
+  if [ -n "$others" ]; then
+    echo "Tarefas de $1 ainda não concluídas:$others"
+    return
+  fi
+  spec="$(plan_spec_file "$1")" || die "a tarefa foi concluída, mas a spec $1 não foi encontrada para marcar como '$implemented_status'"
+  frontmatter_set "$spec" status "$implemented_status"
+  frontmatter_put "$spec" updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "Todas as tarefas de $1 concluídas: spec marcada como '$implemented_status'."
+}
+
 resume() {
   local file status decision
   file="$(find_task "$1" "$2")"
@@ -194,6 +292,8 @@ resume() {
 case "${1:-}" in
   --tests) [ "$#" -eq 3 ] || die "$USAGE"; tests "$2" "$3" ;;
   --regression) [ "$#" -eq 3 ] || die "$USAGE"; regression "$2" "$3" ;;
+  --evidence) [ "$#" -eq 3 ] || die "$USAGE"; evidence "$2" "$3" ;;
+  --finish) [ "$#" -eq 3 ] || die "$USAGE"; finish "$2" "$3" ;;
   --resume) [ "$#" -eq 4 ] || die "$USAGE"; resume "$2" "$3" "$4" ;;
   *) die "$USAGE" ;;
 esac

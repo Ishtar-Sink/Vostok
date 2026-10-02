@@ -7,8 +7,9 @@ usage: |
   VERIFICATION: comandos executados e resultado. Diga também o que não foi verificado.
   MEMORY_RECORDS: opcional. Entradas criadas ou alteradas na memória, `- ID: título`. Sem entradas, omita a seção.
   PENDING: opcional. O que ficou em aberto. Sem pendências, omita a seção.
-  NEXT_STEPS: opcional. Os próximos comandos que o usuário pode executar, um por item: `- skill ou comando: quando usar`
-    (ex.: `- skill approve-plan: aprovar o plano`). Cite só o que é possível no estado atual. Sem próximos passos, omita a seção.
+  NEXT_STEPS: opcional. O que o usuário pode pedir em seguida, um por item: `- pedido em linguagem natural ou skill: quando usar`
+    (ex.: `- "aprova o plano" (skill approve-plan): criar as tarefas`). O usuário conversa com o agente: não indique
+    scripts nem comandos de terminal. Cite só o que é possível no estado atual. Sem próximos passos, omita a seção.
 ---
 
 **#{SUMMARY}**

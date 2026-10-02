@@ -21,7 +21,7 @@ cleanup() { if [ "$KEEP" -eq 1 ]; then echo "Cópia mantida em $R"; else rm -rf 
 trap cleanup EXIT
 
 H="$R/packages/harness"
-rm -rf "$H/work" "$H"/memory/*.md
+rm -rf "$H/work" "$H/.state" "$H"/memory/*.md
 find "$H/skills/custom" -mindepth 1 ! -name .gitkeep -exec rm -rf {} + 2>/dev/null
 for key in specs decisions issues knowledge; do
   sed -i.bak "s/^$key: .*/$key: 1/" "$H/config/sequences.yml"
@@ -608,6 +608,125 @@ $FILL "$TASKS/SPEC-009/TASK-03.md" 'TASK_CHANGE=- `nao/existe/novo.sh` (remover)
 check "tarefa remove caminho criado por dependência indireta" "$APP" --validate SPEC-009
 check "o plano de uma spec não interfere no de outra" bash -c "[ ! -e '$p8' ] && [ -d '$TASKS/SPEC-008' ] && [ '$(fm "$r8" status)' = planned ]"
 
+# --- Commits sem liberação ---
+CC="$H/scripts/default/git/check-commits.sh"
+AC="$H/skills/default/approve-commit/scripts/approve-commit.sh"
+ACK="$H/.state/commit-ack"
+g() { git -C "$R" -c user.name=Teste -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+token() { "$AC" --show | sed -n 's/^Código de liberação: //p'; }
+head_of() { g rev-parse "$1"; }
+rm -rf "$R/.git"  # repositório criado na seção de ajustes; aqui o histórico começa do zero
+
+check "check-commits sem repositório git" bash -c "'$CC' | grep -q 'nada a verificar'"
+check "check-commits sem git não cria referência" [ ! -e "$ACK" ]
+fails "approve-commit sem repositório git" "$AC" --show
+g init -q -b main
+printf '%s\n' '/.*' '!/.claude/' > "$R/.git/info/exclude"  # rascunhos da suíte ficam fora dos commits
+check "check-commits em repositório sem commits" "$CC"
+rm -f "$ACK"
+echo base > "$R/base.txt"; g add -A; g commit -qm 'base'
+fails "approve-commit sem referência" "$AC" --show
+check "primeira verificação grava a referência" bash -c "'$CC' | grep -q 'Referência de commits gravada'"
+check "referência fora do git" bash -c "[ -z \"\$(git -C '$R' status --porcelain -- packages/harness/.state)\" ]"
+check "sem commits novos, passa" bash -c "'$CC' | grep -qx 'Nenhum commit sem liberação.'"
+check "check-commits de outro diretório" bash -c "cd /tmp && '$CC'"
+fails "check-commits com argumento" "$CC" extra
+check "alteração sem commit não bloqueia" bash -c "echo x >> '$R/base.txt' && '$CC' && git -C '$R' checkout -q -- base.txt"
+check "stage sem commit não bloqueia" bash -c "echo y > '$R/novo.txt' && git -C '$R' add novo.txt && '$CC'; r=\$?; git -C '$R' rm -q --cached novo.txt; rm -f '$R/novo.txt'; exit \$r"
+
+# Commit comum: bloqueia, lista e não altera nada.
+echo um > "$R/um arquivo.txt"; g add -A; g commit -qm 'commit do agente'
+before="$(sum "$ACK")"; head="$(head_of HEAD)"
+fails "commit comum bloqueia" "$CC"
+"$CC" > "$R/.cc" 2>&1 || true
+check "bloqueio lista o commit e os arquivos" grep -qF "commit do agente (arquivos: um arquivo.txt)" "$R/.cc"
+check "bloqueio manda parar e cita a regra" bash -c "grep -qF 'PARE: responda com o template \`blocker\`' '$R/.cc' && grep -qF 'agent/boundaries-04' '$R/.cc'"
+check "check-commits não altera referência nem HEAD" bash -c "[ '$before' = \"\$(cksum < '$ACK')\" ] && [ '$head' = \"\$(git -C '$R' rev-parse HEAD)\" ]"
+check "--show lista e dá o código" bash -c "'$AC' --show | grep -qF 'commit do agente' && [ -n \"\$('$AC' --show | sed -n 's/^Código de liberação: //p')\" ]"
+check "--show não altera nada" bash -c "'$AC' --show >/dev/null && [ '$before' = \"\$(cksum < '$ACK')\" ]"
+fails "--approve sem código" "$AC" --approve
+fails "--approve com código errado" "$AC" --approve 000000000000
+fails "argumento desconhecido" "$AC" --liberar
+check "--approve com código errado não libera" bash -c "! '$CC' >/dev/null 2>&1"
+t="$(token)"
+echo dois > "$R/dois.txt"; g add -A; g commit -qm 'segundo commit'
+fails "--approve com código desatualizado (commit depois do --show)" "$AC" --approve "$t"
+check "--approve com o código atual" bash -c "'$AC' --approve '$(token)' | grep -qF 'Liberação gravada: 2 commit(s)'"
+check "liberado, passa" "$CC"
+check "--approve sem nada a liberar" bash -c "'$AC' --approve '$(token)' | grep -qx 'Nenhum commit sem liberação.'"
+
+# Caminhos que contornam o `git commit`.
+fails "commit com --no-verify bloqueia" bash -c "echo a >> '$R/base.txt' && git -C '$R' -c user.name=T -c user.email=t@t commit -qam nv --no-verify && '$CC'"
+g reset -q --hard HEAD~1
+check "commit não liberado desfeito à mão: nada a liberar" "$CC"
+tree="$(g write-tree)"; parent="$(head_of HEAD)"
+c="$(printf 'baixo nível\n' | g commit-tree "$tree" -p "$parent")"; g update-ref refs/heads/main "$c"
+fails "commit-tree + update-ref bloqueia" "$CC"
+"$AC" --approve "$(token)" > /dev/null
+g commit -q --amend --allow-empty -m 'amend'
+"$CC" > "$R/.cc" 2>&1 || true
+check "--amend: commit novo e removido" bash -c "grep -qF 'Commits novos:' '$R/.cc' && grep -qF 'Commits removidos' '$R/.cc' && grep -qF 'baixo nível' '$R/.cc'"
+"$AC" --approve "$(token)" > /dev/null
+g reset -q --hard HEAD~1
+"$CC" > "$R/.cc" 2>&1 || true
+check "reset para trás: commit removido bloqueia" bash -c "grep -qF 'Commits removidos' '$R/.cc' && ! grep -qF 'Commits novos:' '$R/.cc'"
+fails "--revert recusa commits removidos" "$AC" --revert "$(token)"
+"$AC" --approve "$(token)" > /dev/null
+g branch outra; c="$(printf 'em outra branch\n' | g commit-tree "$(g write-tree)" -p "$(head_of HEAD)")"; g update-ref refs/heads/outra "$c"
+fails "commit em outra branch, sem trocar de branch, bloqueia" "$CC"
+fails "--revert recusa commit fora da branch atual" "$AC" --revert "$(token)"
+"$AC" --approve "$(token)" > /dev/null
+check "trocar de branch sem commit não bloqueia" bash -c "git -C '$R' checkout -q outra && '$CC' && git -C '$R' checkout -q main && '$CC'"
+check "criar branch e tag sem commit não bloqueia" bash -c "git -C '$R' branch nova && git -C '$R' tag v1 && '$CC'"
+g checkout -q --detach; echo d > "$R/d.txt"; g add -A; g commit -qm 'detached'
+fails "commit em HEAD solto (detached) bloqueia" "$CC"
+fails "--revert recusa HEAD solto" "$AC" --revert "$(token)"
+g checkout -q main
+check "commit sem ref, abandonado, não bloqueia" "$CC"
+c="$(printf 'só numa tag\n' | g commit-tree "$(g write-tree)" -p "$(head_of HEAD)")"; g tag -a -m t v2 "$c"
+fails "commit só alcançável por tag anotada bloqueia" "$CC"
+g tag -d v2 > /dev/null
+check "tag apagada antes da liberação: nada a liberar" "$CC"
+g stash list > /dev/null; echo s >> "$R/base.txt"; g stash -q
+check "stash não conta como commit" "$CC"
+g stash drop -q
+
+# Referência corrompida.
+cp "$ACK" "$R/.ack-ok"
+printf 'lixo\n' >> "$ACK"
+fails "referência com linha inválida bloqueia" "$CC"
+fails "--revert com referência inválida" "$AC" --revert "$(token)"
+check "--approve refaz a referência inválida" bash -c "'$AC' --approve '$(token)' | grep -qF 'Referência de commits refeita' && '$CC'"
+printf '%s refs/heads/main\n' 0123456789012345678901234567890123456789 > "$ACK"
+check "referência com commit inexistente bloqueia" bash -c "'$CC' 2>&1 | grep -qF 'commit liberado não existe mais'"
+: > "$ACK"
+fails "referência vazia bloqueia o histórico inteiro" "$CC"
+cp "$R/.ack-ok" "$ACK"
+check "referência restaurada passa" "$CC"
+rm -f "$ACK"
+check "referência apagada é regravada" bash -c "'$CC' | grep -q 'gravada'"
+
+# Desfazer.
+echo r1 > "$R/r1.txt"; echo base2 >> "$R/base.txt"; g add -A; g commit -qm 'r1'
+echo r2 > "$R/r2.txt"; g add -A; g commit -qm 'r2'
+check "--revert desfaz os commits da branch" bash -c "'$AC' --revert '$(token)' | grep -qF '2 commit(s) desfeito(s) em main'"
+check "--revert mantém as alterações fora de stage" bash -c "[ -f '$R/r1.txt' ] && [ -f '$R/r2.txt' ] && grep -q base2 '$R/base.txt' && [ -z \"\$(git -C '$R' diff --cached --name-only)\" ]"
+check "depois do --revert, passa" "$CC"
+g add -A; g commit -qm 'enviado'
+g init -q --bare "$R/.remote.git"; g remote add origin "$R/.remote.git"; g push -q origin main 2> /dev/null
+fails "commit já enviado ao remoto ainda bloqueia" "$CC"
+check "bloqueio marca o commit enviado" bash -c "'$CC' 2>&1 | grep -q '^- [0-9a-f]* enviado (arquivos: .*) \[já enviado ao remoto\]\$'"
+head="$(head_of HEAD)"
+fails "--revert recusa commit enviado ao remoto" "$AC" --revert "$(token)"
+check "--revert recusado não altera HEAD" [ "$head" = "$(head_of HEAD)" ]
+"$AC" --approve "$(token)" > /dev/null
+check "fetch e refs remotas não bloqueiam" bash -c "git -C '$R' fetch -q origin && '$CC'"
+
+# Volume: muitos commits.
+for i in $(seq 1 150); do echo "$i" > "$R/v.txt"; g add v.txt; g commit -qm "v$i"; done
+check "150 commits: bloqueia e lista todos" bash -c "[ \$('$CC' 2>&1 | grep -c '^- .* v[0-9]* (arquivos: v.txt)') -eq 150 ]"
+check "150 commits: --revert" bash -c "'$AC' --revert '$(token)' | grep -qF '150 commit(s) desfeito(s)' && '$CC'"
+
 # --- Skills ---
 fails "nome de skill inválido" "$C" 'Bad_Name'
 fails "nome reservado" "$C" claude-x
@@ -628,7 +747,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

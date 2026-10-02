@@ -10,3 +10,4 @@ paths:
   scripts: ./scripts
   docs: ../../docs
   agent_memory: ./memory
+  state: ./.state          # estado local de cada clone, fora do git

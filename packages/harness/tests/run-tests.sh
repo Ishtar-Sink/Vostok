@@ -525,6 +525,31 @@ check "load-task imprime o front-matter" bash -c "head -1 '$R/.task-load' | grep
 check "load-task imprime a Execução" bash -c "grep -qx '## Execução' '$R/.task-load' && grep -qx '### Concluída quando' '$R/.task-load'"
 check "load-task não imprime a Descrição" bash -c "! grep -q -e '^## Descrição' -e 'Resumo executivo' -e '^### Card' '$R/.task-load'"
 
+# Critérios de conclusão.
+CD="$H/scripts/default/tasks/check-done.sh"
+fails "check-done sem argumentos" "$CD"
+fails "check-done de tarefa inexistente" "$CD" SPEC-008 TASK-09
+before="$(sum "$t2")"
+check "check-done recusa critério sem marcar e lista o critério" bash -c "'$CD' SPEC-008 TASK-02 2>&1 | grep -qF -- '- [ ] O script existe (RF-01).'"
+check "check-done não altera a tarefa" [ "$(sum "$t2")" = "$before" ]
+cp "$t2" "$t2.ok"
+sed -i.bak 's/^- \[ \] O script existe/- [x] O script existe/' "$t2" && rm -f "$t2.bak"
+check "check-done com todos os critérios marcados" bash -c "'$CD' SPEC-008 TASK-02 | grep -qF 'Todos os 1 critérios de conclusão de TASK-02 estão marcados.'"
+printf '\n%s\n\n%s\n' '- [ ] Outro critério.' '  > Como comprovar: abrir o arquivo.' > "$R/.done-extra"
+python3 - "$t2" "$R/.done-extra" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('existe.\n', 'existe.\n' + open(sys.argv[2], encoding='utf-8').read(), 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+check "check-done com um de dois critérios sem marcar" bash -c "! '$CD' SPEC-008 TASK-02 >/dev/null 2>&1 && '$CD' SPEC-008 TASK-02 2>&1 | grep -qF -- '- [ ] Outro critério.'"
+python3 - "$t2" <<'PY'
+import sys, re; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = re.sub(r'(### Concluída quando\n)[\s\S]*?(\n## )', r'\1\nSem checklist.\n\2', s, count=1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+check "check-done sem critérios de conclusão" bash -c "'$CD' SPEC-008 TASK-02 2>&1 | grep -q 'não tem critérios de conclusão'"
+mv "$t2.ok" "$t2"
+
 # Plano desatualizado.
 cp "$r8" "$r8.ok"; cp "$p8" "$p8.ok"
 "$A" --record SPEC-008 'RF-01 ajustado' > /dev/null && "$AP" --approve SPEC-008 > /dev/null

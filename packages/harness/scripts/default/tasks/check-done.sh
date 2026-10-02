@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Confere se todos os critérios de conclusão de uma tarefa foram marcados: a subseção
+# `done_subsection` (config/tasks.yml) da `execution_section` tem um checkbox por critério, que o
+# agente marca com [x] depois de conferir a comprovação. Não altera nada.
+#
+# Uso: check-done.sh <SPEC_ID> <TASK_ID>
+#      Termina com erro, listando os critérios sem marcar, se houver algum ou se não houver critérios.
+set -euo pipefail
+
+# Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+source "$HARNESS_DIR/scripts/lib/config.sh"
+source "$HARNESS_DIR/scripts/lib/markdown.sh"
+
+MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
+
+die() { echo "Erro: $*" >&2; exit 1; }
+
+[ -n "${1:-}" ] && [ -n "${2:-}" ] || die "Uso: check-done.sh <SPEC_ID> <TASK_ID>"
+
+file="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")/$1/$2.md"
+[ -f "$file" ] || die "tarefa $2 da spec $1 não encontrada: $file"
+sub="$(config_get "$TASKS_CONFIG" done_subsection)"
+text="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" execution_section)" "$sub" 2>/dev/null)" ||
+  die "a tarefa $2 não tem a subseção '### $sub': $file"
+
+total="$(grep -cE '^- \[[ x]\] ' <<< "$text" || true)"
+[ "$total" -gt 0 ] || die "a tarefa $2 não tem critérios de conclusão em '### $sub'"
+pending="$(grep -E '^- \[ \] ' <<< "$text" || true)"
+[ -z "$pending" ] ||
+  die "a tarefa $2 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:"$'\n'"$pending"
+echo "Todos os $total critérios de conclusão de $2 estão marcados."

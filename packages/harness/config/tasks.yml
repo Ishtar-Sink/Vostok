@@ -5,9 +5,24 @@ id:
   prefix: TASK
   digits: 2
 
-# Status da tarefa ao ser criada.
+# Status da tarefa, na ordem do ciclo: criada (pending), aprovada pelo usuário (approved), em execução
+# (in_progress), em validação (validating), bloqueada à espera do usuário (blocked) e concluída (done).
 status:
   pending: pending
+  approved: approved
+  in_progress: in_progress
+  validating: validating
+  blocked: blocked
+  done: done
+
+# Máximo de falhas nos testes antes de a tarefa ficar bloqueada ([agent/anti-loop-02]).
+max_attempts: 2
+
+# Pasta das evidências e do baseline de cada tarefa, relativa a `paths.tasks`/<SPEC_ID>.
+evidence_dir: evidence
+
+# Seção do arquivo da tarefa com uma linha por etapa da execução, escrita só pelos scripts.
+record_section: Registro de execução
 
 # Tipos aceitos na coluna "Tipo" do plano e no campo `type` da tarefa (correspondem ao tipo do card no board).
 task_types:
@@ -71,7 +86,9 @@ execution_subsections:
   - Ler
   - Mudar
   - Passos
+  - Baseline
   - Verificação
+  - Evidências
   - Concluída quando
 
 # Subseção de "Execução" com os arquivos a mudar, um por item: "- `caminho` (ação): motivo".

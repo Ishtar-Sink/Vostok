@@ -8,6 +8,15 @@ covers: [#{TASK_COVERS}]
 type: #{TASK_TYPE}
 labels: [#{SPEC_ID}, #{TASK_EFFORT}]
 status: #{TASK_STATUS}
+content_hash: null
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
 ---
 
 # #{TASK_ID}: #{TASK_TITLE}
@@ -26,9 +35,17 @@ status: #{TASK_STATUS}
 
 #{TASK_STEPS}
 
+### Baseline
+
+#{TASK_BASELINE}
+
 ### Verificação
 
 #{TASK_VERIFY}
+
+### Evidências
+
+#{TASK_EVIDENCE}
 
 ### Concluída quando
 
@@ -54,3 +71,13 @@ status: #{TASK_STATUS}
 - **Rótulos:** #{SPEC_ID}, #{TASK_EFFORT}
 - **Estimativa:** #{TASK_EFFORT}
 - **Bloqueada por:** #{TASK_BLOCKED_BY}
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

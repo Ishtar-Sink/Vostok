@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Libera ou desfaz, a pedido do usuário, os commits apontados pelo check-commits.sh ([agent/boundaries-04]).
-# O código de liberação identifica o estado mostrado: se o repositório mudar depois, a ação é recusada.
+# Faz commits e libera ou desfaz os commits apontados pelo check-commits.sh, sempre a pedido do usuário
+# ([agent/boundaries-01], [agent/boundaries-04]). O código de liberação identifica o estado mostrado: se o
+# repositório mudar depois, a ação é recusada.
 #
 # Uso: approve-commit.sh --show
 #        Lista os commits não liberados e o código de liberação. Não altera nada.
 #      approve-commit.sh --approve <código>
 #        Grava o estado atual como liberado.
+#      approve-commit.sh --commit [caminho...] < mensagem
+#        Faz um commit com a mensagem lida da entrada e o libera. Com caminhos, commita só eles (como
+#        `git commit -- caminho...`); sem caminhos, commita o que está em stage. Recusa se já houver
+#        commits sem liberação. Se o commit falhar, nada é liberado.
 #      approve-commit.sh --revert <código>
 #        Desfaz os commits novos da branch atual com `git reset --mixed`, mantendo as alterações na pasta
 #        de trabalho, fora de stage. Recusa se algum commit já estiver num ref remoto, se houver commits
@@ -20,7 +25,7 @@ source "$HARNESS_DIR/scripts/lib/commits.sh"
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
-USAGE="Uso: approve-commit.sh --show | --approve <código> | --revert <código>"
+USAGE="Uso: approve-commit.sh --show | --approve <código> | --commit [caminho...] < mensagem | --revert <código>"
 
 commits_has_git || die "sem repositório git em $(_commits_root)"
 ack="$(commits_ack_file)"
@@ -66,10 +71,33 @@ approve() {
   fi
 }
 
+commit() {
+  local message before created pending
+  pending="$(checked_changes)" || exit 1
+  [ -z "$pending" ] ||
+    die "já há commits sem liberação; mostre-os ao usuário e libere ou desfaça antes de um commit novo"
+  message="$(cat)"
+  [[ "$message" =~ [^[:space:]] ]] || die "mensagem de commit vazia; passe-a pela entrada padrão"
+  before="$(_commits_git rev-parse -q --verify HEAD || true)"
+  if [ "$#" -gt 0 ]; then
+    # O `add` antes inclui arquivos novos e removidos; o commit com caminhos deixa o resto do stage como está.
+    _commits_git add -A -- "$@" || die "caminho inválido; nada foi commitado"
+    printf '%s\n' "$message" | _commits_git commit -q -F - -- "$@" || die "o commit falhou; nada foi liberado"
+  else
+    printf '%s\n' "$message" | _commits_git commit -q -F - || die "o commit falhou; nada foi liberado"
+  fi
+  # Libera só se o único commit novo for o que acabou de ser criado, sobre o HEAD anterior.
+  created="$(commits_changes "$ack")"
+  [ "$created" = "novo $(_commits_git rev-parse HEAD)" ] && [ "$(_commits_git rev-parse -q --verify HEAD^ || true)" = "$before" ] ||
+    die "o estado do repositório não corresponde a um único commit novo; nada foi liberado"
+  commits_store
+  echo "Commit feito e liberado: $(_commits_git log -1 --format='%h %s')"
+}
+
 revert() {
   local changes branch base news head_news
   require_token "${1:-}"
-  changes="$(checked_changes)"
+  changes="$(checked_changes)" || exit 1
   [ -n "$changes" ] || { echo "Nenhum commit sem liberação."; return; }
   ! grep -q '^removido ' <<< "$changes" ||
     die "há commits removidos; desfazer não os recupera. Peça ao usuário para decidir como seguir"
@@ -92,6 +120,7 @@ revert() {
 case "${1:-}" in
   --show) [ "$#" -eq 1 ] || die "$USAGE"; show ;;
   --approve) [ "$#" -eq 2 ] || die "$USAGE"; approve "$2" ;;
+  --commit) shift; commit "$@" ;;
   --revert) [ "$#" -eq 2 ] || die "$USAGE"; revert "$2" ;;
   *) die "$USAGE" ;;
 esac

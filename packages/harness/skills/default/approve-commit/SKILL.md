@@ -1,6 +1,6 @@
 ---
 name: approve-commit
-description: "Libera ou desfaz, a pedido do usuário, os commits apontados pela verificação de commits (check-commits.sh): commits feitos sem liberação, pelo agente ou pelo próprio usuário. Liberar grava o estado atual do repositório como referência; desfazer remove os commits novos da branch atual mantendo as alterações na pasta de trabalho. Use quando o usuário pedir para liberar, aprovar, aceitar, desfazer ou reverter os commits apontados."
+description: "Faz commits a pedido do usuário, já liberados, e libera ou desfaz os commits apontados pela verificação de commits (check-commits.sh): commits feitos sem liberação, pelo agente ou pelo próprio usuário. Liberar grava o estado atual do repositório como referência; desfazer remove os commits novos da branch atual mantendo as alterações na pasta de trabalho. Use quando o usuário pedir para fazer commit, ou para liberar, aprovar, aceitar, desfazer ou reverter os commits apontados."
 allowed-tools: Read Bash(packages/harness/skills/default/approve-commit/scripts/*) Bash(packages/harness/scripts/default/*)
 metadata:
   version: "1.0.0"
@@ -10,9 +10,9 @@ metadata:
   templates: "templates/responses/question.md templates/responses/completion.md"
 ---
 
-# Liberar commits
+# Commits
 
-Registra a decisão do usuário sobre os commits feitos sem liberação: liberá-los ou desfazê-los. Até essa decisão, o `check-commits.sh` recusa e o agente não conclui nenhuma resposta ([agent/boundaries-04]).
+Único caminho do agente para commitar: o pedido de commit do usuário é a liberação, e o commit é feito e liberado no mesmo passo. Também registra a decisão do usuário sobre os commits feitos sem liberação: liberá-los ou desfazê-los. Até essa decisão, o `check-commits.sh` recusa e o agente não conclui nenhuma resposta ([agent/boundaries-04]).
 
 ## Termos
 
@@ -27,10 +27,12 @@ Registra a decisão do usuário sobre os commits feitos sem liberação: liberá
 [approve-commit-02]: O pedido tem que dizer o que fazer: liberar ou desfazer. "Ok", "segue" ou um pedido sobre outro assunto não são liberação; na dúvida, pergunte (passo 2).
 [approve-commit-03]: Nunca edite nem apague o arquivo de referência. Só o script o altera.
 [approve-commit-04]: Desfaça só pelo script. Se ele recusar, não use `git reset`, `git revert` nem outro comando: mostre o motivo e deixe a decisão com o usuário.
+[approve-commit-05]: Commite só pelo `--commit` e só quando a mensagem do usuário pedir commit. Nunca use `git commit`, `git commit-tree` nem outro comando que crie commits.
+[approve-commit-06]: O commit tem só o que o usuário pediu. Não coloque em stage nem passe caminhos fora do pedido; na dúvida sobre o escopo, pergunte antes de commitar.
 
 ## Checklist
 
-Copie e marque o progresso:
+Pedido de commit: siga [Fazer commits](#fazer-commits). Pedido de liberar ou desfazer, copie e marque o progresso:
 
 ```
 - [ ] 1. Mostrar os commits
@@ -74,3 +76,17 @@ Execute `packages/harness/scripts/default/git/check-commits.sh` e confirme que e
 
 - **O que foi feito:** os commits liberados ou desfeitos, com hash e assunto.
 - **Verificação:** a saída do `check-commits.sh`.
+
+## Fazer commits
+
+Um commit por chamada, com a mensagem pela entrada padrão. Para commits atômicos, chame uma vez por grupo de arquivos:
+
+```bash
+packages/harness/skills/default/approve-commit/scripts/approve-commit.sh --commit caminho/a caminho/b <<'MSG'
+tipo(escopo): mensagem
+MSG
+```
+
+Com caminhos, relativos à raiz do projeto, o script commita só eles, com o conteúdo atual da pasta de trabalho, inclusive arquivos novos e removidos. Sem caminhos, commita o que está em stage, para quando um arquivo precisa ser dividido entre commits. O script recusa se já houver commits sem liberação: nesse caso, siga os passos 1 a 4 antes. Se ele recusar por outro motivo, **PARE** e responda com o template `blocker`.
+
+Depois do último commit, execute `packages/harness/scripts/default/git/check-commits.sh` e responda com o template `completion`, com os commits feitos (hash e mensagem).

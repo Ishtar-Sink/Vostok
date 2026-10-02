@@ -722,6 +722,35 @@ check "--revert recusado não altera HEAD" [ "$head" = "$(head_of HEAD)" ]
 "$AC" --approve "$(token)" > /dev/null
 check "fetch e refs remotas não bloqueiam" bash -c "git -C '$R' fetch -q origin && '$CC'"
 
+# Commit pelo harness: o pedido do usuário é a liberação.
+echo c1 > "$R/c1.txt"; echo c2 > "$R/c 2.txt"; echo st > "$R/st.txt"; g add st.txt
+check "--commit sem mensagem: motivo" bash -c "printf '  \n' | '$AC' --commit c1.txt 2>&1 | grep -q 'mensagem de commit vazia'"
+check "--commit sem mensagem não commita" [ "$(head_of HEAD)" = "$(g rev-parse HEAD)" ]
+head="$(head_of HEAD)"
+check "--commit com caminhos commita e libera" bash -c "printf 'feat: c1 e c 2\n\ncorpo \"com\" aspas\n' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit c1.txt 'c 2.txt' | grep -qF 'Commit feito e liberado:' && '$CC'"
+check "--commit com caminhos commita só eles" bash -c "[ \"\$(git -C '$R' show --format= --name-only HEAD | paste -sd '|' -)\" = 'c 2.txt|c1.txt' ] && [ \"\$(git -C '$R' rev-parse HEAD^)\" = '$head' ]"
+check "--commit de arquivo removido" bash -c "git -C '$R' rm -q --cached 'c 2.txt' >/dev/null; git -C '$R' reset -q -- 'c 2.txt'; rm -f '$R/c 2.txt' && echo 'chore: remove c 2' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit 'c 2.txt' >/dev/null && [ -z \"\$(git -C '$R' ls-files 'c 2.txt')\" ] && '$CC'"
+fails "--commit com caminho inexistente" bash -c "echo 'feat: nada' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit nao-existe.txt"
+check "--commit com caminhos mantém o resto em stage" bash -c "[ \"\$(git -C '$R' diff --cached --name-only)\" = st.txt ]"
+check "--commit sem caminhos commita o stage" bash -c "echo 'feat: stage' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit >/dev/null && '$CC' && [ \"\$(git -C '$R' log -1 --format=%s)\" = 'feat: stage' ]"
+head="$(head_of HEAD)"; before="$(sum "$ACK")"
+fails "--commit sem nada a commitar" bash -c "echo 'feat: vazio' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit"
+check "--commit recusado não altera HEAD nem referência" bash -c "[ '$head' = \"\$(git -C '$R' rev-parse HEAD)\" ] && [ '$before' = \"\$(cksum < '$ACK')\" ]"
+echo x > "$R/x.txt"; g add x.txt; g commit -qm 'por fora'
+fails "--commit com commit sem liberação pendente" bash -c "echo 'feat: c3' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit x.txt"
+check "--commit recusado mantém o commit por fora apontado" bash -c "'$CC' 2>&1 | grep -qF 'por fora'"
+"$AC" --approve "$(token)" > /dev/null
+cp "$ACK" "$R/.ack-ok"; printf 'lixo\n' >> "$ACK"; echo y > "$R/y.txt"; head="$(head_of HEAD)"
+fails "--commit com referência inválida" bash -c "echo 'feat: y' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit y.txt"
+check "--commit com referência inválida não commita" [ "$head" = "$(head_of HEAD)" ]
+cp "$R/.ack-ok" "$ACK"
+printf '#!/bin/sh\nexit 1\n' > "$R/.git/hooks/pre-commit"; chmod +x "$R/.git/hooks/pre-commit"; before="$(sum "$ACK")"
+fails "--commit barrado por hook do git" bash -c "echo 'feat: y' | env GIT_AUTHOR_NAME=T GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=T GIT_COMMITTER_EMAIL=t@t '$AC' --commit y.txt"
+check "--commit barrado não libera nada" bash -c "[ '$head' = \"\$(git -C '$R' rev-parse HEAD)\" ] && [ '$before' = \"\$(cksum < '$ACK')\" ]"
+rm -f "$R/.git/hooks/pre-commit" "$R/y.txt"
+check "depois do --commit, commit por fora continua apontado" bash -c "echo z > '$R/z.txt' && git -C '$R' add z.txt && git -C '$R' -c user.name=T -c user.email=t@t commit -qm 'z por fora' && ! '$CC' >/dev/null 2>&1"
+"$AC" --approve "$(token)" > /dev/null
+
 # Volume: muitos commits.
 for i in $(seq 1 150); do echo "$i" > "$R/v.txt"; g add v.txt; g commit -qm "v$i"; done
 check "150 commits: bloqueia e lista todos" bash -c "[ \$('$CC' 2>&1 | grep -c '^- .* v[0-9]* (arquivos: v.txt)') -eq 150 ]"

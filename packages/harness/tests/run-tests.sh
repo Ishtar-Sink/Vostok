@@ -639,6 +639,61 @@ sed -i.bak 's/^depends_on: \[TASK-01\]$/depends_on: []/' "$t2" && rm -f "$t2.bak
 check "sem a dependência, o caminho não existe" bash -c "'$AT' --validate SPEC-008 TASK-02 2>&1 | grep -qF \"TASK-02: 'nao/existe/novo.sh' não existe nem é criado por uma tarefa de que ela depende\""
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
 
+# Ajuste de tarefas.
+AT2="$H/skills/default/adjust-task/scripts/adjust-task.sh"
+cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
+hist() { sed -n '/^## Histórico de ajustes$/,$p' "$1" | grep -c '^| [0-9]'; }
+fails "adjust-task sem argumentos" "$AT2"
+fails "adjust-task --record sem resumo" "$AT2" --record SPEC-008 TASK-01
+fails "adjust-task --record com resumo vazio" "$AT2" --record SPEC-008 TASK-01 "   "
+fails "adjust-task com ID inválido" "$AT2" --validate SPEC-008 ../TASK-01
+check "adjust-task de tarefa inexistente" bash -c "'$AT2' --validate SPEC-008 TASK-09 2>&1 | grep -qF 'tarefa TASK-09 não encontrada em SPEC-008'"
+check "adjust-task --validate de tarefa válida" "$AT2" --validate SPEC-008 TASK-01
+check "--record-manual sem edição" bash -c "'$AT2' --record-manual SPEC-008 TASK-01 | grep -qx 'Nenhuma edição manual.'"
+
+# Edição manual.
+sed -i.bak 's/^1\. Criar o script\.$/1. Criar o script à mão./' "$t1" && rm -f "$t1.bak"
+check "edição manual impede a aprovação" bash -c "'$AT' --validate SPEC-008 TASK-01 2>&1 | grep -qF 'edição manual sem registro'"
+check "--record-manual registra a edição" bash -c "'$AT2' --record-manual SPEC-008 TASK-01 | grep -qF 'Ajuste manual 1 registrado em TASK-01: Edição manual'"
+check "edição manual: linha manual no histórico e adjustments 1" bash -c "grep -qE '^\| 1 \| [0-9-]{10} \| manual \| Edição manual' '$t1' && sed -n '2,/^---/p' '$t1' | grep -qx 'adjustments: 1'"
+check "edição manual registrada libera a aprovação" "$AT" --validate SPEC-008 TASK-01
+python3 - "$t1" <<'PY'
+import sys, re; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = re.sub(r'(### Passos\n\n)[\s\S]*?(\n### )', r'\1\2', s, count=1); open(p, 'w', encoding='utf-8').write(s)
+PY
+check "edição manual inválida: registra e aponta os problemas" bash -c "out=\$('$AT2' --record-manual SPEC-008 TASK-01) && grep -qF 'Ajuste manual 2 registrado' <<< \"\$out\" && grep -qF \"TASK-01: a subseção 'Passos' está vazia\" <<< \"\$out\""
+check "--validate lista os problemas" bash -c "'$AT2' --validate SPEC-008 TASK-01 2>&1 | grep -qF \"TASK-01: a subseção 'Passos' está vazia\""
+before="$(sum "$t1")"
+fails "--record com tarefa inválida" "$AT2" --record SPEC-008 TASK-01 "Passos removidos"
+check "--record recusado não altera a tarefa" [ "$before" = "$(sum "$t1")" ]
+
+# Ajuste do agente.
+python3 - "$t1" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('### Passos\n\n', '### Passos\n\n1. Criar o script com testes.\n', 1); open(p, 'w', encoding='utf-8').write(s)
+PY
+check "--record registra o ajuste do agente" bash -c "'$AT2' --record SPEC-008 TASK-01 'Passo com testes; resumo com | barra' | grep -qF 'Ajuste 3 registrado em TASK-01'"
+check "ajuste do agente: linha agente com barra escapada" grep -qF '| agente | Passo com testes; resumo com \| barra |' "$t1"
+check "ajuste do agente: hash atualizado" bash -c "'$AT2' --record-manual SPEC-008 TASK-01 | grep -qx 'Nenhuma edição manual.'"
+check "ajuste do agente: uma linha por registro" [ "$(hist "$t1")" = 3 ]
+
+# Ajuste de tarefa aprovada.
+"$AT" --approve SPEC-008 TASK-01 > /dev/null
+sed -i.bak 's/^1\. Criar o script com testes\.$/1. Criar o script com testes e docs./' "$t1" && rm -f "$t1.bak"
+check "--record em tarefa aprovada avisa que a aprovação caiu" bash -c "'$AT2' --record SPEC-008 TASK-01 'Docs no passo 1' | grep -qF \"Aprovação de TASK-01 derrubada: o status voltou para 'pending'\""
+check "aprovação derrubada: status pending e campos limpos" bash -c "fmx=\$(sed -n '2,/^---/p' '$t1'); grep -qx 'status: pending' <<< \"\$fmx\" && grep -qx 'approved_at: null' <<< \"\$fmx\" && grep -qx 'approved_hash: null' <<< \"\$fmx\""
+check "tarefa ajustada pode ser aprovada de novo" "$AT" --approve SPEC-008 TASK-01
+sed -i.bak 's/^1\. Criar o script com testes e docs\.$/1. Criar o script./' "$t1" && rm -f "$t1.bak"
+check "edição manual em tarefa aprovada também derruba a aprovação" bash -c "'$AT2' --record-manual SPEC-008 TASK-01 | grep -qF 'Aprovação de TASK-01 derrubada' && sed -n '2,/^---/p' '$t1' | grep -qx 'status: pending'"
+
+# Status fora de pending e approved.
+for st in in_progress validating blocked done; do
+  set_status "$t2" "$st"; before="$(sum "$t2")"
+  check "adjust-task recusa tarefa $st e informa o status" bash -c "'$AT2' --record SPEC-008 TASK-02 'x' 2>&1 | grep -qF \"a tarefa TASK-02 está com status '$st'\" && [ '$before' = \"\$(cksum < '$t2')\" ]"
+done
+fails "--record-manual recusa tarefa fora de pending e approved" "$AT2" --record-manual SPEC-008 TASK-02
+rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
+
 # Cobertura de spec do tipo study: PQ.
 "$SP/create-new-spec.sh" 'Estudo' > /dev/null
 "$SP/create-refined-spec.sh" SPEC-009 study > /dev/null
@@ -833,7 +888,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

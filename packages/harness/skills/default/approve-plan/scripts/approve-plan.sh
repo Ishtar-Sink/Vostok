@@ -23,6 +23,7 @@ source "$HARNESS_DIR/scripts/lib/markdown.sh"
 source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
 source "$HARNESS_DIR/scripts/lib/adjustments.sh"
 source "$HARNESS_DIR/scripts/lib/plan.sh"
+source "$HARNESS_DIR/scripts/lib/task.sh"
 
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
@@ -32,7 +33,6 @@ USAGE="Uso: approve-plan.sh --create-tasks <SPEC_ID> | --validate <SPEC_ID> | --
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
-root_dir="$(cd "$(harness_path "$(config_get "$MAIN_CONFIG" paths.root)")" && pwd)"
 tasks_root="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")"
 approved_status="$(config_get "$SPECS_CONFIG" status.approved)"
 planned_status="$(config_get "$SPECS_CONFIG" status.planned)"
@@ -69,12 +69,6 @@ plan_blockers() {
   plan_errors "$plan" "$spec"
 }
 
-# Converte "TASK-01, TASK-02" ou "-" numa lista separada por ", " (vazia para "-").
-as_list() {
-  [ "$1" = "-" ] && return 0
-  printf '%s' "$1" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | grep -v '^$' | paste -sd ',' - | sed 's/,/, /g'
-}
-
 create_tasks() {
   local spec_id="$1" plan spec blockers target template staging id title desc type effort deps covers
 
@@ -105,22 +99,13 @@ create_tasks() {
       render "$template" > "$staging/$id.md"
   done <<< "$(plan_tasks "$plan")"
 
+  for id in "$staging"/*.md; do adjustment_store_hash "$id"; done
+
   mkdir -p "$target"
   mv "$staging"/*.md "$target"/
   rmdir "$staging"
   echo "Tarefas de $spec_id criadas em $target:"
   ls "$target" | sed 's/^/- /'
-}
-
-# Itens de "Mudar" no formato "- `caminho` (ação): motivo", um por linha: ação, tabulação e caminho.
-# change_items <arquivo>
-change_items() {
-  local item
-  while IFS= read -r item; do
-    [[ "$item" =~ ^-\ \`([^\`]+)\`\ \(([a-z]+)\) ]] || continue
-    printf '%s\t%s\n' "${BASH_REMATCH[2]}" "${BASH_REMATCH[1]}"
-  done <<< "$(markdown_subsection "$1" "$(config_get "$TASKS_CONFIG" execution_section)" \
-    "$(config_get "$TASKS_CONFIG" change_subsection)" 2>/dev/null || true)"
 }
 
 # Caminhos criados pelas tarefas de que cada tarefa depende, direta ou indiretamente, um por linha:
@@ -144,80 +129,6 @@ dependency_created_paths() {
       }
     }
   '
-}
-
-# Problemas de uma tarefa, um por linha, prefixados pelo ID.
-# task_errors <arquivo> <IDs cobertos pelo plano, separados por ", "> [caminhos criados pelas dependências]
-task_errors() {
-  local file="$1" plan_covers="$2" upstream="${3:-}" id section sub text field path action covers max lines
-  id="$(basename "$file" .md)"
-
-  template_leftovers "$file" | sed "s|^|$id: variável sem preencher: |" || true
-
-  for section in execution description; do
-    while IFS= read -r sub; do
-      if ! text="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" "${section}_section")" "$sub")"; then
-        echo "$id: subseção ausente: '### $sub'"
-      elif ! grep -q '[^[:space:]]' <<< "$text"; then
-        echo "$id: a subseção '$sub' está vazia"
-      fi
-    done <<< "$(config_list "$TASKS_CONFIG" "${section}_subsections")"
-  done
-
-  max="$(config_get "$TASKS_CONFIG" executive_summary_max_lines)"
-  lines="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" description_section)" \
-    "$(config_get "$TASKS_CONFIG" executive_summary_subsection)" 2>/dev/null | grep -c '[^[:space:]]' || true)"
-  [ "${lines:-0}" -le "$max" ] || echo "$id: o resumo executivo tem $lines linhas (máximo: $max)"
-
-  text="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" description_section)" \
-    "$(config_get "$TASKS_CONFIG" card_subsection)" 2>/dev/null || true)"
-  while IFS= read -r field; do
-    grep -qF -- "- **$field:**" <<< "$text" || echo "$id: campo do card ausente: '$field'"
-  done <<< "$(config_list "$TASKS_CONFIG" card_fields)"
-
-  # Arquivos a mudar, com a ação coerente com a existência do caminho. Um caminho criado por uma
-  # tarefa de que esta depende conta como existente.
-  text="$(change_items "$file")"
-  while IFS=$'\t' read -r action path; do
-    [ -n "$path" ] || continue
-    case " $SPEC_COMPONENT_ACTIONS " in
-      *" $action "*) ;;
-      *) echo "$id: ação inválida para '$path': '$action' (use: $SPEC_COMPONENT_ACTIONS)"; continue ;;
-    esac
-    if [ "$action" = criar ] && [ -e "$root_dir/$path" ]; then
-      echo "$id: '$path' já existe; use a ação 'alterar'"
-    elif [ "$action" != criar ] && [ ! -e "$root_dir/$path" ] && ! grep -qxF -- "$path" <<< "$upstream"; then
-      echo "$id: '$path' não existe nem é criado por uma tarefa de que ela depende; use a ação 'criar' ou corrija o caminho"
-    fi
-  done <<< "$text"
-  [ -n "$text" ] ||
-    echo "$id: '$(config_get "$TASKS_CONFIG" change_subsection)' sem nenhum item no formato: - \`caminho\` (ação): motivo"
-
-  # Critérios de conclusão: um checkbox por critério, seguido da forma de comprová-lo numa citação
-  # recuada ("  > Como comprovar: ...").
-  sub="$(config_get "$TASKS_CONFIG" done_subsection)"
-  field="$(config_get "$TASKS_CONFIG" done_proof_label)"
-  text="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" execution_section)" "$sub" 2>/dev/null || true)"
-  local criterion="" proven=1 count=0
-  while IFS= read -r item; do
-    [[ "$item" =~ [^[:space:]] ]] || continue
-    if [[ "$item" =~ ^-\ \[[\ x]\]\ [^[:space:]] ]]; then
-      [ "$proven" -eq 1 ] || echo "$id: '$sub' com critério sem '$field': $criterion"
-      criterion="$item" proven=0 count=$((count + 1))
-    elif [[ "$item" =~ ^[[:space:]]+\>\ (.*)$ ]] && [[ "${BASH_REMATCH[1]}" == "$field:"* ]] && [ -n "$criterion" ]; then
-      if [[ "${BASH_REMATCH[1]#"$field:"}" =~ [^[:space:]] ]]; then proven=1; fi
-    else
-      echo "$id: '$sub' com linha fora do formato: $item"
-    fi
-  done <<< "$text"
-  [ "$proven" -eq 1 ] || echo "$id: '$sub' com critério sem '$field': $criterion"
-  [ "$count" -gt 0 ] || [ -z "$text" ] ||
-    echo "$id: '$sub' sem nenhum critério no formato de checkbox: - [ ] critério"
-
-  covers="$(frontmatter_get "$file" covers 2>/dev/null | tr -d '[]' || true)"
-  [ "$(as_list "$covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" = \
-    "$(as_list "$plan_covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" ] ||
-    echo "$id: cobertura '$covers' diferente da do plano '$plan_covers'"
 }
 
 # Problemas de todas as tarefas da spec, um por linha.

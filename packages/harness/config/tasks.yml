@@ -94,6 +94,16 @@ execution_subsections:
 # Subseção de "Execução" com os arquivos a mudar, um por item: "- `caminho` (ação): motivo".
 change_subsection: Mudar
 
+# Subseção "Baseline": um comando por item ("- `comando`"), rodado antes e depois da mudança.
+baseline_subsection: Baseline
+
+# Subseção "Evidências": "- `arquivo` (automática): `comando`" ou "- `arquivo` (manual): descrição",
+# ou o texto de `evidence_none` quando a tarefa não gera evidência.
+evidence_subsection: Evidências
+evidence_automatic: automática
+evidence_manual: manual
+evidence_none: Não se aplica.
+
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples
 # ("  > Como comprovar: o que conferir e o resultado esperado").

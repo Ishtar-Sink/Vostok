@@ -457,6 +457,7 @@ check "--create-tasks cria uma tarefa por linha do plano" bash -c "'$APP' --crea
 t1="$TASKS/SPEC-008/TASK-01.md"; t2="$TASKS/SPEC-008/TASK-02.md"
 check "tarefa: front-matter do plano" bash -c "[ '$(fm "$t2" id)|$(fm "$t2" spec)|$(fm "$t2" title)|$(fm "$t2" effort)|$(fm "$t2" depends_on)|$(fm "$t2" covers)|$(fm "$t2" type)|$(fm "$t2" labels)|$(fm "$t2" status)' = 'TASK-02|SPEC-008|\"Documentar\"|complexa|[TASK-01]|[RF-02]|historia|[SPEC-008, complexa]|pending' ]"
 check "tarefa sem dependências: depends_on vazio e card sem bloqueio" bash -c "[ '$(fm "$t1" depends_on)' = '[]' ] && grep -qF -- '- **Bloqueada por:** -' '$t1' && grep -qF -- '- **Bloqueada por:** TASK-01' '$t2'"
+check "tarefa: content_hash gravado ao criar" bash -c "[ -n \"\$(sed -n '2,/^---/p' '$t1' | grep '^content_hash: [0-9a-f]\{64\}\$')\" ]"
 check "tarefa: arquivos com as permissões padrão" bash -c "ls -l '$t1' | grep -q '^-rw-r--r--'"
 check "--validate aponta variáveis das tarefas" bash -c "'$APP' --validate SPEC-008 2>&1 | grep -qF 'TASK-01: variável sem preencher'"
 fails "--mark-planned com tarefas sem preencher" "$APP" --mark-planned SPEC-008
@@ -470,6 +471,8 @@ import sys, re
 a, b = sys.argv[1], sys.argv[2]
 s = open(a, encoding='utf-8').read()
 s = s.replace('```bash\ntrue\n```', '')
+s = s.replace('### Baseline\n\n- `true`\n', '### Baseline\n\nrodar tudo\n')
+s = s.replace('- `saida.txt` (automática): `echo ok`', '- `saida.txt` (automatica): `echo ok`\n- `nota.png` (manual):')
 s = s.replace('- [ ] O script existe (RF-01).\n\n  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.', '- O script existe.\n\n- [ ] Sem comprovação.\n\n- [x] Comprovação vazia.\n\n  > Como comprovar:   \n\n- [ ] Comprovação na mesma linha. Como comprovar: abrir o arquivo.')
 s = s.replace('- `AGENTS.md` (alterar): cita o script.', '- `nao/existe.md` (alterar): outro.\n- `AGENTS.md` (criar): já existe.\n- `AGENTS.md` (mover): ação.')
 open(a, 'w', encoding='utf-8').write(s)
@@ -489,6 +492,10 @@ check "tarefa: critério de conclusão sem checkbox" grep -qF "TASK-01: 'Conclu�
 check "tarefa: comprovação fora da citação recuada" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Comprovação na mesma linha." "$R/.task-errors"
 check "tarefa: critério de conclusão sem comprovação" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Sem comprovação." "$R/.task-errors"
 check "tarefa: critério de conclusão com comprovação vazia" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [x] Comprovação vazia." "$R/.task-errors"
+check "tarefa: 'Baseline' fora do formato" grep -qF "TASK-01: 'Baseline' com item fora do formato: rodar tudo" "$R/.task-errors"
+check "tarefa: 'Baseline' sem nenhum item" grep -qF "TASK-01: 'Baseline' sem nenhum item no formato" "$R/.task-errors"
+check "tarefa: 'Evidências' com rótulo inválido" grep -qF "TASK-01: 'Evidências' com item fora do formato: - \`saida.txt\` (automatica)" "$R/.task-errors"
+check "tarefa: 'Evidências' manual sem descrição" grep -qF "TASK-01: 'Evidências' com item fora do formato: - \`nota.png\` (manual):" "$R/.task-errors"
 check "tarefa: 'Card' vazio" grep -qF "TASK-02: a subseção 'Card' está vazia" "$R/.task-errors"
 check "tarefa: campo do card ausente" grep -qF "TASK-02: campo do card ausente: 'Critérios de aceite'" "$R/.task-errors"
 check "tarefa: resumo executivo longo" grep -qF 'TASK-02: o resumo executivo tem 7 linhas (máximo: 5)' "$R/.task-errors"
@@ -509,6 +516,12 @@ check "tarefa do plano sem arquivo" grep -qF 'TASK-02: arquivo da tarefa ausente
 check "arquivo de tarefa fora do plano" grep -qF 'TASK-03: tarefa que não existe no plano' "$R/.task-errors"
 rm -f "$TASKS/SPEC-008/TASK-03.md"; mv "$t1.ok" "$t1"; mv "$t2.ok" "$t2"
 check "--validate das tarefas corrigidas" "$APP" --validate SPEC-008
+cp "$t1" "$t1.ok"
+sed -i.bak 's|^- `saida.txt` (automática): `echo ok`$|Não se aplica.|' "$t1" && rm -f "$t1.bak"
+check "tarefa: 'Evidências' com 'Não se aplica.' é válida" "$APP" --validate SPEC-008
+sed -i.bak 's|^Não se aplica\.$|Não se aplica. Talvez.|' "$t1" && rm -f "$t1.bak"
+check "tarefa: 'Não se aplica.' com texto extra é recusado" bash -c "'$APP' --validate SPEC-008 2>&1 | grep -qF \"TASK-01: 'Evidências' com item fora do formato: Não se aplica. Talvez.\""
+mv "$t1.ok" "$t1"
 cp "$t1" "$t1.ok"; cp "$t2" "$t2.ok"
 sed -i.bak 's|^- `nao/existe/novo.sh` (criar): script novo\.$|- `nao/existe/novo.sh` (alterar): muda o script.|' "$t2" && rm -f "$t2.bak"
 check "tarefa altera caminho criado pela tarefa de que depende" "$APP" --validate SPEC-008

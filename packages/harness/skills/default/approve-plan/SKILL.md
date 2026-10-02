@@ -18,7 +18,7 @@ Transforma o plano de tarefas aprovado pelo usuário em arquivos de tarefa detal
 
 - **Plano:** o arquivo `packages/harness/work/plans/<SPEC_ID>.md`. É removido pelo script depois da aprovação.
 - **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/TASK-NN.md`, criado pelo script a partir do plano.
-- **Execução:** a seção da tarefa lida pelo agente que a executa (`load-task.sh`): "Ler", "Mudar", "Passos", "Verificação" e "Concluída quando".
+- **Execução:** a seção da tarefa lida pelo agente que a executa (`load-task.sh`): "Ler", "Mudar", "Passos", "Baseline", "Verificação", "Evidências" e "Concluída quando".
 - **Descrição:** a seção da tarefa para leitura humana: "Resumo executivo", "Detalhes técnicos" e "Card".
 - **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.
 - **Impedimento:** o que impede a aprovação: spec fora de `approved` ou alterada, plano desatualizado, edição manual sem registro ou problema de validação.
@@ -100,7 +100,9 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 - **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec.
 - **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.
 - **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.
+- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.
 - **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.
+- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.`
 - **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.
 
 **Descrição** (para pessoas):

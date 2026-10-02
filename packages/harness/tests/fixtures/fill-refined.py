@@ -41,7 +41,7 @@ DEFAULTS = {
     'TASK_BASELINE': '- `true`',
     'TASK_VERIFY': '```bash\ntrue\n```',
     'TASK_EVIDENCE': '- `saida.txt` (automática): `echo ok`',
-    'TASK_DONE': '- O script existe.',
+    'TASK_DONE': '- [ ] O script existe (RF-01).\n\n  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.',
     'TASK_EXECUTIVE_SUMMARY': 'Entrega o script que permite exportar dados.',
     'TASK_TECHNICAL_DETAILS': 'Abordagem em bash, com referência a RF-01.',
     'TASK_CARD_DESCRIPTION': 'Cria o script.',

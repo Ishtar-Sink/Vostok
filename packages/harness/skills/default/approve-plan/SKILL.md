@@ -101,7 +101,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 - **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.
 - **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.
 - **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.
-- **`#{TASK_DONE}`:** lista dos critérios objetivos de conclusão, ligados aos IDs cobertos.
+- **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.
 
 **Descrição** (para pessoas):
 

@@ -193,6 +193,27 @@ task_errors() {
   [ -n "$text" ] ||
     echo "$id: '$(config_get "$TASKS_CONFIG" change_subsection)' sem nenhum item no formato: - \`caminho\` (ação): motivo"
 
+  # Critérios de conclusão: um checkbox por critério, seguido da forma de comprová-lo numa citação
+  # recuada ("  > Como comprovar: ...").
+  sub="$(config_get "$TASKS_CONFIG" done_subsection)"
+  field="$(config_get "$TASKS_CONFIG" done_proof_label)"
+  text="$(markdown_subsection "$file" "$(config_get "$TASKS_CONFIG" execution_section)" "$sub" 2>/dev/null || true)"
+  local criterion="" proven=1 count=0
+  while IFS= read -r item; do
+    [[ "$item" =~ [^[:space:]] ]] || continue
+    if [[ "$item" =~ ^-\ \[[\ x]\]\ [^[:space:]] ]]; then
+      [ "$proven" -eq 1 ] || echo "$id: '$sub' com critério sem '$field': $criterion"
+      criterion="$item" proven=0 count=$((count + 1))
+    elif [[ "$item" =~ ^[[:space:]]+\>\ (.*)$ ]] && [[ "${BASH_REMATCH[1]}" == "$field:"* ]] && [ -n "$criterion" ]; then
+      if [[ "${BASH_REMATCH[1]#"$field:"}" =~ [^[:space:]] ]]; then proven=1; fi
+    else
+      echo "$id: '$sub' com linha fora do formato: $item"
+    fi
+  done <<< "$text"
+  [ "$proven" -eq 1 ] || echo "$id: '$sub' com critério sem '$field': $criterion"
+  [ "$count" -gt 0 ] || [ -z "$text" ] ||
+    echo "$id: '$sub' sem nenhum critério no formato de checkbox: - [ ] critério"
+
   covers="$(frontmatter_get "$file" covers 2>/dev/null | tr -d '[]' || true)"
   [ "$(as_list "$covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" = \
     "$(as_list "$plan_covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" ] ||

@@ -94,6 +94,13 @@ execution_subsections:
 # Subseção de "Execução" com os arquivos a mudar, um por item: "- `caminho` (ação): motivo".
 change_subsection: Mudar
 
+# Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
+# seguido, numa citação recuada, da forma de comprová-lo em linguagem simples
+# ("  > Como comprovar: o que conferir e o resultado esperado").
+# O agente marca [x] na validação, depois de conferir a comprovação de cada item.
+done_subsection: Concluída quando
+done_proof_label: Como comprovar
+
 # Seção para leitura humana, fora do load-task.sh, e suas subseções obrigatórias.
 description_section: Descrição
 description_subsections:

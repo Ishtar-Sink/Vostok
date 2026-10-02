@@ -470,6 +470,7 @@ import sys, re
 a, b = sys.argv[1], sys.argv[2]
 s = open(a, encoding='utf-8').read()
 s = s.replace('```bash\ntrue\n```', '')
+s = s.replace('- [ ] O script existe (RF-01).\n\n  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.', '- O script existe.\n\n- [ ] Sem comprovação.\n\n- [x] Comprovação vazia.\n\n  > Como comprovar:   \n\n- [ ] Comprovação na mesma linha. Como comprovar: abrir o arquivo.')
 s = s.replace('- `AGENTS.md` (alterar): cita o script.', '- `nao/existe.md` (alterar): outro.\n- `AGENTS.md` (criar): já existe.\n- `AGENTS.md` (mover): ação.')
 open(a, 'w', encoding='utf-8').write(s)
 s = open(b, encoding='utf-8').read()
@@ -484,6 +485,10 @@ check "tarefa: 'Verificação' vazia" grep -qF "TASK-01: a subseção 'Verifica�
 check "tarefa: caminho a alterar inexistente" grep -qF "TASK-01: 'nao/existe.md' não existe" "$R/.task-errors"
 check "tarefa: criar caminho existente" grep -qF "TASK-01: 'AGENTS.md' já existe" "$R/.task-errors"
 check "tarefa: ação inválida" grep -qF "TASK-01: ação inválida para 'AGENTS.md': 'mover'" "$R/.task-errors"
+check "tarefa: critério de conclusão sem checkbox" grep -qF "TASK-01: 'Concluída quando' com linha fora do formato: - O script existe." "$R/.task-errors"
+check "tarefa: comprovação fora da citação recuada" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Comprovação na mesma linha." "$R/.task-errors"
+check "tarefa: critério de conclusão sem comprovação" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Sem comprovação." "$R/.task-errors"
+check "tarefa: critério de conclusão com comprovação vazia" grep -qF "TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [x] Comprovação vazia." "$R/.task-errors"
 check "tarefa: 'Card' vazio" grep -qF "TASK-02: a subseção 'Card' está vazia" "$R/.task-errors"
 check "tarefa: campo do card ausente" grep -qF "TASK-02: campo do card ausente: 'Critérios de aceite'" "$R/.task-errors"
 check "tarefa: resumo executivo longo" grep -qF 'TASK-02: o resumo executivo tem 7 linhas (máximo: 5)' "$R/.task-errors"

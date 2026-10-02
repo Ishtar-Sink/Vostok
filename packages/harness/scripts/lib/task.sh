@@ -32,6 +32,43 @@ change_items() {
     "$(config_get "$(_tasks_config)" change_subsection)" 2>/dev/null || true)"
 }
 
+# Caminhos criados pelas tarefas de que cada tarefa depende, direta ou indiretamente, um por linha:
+# ID, tabulação e caminho. Lê da entrada linhas "D<tab>ID<tab>dependência" e "C<tab>ID<tab>caminho".
+dependency_created_paths() {
+  awk -F'\t' '
+    $1 == "D" { deps[$2] = deps[$2] " " $3 }
+    $1 == "C" { created[$2] = created[$2] "\t" $3 }
+    function collect(id, dep,   n, i, list) {
+      if ((id SUBSEP dep) in seen) return
+      seen[id, dep] = 1
+      n = split(created[dep], list, "\t")
+      for (i = 2; i <= n; i++) print id "\t" list[i]
+      n = split(deps[dep], list, " ")
+      for (i = 1; i <= n; i++) collect(id, list[i])
+    }
+    END {
+      for (id in deps) {
+        n = split(deps[id], direct, " ")
+        for (i = 1; i <= n; i++) collect(id, direct[i])
+      }
+    }
+  '
+}
+
+# Caminhos criados pelas dependências de cada tarefa da pasta, lidas do front-matter (`depends_on`), um por
+# linha: ID, tabulação e caminho.
+# task_upstream_paths <pasta das tarefas da spec>
+task_upstream_paths() {
+  local file id
+  for file in "$1"/*.md; do
+    [ -f "$file" ] || continue
+    id="$(basename "$file" .md)"
+    frontmatter_get "$file" depends_on 2>/dev/null | tr -d '[]' | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' |
+      grep -v '^$' | TASK="$id" awk '{ print "D\t" ENVIRON["TASK"] "\t" $0 }' || true
+    change_items "$file" | TASK="$id" awk -F'\t' '$1 == "criar" { print "C\t" ENVIRON["TASK"] "\t" $2 }'
+  done | dependency_created_paths
+}
+
 # Problemas de "Baseline", um por linha: cada item é um comando no formato "- `comando`" e há ao menos um.
 # task_baseline_errors <arquivo>
 task_baseline_errors() {

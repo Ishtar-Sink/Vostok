@@ -10,7 +10,8 @@
 #      approve-plan.sh --validate <SPEC_ID>
 #        Lista os problemas das tarefas, sem alterar nada. Termina com erro se houver algum.
 #      approve-plan.sh --mark-planned <SPEC_ID>
-#        Valida as tarefas, remove o plano e muda o status da spec para status.planned.
+#        Valida as tarefas, grava o hash do conteúdo detalhado de cada uma, remove o plano e muda o status
+#        da spec para status.planned.
 #        Com problemas, termina com erro sem alterar nada.
 set -euo pipefail
 
@@ -108,29 +109,6 @@ create_tasks() {
   ls "$target" | sed 's/^/- /'
 }
 
-# Caminhos criados pelas tarefas de que cada tarefa depende, direta ou indiretamente, um por linha:
-# ID, tabulação e caminho. Lê da entrada linhas "D<tab>ID<tab>dependência" e "C<tab>ID<tab>caminho".
-dependency_created_paths() {
-  awk -F'\t' '
-    $1 == "D" { deps[$2] = deps[$2] " " $3 }
-    $1 == "C" { created[$2] = created[$2] "\t" $3 }
-    function collect(id, dep,   n, i, list) {
-      if ((id SUBSEP dep) in seen) return
-      seen[id, dep] = 1
-      n = split(created[dep], list, "\t")
-      for (i = 2; i <= n; i++) print id "\t" list[i]
-      n = split(deps[dep], list, " ")
-      for (i = 1; i <= n; i++) collect(id, list[i])
-    }
-    END {
-      for (id in deps) {
-        n = split(deps[id], direct, " ")
-        for (i = 1; i <= n; i++) collect(id, direct[i])
-      }
-    }
-  '
-}
-
 # Problemas de todas as tarefas da spec, um por linha.
 # tasks_errors <SPEC_ID> <plano>
 tasks_errors() {
@@ -170,13 +148,15 @@ validate() {
 }
 
 mark_planned() {
-  local spec_id="$1" plan spec errors
+  local spec_id="$1" plan spec errors file
 
   plan="$(find_plan "$spec_id")"
   spec="$(find_spec "$spec_id")"
   errors="$(plan_blockers "$spec_id" "$plan" "$spec"; tasks_errors "$spec_id" "$plan")"
   [ -z "$errors" ] || die "o plano de $spec_id não pode ser concluído; nada foi alterado:"$'\n'"$errors"
 
+  # As tarefas já estão detalhadas e validadas: o hash passa a valer para a aprovação delas.
+  for file in "$tasks_root/$spec_id"/*.md; do adjustment_store_hash "$file"; done
   frontmatter_set "$spec" status "$planned_status"
   frontmatter_put "$spec" updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   rm -f "$plan"

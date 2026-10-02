@@ -582,6 +582,63 @@ check "planejada: adjust-spec recusa e cita o novo ciclo" bash -c "'$A' --valida
 check "planejada: plan-tasks recusa" bash -c "'$PT' --create SPEC-008 2>&1 | grep -q \"já está com status 'planned'\""
 check "planejada: approve-spec recusa" bash -c "! '$AP' --approve SPEC-008 >/dev/null 2>&1"
 
+# Aprovação de tarefas.
+AT="$H/skills/default/approve-task/scripts/approve-task.sh"
+store_hash() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; adjustment_store_hash "$1"' _ "$1"; }
+set_status() { sed -i.bak "s/^status: .*/status: $2/" "$1" && rm -f "$1.bak"; }
+cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
+t3="$TASKS/SPEC-008/TASK-03.md"
+check "--mark-planned grava o hash das tarefas detalhadas" "$AT" --validate SPEC-008 TASK-01 TASK-02
+fails "approve-task sem argumentos" "$AT"
+fails "approve-task sem spec" "$AT" --approve
+check "approve-task sem tarefas nem --all" bash -c "'$AT' --approve SPEC-008 2>&1 | grep -qF 'informe as tarefas a aprovar ou --all'"
+fails "approve-task com --all e IDs" "$AT" --approve SPEC-008 --all TASK-01
+fails "approve-task com ID inválido" "$AT" --approve SPEC-008 ../TASK-01
+fails "approve-task com spec inválida" "$AT" --approve ../SPEC-008 TASK-01
+check "approve-task de tarefa inexistente" bash -c "'$AT' --approve SPEC-008 TASK-09 2>&1 | grep -qF 'tarefa TASK-09 não encontrada em SPEC-008'"
+check "approve-task de spec sem tarefas" bash -c "'$AT' --approve SPEC-006 TASK-01 2>&1 | grep -qF 'a spec SPEC-006 não tem tarefas'"
+before="$(sum "$t1")"
+check "--validate não altera a tarefa" bash -c "'$AT' --validate SPEC-008 TASK-01 >/dev/null && [ '$before' = \"\$(cksum < '$t1')\" ]"
+
+# Impedimentos: edição manual, tarefa inválida e status fora de pending, todos listados.
+cp "$t2" "$t3"; sed -i.bak 's/^id: TASK-02$/id: TASK-03/' "$t3" && rm -f "$t3.bak"; store_hash "$t3"
+sed -i.bak 's/^1\. Criar o script\.$/1. Criar o script à mão./' "$t2" && rm -f "$t2.bak"
+python3 - "$t3" <<'PY'
+import sys, re; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = re.sub(r'(### Passos\n\n)[\s\S]*?(\n### )', r'\1\2', s, count=1); open(p, 'w', encoding='utf-8').write(s)
+PY
+store_hash "$t3"; set_status "$t1" approved
+before="$(cat "$t1" "$t2" "$t3" | cksum)"
+"$AT" --validate SPEC-008 TASK-01 TASK-02 TASK-03 > "$R/.at" 2>&1
+check "impedimento: status fora de pending" grep -qF "TASK-01: status 'approved'; só tarefas com status 'pending' são aprovadas" "$R/.at"
+check "impedimento: edição manual sem registro" grep -qF "TASK-02: edição manual sem registro; registre-a com: adjust-task.sh --record-manual SPEC-008 TASK-02" "$R/.at"
+check "impedimento: tarefa inválida" grep -qF "TASK-03: a subseção 'Passos' está vazia" "$R/.at"
+fails "--approve com impedimentos" "$AT" --approve SPEC-008 TASK-01 TASK-02 TASK-03
+check "--approve recusado não altera nenhuma tarefa" [ "$before" = "$(cat "$t1" "$t2" "$t3" | cksum)" ]
+rm -rf "$TASKS/SPEC-008"; cp -R "$R/.tasks-ok" "$TASKS/SPEC-008"
+
+# Aprovar uma, várias e todas.
+check "--approve de uma tarefa" bash -c "'$AT' --approve SPEC-008 TASK-01 | grep -qx -- '- TASK-01'"
+check "aprovada: status, approved_at e approved_hash" bash -c "[ '$(fm "$t1" status 2>/dev/null)' != x ] && [ \"\$(sed -n '2,/^---/p' '$t1' | grep '^status:')\" = 'status: approved' ] && sed -n '2,/^---/p' '$t1' | grep -q '^approved_at: [0-9T:-]*Z\$' && [ \"\$(sed -n '2,/^---/p' '$t1' | grep '^approved_hash:' | cut -d' ' -f2)\" = \"\$(sed -n '2,/^---/p' '$t1' | grep '^content_hash:' | cut -d' ' -f2)\" ]"
+check "só a tarefa citada é aprovada" bash -c "sed -n '2,/^---/p' '$t2' | grep -qx 'status: pending'"
+check "aprovada continua sem edição manual" bash -c "! '$AT' --validate SPEC-008 TASK-01 2>&1 | grep -q 'edição manual'"
+before="$(sum "$t2")"
+fails "recusa atômica: uma das citadas já aprovada" "$AT" --approve SPEC-008 TASK-01 TASK-02
+check "recusa atômica não aprova a outra" [ "$before" = "$(sum "$t2")" ]
+cp "$t2" "$t3"; sed -i.bak 's/^id: TASK-02$/id: TASK-03/' "$t3" && rm -f "$t3.bak"; store_hash "$t3"
+check "--approve de duas tarefas, com ID repetido" bash -c "[ \"\$('$AT' --approve SPEC-008 TASK-02 TASK-03 TASK-02 | grep -c '^- TASK-')\" = 2 ] && sed -n '2,/^---/p' '$t3' | grep -qx 'status: approved'"
+check "--all sem tarefas pending" bash -c "'$AT' --approve SPEC-008 --all 2>&1 | grep -qF \"não tem tarefas com status 'pending'\""
+set_status "$t2" pending; set_status "$t3" pending
+check "--all aprova só as pending e ignora as aprovadas" bash -c "out=\$('$AT' --approve SPEC-008 --all) && grep -qx -- '- TASK-02' <<< \"\$out\" && grep -qx -- '- TASK-03' <<< \"\$out\" && ! grep -q TASK-01 <<< \"\$out\""
+rm -rf "$TASKS/SPEC-008"; cp -R "$R/.tasks-ok" "$TASKS/SPEC-008"
+
+# Dependências lidas do front-matter, sem o plano.
+sed -i.bak 's|^- `AGENTS.md` (alterar): cita o script\.$|- `nao/existe/novo.sh` (alterar): muda o script.|' "$t2" && rm -f "$t2.bak"; store_hash "$t2"
+check "altera caminho criado pela dependência (depends_on)" "$AT" --validate SPEC-008 TASK-02
+sed -i.bak 's/^depends_on: \[TASK-01\]$/depends_on: []/' "$t2" && rm -f "$t2.bak"
+check "sem a dependência, o caminho não existe" bash -c "'$AT' --validate SPEC-008 TASK-02 2>&1 | grep -qF \"TASK-02: 'nao/existe/novo.sh' não existe nem é criado por uma tarefa de que ela depende\""
+rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
+
 # Cobertura de spec do tipo study: PQ.
 "$SP/create-new-spec.sh" 'Estudo' > /dev/null
 "$SP/create-refined-spec.sh" SPEC-009 study > /dev/null
@@ -776,7 +833,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

@@ -1,7 +1,8 @@
 # Validação do arquivo de tarefa e leitura dos itens de suas subseções. Compartilhado por approve-plan.sh
 # e pelos scripts de execução. Seções, subseções e rótulos vêm de config/tasks.yml.
 # Uso: source "$HARNESS_DIR/scripts/lib/task.sh"
-#      (requer HARNESS_DIR e as libs config.sh, text.sh, frontmatter.sh, markdown.sh, spec-validation.sh e plan.sh)
+#      (requer HARNESS_DIR e as libs config.sh, text.sh, frontmatter.sh, markdown.sh, spec-validation.sh,
+#      adjustments.sh e plan.sh)
 
 # Raiz do projeto (`paths.root` em main.yml), onde ficam os caminhos citados em "Mudar".
 _task_root_dir() {
@@ -201,4 +202,51 @@ task_errors() {
   [ "$(as_list "$covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" = \
     "$(as_list "$plan_covers" | tr -d ' ' | tr ',' '\n' | sort | paste -sd ',' -)" ] ||
     echo "$id: cobertura '$covers' diferente da do plano '$plan_covers'"
+}
+
+# Comandos de "Baseline", um por linha, sem os acentos graves.
+# task_baseline_commands <arquivo>
+task_baseline_commands() {
+  task_subsection "$1" baseline_subsection | sed -nE 's/^- `(.+)`$/\1/p'
+}
+
+# Pasta das evidências de uma tarefa (`evidence_dir`, relativa à pasta de tarefas da spec).
+# task_evidence_path <arquivo>
+task_evidence_path() {
+  printf '%s/%s/%s' "$(dirname "$1")" "$(config_get "$(_tasks_config)" evidence_dir)" "$(basename "$1" .md)"
+}
+
+# Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo, já que a linha faz parte dele.
+# Barras verticais são escapadas para não quebrar a tabela.
+# task_record_step <arquivo> <etapa> <resultado> <detalhe>
+task_record_step() {
+  local file="$1" section count row tmp
+  section="$(config_get "$(_tasks_config)" record_section)"
+  count="$(markdown_section "$file" "$section" | grep -c '^| [0-9]' || true)"
+  row="$(printf '| %s | %s | %s | %s | %s |' "$((count + 1))" "$(date -u +%Y-%m-%d)" \
+    "$(printf '%s' "$2" | sed 's/|/\\|/g')" "$(printf '%s' "$3" | sed 's/|/\\|/g')" "$(printf '%s' "$4" | sed 's/|/\\|/g')")"
+  tmp="$(mktemp)"
+  if RECORD_HEADING="## $section" RECORD_ROW="$row" awk '
+    FNR == 1 { pass++ }
+    { plain = $0; sub(/\r$/, "", plain) }
+    pass == 1 {
+      if (plain ~ /^[ \t]*```/) { in_code = !in_code; next }
+      if (in_code) next
+      if (plain == ENVIRON["RECORD_HEADING"]) { inside = 1; next }
+      if (inside && plain ~ /^## /) inside = 0
+      if (inside && plain ~ /^\|/) at = FNR
+      next
+    }
+    { print }
+    FNR == at { print ENVIRON["RECORD_ROW"] }
+    END { exit !at }
+  ' "$file" "$file" > "$tmp"; then
+    cat "$tmp" > "$file"
+    rm -f "$tmp"
+  else
+    rm -f "$tmp"
+    echo "seção '## $section' sem a tabela; nada registrado" >&2
+    return 1
+  fi
+  adjustment_store_hash "$file"
 }

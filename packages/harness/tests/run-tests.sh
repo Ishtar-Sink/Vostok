@@ -697,6 +697,63 @@ done
 fails "--record-manual recusa tarefa fora de pending e approved" "$AT2" --record-manual SPEC-008 TASK-02
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
 
+# Execução de tarefas.
+ET="$H/skills/default/execute-task/scripts/execute-task.sh"
+cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
+EV="$TASKS/SPEC-008/evidence"
+rec() { sed -n '/^## Registro de execução$/,/^## /p' "$1" | grep '^| [0-9]' | cut -d'|' -f2,4,5 | tr -d ' ' | paste -sd ';' -; }
+hash_ok() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; [ "$(adjustment_hash_state "$1")" = same ]' _ "$1"; }
+python3 - "$t1" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('### Baseline\n\n- `true`\n', '### Baseline\n\n- `ls AGENTS.md`\n- `echo "a|b"; echo erro >&2`\n- `false`\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+store_hash "$t1"
+fails "execute-task sem argumentos" "$ET"
+fails "execute-task com ID inválido" "$ET" --start SPEC-008 ../TASK-01
+check "execute-task de tarefa inexistente" bash -c "'$ET' --start SPEC-008 TASK-09 2>&1 | grep -qF 'tarefa TASK-09 não encontrada em SPEC-008'"
+
+# Recusas do início.
+before="$(sum "$t1")"
+check "--start recusa tarefa pending" bash -c "'$ET' --start SPEC-008 TASK-01 2>&1 | grep -qF \"a tarefa TASK-01 está com status 'pending'; só tarefas com status 'approved' são executadas\""
+check "--start recusado não altera a tarefa" [ "$before" = "$(sum "$t1")" ]
+"$AT" --approve SPEC-008 TASK-01 TASK-02 > /dev/null
+sed -i.bak 's/^1\. Criar o script\.$/1. Criar o script à mão./' "$t1" && rm -f "$t1.bak"; before="$(sum "$t1")"
+check "--start recusa tarefa editada depois da aprovação" bash -c "'$ET' --start SPEC-008 TASK-01 2>&1 | grep -qF 'a tarefa TASK-01 mudou depois da aprovação'"
+check "--start recusado por edição não altera a tarefa" [ "$before" = "$(sum "$t1")" ]
+store_hash "$t1"
+check "--start recusa edição mesmo com o hash regravado" bash -c "'$ET' --start SPEC-008 TASK-01 2>&1 | grep -qF 'mudou depois da aprovação'"
+sed -i.bak 's/^1\. Criar o script à mão\.$/1. Criar o script./' "$t1" && rm -f "$t1.bak"; store_hash "$t1"
+before="$(sum "$t2")"
+check "--start recusa dependência aprovada e cita a dependência" bash -c "'$ET' --start SPEC-008 TASK-02 2>&1 | grep -qF \"a dependência TASK-01 está com status 'approved'; ela precisa estar 'done' antes\""
+set_status "$t1" blocked
+check "--start recusa dependência blocked" bash -c "'$ET' --start SPEC-008 TASK-02 2>&1 | grep -qF \"a dependência TASK-01 está com status 'blocked'\""
+check "--start recusado por dependência não altera a tarefa" [ "$before" = "$(sum "$t2")" ]
+set_status "$t1" approved
+fails "--baseline antes do início" "$ET" --baseline SPEC-008 TASK-01
+check "--baseline antes do início não cria evidências" [ ! -e "$EV" ]
+
+# Início e baseline.
+check "--start inicia a tarefa" bash -c "'$ET' --start SPEC-008 TASK-01 | grep -qF \"Tarefa TASK-01 iniciada: status 'in_progress'\""
+check "iniciada: status in_progress" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'status: in_progress'"
+check "iniciada: linha no registro" [ "$(rec "$t1")" = '1|início|in_progress' ]
+check "iniciada: hash do conteúdo atualizado" hash_ok "$t1"
+fails "--start de tarefa já iniciada" "$ET" --start SPEC-008 TASK-01
+check "--baseline coleta um arquivo por comando" bash -c "'$ET' --baseline SPEC-008 TASK-01 | grep -qF '3 comando(s); códigos de saída: 0, 0, 1' && [ \"\$(ls '$EV/TASK-01/baseline' | paste -sd ' ' -)\" = '01.out 02.out 03.out' ]"
+check "baseline: comando, código e saída, a partir da raiz" bash -c "[ \"\$(cat '$EV/TASK-01/baseline/01.out')\" = \"\$(printf '\$ ls AGENTS.md\nexit: 0\nAGENTS.md')\" ]"
+check "baseline: saída de erro e barra vertical gravadas" bash -c "grep -qx 'a|b' '$EV/TASK-01/baseline/02.out' && grep -qx 'erro' '$EV/TASK-01/baseline/02.out' && grep -qx 'exit: 1' '$EV/TASK-01/baseline/03.out'"
+check "baseline: pasta com as permissões padrão" bash -c "ls -ld '$EV/TASK-01/baseline' | grep -q '^drwxr-xr-x'"
+check "baseline: linha no registro" [ "$(rec "$t1")" = '1|início|in_progress;2|baseline|coletado' ]
+check "baseline: detalhe no registro" grep -qF '3 comando(s); códigos de saída: 0, 0, 1 |' "$t1"
+check "baseline: hash do conteúdo atualizado" hash_ok "$t1"
+before="$(cat "$EV"/TASK-01/baseline/* | cksum)"
+check "--baseline repetido é recusado" bash -c "'$ET' --baseline SPEC-008 TASK-01 2>&1 | grep -qF 'o baseline de TASK-01 já foi coletado'"
+check "--baseline repetido não sobrescreve" [ "$before" = "$(cat "$EV"/TASK-01/baseline/* | cksum)" ]
+check "--baseline repetido não registra" [ "$(rec "$t1")" = '1|início|in_progress;2|baseline|coletado' ]
+set_status "$t1" done
+check "--start aceita dependência done" "$ET" --start SPEC-008 TASK-02
+rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
+
 # Cobertura de spec do tipo study: PQ.
 "$SP/create-new-spec.sh" 'Estudo' > /dev/null
 "$SP/create-refined-spec.sh" SPEC-009 study > /dev/null
@@ -891,7 +948,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

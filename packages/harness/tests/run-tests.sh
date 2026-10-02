@@ -754,6 +754,71 @@ set_status "$t1" done
 check "--start aceita dependência done" "$ET" --start SPEC-008 TASK-02
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
 
+# Validação de tarefas: testes, regressão e retomada.
+VT="$H/skills/default/validate-task/scripts/validate-task.sh"
+cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
+fmv() { sed -n '2,/^---/p' "$1" | grep "^$2:" | sed "s/^$2: //"; }
+python3 - "$t1" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = s.replace('```bash\ntrue\n```', '```bash\ntest ! -e .falha   # falha enquanto .falha existir\ntrue\n```', 1)
+s = s.replace('### Baseline\n\n- `true`\n', '### Baseline\n\n- `cat estado.txt`\n', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+store_hash "$t1"; "$AT" --approve SPEC-008 TASK-01 > /dev/null
+echo um > "$R/estado.txt"; rm -f "$R/.falha"
+fails "validate-task sem argumentos" "$VT"
+fails "validate-task com ID inválido" "$VT" --tests SPEC-008 ../TASK-01
+check "--tests recusa tarefa aprovada, ainda não iniciada" bash -c "'$VT' --tests SPEC-008 TASK-01 2>&1 | grep -qF \"a tarefa TASK-01 está com status 'approved'; só tarefas com status 'in_progress' ou 'validating' são validadas\""
+"$ET" --start SPEC-008 TASK-01 > /dev/null
+mv "$TASKS/SPEC-008" "$R/.sem-baseline"; cp -R "$R/.sem-baseline" "$TASKS/SPEC-008"
+check "--regression recusa sem baseline" bash -c "'$VT' --regression SPEC-008 TASK-01 2>&1 | grep -qF 'o baseline de TASK-01 não foi coletado'"
+rm -rf "$TASKS/SPEC-008"; mv "$R/.sem-baseline" "$TASKS/SPEC-008"
+"$ET" --baseline SPEC-008 TASK-01 > /dev/null
+
+# Testes que passam e regressão sem diferença.
+check "--tests que passam" bash -c "'$VT' --tests SPEC-008 TASK-01 | grep -qF 'Testes de TASK-01 passaram'"
+check "testes: validating, passed e saída gravada" bash -c "[ \"\$(sed -n '2,/^---/p' '$t1' | grep -E '^(status|tests_result):' | paste -sd ' ' -)\" = 'status: validating tests_result: passed' ] && [ -f '$EV/TASK-01/validation/tests.out' ]"
+check "--regression sem diferença" bash -c "'$VT' --regression SPEC-008 TASK-01 | grep -qF 'Sem regressão em TASK-01: 1 comando(s)'"
+check "regressão: passed" [ "$(fmv "$t1" regression_result)" = passed ]
+
+# Testes que falham até o máximo; o primeiro comando com falha basta, mesmo com o último passando.
+touch "$R/.falha"
+"$VT" --tests SPEC-008 TASK-01 > "$R/.vt" 2>&1; code=$?
+check "--tests com falha termina com erro" [ "$code" -ne 0 ]
+check "--tests com falha mostra a tentativa e onde está a saída" bash -c "grep -qF '(código de saída 1), tentativa 1 de 2. Últimas linhas da saída' '$R/.vt' && grep -qF 'os testes de TASK-01 falharam; corrija' '$R/.vt'"
+check "--tests com falha aponta o comando que falhou" grep -qF 'comando com falha (código 1): test ! -e .falha' "$R/.vt"
+check "falha: attempts 1, failed, regressão e evidências null, validating" bash -c "[ \"\$(sed -n '2,/^---/p' '$t1' | grep -E '^(status|attempts|tests_result|regression_result|evidence_result):' | paste -sd ' ' -)\" = 'status: validating attempts: 1 tests_result: failed regression_result: null evidence_result: null' ]"
+check "segunda falha bloqueia e manda parar" bash -c "'$VT' --tests SPEC-008 TASK-01 2>&1 | grep -qF 'a tarefa TASK-01 ficou bloqueada depois de 2 tentativas. PARE'"
+check "bloqueada: blocked e attempts 2" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'status: blocked' && sed -n '2,/^---/p' '$t1' | grep -qx 'attempts: 2'"
+before="$(sum "$t1")"
+check "terceira execução de --tests recusada" bash -c "'$VT' --tests SPEC-008 TASK-01 2>&1 | grep -qF 'a tarefa TASK-01 está bloqueada'"
+fails "--regression recusada em tarefa bloqueada" "$VT" --regression SPEC-008 TASK-01
+check "recusas em tarefa bloqueada não alteram a tarefa" [ "$before" = "$(sum "$t1")" ]
+
+# Retomada.
+fails "--resume sem decisão" "$VT" --resume SPEC-008 TASK-01 "  "
+fails "--resume com quebra de linha" "$VT" --resume SPEC-008 TASK-01 $'a\nb'
+check "--resume retoma a tarefa" bash -c "'$VT' --resume SPEC-008 TASK-01 'remover o arquivo | de falha' | grep -qF \"Tarefa TASK-01 retomada: status 'validating'\""
+check "retomada: validating, attempts 0 e resultados null" bash -c "[ \"\$(sed -n '2,/^---/p' '$t1' | grep -E '^(status|attempts|tests_result|regression_result|evidence_result):' | paste -sd ' ' -)\" = 'status: validating attempts: 0 tests_result: null regression_result: null evidence_result: null' ]"
+check "retomada: decisão no registro" grep -qF '| retomada | validating | decisão do usuário: remover o arquivo \| de falha |' "$t1"
+fails "--resume em tarefa não bloqueada" "$VT" --resume SPEC-008 TASK-01 "outra"
+rm -f "$R/.falha"
+check "depois da retomada, --tests passa" "$VT" --tests SPEC-008 TASK-01
+
+# Regressão por saída e por código de saída.
+echo dois > "$R/estado.txt"
+"$VT" --regression SPEC-008 TASK-01 > "$R/.vt" 2>&1; code=$?
+check "regressão por saída: erro, comando listado e diferença" bash -c "[ $code -ne 0 ] && grep -qx -- '- cat estado.txt' '$R/.vt' && grep -q '^    > dois' '$R/.vt' && grep -qF 'bloqueada por regressão. PARE' '$R/.vt'"
+check "regressão: failed e blocked" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'regression_result: failed' && sed -n '2,/^---/p' '$t1' | grep -qx 'status: blocked'"
+"$VT" --resume SPEC-008 TASK-01 "corrigir o estado" > /dev/null
+echo um > "$R/estado.txt"
+check "regressão corrigida passa" bash -c "'$VT' --tests SPEC-008 TASK-01 >/dev/null && '$VT' --regression SPEC-008 TASK-01 >/dev/null"
+rm -f "$R/estado.txt"
+check "regressão por código de saída" bash -c "'$VT' --regression SPEC-008 TASK-01 2>&1 | grep -q '^    < exit: 0'"
+check "registro: uma linha por etapa" bash -c "[ \"\$(sed -n '/^## Registro de execução\$/,/^## /p' '$t1' | grep -c '^| [0-9]')\" = 13 ]"
+check "registro: hash do conteúdo atualizado" hash_ok "$t1"
+rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"; rm -f "$R/estado.txt" "$R/.falha"
+
 # Cobertura de spec do tipo study: PQ.
 "$SP/create-new-spec.sh" 'Estudo' > /dev/null
 "$SP/create-refined-spec.sh" SPEC-009 study > /dev/null
@@ -948,7 +1013,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize validate-task >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

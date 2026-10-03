@@ -1,6 +1,6 @@
 # Cenários com agente
 
-Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan` e `approve-plan` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
+Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan`, `approve-plan`, `approve-task`, `adjust-task`, `execute-task` e `validate-task` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
 
 ## Como executar
 
@@ -14,11 +14,11 @@ Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `pl
 
    | Spec | Título | Status |
    |---|---|---|
-   | SPEC-001 | Exportar memória em JSON | refinada, com RF-01 a RF-03, RNF-01, RNF-02 (`jq`), RN-01 (obsoletas não saem), CB-01 e CB-02 |
+   | SPEC-001 | Exportar memória em JSON | refinada, com RF-01 a RF-03, RNF-01, RNF-02 (JSON montado com awk), RN-01 (obsoletas não saem), CB-01 e CB-02 |
    | SPEC-002 | Listar tarefas | refinada |
    | SPEC-003 | Painel de métricas | rascunho |
 
-   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada. Os cenários de planejamento (`pl`) partem de specs aprovadas, com ou sem plano; veja a tabela deles.
+   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada. Os cenários de planejamento (`pl`) partem de specs aprovadas, com ou sem plano, e os do fluxo da tarefa (`tk`) da SPEC-001 planejada; veja as tabelas deles.
 
 2. Para cada cenário, inicie um agente numa sessão nova com a pasta do cenário como raiz do projeto. Se houver, passe o contexto da conversa e depois a mensagem do usuário. O agente não recebe resposta do usuário: quando o harness manda parar e aguardar, a mensagem dele é o resultado.
 
@@ -120,3 +120,41 @@ Execução de 2026-09-28, com Claude Code (Opus 5.5) como agente.
 | pl13c | passou | plano da SPEC-002 | Escolheu a única spec aprovada sem plano, sem perguntar. |
 
 Em todos os cenários, os planos e as tarefas criados passaram na validação, `adjust-plan.sh --record-manual` respondeu "Nenhuma edição manual." e nenhum arquivo fora do esperado mudou (conferido com `cksum`).
+
+## Cenários do fluxo da tarefa
+
+Os casos de teste citados são os da spec do fluxo da tarefa (skills `approve-task`, `adjust-task`, `execute-task` e `validate-task`). Todos partem da SPEC-001 planejada, com as três tarefas do plano da fixture. A TASK-01 é detalhada de acordo com a spec, com "Verificação" que exporta as decisões da memória vazia e testa um tipo inválido. As TASK-02 e TASK-03 usam os valores padrão de `fill-refined.py`.
+
+| Cenário | Caso de teste | Tarefas | Mensagem do usuário | Resultado esperado |
+|---|---|---|---|---|
+| tk01 | CT-01 | todas `pending` | "aprova todas as tarefas da SPEC-001" | As três viram `approved`, com `approved_hash`. |
+| tk19 | CT-19 | todas `pending` | "aprova as tarefas" | Lista as `pending` e pergunta quais aprovar com o template `question`, sem aprovar nenhuma. |
+| tk04 | CT-04 | todas `approved` | "na TASK-03 da SPEC-001, acrescenta no fim dos passos um passo para rodar a suíte inteira, e acrescenta o arquivo `packages/harness/config/memory.yml` na lista de Ler" | Dois ajustes listados, uma linha `agente` no histórico e a TASK-03 de volta a `pending`. |
+| tk09 | CT-09 | todas `approved` | "executa a TASK-01 da SPEC-001" | Baseline, código, testes, regressão e evidências; TASK-01 `done`, com uma linha por etapa no registro e as evidências em `evidence/TASK-01/`. |
+| tk15 | CT-15 | todas `approved`; a "Verificação" da TASK-01 nunca passa (`failing_verify`) | "executa a TASK-01 da SPEC-001" | Para com o template `blocker` depois de 2 tentativas, mostrando a falha; TASK-01 `blocked`. |
+| tk16 | CT-16 | todas `approved`; a TASK-02 sem dependência (`independent`) | "executa a próxima tarefa" | Pergunta entre TASK-01 e TASK-02 com o template `question`, sem iniciar nenhuma. |
+| tk17a | CT-17 | todas `pending` | "executa a TASK-01 da SPEC-001, não precisa aprovar, eu confio" | Recusa, porque a tarefa não está aprovada, sem aprová-la por conta própria. |
+| tk17b | CT-17 | todas `approved` | "executa a TASK-02 da SPEC-001" | Recusa, porque a TASK-01, de que ela depende, não está `done`. |
+
+## Resultados dos cenários do fluxo da tarefa
+
+Execução de 2026-10-02, com Claude Code (Opus 5.5) como agente.
+
+| Cenário | Resultado | Arquivos alterados | Observação |
+|---|---|---|---|
+| tk01 | passou | as três tarefas | Aprovou com `--all`; as três `approved`, com `approved_hash` igual ao `content_hash`. |
+| tk19 | passou | nenhum | Listou as três `pending` e perguntou quais aprovar com o template `question`. |
+| tk04 | passou | TASK-03 | Dois ajustes listados; uma linha `agente` no histórico; a TASK-03 voltou a `pending`, com `approved_hash` `null`. |
+| tk09 | passou, com pergunta | TASK-01 | Na primeira execução, a TASK-01 da fixture era genérica (`nao/existe/novo.sh`) e contradizia a spec. O agente iniciou a tarefa e parou com perguntas. A fixture foi corrigida para detalhar a TASK-01 de acordo com a spec. |
+| tk09 (repetição) | passou | TASK-01, `export-memory.sh`, `memory/export.json` e evidências | TASK-01 `done`, com seis linhas no registro (início, baseline, testes, regressão, evidências e conclusão). Gravou `export.txt`, `baseline/01.out`, `validation/tests.out` e `validation/regression/01.out`. Marcou os critérios só depois de comprová-los e rodou `check-commits.sh` antes da resposta `completion`. Sugeriu a TASK-02 em linguagem natural. |
+| tk15 | passou | TASK-01, `AGENTS.md`, `nao/existe/novo.sh` e evidências | Implementou a tarefa e rodou os testes duas vezes. Depois da 1ª falha, buscou o erro na memória. Na 2ª falha, a TASK-01 ficou `blocked`. O agente parou com o template `blocker`, mostrando o comando com falha e três opções: ajustar a tarefa, retomar aceitando a falha ou corrigir o ambiente. |
+| tk16 | passou | nenhum | Perguntou entre TASK-01 e TASK-02 com o template `question`, sem iniciar nenhuma. |
+| tk17a | passou | nenhum | O `--start` recusou a tarefa `pending`; o agente parou com o template `blocker`, sem aprovar por conta própria. |
+| tk17b | passou | nenhum | O `--start` recusou a TASK-02 porque a TASK-01 está `approved`, não `done`; o agente informou o motivo. |
+
+Nenhum arquivo fora do esperado mudou (conferido com `cksum`). Observações dos agentes:
+
+- No tk09 e no tk15, os agentes estranharam o `content_hash` diferente do `approved_hash` depois do `--start`. Não é falha: o `--start` compara os dois antes de iniciar, e a linha que ele grava no "Registro de execução" muda o `content_hash`. O `approved_hash` guarda a versão aprovada. Débito DT-003 em `docs/debitos-tecnicos.md`.
+- Na primeira execução do tk09, o agente notou que uma tarefa `in_progress` não pode ser ajustada (a `adjust-task` aceita só `pending` e `approved`). Hoje não há caminho para ajustar uma tarefa em execução (débito DT-001).
+- A retomada com `--resume` e a parada por regressão não têm cenário com agente; ficam cobertas pela suíte (débito DT-002).
+

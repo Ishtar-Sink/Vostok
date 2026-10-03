@@ -3,8 +3,9 @@
 # Cada cenário recebe uma cópia do projeto (AGENTS.md, CLAUDE.md e packages/harness) com:
 #   SPEC-001 Exportar memória em JSON (refinada), SPEC-002 Listar tarefas (refinada)
 #   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`),
-#   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`) ou da
-#   SPEC-001 já planejada (ver `planned`).
+#   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`), da
+#   SPEC-001 já planejada (ver `planned`) ou das tarefas dela aprovadas (ver `tasks_approved`,
+#   `failing_verify` e `independent`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -35,15 +36,15 @@ F "$f" 'SPEC_SUMMARY=Cria o script `export-memory.sh`, que exporta as entradas d
  'SCOPE_IN=- Script `export-memory.sh` em `packages/harness/scripts/default/memory/`.\n- Exportação por tipo e de todos os tipos.' \
  'SCOPE_OUT=- Importação de JSON para a memória.\n- Envio do JSON ao servidor HTTP.' \
  'FUNCTIONAL_REQUIREMENTS=| RF-01 | O script deve exportar as entradas de um tipo de memória em JSON, com ID, título, status e tags. |\n| RF-02 | O script deve aceitar o tipo `all` para exportar todos os tipos num único arquivo. |\n| RF-03 | O script deve gravar a saída em `memory/export.json`. |' \
- 'NON_FUNCTIONAL_REQUIREMENTS=| RNF-01 | Roda em bash 3.2 com awk e sed do BSD. | Suíte executada no macOS. |\n| RNF-02 | Usa `jq` para montar o JSON. | Revisão do script. |' \
+ 'NON_FUNCTIONAL_REQUIREMENTS=| RNF-01 | Roda em bash 3.2 com awk e sed do BSD. | Suíte executada no macOS. |\n| RNF-02 | Monta o JSON com awk, sem dependências externas. | Revisão do script. |' \
  'BUSINESS_RULES=| RN-01 | Entradas com status `obsoleto` não são exportadas. |' \
  'MAIN_FLOW=1. O usuário executa `export-memory.sh <tipo>`.\n2. O script lê as entradas do tipo.\n3. O script grava o JSON em `memory/export.json`.' \
  'ALTERNATIVE_FLOWS=- **FA-01 (passo 1):** tipo inválido. O script termina com erro e lista os tipos.' \
  'EDGE_CASES=| CB-01 | Memória vazia | Grava `[]` | RF-01 |\n| CB-02 | Título com aspas | Aspas escapadas no JSON | RF-01 |' \
  'CONTRACTS=```bash\nexport-memory.sh <tipo>   # decision, issue, knowledge ou all\n```' \
  'AFFECTED_COMPONENTS=| `packages/harness/scripts/default/memory/export-memory.sh` | criar | Script de exportação. |' \
- 'ASSUMPTIONS=- `jq` está instalado.' \
- 'RISKS=| `jq` ausente na máquina | médio | Verificar no início e terminar com erro claro. |' \
+ 'ASSUMPTIONS=- As entradas seguem o formato de `config/memory.yml`.' \
+ 'RISKS=| Título com caracteres especiais | médio | Escapar aspas e barras invertidas. |' \
  'TEST_CASES=| CT-01 | Exportar decisões | Executar com `decision` | JSON com as decisões | RF-01, RF-03 |\n| CT-02 | Exportar tudo | Executar com `all` | JSON com os três tipos | RF-02 |' \
  'ACCEPTANCE_CRITERIA=- [ ] CA-01: `export-memory.sh decision` gera JSON com as decisões ativas (RF-01, RF-03).\n- [ ] CA-02: `export-memory.sh all` gera um único arquivo com os três tipos (RF-02).' \
  'REFERENCES=| arquivo | `packages/harness/config/memory.yml` | Tipos e status da memória. |' \
@@ -88,15 +89,51 @@ plan() {
 }
 
 # Aprova o plano da SPEC-001 com tarefas preenchidas pela fixture e marca a spec como planejada.
+# A TASK-01 é detalhada de acordo com a spec; as demais usam os valores padrão de fill-refined.py.
 planned() {
   local ph="$1/packages/harness" task
   "$ph/skills/default/approve-plan/scripts/approve-plan.sh" --create-tasks SPEC-001 > /dev/null
+  F "$ph/work/tasks/SPEC-001/TASK-01.md" \
+   'TASK_READ=- `packages/harness/config/memory.yml`\n- `packages/harness/scripts/default/memory/search-memory.sh`' \
+   'TASK_CHANGE=- `packages/harness/scripts/default/memory/export-memory.sh` (criar): exporta um tipo de memória em JSON.' \
+   'TASK_STEPS=1. Criar `export-memory.sh`, que lê as entradas ativas do tipo e grava em `packages/harness/memory/export.json` uma lista JSON (`[]` quando não há entradas).\n2. Com tipo inválido, terminar com erro e listar os tipos.' \
+   'TASK_BASELINE=- `packages/harness/scripts/default/memory/search-memory.sh decision memória`' \
+   'TASK_VERIFY=```bash\ns=packages/harness/scripts/default/memory/export-memory.sh\ntest -x "$s"\n"$s" decision\ntest "$(cat packages/harness/memory/export.json)" = "[]"   # memória vazia (CB-01)\nif "$s" nada; then exit 1; fi   # tipo inválido (FA-01)\n```' \
+   'TASK_EVIDENCE=- `export.txt` (automática): `cat packages/harness/memory/export.json`' \
+   'TASK_DONE=- [ ] O script exporta um tipo de memória em JSON (RF-01, RF-03).\n\n  > Como comprovar: com a memória vazia, exportar as decisões grava uma lista vazia no arquivo de exportação.\n- [ ] Tipo inválido termina com erro (FA-01).\n\n  > Como comprovar: pedir a exportação de um tipo que não existe termina com erro.' \
+   'TASK_EXECUTIVE_SUMMARY=Permite exportar as decisões, issues ou conhecimentos do agente em JSON para o painel web.' \
+   'TASK_TECHNICAL_DETAILS=Script bash que acha o arquivo do tipo em `config/memory.yml` e monta o JSON com awk (RF-01, RF-03, FA-01).' \
+   'TASK_CARD_DESCRIPTION=Cria o script que exporta um tipo de memória em JSON.' \
+   'TASK_CARD_CRITERIA=  - [ ] Exporta um tipo em JSON.\n  - [ ] Tipo inválido termina com erro.'
   for task in "$ph"/work/tasks/SPEC-001/*.md; do F "$task"; done
   "$ph/skills/default/approve-plan/scripts/approve-plan.sh" --mark-planned SPEC-001 > /dev/null
 }
 
+# Aprova todas as tarefas da SPEC-001 (planejada) de um cenário.
+tasks_approved() {
+  "$1/packages/harness/skills/default/approve-task/scripts/approve-task.sh" --approve SPEC-001 --all > /dev/null
+}
+
+# Troca a "Verificação" da TASK-01 (pendente) por uma que nunca passa e registra o ajuste.
+failing_verify() {
+  local ph="$1/packages/harness"
+  python3 - "$ph/work/tasks/SPEC-001/TASK-01.md" <<'PY'
+import re, sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+s = re.sub(r'```bash\n.*?```', lambda m: '```bash\ntest "$(date +%Y)" = 1999   # o relógio da máquina está em 1999\n```', s, count=1, flags=re.S)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+  "$ph/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-01 "Verificação que nunca passa" > /dev/null
+}
+
+# Tira a dependência da TASK-02 (pendente), para que ela e a TASK-01 sejam executáveis juntas.
+independent() {
+  local file="$1/packages/harness/work/tasks/SPEC-001/TASK-02.md"
+  sed -i.bak 's/^depends_on: .*/depends_on: []/; s/^- \*\*Bloqueada por:\*\* .*/- **Bloqueada por:** -/' "$file" && rm -f "$file.bak"
+  "$1/packages/harness/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-02 "Sem dependência" > /dev/null
+}
+
 for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13 \
-  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c; do
+  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
@@ -108,6 +145,10 @@ for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02
     pl06|pl06b|pl07) approve "$DEST/$scenario"; plan "$DEST/$scenario" ;;
     pl11) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
     pl13a|pl13b|pl13c) approve "$DEST/$scenario" SPEC-001 SPEC-002; plan "$DEST/$scenario" ;;
+    tk01|tk19|tk17a) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
+    tk04|tk09|tk17b) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
+    tk15) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; failing_verify "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
+    tk16) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; independent "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
   esac
   echo "$DEST/$scenario"
 done

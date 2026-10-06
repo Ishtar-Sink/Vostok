@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-003 · Resumo executivo · Finalizar Fluxo da Spec</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 8px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 18px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+.block { margin-top: 26px; }
+
+/* Indicadores */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--color-line);
+        border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin: 0 0 20px; }
+.kpi { background: var(--color-surface); padding: 15px 17px; }
+.kpi b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.kpi b small { font-size: 15px; font-weight: 500; color: var(--color-muted); letter-spacing: 0; }
+.kpi span { display: block; font-size: 11.5px; color: var(--color-muted); margin-top: 4px; }
+
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.tag.alto { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.medio { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.baixo { background: var(--color-surface-2); color: var(--color-muted); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Cartões das entregas */
+.cards { display: grid; gap: 10px; }
+details.card { background: var(--color-surface); border: 1px solid var(--color-line); border-left: 3px solid var(--color-line);
+               border-radius: 9px; overflow: hidden; }
+details.card.impact-alto { border-left-color: var(--color-primary); }
+details.card.impact-medio { border-left-color: var(--color-ok); }
+details.card > summary { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; padding: 15px 18px; cursor: pointer; list-style: none; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.card[open] > summary::before { content: "\2212"; }
+details.card > summary > b { font-size: 14.5px; letter-spacing: -.008em; flex: 1; min-width: 200px; }
+details.card > summary:hover { background: var(--color-surface-2); }
+details.card > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.card[open] > summary { border-bottom: 1px solid var(--color-line); }
+.card-body { padding: 14px 18px 16px 40px; color: var(--color-muted); font-size: 13.5px; }
+.card-body p { margin: 0 0 10px; }
+.card-body p:last-child { margin-bottom: 0; }
+.card-body p > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em;
+                               color: var(--color-ink); opacity: .7; margin-bottom: 2px; font-weight: 700; }
+.ctl { display: flex; gap: 8px; justify-content: flex-end; margin: -6px 0 12px; }
+.ctl button { font: inherit; font-size: 12px; color: var(--color-muted); background: none; border: 1px solid var(--color-line);
+              border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.ctl button:hover { color: var(--color-ink); border-color: var(--color-primary); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+/* Linha do tempo */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--color-line); display: grid; gap: 10px; }
+.timeline li { position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; font-size: 13.5px; }
+.timeline li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 10px; height: 10px; border-radius: 50%;
+                       background: var(--color-bg); border: 2px solid var(--color-primary); }
+.timeline li.pending::before { border-color: var(--color-muted); }
+.timeline .date { font: 500 12px/1.4 var(--font-mono); color: var(--color-muted); }
+.timeline .task { overflow-wrap: anywhere; }
+.timeline .id { font: 700 11.5px var(--font-mono); color: var(--color-primary); margin-right: 6px; }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .card-body { padding-left: 18px; }
+  .timeline li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+@page { margin: 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav, .ctl { display: none; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; padding-top: 14mm; }
+  main { padding-bottom: 14mm; }
+  details.card, .kpi, .timeline li, tr { break-inside: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Resumo executivo · SPEC-003 · aprovada em 2026-10-06 · concluída em 2026-10-06</p>
+    <h1>Finalizar Fluxo da Spec</h1>
+    <div class="lede">
+<p>Esta entrega fecha o ciclo de cada especificação com <strong>três documentos prontos para leitura</strong>: um <strong>resumo executivo</strong> focado em entregas e valor, um <strong>documento técnico</strong> para quem vai manter o código e um <strong>documento de evidências</strong> com as provas de cada tarefa. O trabalho da spec é <strong>arquivado fora do repositório</strong>, e o executivo e o técnico ficam publicados junto da documentação. A primeira spec do projeto a passar pelo fluxo foi a do fluxo da tarefa.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-panorama" role="tab" data-tab="panorama">Panorama</a>
+    <a href="#p-entregas" role="tab" data-tab="entregas">Entregas</a>
+    <a href="#p-antes-e-depois" role="tab" data-tab="antes-e-depois">Antes e depois</a>
+    <a href="#p-execucao" role="tab" data-tab="execucao">Execução</a>
+    <a href="#p-proximos-passos" role="tab" data-tab="proximos-passos">Próximos passos</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="panel" id="p-panorama" role="tabpanel" data-panel="panorama">
+    <div class="sec-h"><h2>O que foi entregue</h2><p>As entregas desta spec e o valor de cada uma.</p></div>
+<div class="kpis">
+<div class="kpi"><b>3</b><span>Documentos gerados por spec finalizada</span></div>
+<div class="kpi"><b>12 de 12</b><span>Tarefas concluídas com testes, regressão e evidências aprovados</span></div>
+<div class="kpi"><b>+197</b><span>Testes automáticos novos, de 506 para 703, sem falhas</span></div>
+<div class="kpi"><b>3</b><span>Cenários com agente real executados, todos aprovados</span></div>
+<div class="kpi"><b>1</b><span>Spec anterior finalizada e arquivada com o fluxo novo</span></div>
+<div class="kpi"><b>1 dia</b><span>Da aprovação da spec à conclusão da última tarefa</span></div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Entrega</th><th>Impacto</th><th>Valor</th></tr></thead>
+<tbody>
+<tr><td class="strong">Resumo executivo da spec</td><td><span class="tag alto">Impacto alto</span></td><td>Quem decide entende o que foi entregue e por que importa sem abrir arquivos de trabalho nem ler código.</td></tr>
+<tr><td class="strong">Documento técnico com as mudanças lado a lado</td><td><span class="tag alto">Impacto alto</span></td><td>Reduz o tempo para entender uma entrega antiga e deixa claro onde se aprofundar.</td></tr>
+<tr><td class="strong">Documento de evidências</td><td><span class="tag medio">Impacto médio</span></td><td>A conclusão de cada tarefa pode ser auditada depois, sem depender da memória de quem a fez.</td></tr>
+<tr><td class="strong">Arquivamento e publicação</td><td><span class="tag medio">Impacto médio</span></td><td>A área de trabalho fica só com o que está em andamento, e o histórico das entregas fica num lugar previsível.</td></tr>
+</tbody>
+</table></div>
+    <div class="note"><b>O recorte deste documento</b>
+<p>Cobre a finalização de specs implementadas: documentos, arquivamento e publicação. Ficaram de fora reabrir specs arquivadas, listar o arquivo, gerar PDF ou vídeo e publicar os documentos no painel web.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-entregas" role="tabpanel" data-panel="entregas">
+    <div class="sec-h"><h2>As 4 entregas</h2><p>Abra cada entrega para ver o que mudou, o valor e como perceber.</p></div>
+    <div class="ctl"><button type="button" data-cards="open">Abrir todas</button><button type="button" data-cards="close">Fechar todas</button></div>
+    <div class="cards">
+<details class="card impact-alto">
+<summary><b>Resumo executivo da spec</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>Cada spec finalizada ganha um resumo com o panorama, os indicadores de valor, as entregas com impacto, o antes e depois, os próximos passos e os riscos.</p>
+<p><b>Valor</b>Quem decide entende o que foi entregue e por que importa sem abrir arquivos de trabalho nem ler código.</p>
+<p><b>Como perceber</b>O resumo abre no navegador, em abas, com tema escuro e claro, e imprime no mesmo visual.</p>
+
+</div>
+</details>
+<details class="card impact-alto">
+<summary><b>Documento técnico com as mudanças lado a lado</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>Um documento para quem vai manter o código, com o que foi feito, os requisitos e as tarefas que os cobrem, os arquivos, os commits e a comparação lado a lado de cada arquivo alterado.</p>
+<p><b>Valor</b>Reduz o tempo para entender uma entrega antiga e deixa claro onde se aprofundar.</p>
+<p><b>Como perceber</b>Cada arquivo alterado abre num bloco expansível com o antes e o depois.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Documento de evidências</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>As provas de cada tarefa ficam reunidas num documento, uma peça por evidência, com como gerá-la e como lê-la.</p>
+<p><b>Valor</b>A conclusão de cada tarefa pode ser auditada depois, sem depender da memória de quem a fez.</p>
+<p><b>Como perceber</b>As evidências pequenas aparecem dentro do documento, e as grandes ficam numa pasta ao lado dele.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Arquivamento e publicação</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>A spec finalizada sai da área de trabalho para um arquivo fora do repositório, e o resumo e o técnico são publicados junto da documentação.</p>
+<p><b>Valor</b>A área de trabalho fica só com o que está em andamento, e o histórico das entregas fica num lugar previsível.</p>
+<p><b>Como perceber</b>A spec do fluxo da tarefa já está arquivada, e os documentos dela estão publicados.</p>
+</div>
+</details>
+    </div>
+  </section>
+
+  <section class="panel" id="p-antes-e-depois" role="tabpanel" data-panel="antes-e-depois">
+    <div class="sec-h"><h2>Antes e depois</h2><p>Como era e como ficou para quem usa.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Situação</th><th>Antes</th><th>Depois</th></tr>
+</thead>
+<tbody>
+<tr><td>Fim de uma spec</td><td>Arquivos de trabalho espalhados, sem registro legível</td><td>Três documentos sintetizados e a spec arquivada</td></tr>
+<tr><td>Comunicar o resultado</td><td>Relato montado à mão, quando havia</td><td>Resumo executivo com entregas, valor e indicadores</td></tr>
+<tr><td>Entender uma entrega antiga</td><td>Ler a spec, as tarefas e o histórico do código</td><td>Abrir o técnico, com mudanças lado a lado e referências</td></tr>
+<tr><td>Provar que uma tarefa foi concluída</td><td>Procurar saídas na área de trabalho</td><td>Documento de evidências com uma peça por prova</td></tr>
+<tr><td>Área de trabalho</td><td>Acumulava specs já entregues</td><td>Só o que está em andamento</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-execucao" role="tabpanel" data-panel="execucao">
+    <div class="sec-h"><h2>Como foi executado</h2><p>Tarefas, testes e evidências, da aprovação em 2026-10-06 à conclusão em 2026-10-06.</p></div>
+<div class="kpis">
+<div class="kpi"><b>12<small> / 12</small></b><span>Tarefas concluídas</span></div>
+<div class="kpi"><b>12<small> / 12</small></b><span>Tarefas com testes aprovados</span></div>
+<div class="kpi"><b>25<small> / 25</small></b><span>Evidências geradas</span></div>
+</div>
+    <div class="block">
+      <h3>Linha do tempo</h3>
+      <ol class="timeline">
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-01</span>Base da finalização</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-02</span>Fontes da síntese</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-03</span>Conteúdo e validação</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-04</span>Tokens e Markdown restrito</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-05</span>Documento executivo</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-06</span>Documento técnico</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-07</span>Diff lado a lado</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-08</span>Documento de evidências</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-09</span>Arquivamento</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-10</span>Skill finalize-spec</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-11</span>Cenários com agente da finalização</span></li>
+      <li><span class="date">2026-10-06</span><span class="task"><span class="id">TASK-12</span>Finalização da SPEC-002</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="panel" id="p-proximos-passos" role="tabpanel" data-panel="proximos-passos">
+    <div class="sec-h"><h2>Próximos passos</h2><p>O que vem a seguir e o que depende de decisão.</p></div>
+    <div class="md">
+<ul>
+<li>Publicar os documentos no painel web, na próxima fase.</li>
+<li>Decidir quando migrar o harness para a nova linguagem; os modelos dos documentos já são independentes dela.</li>
+<li>Decidir se specs arquivadas podem ser reabertas ou listadas.</li>
+</ul>
+    </div>
+    <div class="note warn"><b>Riscos e limitações</b>
+<ul>
+<li>O arquivamento não tem volta pelo fluxo: reabrir uma spec arquivada exige trabalho manual.</li>
+<li>A qualidade do resumo depende da síntese escrita pelo agente; o fluxo confere o formato, não o mérito.</li>
+<li>A lista de commits de uma spec pode trazer commits posteriores a ela.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · resumo executivo de SPEC-003, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#execucao) não coincide com o id da seção (p-execucao): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll("details.card"));
+  Array.prototype.forEach.call(document.querySelectorAll("[data-cards]"), function (b) {
+    b.addEventListener("click", function () {
+      var open = b.getAttribute("data-cards") === "open";
+      cards.forEach(function (d) { d.open = open; });
+    });
+  });
+
+  // Na impressão, as entregas fechadas abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = cards.filter(function (d) { return !d.open; });
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

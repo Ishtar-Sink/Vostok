@@ -94,8 +94,16 @@ case "$1" in
     [ "$FINALIZE_N_ASSETS" -eq 0 ] || echo "  - $FINALIZE_ASSETS_DIR/ ($FINALIZE_N_ASSETS evidência(s) fora do documento)"
     ;;
   --archive)
-    require_finalizable "$2" > /dev/null
-    die "$1 ainda não implementado"
+    spec="$(require_finalizable "$2")"
+    problems="$(finalize_archive_problems "$2")"
+    if [ -n "$problems" ]; then
+      echo "Erro: a spec $2 não pode ser arquivada:" >&2
+      printf '%s\n' "$problems" | sed 's/^/  - /' >&2
+      exit 1
+    fi
+    finalize_archive "$2" "$spec" "$(finalize_tasks_dir "$2")" || exit 1
+    echo "Spec $2 arquivada em $(finalize_rel "$(finalize_archive_dir "$2")"), com status 'archived'."
+    echo "Executivo e técnico publicados em $(finalize_rel "$(finalize_spec_docs_dir "$2")")."
     ;;
   *) die "$USAGE" ;;
 esac

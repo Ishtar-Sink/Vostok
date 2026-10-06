@@ -1287,6 +1287,31 @@ sed -i.bak 's/^title: .*/title: "Planejar \& <revisar>"/' "$r8" && rm -f "$r8.ba
 sed -i.bak 's/^title: .*/title: "Criar <script> \& testes"/' "$t1" && rm -f "$t1.bak"
 "$FS" --build SPEC-008 > /dev/null
 check "executivo: títulos da spec e das tarefas escapados" bash -c "grep -qF '<h1>Planejar &amp; &lt;revisar&gt;</h1>' '$EX' && grep -qF '<span class=\"id\">TASK-01</span>Criar &lt;script&gt; &amp; testes</span>' '$EX'"
+
+# Arquivamento (--archive).
+ARC="$H/work/.archive/SPEC-008"; SD="$R/docs/specs/SPEC-008"; FD="$H/work/finalize/SPEC-008"
+snap() { find "$r8" "$TASKS/SPEC-008" "$FD" -type f -exec cksum {} + 2>/dev/null | sort; }
+before="$(snap)"
+mkdir -p "$SD"
+check "--archive com destino dos documentos existente é recusado (CT-12)" bash -c "! '$FS' --archive SPEC-008 >/dev/null 2>&1 && '$FS' --archive SPEC-008 2>&1 | grep -qF 'o destino dos documentos já existe: docs/specs/SPEC-008'"
+check "recusa não altera nada (CT-12, CB-07)" bash -c "[ '$before' = \"\$(find '$r8' '$TASKS/SPEC-008' '$FD' -type f -exec cksum {} + 2>/dev/null | sort)\" ] && [ ! -e '$ARC' ] && [ -z \"\$(ls -A '$SD')\" ]"
+rmdir "$SD"
+mkdir -p "$ARC"
+check "--archive com destino do arquivo existente é recusado (FA-04)" bash -c "'$FS' --archive SPEC-008 2>&1 | grep -qF 'o destino do arquivo já existe: packages/harness/work/.archive/SPEC-008' && [ ! -e '$SD' ] && [ -f '$r8' ]"
+rmdir "$ARC"
+mv "$FD/evidencias.html" "$R/.ev-html"
+check "--archive sem os três documentos é recusado" bash -c "'$FS' --archive SPEC-008 2>&1 | grep -qF 'documento ausente: packages/harness/work/finalize/SPEC-008/evidencias.html; gere com --build' && [ ! -e '$ARC' ] && [ -f '$r8' ]"
+mv "$R/.ev-html" "$FD/evidencias.html"
+cp "$r8" "$R/.arc-r8"; cp "$FD/executivo.html" "$R/.arc-exec"
+out="$("$FS" --archive SPEC-008 2>&1)"
+check "--archive arquiva (CT-11)" grep -qxF "Spec SPEC-008 arquivada em packages/harness/work/.archive/SPEC-008, com status 'archived'." <<< "$out"
+check "--archive publica executivo e técnico (CT-11)" grep -qxF 'Executivo e técnico publicados em docs/specs/SPEC-008.' <<< "$out"
+check "arquivo: spec, conteúdo, tarefas, evidências e documentos (RF-15)" bash -c "for f in spec.md content.md tasks/TASK-01.md tasks/TASK-02.md tasks/evidence/TASK-01/saida.txt docs/executivo.html docs/tecnico.html docs/evidencias.html docs/assets/TASK-01/pacote.zip; do [ -f '$ARC/'\$f ] || exit 1; done"
+check "arquivo: spec com status archived e updated_at (RF-15)" bash -c "grep -qx 'status: archived' '$ARC/spec.md' && grep -Eqx 'updated_at: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z' '$ARC/spec.md' && diff <(grep -v '^status: \|^updated_at: ' '$R/.arc-r8') <(grep -v '^status: \|^updated_at: ' '$ARC/spec.md') > /dev/null"
+check "arquivo: originais removidos (RF-15)" bash -c "[ ! -e '$r8' ] && [ ! -e '$TASKS/SPEC-008' ] && [ ! -e '$FD' ]"
+check "docs/specs: só executivo e técnico, iguais aos gerados (RF-16)" bash -c "[ \"\$(ls '$SD' | paste -sd ' ' -)\" = 'executivo.html tecnico.html' ] && cmp -s '$R/.arc-exec' '$SD/executivo.html' && cmp -s '$ARC/docs/tecnico.html' '$SD/tecnico.html'"
+check "spec arquivada não é encontrada para finalizar de novo (RN-04)" bash -c "'$FS' --archive SPEC-008 2>&1 | grep -qF 'spec SPEC-008 não encontrada'"
+rm -f "$R/.arc-r8" "$R/.arc-exec"
 rm -rf "$H/work/finalize" "$TASKS/SPEC-008"
 mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"
 

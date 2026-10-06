@@ -1218,3 +1218,61 @@ finalize_build_evidence() {
   rm -f "$items" "$media"
   printf '%s' "$out"
 }
+
+# Pasta de uma spec no arquivo (`paths.archive`/<SPEC_ID>).
+# finalize_archive_dir <SPEC_ID>
+finalize_archive_dir() {
+  printf '%s/%s' "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.archive)")" "$1"
+}
+
+# Pasta dos documentos publicados de uma spec (`paths.spec_docs`/<SPEC_ID>), sem `..` no caminho.
+# finalize_spec_docs_dir <SPEC_ID>
+finalize_spec_docs_dir() {
+  local base
+  base="$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.spec_docs)")"
+  [ -d "$base" ] && base="$(cd "$base" && pwd)"
+  printf '%s/%s' "$base" "$1"
+}
+
+# Imprime um problema por linha se a spec não puder ser arquivada: documento HTML ausente ou destino que já
+# existe. Não imprime nada se ela puder.
+# finalize_archive_problems <SPEC_ID>
+finalize_archive_problems() {
+  local id="$1" type doc
+  for type in executive technical evidence; do
+    doc="$(finalize_document_path "$id" "$type")"
+    [ -f "$doc" ] || echo "documento ausente: $(finalize_rel "$doc"); gere com --build"
+  done
+  [ ! -e "$(finalize_archive_dir "$id")" ] || echo "o destino do arquivo já existe: $(finalize_rel "$(finalize_archive_dir "$id")")"
+  [ ! -e "$(finalize_spec_docs_dir "$id")" ] || echo "o destino dos documentos já existe: $(finalize_rel "$(finalize_spec_docs_dir "$id")")"
+}
+
+# Arquiva uma spec: monta `<paths.archive>/<SPEC_ID>/` com `spec.md`, `content.md`, `tasks/` (tarefas e
+# evidências) e `docs/` (os três HTML e `assets/`), publica o executivo e o técnico em
+# `<paths.spec_docs>/<SPEC_ID>/`, grava `archived` em `spec.md` e só então remove os originais. Se uma cópia
+# falhar, desfaz o que criou e termina com erro, sem remover nada.
+# finalize_archive <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_archive() {
+  local id="$1" spec="$2" tasks_dir="$3" arch docs work
+  arch="$(finalize_archive_dir "$id")"
+  docs="$(finalize_spec_docs_dir "$id")"
+  work="$(finalize_content_dir "$id")"
+  if ! {
+    mkdir -p "$arch/tasks" "$arch/docs" "$docs" &&
+    cp "$spec" "$arch/spec.md" &&
+    cp "$(finalize_content_path "$id")" "$arch/content.md" &&
+    cp -R "$tasks_dir/." "$arch/tasks/" &&
+    cp "$(finalize_document_path "$id" executive)" "$(finalize_document_path "$id" technical)" \
+      "$(finalize_document_path "$id" evidence)" "$arch/docs/" &&
+    { [ ! -d "$work/$FINALIZE_ASSETS_DIR" ] || cp -R "$work/$FINALIZE_ASSETS_DIR" "$arch/docs/"; } &&
+    cp "$(finalize_document_path "$id" executive)" "$(finalize_document_path "$id" technical)" "$docs/" &&
+    frontmatter_put "$arch/spec.md" status "$(config_get "$HARNESS_DIR/config/specs.yml" status.archived)" &&
+    frontmatter_put "$arch/spec.md" updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  }; then
+    rm -rf "$arch" "$docs"
+    echo "falha ao copiar para o arquivo; nada foi removido" >&2
+    return 1
+  fi
+  rm -f "$spec"
+  rm -rf "$tasks_dir" "$work"
+}

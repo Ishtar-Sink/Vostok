@@ -1021,6 +1021,56 @@ check "--validate não altera o conteúdo" bash -c "[ '$sum_fc' = \"\$(cksum < '
 rm -rf "$H/work/finalize" "$R/.fin-content" "$TASKS/SPEC-008"
 mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"
 
+# Tokens, Markdown restrito e escape dos documentos.
+fl() { ( HARNESS_DIR="$H"; for l in config text frontmatter markdown spec-validation adjustments plan task memory finalize; do source "$H/scripts/lib/$l.sh"; done; "$@" ); }
+mdcheck() { # descrição, entrada (formato do printf), HTML esperado (formato do printf)
+  local got; got="$(printf -- "$2" | fl finalize_markdown_html)"
+  check "$1" [ "$got" = "$(printf -- "$3")" ]
+}
+DOCS="$H/config/documents.yml"
+check "documents.yml: limite em megabytes" grep -qx 'embed_max_mb: 10' "$DOCS"
+check "documents.yml: grupos de tema e fonte" bash -c "grep -qx 'dark:' '$DOCS' && grep -qx 'light:' '$DOCS' && grep -qx 'font:' '$DOCS'"
+check "documents.yml: extensões de cada tipo" bash -c "source '$H/scripts/lib/config.sh' && config_list '$DOCS' text_extensions | grep -qx log && config_list '$DOCS' image_extensions | grep -qx png && config_list '$DOCS' video_extensions | grep -qx mp4"
+check "documents.yml: tokens do diff nos dois temas" bash -c "[ \$(grep -c 'color_diff_add:' '$DOCS') -eq 2 ] && [ \$(grep -c 'color_diff_del:' '$DOCS') -eq 2 ] && [ \$(grep -c 'color_diff_add_soft:\|color_diff_del_soft:' '$DOCS') -eq 4 ]"
+css="$(fl finalize_css_tokens)"
+check "tokens: tema escuro em :root, na ordem do arquivo" [ "$(sed -n 1,3p <<< "$css" | paste -sd '|' -)" = ':root {|  color-scheme: dark;|  --color-bg: #110e18;' ]
+check "tokens: tema claro em data-theme" bash -c "grep -qxF ':root[data-theme=\"light\"] {' <<< '$css' && grep -qxF '  --color-bg: #f7f5fb;' <<< '$css' && grep -qxF '  color-scheme: light;' <<< '$css'"
+check "tokens: chave com sublinhado vira hífen" bash -c "grep -qxF '  --color-surface-2: #221d2f;' <<< '$css' && grep -qxF '  --color-primary-soft: #2a2140;' <<< '$css'"
+check "tokens: fontes só no tema escuro" bash -c "[ \$(grep -c -- '--font-' <<< '$css') -eq 2 ] && grep -qF -- '--font-body: system-ui' <<< '$css' && grep -qF -- '--font-mono: ui-monospace' <<< '$css' && ! sed -n '/data-theme/,\$p' <<< '$css' | grep -q -- '--font-'"
+check "tokens: cores do diff nos dois temas" bash -c "[ \$(grep -c -- '--color-diff-add:' <<< '$css') -eq 2 ] && [ \$(grep -c -- '--color-diff-del-soft:' <<< '$css') -eq 2 ]"
+cp "$DOCS" "$R/.documents-ok"
+sed -i.bak 's/^  color_primary: "#a78bfa"/  color_primary: "#123456"/' "$DOCS" && rm -f "$DOCS.bak"
+css="$(fl finalize_css_tokens)"
+check "tokens: trocar a cor principal muda a saída (RN-05)" bash -c "grep -qxF '  --color-primary: #123456;' <<< '$css' && grep -qxF '  --color-primary: #6d28d9;' <<< '$css' && ! grep -q '#a78bfa' <<< '$css'"
+sed -i.bak 's/^  color_primary: "#6d28d9"/  color_primary: "#654321"  # roxo do tema claro/' "$DOCS" && rm -f "$DOCS.bak"
+css="$(fl finalize_css_tokens)"
+check "tokens: comentário no fim da linha é removido" bash -c "grep -qxF '  --color-primary: #654321;' <<< '$css'"
+sed -i.bak '/^light:/d' "$DOCS" && rm -f "$DOCS.bak"
+fails "tokens sem o grupo light" fl finalize_css_tokens
+got="$(fl finalize_css_tokens 2>&1 || true)"
+check "tokens sem light: mensagem" grep -qF "sem os grupos 'dark' e 'light'" <<< "$got"
+cp "$R/.documents-ok" "$DOCS"; rm -f "$R/.documents-ok"
+got="$(printf '%s' "<b>\"a\" & 'x'</b>" | fl finalize_html_escape)"
+check "escape: & < > e aspas" [ "$got" = '&lt;b&gt;&quot;a&quot; &amp; &#39;x&#39;&lt;/b&gt;' ]
+mdcheck "markdown: parágrafos juntam as linhas" 'linha um\nlinha dois\n\nsegundo\n' '<p>linha um linha dois</p>\n<p>segundo</p>'
+mdcheck "markdown: lista com marcadores" '- a\n- b\n' '<ul>\n<li>a</li>\n<li>b</li>\n</ul>'
+mdcheck "markdown: lista numerada" '1. a\n2. b\n' '<ol>\n<li>a</li>\n<li>b</li>\n</ol>'
+mdcheck "markdown: tabela com cabeçalho" '| A | B |\n|---|---|\n| 1 | 2 |\n' '<table>\n<thead>\n<tr><th>A</th><th>B</th></tr>\n</thead>\n<tbody>\n<tr><td>1</td><td>2</td></tr>\n</tbody>\n</table>'
+mdcheck "markdown: tabela sem separador não tem cabeçalho" '| 1 | 2 |\n| 3 | 4 |\n' '<table>\n<tbody>\n<tr><td>1</td><td>2</td></tr>\n<tr><td>3</td><td>4</td></tr>\n</tbody>\n</table>'
+mdcheck "markdown: código e negrito" 'usa `cmd` e **negrito**\n' '<p>usa <code>cmd</code> e <strong>negrito</strong></p>'
+mdcheck "markdown: negrito dentro de código não é convertido" '`**x**`\n' '<p><code>**x**</code></p>'
+mdcheck "markdown: negrito e código em item de lista e célula" '- **a** `b`\n\n| **c** |\n|---|\n| `d` |\n' '<ul>\n<li><strong>a</strong> <code>b</code></li>\n</ul>\n<table>\n<thead>\n<tr><th><strong>c</strong></th></tr>\n</thead>\n<tbody>\n<tr><td><code>d</code></td></tr>\n</tbody>\n</table>'
+mdcheck "markdown: texto com < > & é escapado (CB-06)" 'a < b & c > d <script>x</script>\n' '<p>a &lt; b &amp; c &gt; d &lt;script&gt;x&lt;/script&gt;</p>'
+mdcheck "markdown: código, lista e tabela escapados" '`<b>`\n\n- <i>\n\n| <u> |\n|---|\n| & |\n' '<p><code>&lt;b&gt;</code></p>\n<ul>\n<li>&lt;i&gt;</li>\n</ul>\n<table>\n<thead>\n<tr><th>&lt;u&gt;</th></tr>\n</thead>\n<tbody>\n<tr><td>&amp;</td></tr>\n</tbody>\n</table>'
+mdcheck "markdown: aspas do texto são escapadas" "diz \"oi\" e 'tchau'\n" '<p>diz &quot;oi&quot; e &#39;tchau&#39;</p>'
+mdcheck "markdown: crase sem par fica literal" 'a `b **c**\n' '<p>a `b <strong>c</strong></p>'
+mdcheck "markdown: comentários são descartados" '<!-- nota -->\ntexto\n<!-- outra -->\n' '<p>texto</p>'
+mdcheck "markdown: blocos seguidos sem linha em branco" 'antes\n- a\ndepois\n' '<p>antes</p>\n<ul>\n<li>a</li>\n</ul>\n<p>depois</p>'
+mdcheck "markdown: CRLF" 'a\r\n\r\n- b\r\n' '<p>a</p>\n<ul>\n<li>b</li>\n</ul>'
+mdcheck "markdown: entrada vazia gera saída vazia" '' ''
+got="$(fl finalize_markdown_html < "$H/templates/finalize/content.md")"
+check "markdown converte o conteúdo do template, sem os comentários" bash -c "grep -qxF '<p>#{EXEC_SUMMARY}</p>' <<< '$got' && ! grep -q 'Markdown aceito' <<< '$got'"
+
 # --- Commits sem liberação ---
 CC="$H/scripts/default/git/check-commits.sh"
 AC="$H/skills/default/approve-commit/scripts/approve-commit.sh"

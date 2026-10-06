@@ -335,3 +335,139 @@ finalize_content_errors() {
     done <<< "$(finalize_evidence_items "$task")"
   done
 }
+
+# Configuração dos documentos HTML (tokens, fontes, limite e extensões).
+_finalize_documents_config() {
+  printf '%s/config/documents.yml' "$HARNESS_DIR"
+}
+
+# Pares "chave<TAB>valor" de um grupo de primeiro nível de um arquivo de configuração, na ordem do arquivo.
+# Aspas externas e comentários no fim da linha são removidos, como em config_get.
+# finalize_config_group <arquivo> <grupo>
+finalize_config_group() {
+  awk -v group="$2" '
+    /^[ \t]*(#|$)/ { next }
+    /^[^ \t]/ { ingroup = ($0 ~ ("^" group ":[ \t]*(#.*)?$")); next }
+    ingroup {
+      line = $0; sub(/^[ \t]+/, "", line)
+      key = line; sub(/[ \t]*:.*/, "", key)
+      val = substr(line, index(line, ":") + 1)
+      sub(/[ \t]+#.*$/, "", val); gsub(/^[ \t]+|[ \t]+$/, "", val)
+      if (val ~ /^".*"$/ || val ~ /^\047.*\047$/) val = substr(val, 2, length(val) - 2)
+      print key "\t" val
+    }
+  ' "$1"
+}
+
+# Imprime o CSS dos tokens: `:root` com o tema escuro e as fontes, e `:root[data-theme="light"]` com o
+# tema claro. Cada chave vira uma variável (`color_surface_2` -> `--color-surface-2`), na ordem do arquivo.
+# finalize_css_tokens
+finalize_css_tokens() {
+  local cfg dark light font key value
+  cfg="$(_finalize_documents_config)"
+  dark="$(finalize_config_group "$cfg" dark)"
+  light="$(finalize_config_group "$cfg" light)"
+  font="$(finalize_config_group "$cfg" font)"
+  if [ -z "$dark" ] || [ -z "$light" ]; then
+    echo "config/documents.yml sem os grupos 'dark' e 'light'" >&2
+    return 1
+  fi
+  echo ':root {'
+  echo '  color-scheme: dark;'
+  while IFS=$'\t' read -r key value; do
+    echo "  --${key//_/-}: $value;"
+  done <<< "$dark"
+  if [ -n "$font" ]; then
+    while IFS=$'\t' read -r key value; do
+      echo "  --font-${key//_/-}: $value;"
+    done <<< "$font"
+  fi
+  echo '}'
+  echo ':root[data-theme="light"] {'
+  echo '  color-scheme: light;'
+  while IFS=$'\t' read -r key value; do
+    echo "  --${key//_/-}: $value;"
+  done <<< "$light"
+  echo '}'
+}
+
+# Escapa `&`, `<`, `>` e aspas do texto lido da entrada padrão.
+# finalize_html_escape < texto
+finalize_html_escape() {
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&#39;/g"
+}
+
+# Converte o Markdown restrito do arquivo de conteúdo, lido da entrada padrão, em HTML: parágrafos, listas
+# com `- ` ou numeradas, tabelas, `código` e **negrito**. Todo o texto sai escapado, inclusive o de blocos
+# de código. Linhas que são só um comentário `<!-- ... -->` são descartadas.
+# finalize_markdown_html < markdown
+finalize_markdown_html() {
+  awk '
+    function esc(s) {
+      gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s)
+      gsub(/"/, "\\&quot;", s); gsub(/\047/, "\\&#39;", s)
+      return s
+    }
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function bold(s,   out) {
+      out = ""
+      while (match(s, /\*\*[^*]+\*\*/)) {
+        out = out substr(s, 1, RSTART - 1) "<strong>" substr(s, RSTART + 2, RLENGTH - 4) "</strong>"
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return out s
+    }
+    # Texto já escapado: `código` (sem negrito dentro) e **negrito**. Crase sem par fica como está.
+    function inline(s,   n, parts, i, out) {
+      n = split(s, parts, "`")
+      if (n % 2 == 0) return bold(s)
+      out = ""
+      for (i = 1; i <= n; i++) out = out ((i % 2) ? bold(parts[i]) : "<code>" parts[i] "</code>")
+      return out
+    }
+    function close_block(   i) {
+      if (mode == "p") print "<p>" inline(esc(para)) "</p>"
+      else if (mode == "ul" || mode == "ol") print "</" mode ">"
+      else if (mode == "table") {
+        print "<table>"
+        if (header) { print "<thead>"; print table_row(rows[1], "th"); print "</thead>" }
+        print "<tbody>"
+        for (i = header ? 2 : 1; i <= nrows; i++) print table_row(rows[i], "td")
+        print "</tbody>"
+        print "</table>"
+      }
+      mode = ""; para = ""; nrows = 0; header = 0
+    }
+    function table_row(line, tag,   cells, n, i, out) {
+      line = trim(line)
+      sub(/^\|/, "", line); sub(/\|$/, "", line)
+      n = split(line, cells, "|")
+      out = "<tr>"
+      for (i = 1; i <= n; i++) out = out "<" tag ">" inline(esc(trim(cells[i]))) "</" tag ">"
+      return out "</tr>"
+    }
+    { sub(/\r$/, "") }
+    /^<!--.*-->[ \t]*$/ { next }
+    /^[ \t]*$/ { close_block(); next }
+    /^\|/ {
+      if (mode != "table") { close_block(); mode = "table"; nrows = 0; header = 0 }
+      if ($0 ~ /^\|[ \t:|-]+\|[ \t]*$/ && $0 ~ /---/) { if (nrows == 1) header = 1; next }
+      rows[++nrows] = $0
+      next
+    }
+    /^- / {
+      if (mode != "ul") { close_block(); mode = "ul"; print "<ul>" }
+      print "<li>" inline(esc(substr($0, 3))) "</li>"; next
+    }
+    /^[0-9]+\. / {
+      if (mode != "ol") { close_block(); mode = "ol"; print "<ol>" }
+      line = $0; sub(/^[0-9]+\. /, "", line)
+      print "<li>" inline(esc(line)) "</li>"; next
+    }
+    {
+      if (mode != "p") { close_block(); mode = "p"; para = "" }
+      para = (para == "") ? trim($0) : para " " trim($0)
+    }
+    END { close_block() }
+  '
+}

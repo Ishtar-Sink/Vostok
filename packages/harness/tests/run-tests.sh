@@ -1227,6 +1227,11 @@ check "técnico: cabeçalho do trecho e tabela com colunas fixas (CT-17)" bash -
 check "técnico: arquivo binário só informa a mudança (CB-12)" bash -c "grep -qF '<b class=\"path\">nao/existe/bin.dat</b><span class=\"tag\">binário</span>' <<< '$dsec' && grep -qF 'Arquivo binário alterado.' <<< '$dsec' && ! grep -q 'bin.dat.*class=\"code' <<< '$dsec'"
 check "técnico: arquivo sem mudanças informa (CB-11)" bash -c "grep -qF '<b class=\"path\">nao/existe/igual.txt</b><span class=\"tag\">sem mudanças</span>' <<< '$dsec' && grep -qF 'Sem mudanças desde a base de comparação.' <<< '$dsec'"
 check "técnico: arquivo não rastreado também informa sem mudanças" grep -qF '<b class="path">AGENTS.md</b><span class="tag">sem mudanças</span>' <<< "$dsec"
+cp "$R/nao/existe/doc.md" "$R/.fin-doc"
+awk 'BEGIN { for (i = 1; i <= 3000; i++) printf "linha %05d com texto suficiente para passar do limite de ambiente\n", i }' > "$R/nao/existe/doc.md"
+check "técnico: diff maior que o limite de uma variável de ambiente, sem erro" bash -c "[ -z \"\$('$FS' --build SPEC-008 2>&1 >/dev/null)\" ] && [ \$(wc -c < '$TX') -gt 262144 ] && grep -qF '<td class=\"code add\">linha 03000 com texto' '$TX' && tail -1 '$TX' | grep -qxF '</html>'"
+cp "$R/.fin-doc" "$R/nao/existe/doc.md"; rm -f "$R/.fin-doc"
+"$FS" --build SPEC-008 > /dev/null
 mkdir -p "$R/.fin-docs" && cp "$TX" "$R/.fin-docs/tecnico.html"
 rm -rf "$R/.git" "$R/nao"
 "$FS" --build SPEC-008 > /dev/null

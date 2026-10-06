@@ -989,10 +989,11 @@ finalize_diffs_html() {
 }
 
 # Gera o documento técnico a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Como o
-# executivo, não usa a data da execução.
+# executivo, não usa a data da execução. Os diffs entram por `finalize_splice`, porque podem passar do limite
+# de tamanho de uma variável de ambiente.
 # finalize_build_technical <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
 finalize_build_technical() {
-  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part
+  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part diffs
   out="$(finalize_document_path "$id" technical)"
   tokens="$(finalize_css_tokens)" || return 1
   title="$(frontmatter_get "$spec" title | finalize_html_escape)"
@@ -1006,6 +1007,8 @@ finalize_build_technical() {
   approved="${approved%%T*}"
   part="$(finalize_content_part "$(finalize_content_path "$id")" Técnico)"
   mkdir -p "$(dirname "$out")"
+  diffs="$(mktemp)"
+  finalize_diffs_html "$spec" "$tasks_dir" > "$diffs"
   TPL_DOC_TITLE="$id · Documento técnico · $title" \
   TPL_TOKENS="$tokens" \
   TPL_SPEC_ID="$id" \
@@ -1017,13 +1020,15 @@ finalize_build_technical() {
   TPL_DONE="$(printf '%s\n' "$part" | finalize_part_section 'O que foi feito' | finalize_block_html)" \
   TPL_REQUIREMENTS="$(finalize_requirements_html "$spec" "$tasks_dir")" \
   TPL_FILES="$(finalize_files_html "$tasks_dir")" \
-  TPL_DIFFS="$(finalize_diffs_html "$spec" "$tasks_dir")" \
+  TPL_DIFFS="@@FINALIZE_DIFFS@@" \
   TPL_COMMITS="$(finalize_commits_html "$spec" "$tasks_dir")" \
   TPL_DECISIONS="$(printf '%s\n' "$part" | finalize_part_section 'Decisões' | finalize_block_html)" \
   TPL_LEARNINGS="$(printf '%s\n' "$part" | finalize_part_section 'Aprendizados' | finalize_block_html)" \
   TPL_ATTENTION="$(printf '%s\n' "$part" | finalize_part_section 'Pontos de atenção' | finalize_block_html)" \
   TPL_REFERENCES="$(printf '%s\n' "$part" | finalize_part_section 'Referências' | finalize_block_html)" \
-    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_TECHNICAL_TEMPLATE" > "$out"
+    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_TECHNICAL_TEMPLATE" \
+    | finalize_splice "@@FINALIZE_DIFFS@@" "$diffs" > "$out"
+  rm -f "$diffs"
   printf '%s' "$out"
 }
 

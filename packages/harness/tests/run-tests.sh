@@ -1176,12 +1176,47 @@ cp "$R/.fin-content" "$FC"; rm -f "$R/.fin-content" "$R/.fin-exec"; "$FS" --buil
 h1="$(fl sha256_hash < "$EX")"; "$FS" --build SPEC-008 > /dev/null
 check "executivo: duas gerações com o mesmo sha256 (CT-13)" [ "$h1" = "$(fl sha256_hash < "$EX")" ]
 check "executivo: sem endereços externos (CT-13)" bash -c "! grep -Eq '(src|href)=\"https?://|@import' '$EX'"
+
+# Documento técnico (--build).
+TX="$H/work/finalize/SPEC-008/tecnico.html"
+check "--build gera o técnico junto do executivo" bash -c "'$FS' --build SPEC-008 | grep -qxF '  - tecnico.html' && [ -s '$TX' ]"
+check "técnico: tema escuro, botão e tokens do claro" bash -c "head -2 '$TX' | paste -sd ' ' - | grep -qxF '<!doctype html> <html lang=\"pt-BR\" data-theme=\"dark\">' && grep -qF 'id=\"theme-toggle\"' '$TX' && grep -qF ':root[data-theme=\"light\"] {' '$TX'"
+check "técnico: impressão no tema da tela, sem o botão nem o sumário" bash -c "p=\$(sed -n '/@media print/,/^}/p' '$TX'); grep -qF 'print-color-adjust: exact' <<< \"\$p\" && grep -qF '.tbtn, .nav { display: none; }' <<< \"\$p\" && grep -qF 'break-before: page' <<< \"\$p\""
+check "técnico: sem variáveis sem preencher" bash -c "! grep -q '#{' '$TX'"
+check "técnico: título, ID e datas" bash -c "grep -qF '<h1>$(fm "$r8" title | tr -d '"')</h1>' '$TX' && grep -qF 'Documento técnico · SPEC-008 · aprovada em 2026-01-10 · concluída em 2026-02-03' '$TX'"
+check "técnico: sumário com uma entrada por seção" bash -c "for id in visao-geral arquitetura o-que-foi-feito requisitos arquivos commits decisoes aprendizados atencao referencias; do grep -qF \"<a href=\\\"#\$id\\\">\" '$TX' && grep -qF \"<section class=\\\"sec\" '$TX' && grep -qF \"id=\\\"\$id\\\">\" '$TX' || exit 1; done"
+sed -i.bak -e '/^## Decisões$/,/^## Aprendizados$/s/^Texto da seção\.$/Escolheu <bash> \& testes./' \
+  -e '/^## Referências$/,/^# Evidências$/s/^Texto da seção\.$/- `docs\/ref.md`: motivo da leitura./' "$FC" && rm -f "$FC.bak"
+sed -i.bak 's/^covers: .*/covers: [RF-01, RF-02]/' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+before="$(cat "$r8" "$TASKS"/SPEC-008/TASK-*.md | cksum)"
+"$FS" --build SPEC-008 > /dev/null
+check "--build do técnico não altera a spec nem as tarefas" bash -c "[ '$before' = \"\$(cat '$r8' '$TASKS'/SPEC-008/TASK-*.md | cksum)\" ]"
+check "técnico: seções do conteúdo, escapadas" bash -c "grep -qxF '<p>Escolheu &lt;bash&gt; &amp; testes.</p>' '$TX' && grep -qxF '<li><code>docs/ref.md</code>: motivo da leitura.</li>' '$TX' && [ \$(grep -c '^<p>Texto da seção.</p>\$' '$TX') -ge 5 ]"
+check "técnico: não traz o conteúdo do executivo" bash -c "! grep -qF 'Só o script' '$TX' && ! grep -qF 'Script novo' '$TX'"
+check "técnico: requisitos com a descrição da spec e as tarefas que os cobrem (RF-09)" bash -c "grep -qF '<tr><td class=\"mono\">RF-01</td><td>' '$TX' && grep -qF '<span class=\"chip\">TASK-01</span><span class=\"chip\">TASK-02</span></td></tr>' '$TX' && grep -qF '<td class=\"mono\">RF-02</td>' '$TX'"
+check "técnico: requisito aparece uma vez" bash -c "[ \$(grep -c '<td class=\"mono\">RF-01</td>' '$TX') -eq 1 ]"
+check "técnico: arquivos alterados com a ação" bash -c "grep -qF '<tr><td><span class=\"tag criar\">criar</span></td><td class=\"path\">nao/existe/novo.sh</td></tr>' '$TX' && grep -qF '<tr><td><span class=\"tag alterar\">alterar</span></td><td class=\"path\">AGENTS.md</td></tr>' '$TX'"
+check "técnico: fora de um repositório git (CB-04)" grep -qxF '<p>Fora de um repositório git.</p>' "$TX"
+gf init -q -b main
+"$FS" --build SPEC-008 > /dev/null
+check "técnico: sem commits no período (CB-04)" grep -qxF '<p>Nenhum commit encontrado.</p>' "$TX"
+mkdir -p "$R/nao/existe"
+commit_at 2026-01-05T12:00:00Z nao/existe/novo.sh 'antes da aprovação'
+commit_at 2026-01-15T12:00:00Z nao/existe/novo.sh 'depois <da> & aprovação'
+"$FS" --build SPEC-008 > /dev/null
+check "técnico: commits do período com hash, data e mensagem escapada" bash -c "grep -Eq '^<tr><td class=\"mono\">[0-9a-f]+</td><td class=\"mono\">2026-01-15</td><td>depois &lt;da&gt; &amp; aprovação</td></tr>\$' '$TX' && ! grep -qF 'antes da aprovação' '$TX'"
+rm -rf "$R/.git" "$R/nao"
+"$FS" --build SPEC-008 > /dev/null
+h1="$(fl sha256_hash < "$TX")"; "$FS" --build SPEC-008 > /dev/null
+check "técnico: duas gerações com o mesmo sha256 (CT-13)" [ "$h1" = "$(fl sha256_hash < "$TX")" ]
+check "técnico: sem endereços externos (CT-13)" bash -c "! grep -Eq '(src|href)=\"https?://|@import' '$TX'"
 cp "$DOCS" "$R/.documents-ok"
 sed -i.bak 's/^  color_primary: "#a78bfa"/  color_primary: "#0a0b0c"/' "$DOCS" && rm -f "$DOCS.bak"
 "$FS" --build SPEC-008 > /dev/null
 check "executivo: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$EX' && ! grep -qF '#a78bfa' '$EX'"
+check "técnico: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$TX' && ! grep -qF '#a78bfa' '$TX'"
 cp "$R/.documents-ok" "$DOCS"; rm -f "$R/.documents-ok"; "$FS" --build SPEC-008 > /dev/null
-mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html"
+mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html" && cp "$TX" "$R/.fin-docs/tecnico.html"
 sed -i.bak 's/^title: .*/title: "Planejar \& <revisar>"/' "$r8" && rm -f "$r8.bak"
 sed -i.bak 's/^title: .*/title: "Criar <script> \& testes"/' "$t1" && rm -f "$t1.bak"
 "$FS" --build SPEC-008 > /dev/null

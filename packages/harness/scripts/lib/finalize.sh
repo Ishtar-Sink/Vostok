@@ -11,6 +11,8 @@ FINALIZE_EVIDENCE_READ="Como ler"
 
 # Template do documento executivo, relativo a `paths.templates` (main.yml).
 FINALIZE_EXECUTIVE_TEMPLATE="finalize/executive.html"
+# Template do documento técnico, relativo a `paths.templates` (main.yml).
+FINALIZE_TECHNICAL_TEMPLATE="finalize/technical.html"
 
 # Pasta das tarefas de uma spec (`paths.tasks`/<SPEC_ID>).
 # finalize_tasks_dir <SPEC_ID>
@@ -757,5 +759,146 @@ finalize_build_executive() {
   TPL_INDICATORS="$(finalize_indicators_html "$tasks_dir")" \
   TPL_TIMELINE="$(finalize_timeline_html "$tasks_dir")" \
     render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_EXECUTIVE_TEMPLATE" > "$out"
+  printf '%s' "$out"
+}
+
+# Requisitos cobertos pelas tarefas, um por linha: ID, tabulação e as tarefas que o cobrem separadas por
+# vírgula. A ordem é a da primeira aparição, tarefa a tarefa.
+# finalize_requirement_map <pasta das tarefas da spec>
+finalize_requirement_map() {
+  local task covers tid req
+  for task in "$1"/*.md; do
+    [ -f "$task" ] || continue
+    tid="$(frontmatter_get "$task" id)"
+    covers="$(frontmatter_get "$task" covers 2>/dev/null | tr -d '[]' || true)"
+    while IFS= read -r req; do
+      [ -n "$req" ] && printf '%s\t%s\n' "$req" "$tid"
+    done <<< "$(printf '%s' "$covers" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  done | awk -F'\t' '
+    !($1 in tasks) { order[++n] = $1 }
+    { tasks[$1] = ($1 in tasks) ? tasks[$1] "," $2 : $2 }
+    END { for (i = 1; i <= n; i++) print order[i] "\t" tasks[order[i]] }
+  '
+}
+
+# Descrição de um requisito na spec: a segunda célula da linha de tabela que começa com o ID, vazia se não achar.
+# finalize_requirement_text <arquivo da spec> <ID do requisito>
+finalize_requirement_text() {
+  REQ="$2" awk -F'|' '
+    { sub(/\r$/, "") }
+    {
+      id = $2; gsub(/^[ \t]+|[ \t]+$/, "", id)
+      if (id == ENVIRON["REQ"]) { text = $3; gsub(/^[ \t]+|[ \t]+$/, "", text); print text; exit }
+    }
+  ' "$1"
+}
+
+# Tabela de requisitos com as tarefas que os cobrem.
+# finalize_requirements_html <arquivo da spec> <pasta das tarefas da spec>
+finalize_requirements_html() {
+  local req tasks text chips t map
+  map="$(finalize_requirement_map "$2")"
+  if [ -z "$map" ]; then
+    echo '<p>Nenhum requisito coberto pelas tarefas.</p>'
+    return 0
+  fi
+  echo '<div class="tw"><table>'
+  echo '<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>'
+  echo '<tbody>'
+  while IFS=$'\t' read -r req tasks; do
+    text="$(finalize_requirement_text "$1" "$req")"
+    chips=""
+    while IFS= read -r t; do
+      chips="$chips<span class=\"chip\">$(printf '%s' "$t" | finalize_html_escape)</span>"
+    done <<< "$(printf '%s' "$tasks" | tr ',' '\n')"
+    printf '<tr><td class="mono">%s</td><td>%s</td><td>%s</td></tr>\n' \
+      "$(printf '%s' "$req" | finalize_html_escape)" "$(_finalize_inline "$text")" "$chips"
+  done <<< "$map"
+  echo '</tbody>'
+  echo '</table></div>'
+}
+
+# Tabela dos arquivos alterados, com a ação de cada um.
+# finalize_files_html <pasta das tarefas da spec>
+finalize_files_html() {
+  local action path items
+  items="$(finalize_changed_items "$1")"
+  if [ -z "$items" ]; then
+    echo '<p>Nenhum arquivo alterado.</p>'
+    return 0
+  fi
+  echo '<div class="tw"><table>'
+  echo '<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>'
+  echo '<tbody>'
+  while IFS=$'\t' read -r action path; do
+    printf '<tr><td><span class="tag %s">%s</span></td><td class="path">%s</td></tr>\n' \
+      "$(printf '%s' "$action" | finalize_html_escape)" "$(printf '%s' "$action" | finalize_html_escape)" \
+      "$(printf '%s' "$path" | finalize_html_escape)"
+  done <<< "$items"
+  echo '</tbody>'
+  echo '</table></div>'
+}
+
+# Tabela dos commits das fontes: hash, data e mensagem. Sem commits, imprime o aviso das fontes
+# ("Nenhum commit encontrado.", "Fora de um repositório git." ou "Spec sem data de aprovação.").
+# finalize_commits_html <arquivo da spec> <pasta das tarefas da spec>
+finalize_commits_html() {
+  local lines line hash date message re='^-\ `([0-9a-f]+)`\ ([0-9-]+)\ (.*)$' found=0 rows=""
+  lines="$(finalize_sources_commits "$1" "$2" | sed '1,2d')"
+  while IFS= read -r line; do
+    if [[ "$line" =~ $re ]]; then
+      found=1
+      hash="${BASH_REMATCH[1]}"; date="${BASH_REMATCH[2]}"; message="${BASH_REMATCH[3]}"
+      rows="$rows$(printf '<tr><td class="mono">%s</td><td class="mono">%s</td><td>%s</td></tr>' \
+        "$hash" "$date" "$(printf '%s' "$message" | finalize_html_escape)")"$'\n'
+    fi
+  done <<< "$lines"
+  if [ "$found" -eq 0 ]; then
+    printf '<p>%s</p>\n' "$(printf '%s' "$lines" | head -1 | finalize_html_escape)"
+    return 0
+  fi
+  echo '<div class="tw"><table>'
+  echo '<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>'
+  echo '<tbody>'
+  printf '%s' "$rows"
+  echo '</tbody>'
+  echo '</table></div>'
+}
+
+# Gera o documento técnico a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Como o
+# executivo, não usa a data da execução.
+# finalize_build_technical <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_technical() {
+  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part
+  out="$(finalize_document_path "$id" technical)"
+  tokens="$(finalize_css_tokens)" || return 1
+  title="$(frontmatter_get "$spec" title | finalize_html_escape)"
+  approved="$(finalize_approved_at "$spec")"
+  last=""
+  for task in "$tasks_dir"/*.md; do
+    [ -f "$task" ] || continue
+    date="$(finalize_task_done_date "$task")"
+    [[ "$date" > "$last" ]] && last="$date"
+  done
+  approved="${approved%%T*}"
+  part="$(finalize_content_part "$(finalize_content_path "$id")" Técnico)"
+  mkdir -p "$(dirname "$out")"
+  TPL_DOC_TITLE="$id · Documento técnico · $title" \
+  TPL_TOKENS="$tokens" \
+  TPL_SPEC_ID="$id" \
+  TPL_SPEC_TITLE="$title" \
+  TPL_APPROVED="${approved:-data não registrada}" \
+  TPL_FINISHED="${last:-data não registrada}" \
+  TPL_OVERVIEW="$(printf '%s\n' "$part" | finalize_part_section 'Visão geral' | finalize_block_html)" \
+  TPL_ARCHITECTURE="$(printf '%s\n' "$part" | finalize_part_section 'Arquitetura e componentes' | finalize_block_html)" \
+  TPL_DONE="$(printf '%s\n' "$part" | finalize_part_section 'O que foi feito' | finalize_block_html)" \
+  TPL_REQUIREMENTS="$(finalize_requirements_html "$spec" "$tasks_dir")" \
+  TPL_FILES="$(finalize_files_html "$tasks_dir")" \
+  TPL_COMMITS="$(finalize_commits_html "$spec" "$tasks_dir")" \
+  TPL_DECISIONS="$(printf '%s\n' "$part" | finalize_part_section 'Decisões' | finalize_block_html)" \
+  TPL_LEARNINGS="$(printf '%s\n' "$part" | finalize_part_section 'Aprendizados' | finalize_block_html)" \
+  TPL_ATTENTION="$(printf '%s\n' "$part" | finalize_part_section 'Pontos de atenção' | finalize_block_html)" \
+  TPL_REFERENCES="$(printf '%s\n' "$part" | finalize_part_section 'Referências' | finalize_block_html)" \
+    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_TECHNICAL_TEMPLATE" > "$out"
   printf '%s' "$out"
 }

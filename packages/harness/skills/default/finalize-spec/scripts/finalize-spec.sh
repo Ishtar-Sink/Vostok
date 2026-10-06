@@ -82,9 +82,12 @@ case "$1" in
   --build)
     spec="$(require_finalizable "$2")"
     require_valid_content "$2"
-    executive="$(finalize_build_executive "$2" "$spec" "$(finalize_tasks_dir "$2")")"
+    tasks_dir="$(finalize_tasks_dir "$2")"
+    executive="$(finalize_build_executive "$2" "$spec" "$tasks_dir")"
+    technical="$(finalize_build_technical "$2" "$spec" "$tasks_dir")"
     echo "Documentos de $2 gerados em $(finalize_rel "$(finalize_content_dir "$2")"):"
     echo "  - $(basename "$executive")"
+    echo "  - $(basename "$technical")"
     ;;
   --archive)
     require_finalizable "$2" > /dev/null

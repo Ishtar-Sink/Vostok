@@ -865,6 +865,124 @@ finalize_commits_html() {
   echo '</table></div>'
 }
 
+# Último commit anterior à aprovação da spec, base do diff do documento técnico. Termina com erro, imprimindo o
+# motivo na saída de erro, se não houver base: fora de um repositório git, spec sem data de aprovação ou sem
+# commit anterior a ela.
+# finalize_diff_base <arquivo da spec>
+finalize_diff_base() {
+  local root approved base
+  root="$(_task_root_dir)"
+  if ! git -C "$root" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    echo "fora de um repositório git" >&2
+    return 1
+  fi
+  approved="$(finalize_approved_at "$1")"
+  if [ -z "$approved" ]; then
+    echo "a spec não tem data de aprovação" >&2
+    return 1
+  fi
+  base="$(git -C "$root" rev-list -1 --before="$approved" HEAD 2>/dev/null || true)"
+  if [ -z "$base" ]; then
+    echo "nenhum commit anterior à aprovação da spec" >&2
+    return 1
+  fi
+  printf '%s' "$base"
+}
+
+# Converte um diff unificado, lido da entrada padrão, em linhas de tabela de duas colunas (antes e depois),
+# com o número de cada linha, o contexto e as linhas removidas e acrescentadas destacadas. Remoções e
+# acréscimos seguidos ficam lado a lado, na ordem. Todo o código sai escapado.
+# finalize_diff_rows < diff
+finalize_diff_rows() {
+  awk '
+    function esc(s) {
+      gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s)
+      gsub(/"/, "\\&quot;", s); gsub(/\047/, "\\&#39;", s)
+      return s
+    }
+    function cell(num, text, cls) {
+      return "<td class=\"ln\">" num "</td><td class=\"code" cls "\">" esc(text) "</td>"
+    }
+    function flush(   n, i, l, r) {
+      n = (nd > na) ? nd : na
+      for (i = 1; i <= n; i++) {
+        l = (i <= nd) ? cell(dn[i], dt[i], " del") : "<td class=\"ln\"></td><td class=\"code empty\"></td>"
+        r = (i <= na) ? cell(an[i], at[i], " add") : "<td class=\"ln\"></td><td class=\"code empty\"></td>"
+        print "<tr>" l r "</tr>"
+      }
+      nd = 0; na = 0
+    }
+    { sub(/\r$/, "") }
+    /^@@ / {
+      flush(); inhunk = 1
+      o = $2; sub(/^-/, "", o); sub(/,.*/, "", o); oldn = o + 0
+      w = $3; sub(/^\+/, "", w); sub(/,.*/, "", w); newn = w + 0
+      c = $0; sub(/^@@ [^@]*@@ ?/, "", c)
+      print "<tr class=\"hunk\"><td colspan=\"4\">" esc($1 " " $2 " " $3 " " $4 (c == "" ? "" : " " c)) "</td></tr>"
+      next
+    }
+    !inhunk { next }
+    /^\\/ { next }
+    /^-/ { dn[++nd] = oldn++; dt[nd] = substr($0, 2); next }
+    /^\+/ { an[++na] = newn++; at[na] = substr($0, 2); next }
+    {
+      flush()
+      t = substr($0, 2)
+      print "<tr>" cell(oldn++, t, "") cell(newn++, t, "") "</tr>"
+    }
+    END { flush() }
+  '
+}
+
+# Caminhos com ação `alterar` nas tarefas que nenhuma tarefa cria, um por linha, sem repetição.
+# finalize_modified_paths <pasta das tarefas da spec>
+finalize_modified_paths() {
+  finalize_changed_items "$1" | awk -F'\t' '
+    $1 == "criar" { created[$2] = 1; next }
+    $1 == "alterar" && !($2 in seen) { seen[$2] = 1; order[++n] = $2 }
+    END { for (i = 1; i <= n; i++) if (!(order[i] in created)) print order[i] }
+  '
+}
+
+# Seção de diffs do técnico: um bloco expansível por arquivo alterado, com o diff lado a lado entre a base e o
+# estado atual. Sem base de comparação, arquivo binário ou arquivo sem mudança, informa em vez de falhar.
+# finalize_diffs_html <arquivo da spec> <pasta das tarefas da spec>
+finalize_diffs_html() {
+  local base reason path root stat add del paths
+  root="$(_task_root_dir)"
+  if ! base="$(finalize_diff_base "$1" 2>&1)"; then
+    reason="$base"
+    printf '<p>Sem base de comparação: %s.</p>\n' "$(printf '%s' "$reason" | finalize_html_escape)"
+    return 0
+  fi
+  paths="$(finalize_modified_paths "$2")"
+  if [ -z "$paths" ]; then
+    echo '<p>Nenhum arquivo alterado, só criados ou removidos.</p>'
+    return 0
+  fi
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    stat="$(git -C "$root" -c core.quotepath=off diff --numstat --no-color --no-ext-diff "$base" -- "$path" 2>/dev/null | head -1)"
+    add="$(printf '%s' "$stat" | cut -f1)"; del="$(printf '%s' "$stat" | cut -f2)"
+    echo '<details class="dfile">'
+    if [ -z "$stat" ]; then
+      printf '<summary><b class="path">%s</b><span class="tag">sem mudanças</span></summary>\n' "$(printf '%s' "$path" | finalize_html_escape)"
+      echo '<div class="dbody"><p>Sem mudanças desde a base de comparação.</p></div>'
+    elif [ "$add" = "-" ]; then
+      printf '<summary><b class="path">%s</b><span class="tag">binário</span></summary>\n' "$(printf '%s' "$path" | finalize_html_escape)"
+      echo '<div class="dbody"><p>Arquivo binário alterado.</p></div>'
+    else
+      printf '<summary><b class="path">%s</b><span class="tag criar">+%s</span><span class="tag remover">−%s</span></summary>\n' \
+        "$(printf '%s' "$path" | finalize_html_escape)" "$add" "$del"
+      echo '<div class="dbody"><div class="tw"><table class="diff">'
+      echo '<colgroup><col class="cln"><col><col class="cln"><col></colgroup>'
+      git -C "$root" -c core.quotepath=off diff --no-color --no-ext-diff --no-textconv -U3 "$base" -- "$path" 2>/dev/null | finalize_diff_rows
+      echo '</table></div></div>'
+    fi
+    echo '</details>'
+  done <<< "$paths"
+}
+
 # Gera o documento técnico a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Como o
 # executivo, não usa a data da execução.
 # finalize_build_technical <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
@@ -894,6 +1012,7 @@ finalize_build_technical() {
   TPL_DONE="$(printf '%s\n' "$part" | finalize_part_section 'O que foi feito' | finalize_block_html)" \
   TPL_REQUIREMENTS="$(finalize_requirements_html "$spec" "$tasks_dir")" \
   TPL_FILES="$(finalize_files_html "$tasks_dir")" \
+  TPL_DIFFS="$(finalize_diffs_html "$spec" "$tasks_dir")" \
   TPL_COMMITS="$(finalize_commits_html "$spec" "$tasks_dir")" \
   TPL_DECISIONS="$(printf '%s\n' "$part" | finalize_part_section 'Decisões' | finalize_block_html)" \
   TPL_LEARNINGS="$(printf '%s\n' "$part" | finalize_part_section 'Aprendizados' | finalize_block_html)" \

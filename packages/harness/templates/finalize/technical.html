@@ -60,6 +60,32 @@ td.strong { font-weight: 600; }
 .nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
 .nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
 
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
 /* Etiquetas e notas */
 .tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
        white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
@@ -94,6 +120,7 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
   main { padding-bottom: 0; }
   .hd { padding-top: 0; }
   section.sec.page { break-before: page; }
@@ -130,6 +157,7 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
     <a href="#o-que-foi-feito">O que foi feito</a>
     <a href="#requisitos">Requisitos</a>
     <a href="#arquivos">Arquivos</a>
+    <a href="#diffs">Diffs</a>
     <a href="#commits">Commits</a>
     <a href="#decisoes">Decisões</a>
     <a href="#aprendizados">Aprendizados</a>
@@ -168,6 +196,11 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
   <section class="sec" id="arquivos">
     <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
 #{FILES}
+  </section>
+
+  <section class="sec" id="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+#{DIFFS}
   </section>
 
   <section class="sec" id="commits">
@@ -226,6 +259,16 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
   }
   window.addEventListener("scroll", mark, { passive: true });
   mark();
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
 })();
 </script>
 </body>

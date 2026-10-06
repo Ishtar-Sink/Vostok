@@ -1197,14 +1197,37 @@ check "técnico: requisitos com a descrição da spec e as tarefas que os cobrem
 check "técnico: requisito aparece uma vez" bash -c "[ \$(grep -c '<td class=\"mono\">RF-01</td>' '$TX') -eq 1 ]"
 check "técnico: arquivos alterados com a ação" bash -c "grep -qF '<tr><td><span class=\"tag criar\">criar</span></td><td class=\"path\">nao/existe/novo.sh</td></tr>' '$TX' && grep -qF '<tr><td><span class=\"tag alterar\">alterar</span></td><td class=\"path\">AGENTS.md</td></tr>' '$TX'"
 check "técnico: fora de um repositório git (CB-04)" grep -qxF '<p>Fora de um repositório git.</p>' "$TX"
+check "técnico: diffs sem git informam que não há base (CB-11)" grep -qxF '<p>Sem base de comparação: fora de um repositório git.</p>' "$TX"
 gf init -q -b main
 "$FS" --build SPEC-008 > /dev/null
 check "técnico: sem commits no período (CB-04)" grep -qxF '<p>Nenhum commit encontrado.</p>' "$TX"
+check "técnico: diffs sem commit anterior à aprovação (CB-11)" grep -qxF '<p>Sem base de comparação: nenhum commit anterior à aprovação da spec.</p>' "$TX"
 mkdir -p "$R/nao/existe"
 commit_at 2026-01-05T12:00:00Z nao/existe/novo.sh 'antes da aprovação'
+sed -i.bak 's|^- `AGENTS.md` (alterar): .*|&\n- `nao/existe/doc.md` (alterar): texto.\n- `nao/existe/bin.dat` (alterar): binário.\n- `nao/existe/igual.txt` (alterar): sem mudança.\n- `nao/existe/novo.sh` (alterar): criado por outra tarefa.|' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+printf 'um\ndois\ntres\n' > "$R/nao/existe/doc.md"; printf 'a\000b\n' > "$R/nao/existe/bin.dat"; printf 'fixo\n' > "$R/nao/existe/igual.txt"
+gf add -- nao/existe/doc.md nao/existe/bin.dat nao/existe/igual.txt
+GIT_AUTHOR_DATE=2026-01-06T12:00:00Z GIT_COMMITTER_DATE=2026-01-06T12:00:00Z gf commit -qm 'base dos diffs' -- nao/existe/doc.md nao/existe/bin.dat nao/existe/igual.txt
 commit_at 2026-01-15T12:00:00Z nao/existe/novo.sh 'depois <da> & aprovação'
+printf 'um\nDOIS <b> & "x"\ntres\nquatro' > "$R/nao/existe/doc.md"
+gf add -- nao/existe/doc.md
+GIT_AUTHOR_DATE=2026-01-20T12:00:00Z GIT_COMMITTER_DATE=2026-01-20T12:00:00Z gf commit -qm 'muda o doc' -- nao/existe/doc.md
+printf 'a\000c\n' > "$R/nao/existe/bin.dat"
 "$FS" --build SPEC-008 > /dev/null
 check "técnico: commits do período com hash, data e mensagem escapada" bash -c "grep -Eq '^<tr><td class=\"mono\">[0-9a-f]+</td><td class=\"mono\">2026-01-15</td><td>depois &lt;da&gt; &amp; aprovação</td></tr>\$' '$TX' && ! grep -qF 'antes da aprovação' '$TX'"
+dsec="$(sed -n '/id="diffs"/,/id="commits"/p' "$TX")"
+check "técnico: um bloco expansível por arquivo alterado, sem os criados (RF-17)" bash -c "[ \$(grep -c '^<details class=\"dfile\">\$' <<< '$dsec') -eq 4 ] && grep -qF 'nao/existe/doc.md' <<< '$dsec' && ! grep -qF 'nao/existe/novo.sh' <<< '$dsec'"
+check "técnico: diff com as linhas removidas e acrescentadas e os totais (CT-17)" bash -c "grep -qF '<b class=\"path\">nao/existe/doc.md</b><span class=\"tag criar\">+2</span><span class=\"tag remover\">−1</span>' <<< '$dsec'"
+check "técnico: linha mudada fica lado a lado, escapada (CT-17)" grep -qxF '<tr><td class="ln">2</td><td class="code del">dois</td><td class="ln">2</td><td class="code add">DOIS &lt;b&gt; &amp; &quot;x&quot;</td></tr>' <<< "$dsec"
+check "técnico: a linha 'No newline' não vira linha da tabela" bash -c "[ \$(sed -n '/nao\/existe\/doc.md<\/b>/,/<\/details>/p' <<< '$dsec' | grep -c '^<tr><td class=\"ln\">') -eq 4 ]"
+check "técnico: acréscimo sem par tem o lado esquerdo vazio (CT-17)" grep -qxF '<tr><td class="ln"></td><td class="code empty"></td><td class="ln">4</td><td class="code add">quatro</td></tr>' <<< "$dsec"
+check "técnico: a numeração segue depois da linha mudada (CT-17)" grep -qxF '<tr><td class="ln">3</td><td class="code">tres</td><td class="ln">3</td><td class="code">tres</td></tr>' <<< "$dsec"
+check "técnico: contexto nas duas colunas (CT-17)" grep -qxF '<tr><td class="ln">1</td><td class="code">um</td><td class="ln">1</td><td class="code">um</td></tr>' <<< "$dsec"
+check "técnico: cabeçalho do trecho e tabela com colunas fixas (CT-17)" bash -c "grep -qF '<tr class=\"hunk\"><td colspan=\"4\">@@ -1,3 +1,4 @@</td></tr>' <<< '$dsec' && grep -qF '<colgroup><col class=\"cln\"><col><col class=\"cln\"><col></colgroup>' <<< '$dsec'"
+check "técnico: arquivo binário só informa a mudança (CB-12)" bash -c "grep -qF '<b class=\"path\">nao/existe/bin.dat</b><span class=\"tag\">binário</span>' <<< '$dsec' && grep -qF 'Arquivo binário alterado.' <<< '$dsec' && ! grep -q 'bin.dat.*class=\"code' <<< '$dsec'"
+check "técnico: arquivo sem mudanças informa (CB-11)" bash -c "grep -qF '<b class=\"path\">nao/existe/igual.txt</b><span class=\"tag\">sem mudanças</span>' <<< '$dsec' && grep -qF 'Sem mudanças desde a base de comparação.' <<< '$dsec'"
+check "técnico: arquivo não rastreado também informa sem mudanças" grep -qF '<b class="path">AGENTS.md</b><span class="tag">sem mudanças</span>' <<< "$dsec"
+mkdir -p "$R/.fin-docs" && cp "$TX" "$R/.fin-docs/tecnico.html"
 rm -rf "$R/.git" "$R/nao"
 "$FS" --build SPEC-008 > /dev/null
 h1="$(fl sha256_hash < "$TX")"; "$FS" --build SPEC-008 > /dev/null
@@ -1216,7 +1239,7 @@ sed -i.bak 's/^  color_primary: "#a78bfa"/  color_primary: "#0a0b0c"/' "$DOCS" &
 check "executivo: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$EX' && ! grep -qF '#a78bfa' '$EX'"
 check "técnico: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$TX' && ! grep -qF '#a78bfa' '$TX'"
 cp "$R/.documents-ok" "$DOCS"; rm -f "$R/.documents-ok"; "$FS" --build SPEC-008 > /dev/null
-mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html" && cp "$TX" "$R/.fin-docs/tecnico.html"
+mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html"
 sed -i.bak 's/^title: .*/title: "Planejar \& <revisar>"/' "$r8" && rm -f "$r8.bak"
 sed -i.bak 's/^title: .*/title: "Criar <script> \& testes"/' "$t1" && rm -f "$t1.bak"
 "$FS" --build SPEC-008 > /dev/null

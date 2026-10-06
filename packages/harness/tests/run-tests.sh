@@ -1483,7 +1483,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize validate-task >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize validate-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

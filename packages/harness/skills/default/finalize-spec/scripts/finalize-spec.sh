@@ -52,6 +52,18 @@ require_finalizable() {
   printf '%s' "$spec"
 }
 
+# Termina com erro, listando os problemas, se o conteúdo da spec não estiver válido.
+# require_valid_content <SPEC_ID>
+require_valid_content() {
+  local errors
+  errors="$(finalize_content_errors "$1" "$(finalize_tasks_dir "$1")")"
+  if [ -n "$errors" ]; then
+    echo "Erro: o conteúdo de $1 tem problemas:" >&2
+    printf '%s\n' "$errors" | sed 's/^/  - /' >&2
+    exit 1
+  fi
+}
+
 [ "$#" -eq 2 ] || die "$USAGE"
 case "$1" in
   --sources)
@@ -64,15 +76,17 @@ case "$1" in
     ;;
   --validate)
     require_finalizable "$2" > /dev/null
-    errors="$(finalize_content_errors "$2" "$(finalize_tasks_dir "$2")")"
-    if [ -n "$errors" ]; then
-      echo "Erro: o conteúdo de $2 tem problemas:" >&2
-      printf '%s\n' "$errors" | sed 's/^/  - /' >&2
-      exit 1
-    fi
+    require_valid_content "$2"
     echo "Conteúdo de $2 válido: $(finalize_rel "$(finalize_content_path "$2")")"
     ;;
-  --build|--archive)
+  --build)
+    spec="$(require_finalizable "$2")"
+    require_valid_content "$2"
+    executive="$(finalize_build_executive "$2" "$spec" "$(finalize_tasks_dir "$2")")"
+    echo "Documentos de $2 gerados em $(finalize_rel "$(finalize_content_dir "$2")"):"
+    echo "  - $(basename "$executive")"
+    ;;
+  --archive)
     require_finalizable "$2" > /dev/null
     die "$1 ainda não implementado"
     ;;

@@ -9,6 +9,9 @@ FINALIZE_CONTENT_FILE="content.md"
 FINALIZE_EVIDENCE_HOW="Como chegar"
 FINALIZE_EVIDENCE_READ="Como ler"
 
+# Template do documento executivo, relativo a `paths.templates` (main.yml).
+FINALIZE_EXECUTIVE_TEMPLATE="finalize/executive.html"
+
 # Pasta das tarefas de uma spec (`paths.tasks`/<SPEC_ID>).
 # finalize_tasks_dir <SPEC_ID>
 finalize_tasks_dir() {
@@ -274,8 +277,8 @@ finalize_create() {
 }
 
 # Imprime um problema por linha do arquivo de conteúdo, sem alterar nada: seções do template ausentes ou
-# vazias, variáveis sem preencher, evidências listadas que não existem ou sem bloco e blocos sem
-# "Como chegar" ou "Como ler". Não imprime nada se o conteúdo estiver válido.
+# vazias, variáveis sem preencher, entregas do executivo incompletas, evidências listadas que não existem
+# ou sem bloco e blocos sem "Como chegar" ou "Como ler". Não imprime nada se o conteúdo estiver válido.
 # finalize_content_errors <SPEC_ID> <pasta das tarefas da spec>
 finalize_content_errors() {
   local id="$1" file heading task tid name kind evidence_dir prefix
@@ -323,6 +326,8 @@ finalize_content_errors() {
     }
     END { flush() }
   ' "$file"
+
+  finalize_content_part "$file" Executivo | finalize_part_section Entregas | finalize_deliveries_errors
 
   for task in "$2"/*.md; do
     [ -f "$task" ] || continue
@@ -470,4 +475,287 @@ finalize_markdown_html() {
     }
     END { close_block() }
   '
+}
+
+# Caminho de um documento HTML da spec (`finalize_documents.<tipo>` em specs.yml), dentro de
+# `paths.finalize`/<SPEC_ID>.
+# finalize_document_path <SPEC_ID> <executive|technical|evidence>
+finalize_document_path() {
+  printf '%s/%s' "$(finalize_content_dir "$1")" \
+    "$(config_get "$HARNESS_DIR/config/specs.yml" "finalize_documents.$2")"
+}
+
+# Linhas de uma parte (`# Título`) do arquivo de conteúdo, sem o título, até a próxima parte.
+# finalize_content_part <arquivo de conteúdo> <título da parte, sem "# ">
+finalize_content_part() {
+  PART="# $2" awk '
+    { sub(/\r$/, "") }
+    /^# / { inside = ($0 == ENVIRON["PART"]); next }
+    inside { print }
+  ' "$1"
+}
+
+# Linhas de uma seção (`## Título`) de uma parte, lida da entrada padrão, sem o título, até a próxima seção.
+# finalize_part_section <título da seção, sem "## "> < parte
+finalize_part_section() {
+  SECTION="## $1" awk '
+    /^## / { inside = ($0 == ENVIRON["SECTION"]); next }
+    inside { print }
+  '
+}
+
+# HTML de uma seção em Markdown restrito, lida da entrada padrão, com cada tabela dentro de um contêiner
+# que rola na horizontal em telas estreitas.
+# finalize_block_html < markdown
+finalize_block_html() {
+  finalize_markdown_html | sed -e 's#^<table>$#<div class="tw"><table>#' -e 's#^</table>$#</table></div>#'
+}
+
+# HTML de uma linha de Markdown restrito, sem o parágrafo em volta.
+# _finalize_inline <texto>
+_finalize_inline() {
+  printf '%s\n' "$1" | finalize_markdown_html | sed -e 's#^<p>##' -e 's#</p>$##'
+}
+
+# Faixa de indicadores de valor a partir da tabela "| Valor | Indicador |" da seção, lida da entrada padrão.
+# Sem linhas de dados (por exemplo, "Não se aplica."), não imprime nada.
+# finalize_value_kpis_html < seção
+finalize_value_kpis_html() {
+  local rows value label
+  rows="$(awk '
+    { sub(/\r$/, "") }
+    /^\|/ {
+      if ($0 ~ /^\|[ \t:|-]+\|[ \t]*$/ && $0 ~ /---/) { sep = 1; next }
+      if (!sep) next
+      line = $0; sub(/^\|/, "", line); sub(/\|[ \t]*$/, "", line)
+      n = split(line, c, "|")
+      if (n < 2) next
+      gsub(/^[ \t]+|[ \t]+$/, "", c[1]); gsub(/^[ \t]+|[ \t]+$/, "", c[2])
+      print c[1] "\t" c[2]
+    }
+  ')"
+  [ -n "$rows" ] || return 0
+  echo '<div class="kpis">'
+  while IFS=$'\t' read -r value label; do
+    printf '<div class="kpi"><b>%s</b><span>%s</span></div>\n' "$(_finalize_inline "$value")" "$(_finalize_inline "$label")"
+  done <<< "$rows"
+  echo '</div>'
+}
+
+# Entregas da seção, lida da entrada padrão, uma linha por item: "E<TAB>título" abre uma entrega,
+# "F<TAB>rótulo<TAB>valor" é um campo "- **Rótulo:** valor" e "T<TAB>linha" é texto solto da entrega.
+# Linhas antes da primeira entrega e comentários são ignorados.
+# finalize_deliveries < seção
+finalize_deliveries() {
+  awk '
+    { sub(/\r$/, "") }
+    /^<!--.*-->[ \t]*$/ { next }
+    /^### / { open = 1; t = $0; sub(/^### +/, "", t); sub(/[ \t]+$/, "", t); print "E\t" t; next }
+    !open { next }
+    match($0, /^- \*\*[^*]+:\*\*/) {
+      label = substr($0, 5, RLENGTH - 7)
+      value = substr($0, RLENGTH + 1); gsub(/^[ \t]+|[ \t]+$/, "", value)
+      print "F\t" label "\t" value; next
+    }
+    { print "T\t" $0 }
+  '
+}
+
+# Classe do impacto de uma entrega: alto, medio ou baixo; vazia para outro valor.
+# _finalize_impact_class <impacto>
+_finalize_impact_class() {
+  case "$1" in
+    alto) printf alto ;;
+    médio|medio) printf medio ;;
+    baixo) printf baixo ;;
+  esac
+}
+
+# Etiqueta do impacto de uma entrega, vazia sem impacto.
+# _finalize_impact_tag <impacto>
+_finalize_impact_tag() {
+  [ -n "$1" ] || return 0
+  printf '<span class="tag %s">Impacto %s</span>' "$(_finalize_impact_class "$1")" "$(printf '%s' "$1" | finalize_html_escape)"
+}
+
+# Tabela-resumo das entregas: nome, impacto e valor.
+# finalize_deliveries_table_html < seção de entregas
+finalize_deliveries_table_html() {
+  local kind a b title="" impact="" value="" n=0
+  _finalize_emit_row() {
+    [ -n "$title" ] || return 0
+    printf '<tr><td class="strong">%s</td><td>%s</td><td>%s</td></tr>\n' \
+      "$(_finalize_inline "$title")" "$(_finalize_impact_tag "$impact")" "$(_finalize_inline "$value")"
+  }
+  echo '<div class="tw"><table>'
+  echo '<thead><tr><th>Entrega</th><th>Impacto</th><th>Valor</th></tr></thead>'
+  echo '<tbody>'
+  while IFS=$'\t' read -r kind a b; do
+    case "$kind" in
+      E) _finalize_emit_row; title="$a"; impact=""; value=""; n=$((n + 1)) ;;
+      F) case "$a" in Impacto) impact="$b" ;; Valor) value="$b" ;; esac ;;
+    esac
+  done <<< "$(finalize_deliveries)"
+  _finalize_emit_row
+  echo '</tbody>'
+  echo '</table></div>'
+}
+
+# Cartões expansíveis das entregas: título e impacto no resumo; os outros campos como parágrafos rotulados,
+# na ordem do conteúdo, e o texto solto pelo Markdown restrito.
+# finalize_deliveries_cards_html < seção de entregas
+finalize_deliveries_cards_html() {
+  local kind a b title="" impact="" body="" text=""
+  _finalize_flush_text() {
+    [ -n "$text" ] || return 0
+    body="$body$(printf '%s\n' "$text" | finalize_block_html)"$'\n'
+    text=""
+  }
+  _finalize_emit_card() {
+    [ -n "$title" ] || return 0
+    _finalize_flush_text
+    printf '<details class="card impact-%s">\n' "$(_finalize_impact_class "$impact")"
+    printf '<summary><b>%s</b>%s</summary>\n' "$(_finalize_inline "$title")" "$(_finalize_impact_tag "$impact")"
+    printf '<div class="card-body">\n%s</div>\n</details>\n' "$body"
+  }
+  while IFS=$'\t' read -r kind a b; do
+    case "$kind" in
+      E) _finalize_emit_card; title="$a"; impact=""; body=""; text="" ;;
+      F)
+        if [ "$a" = Impacto ]; then
+          impact="$b"
+        else
+          _finalize_flush_text
+          body="$body$(printf '<p><b>%s</b>%s</p>' "$(printf '%s' "$a" | finalize_html_escape)" "$(_finalize_inline "$b")")"$'\n'
+        fi
+        ;;
+      T) text="$text$a"$'\n' ;;
+    esac
+  done <<< "$(finalize_deliveries)"
+  _finalize_emit_card
+}
+
+# Problemas das entregas do executivo, um por linha: nenhuma entrega, entrega sem "O que mudou" ou "Valor"
+# e impacto fora de alto, médio e baixo.
+# finalize_deliveries_errors < seção de entregas
+finalize_deliveries_errors() {
+  local kind a b title="" changed=0 value=0 n=0
+  _finalize_delivery_check() {
+    [ -n "$title" ] || return 0
+    [ "$changed" -eq 1 ] || echo "entrega sem \"O que mudou\": ### $title"
+    [ "$value" -eq 1 ] || echo "entrega sem \"Valor\": ### $title"
+  }
+  while IFS=$'\t' read -r kind a b; do
+    case "$kind" in
+      E) _finalize_delivery_check; title="$a"; changed=0; value=0; n=$((n + 1)) ;;
+      F)
+        case "$a" in
+          "O que mudou") [ -n "$b" ] && changed=1 ;;
+          Valor) [ -n "$b" ] && value=1 ;;
+          Impacto) [ -n "$(_finalize_impact_class "$b")" ] || echo "impacto inválido em ### $title: '$b' (use alto, médio ou baixo)" ;;
+        esac
+        ;;
+    esac
+  done <<< "$(finalize_deliveries)"
+  _finalize_delivery_check
+  [ "$n" -gt 0 ] || echo "entregas sem nenhuma entrega: use um \"### \" por entrega"
+}
+
+# Data da última linha "conclusão" do registro de execução da tarefa, vazia se ela não tiver.
+# finalize_task_done_date <arquivo da tarefa>
+finalize_task_done_date() {
+  markdown_section "$1" "$(config_get "$HARNESS_DIR/config/tasks.yml" record_section)" 2>/dev/null |
+    awk -F'|' '
+      { sub(/\r$/, "") }
+      /^\| *[0-9]+ *\|/ {
+        step = $4; gsub(/^[ \t]+|[ \t]+$/, "", step)
+        if (step == "conclusão") { date = $3; gsub(/^[ \t]+|[ \t]+$/, "", date) }
+      }
+      END { printf "%s", date }
+    '
+}
+
+# Um indicador de execução: valor, total e rótulo.
+# _finalize_kpi <valor> <total> <rótulo>
+_finalize_kpi() {
+  printf '<div class="kpi"><b>%s<small> / %s</small></b><span>%s</span></div>\n' "$1" "$2" "$3"
+}
+
+# Indicadores de execução do executivo: tarefas `done`, tarefas com testes `passed` e evidências listadas (o --build só
+# chega aqui com todas existentes).
+# finalize_indicators_html <pasta das tarefas da spec>
+finalize_indicators_html() {
+  local task done total=0 n_done=0 n_passed=0 n_ev=0 name kind
+  done="$(config_get "$HARNESS_DIR/config/tasks.yml" status.done)"
+  for task in "$1"/*.md; do
+    [ -f "$task" ] || continue
+    total=$((total + 1))
+    [ "$(frontmatter_get "$task" status 2>/dev/null || true)" = "$done" ] && n_done=$((n_done + 1))
+    [ "$(frontmatter_get "$task" tests_result 2>/dev/null || true)" = passed ] && n_passed=$((n_passed + 1))
+    while IFS=$'\t' read -r name kind; do
+      [ -n "$name" ] && n_ev=$((n_ev + 1))
+    done <<< "$(finalize_evidence_items "$task")"
+  done
+  echo '<div class="kpis">'
+  _finalize_kpi "$n_done" "$total" "Tarefas concluídas"
+  _finalize_kpi "$n_passed" "$total" "Tarefas com testes aprovados"
+  _finalize_kpi "$n_ev" "$n_ev" "Evidências geradas"
+  echo '</div>'
+}
+
+# Linha do tempo do executivo: uma tarefa por item, com a data da conclusão tirada do registro.
+# finalize_timeline_html <pasta das tarefas da spec>
+finalize_timeline_html() {
+  local task date id title class
+  for task in "$1"/*.md; do
+    [ -f "$task" ] || continue
+    date="$(finalize_task_done_date "$task")"
+    id="$(frontmatter_get "$task" id | finalize_html_escape)"
+    title="$(frontmatter_get "$task" title | finalize_html_escape)"
+    class=""
+    [ -n "$date" ] || { class=' class="pending"'; date="sem data"; }
+    printf '      <li%s><span class="date">%s</span><span class="task"><span class="id">%s</span>%s</span></li>\n' \
+      "$class" "$date" "$id" "$title"
+  done
+}
+
+# Gera o documento executivo a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Não usa a
+# data da execução: gerar de novo com as mesmas entradas dá o mesmo arquivo.
+# finalize_build_executive <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_executive() {
+  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part deliveries count
+  out="$(finalize_document_path "$id" executive)"
+  tokens="$(finalize_css_tokens)" || return 1
+  title="$(frontmatter_get "$spec" title | finalize_html_escape)"
+  approved="$(finalize_approved_at "$spec")"
+  last=""
+  for task in "$tasks_dir"/*.md; do
+    [ -f "$task" ] || continue
+    date="$(finalize_task_done_date "$task")"
+    [[ "$date" > "$last" ]] && last="$date"
+  done
+  approved="${approved%%T*}"
+  part="$(finalize_content_part "$(finalize_content_path "$id")" Executivo)"
+  deliveries="$(printf '%s\n' "$part" | finalize_part_section Entregas)"
+  count="$(printf '%s\n' "$deliveries" | finalize_deliveries | grep -c '^E' || true)"
+  mkdir -p "$(dirname "$out")"
+  TPL_DOC_TITLE="$id · Resumo executivo · $title" \
+  TPL_TOKENS="$tokens" \
+  TPL_SPEC_ID="$id" \
+  TPL_SPEC_TITLE="$title" \
+  TPL_APPROVED="${approved:-data não registrada}" \
+  TPL_FINISHED="${last:-data não registrada}" \
+  TPL_LEDE="$(printf '%s\n' "$part" | finalize_part_section Panorama | finalize_block_html)" \
+  TPL_VALUE_KPIS="$(printf '%s\n' "$part" | finalize_part_section 'Indicadores de valor' | finalize_value_kpis_html)" \
+  TPL_SCOPE="$(printf '%s\n' "$part" | finalize_part_section Recorte | finalize_block_html)" \
+  TPL_DELIVERY_COUNT="$count" \
+  TPL_DELIVERY_TABLE="$(printf '%s\n' "$deliveries" | finalize_deliveries_table_html)" \
+  TPL_DELIVERIES="$(printf '%s\n' "$deliveries" | finalize_deliveries_cards_html)" \
+  TPL_BEFORE_AFTER="$(printf '%s\n' "$part" | finalize_part_section 'Antes e depois' | finalize_block_html)" \
+  TPL_NEXT="$(printf '%s\n' "$part" | finalize_part_section 'Próximos passos' | finalize_block_html)" \
+  TPL_RISKS="$(printf '%s\n' "$part" | finalize_part_section 'Riscos e limitações' | finalize_block_html)" \
+  TPL_INDICATORS="$(finalize_indicators_html "$tasks_dir")" \
+  TPL_TIMELINE="$(finalize_timeline_html "$tasks_dir")" \
+    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_EXECUTIVE_TEMPLATE" > "$out"
+  printf '%s' "$out"
 }

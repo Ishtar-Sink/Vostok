@@ -25,6 +25,8 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 
 **Proposta.** Definir como uma tarefa em execução volta a ser ajustável. Uma opção é a `adjust-task` aceitar `in_progress` e `blocked`, derrubar a aprovação, descartar o baseline e as evidências e registrar o ajuste. Outra é uma etapa explícita de "devolver para ajuste". Exige decisão do usuário antes de implementar.
 
+**Ocorrências.** 2026-10-06, SPEC-003 TASK-05: o usuário mudou o foco e o visual do documento executivo com a tarefa já em validação. O ajuste foi registrado à mão no histórico de ajustes da tarefa, com os arquivos novos em "Mudar" e o critério novo em "Concluída quando".
+
 **Referências.** `packages/harness/skills/default/adjust-task/`, `packages/harness/tests/agent-scenarios.md` (resultado do `tk09`).
 
 ## DT-002: Retomada e regressão sem cenário com agente

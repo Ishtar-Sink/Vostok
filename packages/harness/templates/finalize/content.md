@@ -1,36 +1,51 @@
 <!-- Conteúdo dos documentos de #{SPEC_ID}, escrito pelo agente. O finalize-spec.sh --build transforma este arquivo em HTML. -->
 <!-- Markdown aceito: parágrafos, listas com "- " ou "1. ", tabelas, `código` e **negrito**. -->
-<!-- Não use títulos extras, blocos de código, imagens nem HTML. Comentários como estes não aparecem nos documentos. -->
+<!-- Não use outros títulos, blocos de código, imagens nem HTML; "### " só nas entregas do executivo. Comentários como estes não aparecem nos documentos. -->
 <!-- Cada título "## " precisa de texto, e todas as variáveis de template precisam ser substituídas. -->
 
 # Executivo
 
-<!-- Para quem não é técnico: linguagem de negócio, sem caminhos, comandos nem nomes de funções. -->
+<!-- Documento entregue aos executivos no fim da spec: o que foi entregue e o valor disso. Linguagem de negócio, sem caminhos, comandos nem nomes de funções. -->
 
-## Resumo
+## Panorama
 
-<!-- Em 2 a 4 frases: o que a spec entregou e por que importa. -->
-#{EXEC_SUMMARY}
+<!-- Em 2 a 4 frases, abrindo o documento: o que foi entregue, para quem e por que importa. Use **negrito** nos números e nas entregas principais. -->
+#{EXEC_OVERVIEW}
 
-## Problema e resultado
+## Indicadores de valor
 
-<!-- O problema que existia e o resultado obtido, em termos de negócio. -->
-#{EXEC_PROBLEM}
+<!-- Tabela "| Valor | Indicador |" com os ganhos medidos ou contados (tempo, etapas, erros evitados, cobertura). Sem indicador que se aplique, escreva "Não se aplica.". -->
+#{EXEC_KPIS}
 
-## O que muda para quem usa
+## Recorte
 
-<!-- O que as pessoas passam a poder fazer, ou deixam de precisar fazer. -->
-#{EXEC_CHANGES}
+<!-- O que este documento cobre e o que ficou de fora, em 1 ou 2 frases. -->
+#{EXEC_SCOPE}
 
 ## Entregas
 
-<!-- Lista das entregas, uma por item, em linguagem simples. -->
+<!-- Um "### " por entrega, seguido dos campos abaixo. Impacto: alto, médio ou baixo. "O que mudou" e "Valor" são obrigatórios. -->
+<!-- ### Nome da entrega -->
+<!-- - **Impacto:** alto -->
+<!-- - **O que mudou:** o que passou a existir ou a funcionar diferente. -->
+<!-- - **Valor:** o ganho para quem usa ou para o negócio. -->
+<!-- - **Como perceber:** onde ou como a pessoa nota a mudança. -->
 #{EXEC_DELIVERIES}
+
+## Antes e depois
+
+<!-- Tabela "| Situação | Antes | Depois |" ou lista comparando como era e como ficou. -->
+#{EXEC_BEFORE_AFTER}
 
 ## Próximos passos
 
-<!-- O que fica para depois, as limitações conhecidas e as decisões que dependem de pessoas. -->
+<!-- O que vem a seguir e as decisões que dependem de pessoas. -->
 #{EXEC_NEXT}
+
+## Riscos e limitações
+
+<!-- O que a entrega ainda não resolve e os riscos que ficaram, em termos de negócio. -->
+#{EXEC_RISKS}
 
 # Técnico
 

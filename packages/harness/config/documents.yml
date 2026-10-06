@@ -29,18 +29,19 @@ video_extensions:
 
 # Tokens de cor. Cada chave vira a variável CSS `--<chave com hífens>` (ex.: color_surface_2 vira
 # `--color-surface-2`). Os documentos abrem no tema escuro (`:root`); o tema claro entra por
-# `data-theme="light"`. As cores vêm de docs/mapa-vostok.html, com o roxo como cor principal.
-# `*_soft` são fundos suaves da mesma cor; `primary_ink` é o texto sobre a cor principal.
+# `data-theme="light"`. Paleta roxa derivada de docs/mapa-vostok.html, com a base do escuro um pouco mais clara.
+# `*_soft` são fundos suaves da mesma cor; `primary_ink` é o texto sobre a cor principal; `head*` são o
+# gradiente, o texto e o texto secundário do cabeçalho em faixa, escuro nos dois temas.
 dark:
-  color_bg: "#110e18"
-  color_surface: "#1a1624"
-  color_surface_2: "#221d2f"
+  color_bg: "#1a1528"
+  color_surface: "#231d35"
+  color_surface_2: "#2b2440"
   color_ink: "#ece8f5"
   color_muted: "#a39cb8"
-  color_line: "#2f2940"
+  color_line: "#3a3252"
   color_primary: "#a78bfa"
   color_primary_ink: "#150f22"
-  color_primary_soft: "#2a2140"
+  color_primary_soft: "#352a55"
   color_ok: "#5ccf9f"
   color_ok_soft: "#173027"
   color_warn: "#f0a45a"
@@ -51,6 +52,10 @@ dark:
   color_diff_add_soft: "#173027"
   color_diff_del: "#ef7b86"
   color_diff_del_soft: "#3a1c22"
+  color_head: "#17112a"
+  color_head_2: "#34255c"
+  color_head_ink: "#f5f1ff"
+  color_head_muted: "#b9afd6"
 
 light:
   color_bg: "#f7f5fb"
@@ -72,6 +77,10 @@ light:
   color_diff_add_soft: "#e3f4ec"
   color_diff_del: "#b91c3c"
   color_diff_del_soft: "#fbe5ea"
+  color_head: "#1c1430"
+  color_head_2: "#38235f"
+  color_head_ink: "#ffffff"
+  color_head_muted: "#cdc2ee"
 
 # Fontes do sistema, sem requisições externas. Valem nos dois temas e viram `--font-<chave>`.
 font:

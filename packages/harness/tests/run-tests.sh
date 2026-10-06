@@ -978,9 +978,13 @@ sed -i.bak 's/^status: .*/status: implemented/' "$r8" && rm -f "$r8.bak"
 for t in "$TASKS"/SPEC-008/TASK-*.md; do sed -i.bak 's/^status: .*/status: done/' "$t" && rm -f "$t.bak"; done
 sed -i.bak 's|^- `[^`]*` (automática): .*|Não se aplica.|' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
 FC="$H/work/finalize/SPEC-008/content.md"
+fill_content() { # preenche as variáveis do conteúdo com texto e uma entrega completa
+  sed -i.bak -e 's/#{EXEC_DELIVERIES}/### Script novo\n- **Impacto:** alto\n- **O que mudou:** texto\n- **Valor:** texto/' \
+    -e 's/#{[A-Z0-9_]*}/texto/g' "$1" && rm -f "$1.bak"
+}
 check "--validate sem conteúdo pede o --create" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qF 'conteúdo não encontrado' && '$FS' --validate SPEC-008 2>&1 | grep -qF -- '--create'"
 check "--create cria o conteúdo" bash -c "'$FS' --create SPEC-008 | grep -qF 'criado em packages/harness/work/finalize/SPEC-008/content.md: 1 bloco(s) de evidência.'" 
-for h in '# Executivo' '## Resumo' '## Problema e resultado' '## O que muda para quem usa' '## Entregas' '## Próximos passos' '# Técnico' '## Visão geral' '## Arquitetura e componentes' '## O que foi feito' '## Decisões' '## Aprendizados' '## Pontos de atenção' '## Referências' '# Evidências'; do
+for h in '# Executivo' '## Panorama' '## Indicadores de valor' '## Recorte' '## Entregas' '## Antes e depois' '## Próximos passos' '## Riscos e limitações' '# Técnico' '## Visão geral' '## Arquitetura e componentes' '## O que foi feito' '## Decisões' '## Aprendizados' '## Pontos de atenção' '## Referências' '# Evidências'; do
   check "conteúdo tem a seção '$h'" grep -qxF "$h" "$FC"
 done
 check "conteúdo traz o ID da spec e o Markdown aceito" bash -c "grep -q 'dos documentos de SPEC-008' '$FC' && grep -qF 'Markdown aceito' '$FC'"
@@ -994,13 +998,13 @@ check "--validate aponta as variáveis sem preencher" bash -c "[ \$(grep -c 'var
 check "--validate aponta a variável do bloco de evidência" bash -c "grep -qF 'EVIDENCE_01_HOW' <<< '$out'"
 check "--validate aponta a evidência ausente" bash -c "grep -qF 'TASK-01: evidência ausente: packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt' <<< '$out'"
 check "--validate sai com erro e não altera o conteúdo" bash -c "! '$FS' --validate SPEC-008 >/dev/null 2>&1 && [ '$sum_fc' = \"\$(cksum < '$FC')\" ]"
-sed -i.bak 's/#{[A-Z0-9_]*}/texto/g' "$FC" && rm -f "$FC.bak"
+fill_content "$FC"
 mkdir -p "$TASKS/SPEC-008/evidence/TASK-01" && echo ok > "$TASKS/SPEC-008/evidence/TASK-01/saida.txt"
 check "conteúdo preenchido e com a evidência é válido" bash -c "'$FS' --validate SPEC-008 | grep -qF 'Conteúdo de SPEC-008 válido: packages/harness/work/finalize/SPEC-008/content.md'"
 cp "$FC" "$R/.fin-content"
-sed -i.bak '/^## Resumo$/,/^## Problema e resultado$/{/^texto$/d;}' "$FC" && rm -f "$FC.bak"
-check "--validate aponta a seção vazia" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qxF '  - seção vazia: ## Resumo'"
-check "seção só com comentário é vazia" bash -c "[ \$(grep -c '^## Resumo\$' '$FC') -eq 1 ] && sed -n '/^## Resumo\$/,/^## Problema/p' '$FC' | grep -q '^<!--'"
+sed -i.bak '/^## Panorama$/,/^## Indicadores de valor$/{/^texto$/d;}' "$FC" && rm -f "$FC.bak"
+check "--validate aponta a seção vazia" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qxF '  - seção vazia: ## Panorama'"
+check "seção só com comentário é vazia" bash -c "[ \$(grep -c '^## Panorama\$' '$FC') -eq 1 ] && sed -n '/^## Panorama\$/,/^## Indicadores/p' '$FC' | grep -q '^<!--'"
 cp "$R/.fin-content" "$FC"
 sed -i.bak '/^## Entregas$/d' "$FC" && rm -f "$FC.bak"
 check "--validate aponta a seção ausente" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qxF '  - seção ausente: ## Entregas'"
@@ -1013,6 +1017,17 @@ check "--validate aponta o 'Como chegar' sem texto" bash -c "'$FS' --validate SP
 cp "$R/.fin-content" "$FC"
 sed -i.bak '/^## TASK-01 \/ saida.txt$/d' "$FC" && rm -f "$FC.bak"
 check "--validate aponta a evidência sem bloco" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qxF '  - evidência sem bloco: ## TASK-01 / saida.txt'"
+cp "$R/.fin-content" "$FC"
+sed -i.bak '/^### Script novo$/d' "$FC" && rm -f "$FC.bak"
+check "--validate aponta entregas sem nenhuma entrega" bash -c "'$FS' --validate SPEC-008 2>&1 | grep -qxF '  - entregas sem nenhuma entrega: use um \"### \" por entrega'"
+cp "$R/.fin-content" "$FC"
+sed -i.bak -e '/^- \*\*Valor:\*\* /d' -e 's/^- \*\*O que mudou:\*\* texto$/- **O que mudou:** /' -e 's/^- \*\*Impacto:\*\* alto$/- **Impacto:** enorme/' "$FC" && rm -f "$FC.bak"
+out="$("$FS" --validate SPEC-008 2>&1 || true)"
+check "--validate aponta a entrega sem 'O que mudou' e sem 'Valor'" bash -c "grep -qxF '  - entrega sem \"O que mudou\": ### Script novo' <<< '$out' && grep -qxF '  - entrega sem \"Valor\": ### Script novo' <<< '$out'"
+check "--validate aponta o impacto inválido" grep -qxF "  - impacto inválido em ### Script novo: 'enorme' (use alto, médio ou baixo)" <<< "$out"
+cp "$R/.fin-content" "$FC"
+sed -i.bak 's/^- \*\*Impacto:\*\* alto$/- **Impacto:** médio/' "$FC" && rm -f "$FC.bak"
+check "impacto 'médio' é aceito" "$FS" --validate SPEC-008
 cp "$R/.fin-content" "$FC"
 rm -f "$TASKS/SPEC-008/evidence/TASK-01/saida.txt"
 check "--validate aponta só a evidência ausente (CB-03)" bash -c "out=\$('$FS' --validate SPEC-008 2>&1); [ \$(grep -c '^  - ' <<< \"\$out\") -eq 1 ] && grep -qF 'evidência ausente' <<< \"\$out\""
@@ -1033,9 +1048,9 @@ check "documents.yml: grupos de tema e fonte" bash -c "grep -qx 'dark:' '$DOCS' 
 check "documents.yml: extensões de cada tipo" bash -c "source '$H/scripts/lib/config.sh' && config_list '$DOCS' text_extensions | grep -qx log && config_list '$DOCS' image_extensions | grep -qx png && config_list '$DOCS' video_extensions | grep -qx mp4"
 check "documents.yml: tokens do diff nos dois temas" bash -c "[ \$(grep -c 'color_diff_add:' '$DOCS') -eq 2 ] && [ \$(grep -c 'color_diff_del:' '$DOCS') -eq 2 ] && [ \$(grep -c 'color_diff_add_soft:\|color_diff_del_soft:' '$DOCS') -eq 4 ]"
 css="$(fl finalize_css_tokens)"
-check "tokens: tema escuro em :root, na ordem do arquivo" [ "$(sed -n 1,3p <<< "$css" | paste -sd '|' -)" = ':root {|  color-scheme: dark;|  --color-bg: #110e18;' ]
+check "tokens: tema escuro em :root, na ordem do arquivo" [ "$(sed -n 1,3p <<< "$css" | paste -sd '|' -)" = ':root {|  color-scheme: dark;|  --color-bg: #1a1528;' ]
 check "tokens: tema claro em data-theme" bash -c "grep -qxF ':root[data-theme=\"light\"] {' <<< '$css' && grep -qxF '  --color-bg: #f7f5fb;' <<< '$css' && grep -qxF '  color-scheme: light;' <<< '$css'"
-check "tokens: chave com sublinhado vira hífen" bash -c "grep -qxF '  --color-surface-2: #221d2f;' <<< '$css' && grep -qxF '  --color-primary-soft: #2a2140;' <<< '$css'"
+check "tokens: chave com sublinhado vira hífen" bash -c "grep -qxF '  --color-surface-2: #2b2440;' <<< '$css' && grep -qxF '  --color-primary-soft: #352a55;' <<< '$css'"
 check "tokens: fontes só no tema escuro" bash -c "[ \$(grep -c -- '--font-' <<< '$css') -eq 2 ] && grep -qF -- '--font-body: system-ui' <<< '$css' && grep -qF -- '--font-mono: ui-monospace' <<< '$css' && ! sed -n '/data-theme/,\$p' <<< '$css' | grep -q -- '--font-'"
 check "tokens: cores do diff nos dois temas" bash -c "[ \$(grep -c -- '--color-diff-add:' <<< '$css') -eq 2 ] && [ \$(grep -c -- '--color-diff-del-soft:' <<< '$css') -eq 2 ]"
 cp "$DOCS" "$R/.documents-ok"
@@ -1069,7 +1084,110 @@ mdcheck "markdown: blocos seguidos sem linha em branco" 'antes\n- a\ndepois\n' '
 mdcheck "markdown: CRLF" 'a\r\n\r\n- b\r\n' '<p>a</p>\n<ul>\n<li>b</li>\n</ul>'
 mdcheck "markdown: entrada vazia gera saída vazia" '' ''
 got="$(fl finalize_markdown_html < "$H/templates/finalize/content.md")"
-check "markdown converte o conteúdo do template, sem os comentários" bash -c "grep -qxF '<p>#{EXEC_SUMMARY}</p>' <<< '$got' && ! grep -q 'Markdown aceito' <<< '$got'"
+check "markdown converte o conteúdo do template, sem os comentários" bash -c "grep -qxF '<p>#{EXEC_OVERVIEW}</p>' <<< '$got' && ! grep -q 'Markdown aceito' <<< '$got'"
+
+# Documento executivo (--build).
+cp "$r8" "$R/.fin-r8"; cp -R "$TASKS/SPEC-008" "$R/.fin-tasks"
+sed -i.bak 's/^status: .*/status: implemented/; s/^approved_at: .*/approved_at: 2026-01-10T00:00:00Z/' "$r8" && rm -f "$r8.bak"
+for t in "$TASKS"/SPEC-008/TASK-*.md; do sed -i.bak 's/^status: .*/status: done/' "$t" && rm -f "$t.bak"; done
+sed -i.bak 's|^- `[^`]*` (automática): .*|Não se aplica.|' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+sed -i.bak 's/^tests_result: .*/tests_result: passed/' "$t1" && rm -f "$t1.bak"
+sed -i.bak 's/^|---|---|---|---|---|$/&\n| 1 | 2026-02-01 | conclusão | done | primeira |\n| 2 | 2026-02-02 | retomada | in_progress | ajuste |\n| 3 | 2026-02-03 | conclusão | done | segunda |/' "$t1" && rm -f "$t1.bak"
+EX="$H/work/finalize/SPEC-008/executivo.html"
+"$FS" --create SPEC-008 > /dev/null
+check "--build com conteúdo inválido é recusado e lista os problemas (CB-10)" bash -c "out=\$('$FS' --build SPEC-008 2>&1); [ \$? -ne 0 ] || exit 1; grep -qF 'o conteúdo de SPEC-008 tem problemas' <<< \"\$out\" && grep -qF 'variável sem preencher' <<< \"\$out\""
+check "--build recusado não gera o executivo" [ ! -e "$EX" ]
+cat > "$R/.fin-exec" <<'MD'
+## Panorama
+
+Entrega o **script** `novo.sh` com <script>alert(1)</script> escapado.
+
+## Indicadores de valor
+
+| Valor | Indicador |
+|---|---|
+| **3x** | mais rápido |
+| 0 | etapas manuais |
+
+## Recorte
+
+Só o script; a documentação fica para depois.
+
+## Entregas
+
+### Script novo
+- **Impacto:** alto
+- **O que mudou:** o script existe.
+- **Valor:** menos <trabalho> manual.
+- **Como perceber:** rodar o script.
+Texto solto da entrega.
+
+### Documentação
+- **Impacto:** médio
+- **O que mudou:** o guia cita o script.
+- **Valor:** quem chega encontra o caminho.
+
+## Antes e depois
+
+| Situação | Antes | Depois |
+|---|---|---|
+| Rodar | à mão | um comando |
+
+## Próximos passos
+
+1. Publicar.
+
+## Riscos e limitações
+
+- Depende do bash.
+MD
+awk -v exec="$R/.fin-exec" '
+  /^# Executivo$/ { print; print ""; while ((getline line < exec) > 0) print line; print ""; skip = 1; next }
+  /^# / { skip = 0 }
+  !skip { print }
+' "$FC" > "$FC.new" && mv "$FC.new" "$FC"
+sed -i.bak 's/#{[A-Z0-9_]*}/Texto da seção./g' "$FC" && rm -f "$FC.bak"
+mkdir -p "$TASKS/SPEC-008/evidence/TASK-01" && echo ok > "$TASKS/SPEC-008/evidence/TASK-01/saida.txt"
+before="$(cat "$r8" "$TASKS"/SPEC-008/TASK-*.md | cksum)"
+check "--build gera o executivo" bash -c "'$FS' --build SPEC-008 | grep -qF 'Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:' && [ -s '$EX' ]"
+check "--build não altera a spec nem as tarefas (RF-07)" bash -c "[ '$before' = \"\$(cat '$r8' '$TASKS'/SPEC-008/TASK-*.md | cksum)\" ]"
+check "executivo: página em pt-BR com o tema escuro (CT-10)" bash -c "head -2 '$EX' | paste -sd ' ' - | grep -qxF '<!doctype html> <html lang=\"pt-BR\" data-theme=\"dark\">'"
+check "executivo: botão de tema e tokens do claro (CT-10)" bash -c "grep -qF 'id=\"theme-toggle\"' '$EX' && grep -qF ':root[data-theme=\"light\"] {' '$EX'"
+check "executivo: impressão no tema da tela, sem o botão nem as abas (CT-10)" bash -c "p=\$(sed -n '/@media print/,/^}/p' '$EX'); grep -qF 'print-color-adjust: exact' <<< \"\$p\" && grep -qF '.tbtn, .nav, .ctl { display: none; }' <<< \"\$p\" && grep -qF 'break-before: page' <<< \"\$p\""
+check "executivo: sem variáveis sem preencher" bash -c "! grep -q '#{' '$EX'"
+check "executivo: título, ID e datas no cabeçalho" bash -c "grep -qF '<h1>$(fm "$r8" title | tr -d '"')</h1>' '$EX' && grep -qF 'Resumo executivo · SPEC-008 · aprovada em 2026-01-10 · concluída em 2026-02-03' '$EX'"
+check "executivo: Panorama no cabeçalho, convertido e escapado" bash -c "grep -qxF '<p>Entrega o <strong>script</strong> <code>novo.sh</code> com &lt;script&gt;alert(1)&lt;/script&gt; escapado.</p>' '$EX' && ! grep -q '<script>alert' '$EX'"
+check "executivo: uma aba por seção" bash -c "[ \$(grep -c 'role=\"tab\" data-tab=' '$EX') -eq 5 ] && [ \$(grep -c '<section class=\"panel\"' '$EX') -eq 5 ]"
+check "executivo: KPIs de valor da tabela" bash -c "grep -qxF '<div class=\"kpi\"><b><strong>3x</strong></b><span>mais rápido</span></div>' '$EX' && grep -qxF '<div class=\"kpi\"><b>0</b><span>etapas manuais</span></div>' '$EX' && ! grep -qF '<span>Indicador</span>' '$EX'"
+check "executivo: resumo das entregas com impacto e valor" bash -c "grep -qxF '<tr><td class=\"strong\">Script novo</td><td><span class=\"tag alto\">Impacto alto</span></td><td>menos &lt;trabalho&gt; manual.</td></tr>' '$EX' && grep -qF '<span class=\"tag medio\">Impacto médio</span>' '$EX'"
+check "executivo: uma entrega expansível por entrega (RF-08)" bash -c "[ \$(grep -c '^<details class=\"card impact-' '$EX') -eq 2 ] && grep -qF '<h2>As 2 entregas</h2>' '$EX' && grep -qxF '<details class=\"card impact-medio\">' '$EX'"
+check "executivo: campos da entrega rotulados, sem repetir o impacto" bash -c "grep -qxF '<p><b>O que mudou</b>o script existe.</p>' '$EX' && grep -qxF '<p><b>Como perceber</b>rodar o script.</p>' '$EX' && ! grep -qF '<b>Impacto</b>' '$EX' && grep -qxF '<p>Texto solto da entrega.</p>' '$EX'"
+check "executivo: recorte, antes e depois, próximos passos e riscos" bash -c "grep -qxF '<p>Só o script; a documentação fica para depois.</p>' '$EX' && grep -qF '<tr><td>Rodar</td><td>à mão</td><td>um comando</td></tr>' '$EX' && grep -qxF '<li>Publicar.</li>' '$EX' && grep -qxF '<li>Depende do bash.</li>' '$EX'"
+check "executivo: tabelas do conteúdo roláveis" bash -c "grep -qxF '<div class=\"tw\"><table>' '$EX' && ! grep -qx '<table>' '$EX'"
+check "executivo: só o conteúdo do executivo" bash -c "! grep -qF 'Texto da seção.' '$EX'"
+check "executivo: indicadores de tarefas, testes e evidências (RF-08)" bash -c "grep -qF '<b>2<small> / 2</small></b><span>Tarefas concluídas' '$EX' && grep -qF '<b>1<small> / 2</small></b><span>Tarefas com testes aprovados' '$EX' && grep -qF '<b>1<small> / 1</small></b><span>Evidências geradas' '$EX'"
+check "executivo: linha do tempo com a última conclusão do registro" bash -c "grep -qF '<li><span class=\"date\">2026-02-03</span><span class=\"task\"><span class=\"id\">TASK-01</span>' '$EX' && ! grep -qF '2026-02-01' '$EX'"
+check "executivo: tarefa sem conclusão no registro fica sem data" bash -c "grep -qF '<li class=\"pending\"><span class=\"date\">sem data</span><span class=\"task\"><span class=\"id\">TASK-02</span>' '$EX'"
+cp "$FC" "$R/.fin-content"
+sed -i.bak '/^| \*\*3x\*\* |/d; /^| 0 | etapas manuais |$/d' "$FC" && rm -f "$FC.bak"
+"$FS" --build SPEC-008 > /dev/null
+check "executivo: sem linhas na tabela de valor, sem faixa de KPIs de valor" bash -c "! grep -qF 'mais rápido' '$EX' && [ \$(grep -c '<div class=\"kpis\">' '$EX') -eq 1 ]"
+cp "$R/.fin-content" "$FC"; rm -f "$R/.fin-content" "$R/.fin-exec"; "$FS" --build SPEC-008 > /dev/null
+h1="$(fl sha256_hash < "$EX")"; "$FS" --build SPEC-008 > /dev/null
+check "executivo: duas gerações com o mesmo sha256 (CT-13)" [ "$h1" = "$(fl sha256_hash < "$EX")" ]
+check "executivo: sem endereços externos (CT-13)" bash -c "! grep -Eq '(src|href)=\"https?://|@import' '$EX'"
+cp "$DOCS" "$R/.documents-ok"
+sed -i.bak 's/^  color_primary: "#a78bfa"/  color_primary: "#0a0b0c"/' "$DOCS" && rm -f "$DOCS.bak"
+"$FS" --build SPEC-008 > /dev/null
+check "executivo: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$EX' && ! grep -qF '#a78bfa' '$EX'"
+cp "$R/.documents-ok" "$DOCS"; rm -f "$R/.documents-ok"; "$FS" --build SPEC-008 > /dev/null
+mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html"
+sed -i.bak 's/^title: .*/title: "Planejar \& <revisar>"/' "$r8" && rm -f "$r8.bak"
+sed -i.bak 's/^title: .*/title: "Criar <script> \& testes"/' "$t1" && rm -f "$t1.bak"
+"$FS" --build SPEC-008 > /dev/null
+check "executivo: títulos da spec e das tarefas escapados" bash -c "grep -qF '<h1>Planejar &amp; &lt;revisar&gt;</h1>' '$EX' && grep -qF '<span class=\"id\">TASK-01</span>Criar &lt;script&gt; &amp; testes</span>' '$EX'"
+rm -rf "$H/work/finalize" "$TASKS/SPEC-008"
+mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"
 
 # --- Commits sem liberação ---
 CC="$H/scripts/default/git/check-commits.sh"

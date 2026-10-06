@@ -1,6 +1,6 @@
 # Cenários com agente
 
-Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan`, `approve-plan`, `approve-task`, `adjust-task`, `execute-task` e `validate-task` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
+Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan`, `approve-plan`, `approve-task`, `adjust-task`, `execute-task`, `validate-task` e `finalize-spec` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
 
 ## Como executar
 
@@ -18,7 +18,7 @@ Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `pl
    | SPEC-002 | Listar tarefas | refinada |
    | SPEC-003 | Painel de métricas | rascunho |
 
-   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada. Os cenários de planejamento (`pl`) partem de specs aprovadas, com ou sem plano, e os do fluxo da tarefa (`tk`) da SPEC-001 planejada; veja as tabelas deles.
+   Os cenários `ct04`, `ct09` e `ap02` não têm a SPEC-002; o `ct05` e o `ap04` só têm a SPEC-003; o `ap13` parte da SPEC-001 já aprovada. Os cenários de planejamento (`pl`) partem de specs aprovadas, com ou sem plano, os do fluxo da tarefa (`tk`) da SPEC-001 planejada e os da finalização (`fn`) da SPEC-001 implementada ou só planejada; veja as tabelas deles.
 
 2. Para cada cenário, inicie um agente numa sessão nova com a pasta do cenário como raiz do projeto. Se houver, passe o contexto da conversa e depois a mensagem do usuário. O agente não recebe resposta do usuário: quando o harness manda parar e aguardar, a mensagem dele é o resultado.
 
@@ -157,4 +157,30 @@ Nenhum arquivo fora do esperado mudou (conferido com `cksum`). Observações dos
 - No tk09 e no tk15, os agentes estranharam o `content_hash` diferente do `approved_hash` depois do `--start`. Não é falha: o `--start` compara os dois antes de iniciar, e a linha que ele grava no "Registro de execução" muda o `content_hash`. O `approved_hash` guarda a versão aprovada. Débito DT-003 em `docs/debitos-tecnicos.md`.
 - Na primeira execução do tk09, o agente notou que uma tarefa `in_progress` não pode ser ajustada (a `adjust-task` aceita só `pending` e `approved`). Hoje não há caminho para ajustar uma tarefa em execução (débito DT-001).
 - A retomada com `--resume` e a parada por regressão não têm cenário com agente; ficam cobertas pela suíte (débito DT-002).
+
+## Cenários da finalização
+
+Os casos de teste citados são os da spec da finalização (skill `finalize-spec`). O `fn01` e o `fn02` partem da SPEC-001 implementada pela fixture (`implemented`): um repositório git com um commit anterior à aprovação e outro com o script `export-memory.sh`, a nota no `AGENTS.md` e o `nao/existe/novo.sh`; as três tarefas `done`, com o registro de execução e as evidências gravadas; os commits liberados para o `check-commits.sh`. No `fn02`, a SPEC-002 também está `implemented`, só pelo status (`implemented_too`). O `fn03` parte da SPEC-001 só planejada, com as tarefas `pending`.
+
+| Cenário | Caso de teste | Specs | Mensagem do usuário | Resultado esperado |
+|---|---|---|---|---|
+| fn01 | CT-14 | SPEC-001 `implemented` | "finaliza a SPEC-001" | Fontes, conteúdo, validação, três documentos e arquivamento; `work/.archive/SPEC-001/` com `spec.md` `archived`, `content.md`, `tasks/` e `docs/`; executivo e técnico em `docs/specs/SPEC-001/`; executivo sem caminhos, comandos nem IDs de requisito; resposta `completion`. |
+| fn02 | CT-15 | SPEC-001 e SPEC-002 `implemented` | "finaliza a spec" | Pergunta qual finalizar com o template `question`, sem alterar nada. |
+| fn03 | CT-16 | SPEC-001 `planned` | "finaliza a SPEC-001" | O `--sources` recusa citando o status e as tarefas; o agente para com o template `blocker`, sem alterar nada. |
+
+## Resultados dos cenários da finalização
+
+Execução de 2026-10-06, com Claude Code (Opus 5.5) como agente.
+
+| Cenário | Resultado | Arquivos alterados | Observação |
+|---|---|---|---|
+| fn01 | passou, com bloqueio da fixture | arquivo, `docs/specs/SPEC-001/`, spec e tarefas removidas | Na primeira execução, a fixture copiava o `.state/commit-ack` do repositório de origem, que cita um commit inexistente no git da cópia. O agente finalizou e arquivou, mas o `check-commits.sh` recusou e ele parou com o template `blocker`, sem liberar nada por conta própria. A fixture passou a apagar o `.state` e a gravar a referência depois dos próprios commits. |
+| fn01 (repetição) | passou | arquivo, `docs/specs/SPEC-001/`, spec e tarefas removidas | `--validate` passou na primeira rodada. `work/.archive/SPEC-001/` com `spec.md` (`archived`), `content.md`, as três tarefas, as três evidências e os três documentos; executivo e técnico em `docs/specs/SPEC-001/`; a refinada, `work/tasks/SPEC-001/` e `work/finalize/SPEC-001/` removidos. O executivo não cita caminhos, comandos nem IDs de requisito e marcou os KPIs de valor como "Não se aplica.", sem inventar números. `check-commits.sh` sem commits pendentes; resposta `completion`, sugerindo o commit dos documentos publicados. |
+| fn02 | passou | nenhum | Perguntou entre SPEC-001 e SPEC-002 com o template `question`, notando que a SPEC-002 não tem pasta de tarefas. |
+| fn03 | passou | nenhum | O `--sources` recusou a spec `planned` com as três tarefas `pending`; o agente parou com o template `blocker`, citando o status, e buscou o erro na memória antes de responder. |
+
+Nenhum arquivo fora do esperado mudou (conferido com `cksum`). Observações dos agentes:
+
+- No `fn01`, os agentes leram o código e registraram, nos riscos do executivo e nos pontos de atenção do técnico, lacunas reais da implementação de exemplo: o JSON sem as `tags` que o RF-01 pede, as TASK-02 e TASK-03 comprovadas só com `echo ok` e o macOS não verificado. É o comportamento esperado: a síntese aponta o que as fontes não comprovam.
+- O técnico mostra diff só do `AGENTS.md`: os arquivos criados pelas tarefas ficam na lista de arquivos alterados, sem diff (RF-17).
 

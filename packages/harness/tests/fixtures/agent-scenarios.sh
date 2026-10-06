@@ -4,8 +4,8 @@
 #   SPEC-001 Exportar memória em JSON (refinada), SPEC-002 Listar tarefas (refinada)
 #   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`),
 #   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`), da
-#   SPEC-001 já planejada (ver `planned`) ou das tarefas dela aprovadas (ver `tasks_approved`,
-#   `failing_verify` e `independent`).
+#   SPEC-001 já planejada (ver `planned`), das tarefas dela aprovadas (ver `tasks_approved`,
+#   `failing_verify` e `independent`) ou da SPEC-001 implementada (ver `implemented` e `implemented_too`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -21,7 +21,7 @@ rm -rf "$B" && mkdir -p "$B/packages"
 cp "$SOURCE_ROOT/AGENTS.md" "$SOURCE_ROOT/CLAUDE.md" "$B/"
 cp -R "$SOURCE_HARNESS" "$B/packages/"
 H="$B/packages/harness"
-rm -rf "$H/work" "$H"/memory/*.md
+rm -rf "$H/work" "$H/.state" "$H"/memory/*.md
 for key in specs decisions issues knowledge; do
   sed -i.bak "s/^$key: .*/$key: 1/" "$H/config/sequences.yml"
 done
@@ -132,8 +132,81 @@ independent() {
   "$1/packages/harness/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-02 "Sem dependência" > /dev/null
 }
 
+# Leva a SPEC-001 (tarefas aprovadas) a `implemented`, como se as três tarefas tivessem sido executadas: um
+# repositório git com um commit anterior à aprovação, o script `export-memory.sh` e os demais caminhos de "Mudar"
+# num commit posterior, liberados para o check-commits.sh, as tarefas `done` com o registro de execução e as
+# evidências gravadas.
+implemented() {
+  local dir="$1" ph="$1/packages/harness" task tid today
+  today="$(date -u +%Y-%m-%d)"
+  gi() { git -C "$dir" -c user.name=Fixture -c user.email=f@f -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+  gi init -q -b main
+  gi add -A
+  GIT_AUTHOR_DATE=2026-01-01T12:00:00Z GIT_COMMITTER_DATE=2026-01-01T12:00:00Z gi commit -qm "chore: base do projeto"
+  mkdir -p "$dir/nao/existe"
+  cat > "$ph/scripts/default/memory/export-memory.sh" <<'SH'
+#!/usr/bin/env bash
+# Exporta as entradas ativas de um tipo de memória em JSON, em packages/harness/memory/export.json.
+# Uso: export-memory.sh <decision|issue|knowledge|all>
+set -euo pipefail
+H="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+case "${1:-}" in
+  decision) files="decisions.md" ;; issue) files="issues.md" ;; knowledge) files="knowledge.md" ;;
+  all) files="decisions.md issues.md knowledge.md" ;;
+  *) echo "Erro: tipo inválido '${1:-}'; use decision, issue, knowledge ou all" >&2; exit 1 ;;
+esac
+for f in $files; do if [ -f "$H/memory/$f" ]; then cat "$H/memory/$f"; fi; done | awk '
+  function esc(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); return s }
+  function flush() { if (id != "" && status != "obsoleto") out = out (out == "" ? "" : ",") "{\"id\":\"" esc(id) "\",\"title\":\"" esc(title) "\",\"status\":\"" esc(status) "\"}"; id = "" }
+  /^## [A-Z]+-[0-9]+: / { flush(); id = $2; sub(/:$/, "", id); title = $0; sub(/^## [A-Z]+-[0-9]+: /, "", title); status = ""; next }
+  /^- \*\*Status:\*\* / { status = $0; sub(/^- \*\*Status:\*\* /, "", status) }
+  END { flush(); print "[" out "]" }
+' > "$H/memory/export.json"
+SH
+  chmod +x "$ph/scripts/default/memory/export-memory.sh"
+  printf '#!/usr/bin/env bash\necho ok\n' > "$dir/nao/existe/novo.sh"
+  printf '\n- Exportação da memória em JSON: `packages/harness/scripts/default/memory/export-memory.sh`.\n' >> "$dir/AGENTS.md"
+  gi add -A
+  gi commit -qm "feat(memory): export memory entries as JSON"
+  "$ph/scripts/default/memory/export-memory.sh" decision
+  mkdir -p "$ph/work/tasks/SPEC-001/evidence/TASK-01" "$ph/work/tasks/SPEC-001/evidence/TASK-02" "$ph/work/tasks/SPEC-001/evidence/TASK-03"
+  cp "$ph/memory/export.json" "$ph/work/tasks/SPEC-001/evidence/TASK-01/export.txt"
+  echo ok > "$ph/work/tasks/SPEC-001/evidence/TASK-02/saida.txt"
+  echo ok > "$ph/work/tasks/SPEC-001/evidence/TASK-03/saida.txt"
+  for task in "$ph"/work/tasks/SPEC-001/TASK-*.md; do
+    tid="$(basename "$task" .md)"
+    python3 - "$task" "$today" <<'PY'
+import re, sys
+p, d = sys.argv[1], sys.argv[2]
+s = open(p, encoding='utf-8').read()
+for k in ('tests_result', 'regression_result', 'evidence_result'):
+    s = re.sub(r'^%s: .*$' % k, '%s: passed' % k, s, count=1, flags=re.M)
+s = re.sub(r'^status: .*$', 'status: done', s, count=1, flags=re.M)
+rows = ['início | in_progress | aprovada', 'baseline | coletado | 1 comando(s); códigos de saída: 0',
+        'testes | passed | Verificação sem falhas', 'regressão | passed | 1 comando(s) iguais ao baseline',
+        'evidências | passed | evidências gravadas', 'conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados']
+table = ''.join('| %d | %s | %s |\n' % (i + 1, d, r) for i, r in enumerate(rows))
+s = s.replace('| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n', '| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n' + table, 1)
+s = re.sub(r'^- \[ \] ', '- [x] ', s, flags=re.M)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+  done
+  f="$(ls "$ph"/work/specs/refined/SPEC-001-*.md)"
+  sed -i.bak 's/^status: .*/status: implemented/' "$f" && rm -f "$f.bak"
+  # A primeira verificação grava os commits da fixture como referência, como se já estivessem liberados.
+  (cd "$dir" && packages/harness/scripts/default/git/check-commits.sh > /dev/null)
+}
+
+# Leva também a SPEC-002 a `implemented`, só pelo status, para o agente ter duas specs para escolher.
+implemented_too() {
+  local f
+  approve "$1" SPEC-002
+  f="$(ls "$1"/packages/harness/work/specs/refined/SPEC-002-*.md)"
+  sed -i.bak 's/^status: .*/status: implemented/' "$f" && rm -f "$f.bak"
+}
+
 for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13 \
-  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b; do
+  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b fn01 fn02 fn03; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
@@ -149,6 +222,9 @@ for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02
     tk04|tk09|tk17b) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
     tk15) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; failing_verify "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
     tk16) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; independent "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
+    fn01) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario" ;;
+    fn02) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario"; implemented_too "$DEST/$scenario" ;;
+    fn03) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
   esac
   echo "$DEST/$scenario"
 done

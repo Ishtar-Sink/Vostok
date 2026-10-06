@@ -11,3 +11,6 @@ paths:
   docs: ../../docs
   agent_memory: ./memory
   state: ./.state          # estado local de cada clone, fora do git
+  archive: ./work/.archive    # specs finalizadas, com tarefas e evidências, fora do git
+  finalize: ./work/finalize    # conteúdo e documentos de uma spec antes do arquivamento
+  spec_docs: ../../docs/specs  # documentos publicados de cada spec finalizada (executivo e técnico)

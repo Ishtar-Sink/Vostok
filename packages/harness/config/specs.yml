@@ -14,6 +14,7 @@ status:
   approved: approved
   planned: planned
   implemented: implemented   # todas as tarefas da spec concluídas (validate-task.sh --finish)
+  archived: archived         # spec finalizada e arquivada (finalize-spec.sh --archive)
 
 # --- Rascunho (create-new-spec.sh) ---
 
@@ -171,3 +172,14 @@ pending_heading: Pendências
 # (igual a `content_hash_field` no momento da aprovação). Um ajuste grava `null` nos dois.
 approved_at_field: approved_at
 approved_hash_field: approved_hash
+
+# --- Finalização (finalize-spec.sh) ---
+
+# Template do arquivo de conteúdo dos documentos, relativo a `paths.templates` (main.yml).
+finalize_content_template: finalize/content.md
+
+# Nomes dos documentos HTML gerados para cada spec.
+finalize_documents:
+  executive: executivo.html
+  technical: tecnico.html
+  evidence: evidencias.html

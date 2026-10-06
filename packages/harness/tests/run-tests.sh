@@ -903,6 +903,25 @@ $FILL "$TASKS/SPEC-009/TASK-03.md" 'TASK_CHANGE=- `nao/existe/novo.sh` (remover)
 check "tarefa remove caminho criado por dependência indireta" "$APP" --validate SPEC-009
 check "o plano de uma spec não interfere no de outra" bash -c "[ ! -e '$p8' ] && [ -d '$TASKS/SPEC-008' ] && [ '$(fm "$r8" status)' = planned ]"
 
+# --- Finalização ---
+FS="$H/skills/default/finalize-spec/scripts/finalize-spec.sh"
+fails "finalize sem argumentos" "$FS"
+fails "finalize com opção inválida" "$FS" --publicar SPEC-008
+check "finalize com spec inexistente" bash -c "'$FS' --sources SPEC-999 2>&1 | grep -qF 'spec SPEC-999 não encontrada'"
+for opt in --sources --create --validate --build --archive; do
+  check "finalize $opt recusa spec planned" bash -c "! '$FS' $opt SPEC-008 >/dev/null 2>&1 && '$FS' $opt SPEC-008 2>&1 | grep -qF \"a spec está com status 'planned'; só specs com status 'implemented' são finalizadas\""
+done
+check "recusa lista as tarefas fora de done" bash -c "'$FS' --sources SPEC-008 2>&1 | grep -qF \"TASK-01: status 'pending'\""
+cp "$r8" "$R/.fin-r8"; cp -R "$TASKS/SPEC-008" "$R/.fin-tasks"
+sed -i.bak 's/^status: .*/status: implemented/' "$r8" && rm -f "$r8.bak"
+for t in "$TASKS"/SPEC-008/TASK-*.md; do sed -i.bak 's/^status: .*/status: done/' "$t" && rm -f "$t.bak"; done
+sed -i.bak 's/^status: .*/status: validating/' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+check "spec implemented com tarefa fora de done é recusada" bash -c "out=\$('$FS' --archive SPEC-008 2>&1); grep -qF \"TASK-02: status 'validating', não 'done'\" <<< \"\$out\" && ! grep -q 'status da spec' <<< \"\$out\" && ! grep -q TASK-01 <<< \"\$out\""
+sed -i.bak 's/^status: .*/status: done/' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+check "spec implemented com tarefas done passa da conferência" bash -c "! '$FS' --sources SPEC-008 2>&1 | grep -q 'não pode ser finalizada'"
+check "a conferência não altera a spec nem as tarefas" bash -c "grep -qx 'status: implemented' '$r8' && grep -qx 'status: done' '$TASKS/SPEC-008/TASK-02.md'"
+rm -rf "$TASKS/SPEC-008"; mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"
+
 # --- Commits sem liberação ---
 CC="$H/scripts/default/git/check-commits.sh"
 AC="$H/skills/default/approve-commit/scripts/approve-commit.sh"

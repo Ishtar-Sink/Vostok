@@ -58,7 +58,21 @@ case "$1" in
     spec="$(require_finalizable "$2")"
     finalize_sources "$spec" "$(finalize_tasks_dir "$2")"
     ;;
-  --create|--validate|--build|--archive)
+  --create)
+    require_finalizable "$2" > /dev/null
+    finalize_create "$2" "$(finalize_tasks_dir "$2")"
+    ;;
+  --validate)
+    require_finalizable "$2" > /dev/null
+    errors="$(finalize_content_errors "$2" "$(finalize_tasks_dir "$2")")"
+    if [ -n "$errors" ]; then
+      echo "Erro: o conteúdo de $2 tem problemas:" >&2
+      printf '%s\n' "$errors" | sed 's/^/  - /' >&2
+      exit 1
+    fi
+    echo "Conteúdo de $2 válido: $(finalize_rel "$(finalize_content_path "$2")")"
+    ;;
+  --build|--archive)
     require_finalizable "$2" > /dev/null
     die "$1 ainda não implementado"
     ;;

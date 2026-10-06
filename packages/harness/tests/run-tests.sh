@@ -1233,11 +1233,54 @@ rm -rf "$R/.git" "$R/nao"
 h1="$(fl sha256_hash < "$TX")"; "$FS" --build SPEC-008 > /dev/null
 check "técnico: duas gerações com o mesmo sha256 (CT-13)" [ "$h1" = "$(fl sha256_hash < "$TX")" ]
 check "técnico: sem endereços externos (CT-13)" bash -c "! grep -Eq '(src|href)=\"https?://|@import' '$TX'"
+
+# Documento de evidências (--build).
+EV="$H/work/finalize/SPEC-008/evidencias.html"
+EVD="$TASKS/SPEC-008/evidence/TASK-01"
+check "--build gera os três documentos (CT-07)" bash -c "'$FS' --build SPEC-008 | grep -qxF '  - evidencias.html' && [ -s '$EV' ] && [ -s '$EX' ] && [ -s '$TX' ]"
+sed -i.bak 's|^- `saida.txt` (automática): .*|&\n- `foto.png` (manual): print anexado.\n- `saida.log` (automática): `cat x`\n- `video.mp4` (manual): gravação.\n- `pacote.zip` (manual): anexo.\n- `Nome com espaço.zip` (manual): outro anexo.|' "$TASKS/SPEC-008/TASK-01.md" && rm -f "$TASKS/SPEC-008/TASK-01.md.bak"
+printf '\211PNG\r\n\032\nfalso' > "$EVD/foto.png"; printf 'linha <b> & "x"\nsegunda\n' > "$EVD/saida.log"
+head -c 3000 /dev/zero > "$EVD/video.mp4"; printf 'zip' > "$EVD/pacote.zip"; printf 'zip2' > "$EVD/Nome com espaço.zip"
+for n in foto.png saida.log video.mp4 pacote.zip 'Nome com espaço.zip'; do
+  printf '\n## TASK-01 / %s\n\n- **Como chegar:** passos de %s\n- **Como ler:** olhe **%s**\n' "$n" "$n" "$n" >> "$FC"
+done
+cp "$DOCS" "$R/.docs-ev"
+sed -i.bak 's/^embed_max_mb: 10/embed_max_mb: 0.001/' "$DOCS" && rm -f "$DOCS.bak"
+before="$(cat "$r8" "$TASKS"/SPEC-008/TASK-*.md | cksum)"
+mkdir -p "$H/work/finalize/SPEC-008/assets/TASK-99" && echo velho > "$H/work/finalize/SPEC-008/assets/TASK-99/velho.txt"
+out="$("$FS" --build SPEC-008 2>&1)"
+check "--build informa a pasta de assets" grep -qxF '  - assets/ (3 evidência(s) fora do documento)' <<< "$out"
+check "--build do documento de evidências não altera a spec nem as tarefas" bash -c "[ '$before' = \"\$(cat '$r8' '$TASKS'/SPEC-008/TASK-*.md | cksum)\" ]"
+check "evidências: tema escuro, botão e impressão no tema da tela (CT-10)" bash -c "head -2 '$EV' | paste -sd ' ' - | grep -qxF '<!doctype html> <html lang=\"pt-BR\" data-theme=\"dark\">' && grep -qF 'id=\"theme-toggle\"' '$EV' && grep -qF 'print-color-adjust: exact' '$EV' && grep -qF '.tbtn, .nav { display: none; }' '$EV'"
+check "evidências: sem variáveis sem preencher" bash -c "! grep -q '#{' '$EV'"
+check "evidências: resumo com as contagens" grep -qF '<strong>6 evidência(s)</strong> em <strong>2 tarefa(s)</strong>: 3 embutida(s) no documento e 3 na pasta' "$EV"
+check "evidências: uma seção por tarefa, com o sumário" bash -c "[ \$(grep -c '^<section class=\"sec\" id=\"t-task-0' '$EV') -eq 2 ] && grep -qF '<a href=\"#t-task-01\">TASK-01</a>' '$EV' && grep -qF '<a href=\"#t-task-02\">TASK-02</a>' '$EV'"
+check "evidências: peça com tarefa, nome e tipo (RF-10)" bash -c "grep -qF '<span class=\"piece-id\">TASK-01</span> — Criar script' '$EV' && grep -qF '<b>foto.png</b><span class=\"tag manual\">manual</span>' '$EV' && grep -qF '<b>saida.log</b><span class=\"tag auto\">automática</span>' '$EV'"
+check "evidências: uma peça por evidência" bash -c "[ \$(grep -c '^<figure class=\"piece\">' '$EV') -eq 6 ]"
+check "evidências: como chegar e como ler de cada peça (RF-10)" bash -c "grep -qxF '    <p><b>Como chegar</b>passos de foto.png</p>' '$EV' && grep -qxF '    <p><b>Como ler</b>olhe <strong>foto.png</strong></p>' '$EV'"
+check "evidências: tarefa sem evidência ganha uma peça que informa (CB-02)" bash -c "grep -qF '<span class=\"piece-id\">TASK-02</span> — Documentar</div><p>Esta tarefa não gera evidência.</p>' '$EV'"
+b64="$(base64 < "$EVD/foto.png" | tr -d '\n')"
+check "evidências: imagem pequena embutida em base64 (CT-08)" grep -qF "<img alt=\"foto.png\" src=\"data:image/png;base64,$b64\">" "$EV"
+check "evidências: texto embutido num bloco de código (CT-08)" grep -qF '<pre><code>ok' "$EV"
+check "evidências: log escapado (CB-06, CT-08)" bash -c "grep -qF 'linha &lt;b&gt; &amp; &quot;x&quot;' '$EV' && ! grep -qF 'linha <b>' '$EV'"
+check "evidências: vídeo acima do limite vai para assets com link relativo (CT-08, CB-01)" bash -c "grep -qF '<a href=\"assets/TASK-01/video.mp4\">video.mp4</a>' '$EV' && ! grep -qF 'data:video' '$EV' && cmp -s '$EVD/video.mp4' '$H/work/finalize/SPEC-008/assets/TASK-01/video.mp4'"
+check "evidências: o motivo e o tamanho aparecem na peça" grep -qF '<small>2.9 KB, acima do limite de 0.001 MB para embutir; abre ao lado do documento.</small>' "$EV"
+check "evidências: extensão sem visualização vai para assets (CB-08)" bash -c "grep -qF '<a href=\"assets/TASK-01/pacote.zip\">pacote.zip</a>' '$EV' && grep -qF 'tipo sem visualização no documento' '$EV' && [ -f '$H/work/finalize/SPEC-008/assets/TASK-01/pacote.zip' ]"
+check "evidências: nome com espaço vira link codificado" bash -c "grep -qF '<a href=\"assets/TASK-01/Nome%20com%20espaço.zip\">Nome com espaço.zip</a>' '$EV' && [ -f '$H/work/finalize/SPEC-008/assets/TASK-01/Nome com espaço.zip' ]"
+check "evidências: a pasta de assets é refeita a cada geração" bash -c "[ ! -e '$H/work/finalize/SPEC-008/assets/TASK-99' ] && [ \$(find '$H/work/finalize/SPEC-008/assets' -type f | wc -l | tr -d ' ') -eq 3 ]"
+h1="$(fl sha256_hash < "$EV")"; "$FS" --build SPEC-008 > /dev/null
+check "evidências: duas gerações com o mesmo sha256 (CT-13)" [ "$h1" = "$(fl sha256_hash < "$EV")" ]
+check "evidências: sem endereços externos (CT-13)" bash -c "! grep -Eq '(src|href)=\"https?://|@import' '$EV'"
+mkdir -p "$R/.fin-docs" && cp "$EV" "$R/.fin-docs/evidencias.html" && cp -R "$H/work/finalize/SPEC-008/assets" "$R/.fin-docs/assets"
+cp "$R/.docs-ev" "$DOCS"; rm -f "$R/.docs-ev"
+"$FS" --build SPEC-008 > /dev/null
+check "evidências: com o limite padrão o vídeo é embutido e só os sem visualização ficam em assets" bash -c "grep -qF 'data:video/mp4;base64,' '$EV' && ! grep -qF 'assets/TASK-01/video.mp4' '$EV' && [ ! -e '$H/work/finalize/SPEC-008/assets/TASK-01/video.mp4' ] && [ \$(find '$H/work/finalize/SPEC-008/assets' -type f | wc -l | tr -d ' ') -eq 2 ]"
 cp "$DOCS" "$R/.documents-ok"
 sed -i.bak 's/^  color_primary: "#a78bfa"/  color_primary: "#0a0b0c"/' "$DOCS" && rm -f "$DOCS.bak"
 "$FS" --build SPEC-008 > /dev/null
 check "executivo: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$EX' && ! grep -qF '#a78bfa' '$EX'"
 check "técnico: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$TX' && ! grep -qF '#a78bfa' '$TX'"
+check "evidências: troca de token refletida no HTML (CT-09)" bash -c "grep -qF -- '--color-primary: #0a0b0c;' '$EV' && ! grep -qF '#a78bfa' '$EV'"
 cp "$R/.documents-ok" "$DOCS"; rm -f "$R/.documents-ok"; "$FS" --build SPEC-008 > /dev/null
 mkdir -p "$R/.fin-docs" && cp "$EX" "$R/.fin-docs/executivo.html"
 sed -i.bak 's/^title: .*/title: "Planejar \& <revisar>"/' "$r8" && rm -f "$r8.bak"

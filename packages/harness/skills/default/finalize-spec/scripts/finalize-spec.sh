@@ -85,9 +85,13 @@ case "$1" in
     tasks_dir="$(finalize_tasks_dir "$2")"
     executive="$(finalize_build_executive "$2" "$spec" "$tasks_dir")"
     technical="$(finalize_build_technical "$2" "$spec" "$tasks_dir")"
+    finalize_build_evidence "$2" "$spec" "$tasks_dir" > /dev/null
+    evidence="$(finalize_document_path "$2" evidence)"
     echo "Documentos de $2 gerados em $(finalize_rel "$(finalize_content_dir "$2")"):"
     echo "  - $(basename "$executive")"
     echo "  - $(basename "$technical")"
+    echo "  - $(basename "$evidence")"
+    [ "$FINALIZE_N_ASSETS" -eq 0 ] || echo "  - $FINALIZE_ASSETS_DIR/ ($FINALIZE_N_ASSETS evidência(s) fora do documento)"
     ;;
   --archive)
     require_finalizable "$2" > /dev/null

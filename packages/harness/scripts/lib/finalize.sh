@@ -13,6 +13,11 @@ FINALIZE_EVIDENCE_READ="Como ler"
 FINALIZE_EXECUTIVE_TEMPLATE="finalize/executive.html"
 # Template do documento técnico, relativo a `paths.templates` (main.yml).
 FINALIZE_TECHNICAL_TEMPLATE="finalize/technical.html"
+# Templates do documento de evidências e da peça de cada evidência, relativos a `paths.templates` (main.yml).
+FINALIZE_EVIDENCE_TEMPLATE="finalize/evidence.html"
+FINALIZE_EVIDENCE_ITEM_TEMPLATE="finalize/evidence-item.html"
+# Pasta, ao lado dos documentos, das evidências que não são embutidas.
+FINALIZE_ASSETS_DIR="assets"
 
 # Pasta das tarefas de uma spec (`paths.tasks`/<SPEC_ID>).
 # finalize_tasks_dir <SPEC_ID>
@@ -1019,5 +1024,197 @@ finalize_build_technical() {
   TPL_ATTENTION="$(printf '%s\n' "$part" | finalize_part_section 'Pontos de atenção' | finalize_block_html)" \
   TPL_REFERENCES="$(printf '%s\n' "$part" | finalize_part_section 'Referências' | finalize_block_html)" \
     render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_TECHNICAL_TEMPLATE" > "$out"
+  printf '%s' "$out"
+}
+
+# Limite de tamanho para embutir uma evidência, em bytes (`embed_max_mb` de documents.yml, que aceita decimais).
+finalize_embed_max_bytes() {
+  awk -v mb="$(config_get "$(_finalize_documents_config)" embed_max_mb)" 'BEGIN { printf "%d", mb * 1048576 }'
+}
+
+# Tipo de uma evidência pela extensão do nome, segundo documents.yml: text, image, video ou other.
+# finalize_media_type <nome do arquivo>
+finalize_media_type() {
+  local ext kind cfg
+  cfg="$(_finalize_documents_config)"
+  case "$1" in
+    *.*) ext="$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')" ;;
+    *) printf other; return 0 ;;
+  esac
+  for kind in text image video; do
+    if config_list "$cfg" "${kind}_extensions" | grep -qx "$ext"; then
+      printf '%s' "$kind"
+      return 0
+    fi
+  done
+  printf other
+}
+
+# Tipo MIME de uma imagem ou vídeo pela extensão.
+# finalize_mime_type <nome do arquivo>
+finalize_mime_type() {
+  case "$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')" in
+    png) printf image/png ;;
+    jpg|jpeg) printf image/jpeg ;;
+    gif) printf image/gif ;;
+    webp) printf image/webp ;;
+    svg) printf image/svg+xml ;;
+    mp4) printf video/mp4 ;;
+    webm) printf video/webm ;;
+    *) printf application/octet-stream ;;
+  esac
+}
+
+# Tamanho legível: KB ou MB, com uma casa decimal.
+# finalize_human_size <bytes>
+finalize_human_size() {
+  awk -v b="$1" 'BEGIN { if (b >= 1048576) printf "%.1f MB", b / 1048576; else printf "%.1f KB", b / 1024 }'
+}
+
+# Caminho relativo seguro para o `href` de um link: `%`, espaço, `#` e `?` codificados, e depois escapado
+# para HTML.
+# finalize_url_path < caminho
+finalize_url_path() {
+  sed -e 's/%/%25/g' -e 's/ /%20/g' -e 's/#/%23/g' -e 's/?/%3F/g' | finalize_html_escape
+}
+
+# Copia a stdin para a saída trocando a linha que é só o marcador pelo conteúdo do arquivo, sem passar o
+# conteúdo por variáveis de ambiente (as mídias embutidas podem ter megabytes).
+# finalize_splice <marcador> <arquivo> < texto
+finalize_splice() {
+  local marker="$1" file="$2" line
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [ "$line" = "$marker" ]; then
+      cat "$file"
+      echo
+    else
+      printf '%s\n' "$line"
+    fi
+  done
+}
+
+# Texto de um campo ("Como chegar" ou "Como ler") do bloco `## <TASK_ID> / <nome>` do arquivo de conteúdo.
+# finalize_evidence_field <arquivo de conteúdo> <título do bloco> <rótulo>
+finalize_evidence_field() {
+  HEADING="$2" LABEL="$3" awk '
+    { sub(/\r$/, "") }
+    /^#{1,2} / { inside = ($0 == ENVIRON["HEADING"]); next }
+    inside && index($0, "- **" ENVIRON["LABEL"] ":** ") == 1 {
+      print substr($0, length("- **" ENVIRON["LABEL"] ":** ") + 1); exit
+    }
+  ' "$1"
+}
+
+# Escreve em <saída> o HTML da mídia de uma evidência e atualiza FINALIZE_N_EMBEDDED e FINALIZE_N_ASSETS.
+# Imagem e vídeo até o limite vão em base64; texto até o limite, escapado num bloco de código; o resto é
+# copiado para `<pasta dos documentos>/assets/<TASK_ID>/` e citado por um link relativo.
+# finalize_media_to_file <arquivo da evidência> <TASK_ID> <nome> <pasta dos documentos> <saída>
+finalize_media_to_file() {
+  local src="$1" tid="$2" name="$3" dir="$4" out="$5" type bytes limit reason mime rel
+  type="$(finalize_media_type "$name")"
+  bytes="$(wc -c < "$src" | tr -d ' ')"
+  limit="$(finalize_embed_max_bytes)"
+  reason=""
+  [ "$type" = other ] && reason="tipo sem visualização no documento"
+  [ -z "$reason" ] && [ "$bytes" -gt "$limit" ] && reason="acima do limite de $(config_get "$(_finalize_documents_config)" embed_max_mb) MB para embutir"
+  if [ -z "$reason" ]; then
+    FINALIZE_N_EMBEDDED=$((FINALIZE_N_EMBEDDED + 1))
+    case "$type" in
+      text)
+        { printf '<pre><code>'; finalize_html_escape < "$src"; printf '</code></pre>'; } > "$out"
+        ;;
+      image)
+        mime="$(finalize_mime_type "$name")"
+        { printf '<img alt="%s" src="data:%s;base64,' "$(printf '%s' "$name" | finalize_html_escape)" "$mime"
+          base64 < "$src" | tr -d '\n'
+          printf '">'; } > "$out"
+        ;;
+      video)
+        mime="$(finalize_mime_type "$name")"
+        { printf '<video controls preload="metadata" src="data:%s;base64,' "$mime"
+          base64 < "$src" | tr -d '\n'
+          printf '"></video>'; } > "$out"
+        ;;
+    esac
+    return 0
+  fi
+  FINALIZE_N_ASSETS=$((FINALIZE_N_ASSETS + 1))
+  mkdir -p "$dir/$FINALIZE_ASSETS_DIR/$tid"
+  cp "$src" "$dir/$FINALIZE_ASSETS_DIR/$tid/$name"
+  rel="$FINALIZE_ASSETS_DIR/$tid/$name"
+  printf '<p class="asset"><a href="%s">%s</a><small>%s, %s; abre ao lado do documento.</small></p>' \
+    "$(printf '%s' "$rel" | finalize_url_path)" "$(printf '%s' "$name" | finalize_html_escape)" \
+    "$(finalize_human_size "$bytes")" "$reason" > "$out"
+}
+
+# Gera o documento de evidências a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Uma peça por
+# evidência, agrupadas por tarefa; evidências que não são embutidas são copiadas para `assets/` ao lado do
+# HTML (a pasta é refeita a cada geração). Define FINALIZE_N_EMBEDDED e FINALIZE_N_ASSETS.
+# finalize_build_evidence <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_evidence() {
+  local id="$1" spec="$2" tasks_dir="$3" out dir title approved last task date tokens content
+  local tid ttitle evidence_dir name kind how reading class items media n_items=0 n_tasks=0 nav="" templates summary
+  out="$(finalize_document_path "$id" evidence)"
+  dir="$(dirname "$out")"
+  content="$(finalize_content_path "$id")"
+  tokens="$(finalize_css_tokens)" || return 1
+  title="$(frontmatter_get "$spec" title | finalize_html_escape)"
+  approved="$(finalize_approved_at "$spec")"; approved="${approved%%T*}"
+  templates="$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")"
+  FINALIZE_N_EMBEDDED=0
+  FINALIZE_N_ASSETS=0
+  last=""
+  mkdir -p "$dir"
+  rm -rf "${dir:?}/$FINALIZE_ASSETS_DIR"
+  items="$(mktemp)"; media="$(mktemp)"
+  for task in "$tasks_dir"/*.md; do
+    [ -f "$task" ] || continue
+    date="$(finalize_task_done_date "$task")"
+    [[ "$date" > "$last" ]] && last="$date"
+    tid="$(frontmatter_get "$task" id)"
+    ttitle="$(frontmatter_get "$task" title)"
+    evidence_dir="$(task_evidence_path "$task")"
+    n_tasks=$((n_tasks + 1))
+    nav="$nav    <a href=\"#t-$(printf '%s' "$tid" | tr '[:upper:]' '[:lower:]')\">$(printf '%s' "$tid" | finalize_html_escape)</a>"$'\n'
+    {
+      printf '<section class="sec" id="t-%s">\n' "$(printf '%s' "$tid" | tr '[:upper:]' '[:lower:]')"
+      printf '<div class="sec-h"><h2>%s — %s</h2></div>\n' "$(printf '%s' "$tid" | finalize_html_escape)" "$(printf '%s' "$ttitle" | finalize_html_escape)"
+    } >> "$items"
+    n=0
+    while IFS=$'\t' read -r name kind; do
+      [ -n "$name" ] || continue
+      n=$((n + 1)); n_items=$((n_items + 1))
+      finalize_media_to_file "$evidence_dir/$name" "$tid" "$name" "$dir" "$media"
+      how="$(finalize_evidence_field "$content" "## $tid / $name" "$FINALIZE_EVIDENCE_HOW")"
+      reading="$(finalize_evidence_field "$content" "## $tid / $name" "$FINALIZE_EVIDENCE_READ")"
+      class=auto; [ "$kind" = manual ] && class=manual
+      TPL_TASK_ID="$(printf '%s' "$tid" | finalize_html_escape)" \
+      TPL_TASK_TITLE="$(printf '%s' "$ttitle" | finalize_html_escape)" \
+      TPL_NAME="$(printf '%s' "$name" | finalize_html_escape)" \
+      TPL_KIND="$(printf '%s' "$kind" | finalize_html_escape)" \
+      TPL_KIND_CLASS="$class" \
+      TPL_MEDIA="@@FINALIZE_MEDIA@@" \
+      TPL_HOW="$(_finalize_inline "$how")" \
+      TPL_READ="$(_finalize_inline "$reading")" \
+        render "$templates/$FINALIZE_EVIDENCE_ITEM_TEMPLATE" | finalize_splice "@@FINALIZE_MEDIA@@" "$media" >> "$items"
+    done <<< "$(finalize_evidence_items "$task")"
+    if [ "$n" -eq 0 ]; then
+      printf '<div class="piece none"><div class="piece-top"><span class="piece-id">%s</span> — %s</div><p>Esta tarefa não gera evidência.</p></div>\n' \
+        "$(printf '%s' "$tid" | finalize_html_escape)" "$(printf '%s' "$ttitle" | finalize_html_escape)" >> "$items"
+    fi
+    echo '</section>' >> "$items"
+  done
+  summary="<p><strong>$n_items evidência(s)</strong> em <strong>$n_tasks tarefa(s)</strong>: $FINALIZE_N_EMBEDDED embutida(s) no documento e $FINALIZE_N_ASSETS na pasta <code>$FINALIZE_ASSETS_DIR/</code>, ao lado dele.</p>"
+  TPL_DOC_TITLE="$id · Evidências · $title" \
+  TPL_TOKENS="$tokens" \
+  TPL_SPEC_ID="$id" \
+  TPL_SPEC_TITLE="$title" \
+  TPL_APPROVED="${approved:-data não registrada}" \
+  TPL_FINISHED="${last:-data não registrada}" \
+  TPL_SUMMARY="$summary" \
+  TPL_NAV="$nav" \
+  TPL_ITEMS="@@FINALIZE_ITEMS@@" \
+    render "$templates/$FINALIZE_EVIDENCE_TEMPLATE" | finalize_splice "@@FINALIZE_ITEMS@@" "$items" > "$out"
+  rm -f "$items" "$media"
   printf '%s' "$out"
 }

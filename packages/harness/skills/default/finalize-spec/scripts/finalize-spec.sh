@@ -23,7 +23,10 @@ source "$HARNESS_DIR/scripts/lib/text.sh"
 source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
 source "$HARNESS_DIR/scripts/lib/markdown.sh"
 source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
+source "$HARNESS_DIR/scripts/lib/adjustments.sh"
 source "$HARNESS_DIR/scripts/lib/plan.sh"
+source "$HARNESS_DIR/scripts/lib/task.sh"
+source "$HARNESS_DIR/scripts/lib/memory.sh"
 source "$HARNESS_DIR/scripts/lib/finalize.sh"
 
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
@@ -51,7 +54,11 @@ require_finalizable() {
 
 [ "$#" -eq 2 ] || die "$USAGE"
 case "$1" in
-  --sources|--create|--validate|--build|--archive)
+  --sources)
+    spec="$(require_finalizable "$2")"
+    finalize_sources "$spec" "$(finalize_tasks_dir "$2")"
+    ;;
+  --create|--validate|--build|--archive)
     require_finalizable "$2" > /dev/null
     die "$1 ainda não implementado"
     ;;

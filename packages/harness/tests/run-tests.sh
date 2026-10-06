@@ -922,6 +922,56 @@ check "spec implemented com tarefas done passa da conferência" bash -c "! '$FS'
 check "a conferência não altera a spec nem as tarefas" bash -c "grep -qx 'status: implemented' '$r8' && grep -qx 'status: done' '$TASKS/SPEC-008/TASK-02.md'"
 rm -rf "$TASKS/SPEC-008"; mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"
 
+# Fontes da síntese (--sources).
+cp "$r8" "$R/.fin-r8"; cp -R "$TASKS/SPEC-008" "$R/.fin-tasks"; cp -R "$H/memory" "$R/.fin-mem"
+sed -i.bak 's/^status: .*/status: implemented/; s/^approved_at: .*/approved_at: 2026-01-10T00:00:00Z/' "$r8" && rm -f "$r8.bak"
+for t in "$TASKS"/SPEC-008/TASK-*.md; do sed -i.bak 's/^status: .*/status: done/' "$t" && rm -f "$t.bak"; done
+gf() { git -C "$R" -c user.name=Teste -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
+commit_at() { # data, arquivo, mensagem
+  printf '%s\n' "$3" > "$R/$2" && gf add -- "$2" && GIT_AUTHOR_DATE="$1" GIT_COMMITTER_DATE="$1" gf commit -qm "$3" -- "$2"
+}
+for f in "$H"/memory/*.md; do awk '/^## [A-Z]+-[0-9]+: /{exit} {print}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"; done
+entry() { printf '\n## %s: %s\n\n- **Data:** %s\n- **Status:** %s\n' "$2" "$3" "$4" "$5" >> "$H/memory/$1"; }
+entry decisions.md DEC-101 'Decisão antes da spec' 2026-01-05 ativa
+entry decisions.md DEC-102 'Decisão durante a spec' 2026-01-12 ativa
+entry decisions.md DEC-103 'Decisão depois de hoje' 2999-01-01 ativa
+entry issues.md ISS-101 'Issue durante a spec' 2026-01-20 resolvido
+entry knowledge.md KNW-101 'Conhecimento durante a spec' 2026-02-01 válido
+rm -rf "$R/.git"; gf init -q -b main
+mkdir -p "$R/nao/existe"
+commit_at 2026-01-05T12:00:00Z nao/existe/novo.sh 'antes da aprovação'
+commit_at 2026-01-15T12:00:00Z nao/existe/novo.sh 'depois da aprovação, caminho da tarefa'
+commit_at 2026-01-16T12:00:00Z fin-outro.txt 'depois da aprovação, outro caminho'
+sed -i.bak 's|^- `AGENTS.md` (alterar): .*|&\n- `nao/existe/novo.sh` (criar): repetido em outra tarefa.|' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
+before="$(cat "$r8" "$TASKS"/SPEC-008/TASK-*.md | cksum)"
+out="$("$FS" --sources SPEC-008 2>&1)"
+for h in '## Spec' '## Tarefas' '## Caminhos alterados' '## Memória do período' '## Commits'; do
+  check "fontes têm o bloco '$h'" grep -qx "$h" <<< "$out"
+done
+check "fontes: dados da spec" bash -c "grep -qF -- '- **ID:** SPEC-008' <<< '$out' && grep -qF -- '- **Aprovada em:** 2026-01-10T00:00:00Z' <<< '$out'"
+check "fontes: cada tarefa com status, registro e histórico" bash -c "[ \$(grep -c '^### TASK-0' <<< '$out') -eq 2 ] && [ \$(grep -c -- '- \*\*Status:\*\* done' <<< '$out') -eq 2 ] && [ \$(grep -c '^\*\*Registro de execução\*\*' <<< '$out') -eq 2 ] && [ \$(grep -c '^\*\*Histórico de ajustes\*\*' <<< '$out') -eq 2 ]"
+check "fontes: evidência ausente" bash -c "grep -qF 'evidence/TASK-01/saida.txt\` (automática): ausente' <<< '$out'"
+mkdir -p "$TASKS/SPEC-008/evidence/TASK-01" && echo ok > "$TASKS/SPEC-008/evidence/TASK-01/saida.txt"
+check "fontes: evidência existente" bash -c "'$FS' --sources SPEC-008 | grep -qF 'evidence/TASK-01/saida.txt\` (automática): existe'"
+check "fontes: evidências com caminho relativo à raiz do projeto" bash -c "grep -qF -- '- \`packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt\`' <<< \"\$('$FS' --sources SPEC-008)\""
+check "fontes: caminho repetido em duas tarefas aparece uma vez" bash -c "[ \$(grep -cF -- '- \`nao/existe/novo.sh\` (criar)' <<< '$out') -eq 1 ]"
+check "fontes: caminhos alterados com a ação" bash -c "grep -qF -- '- \`nao/existe/novo.sh\` (criar)' <<< '$out' && grep -qF -- '- \`AGENTS.md\` (alterar)' <<< '$out'"
+check "fontes: memória só do período" bash -c "grep -q 'DEC-102' <<< '$out' && grep -q 'ISS-101' <<< '$out' && grep -q 'KNW-101' <<< '$out' && ! grep -q 'DEC-101' <<< '$out' && ! grep -q 'DEC-103' <<< '$out'"
+check "fontes: memória com status e data" bash -c "grep -qF -- '- \`DEC-102\` Decisão durante a spec (ativa, 2026-01-12)' <<< '$out'"
+check "fontes: commits só do período e dos caminhos das tarefas" bash -c "grep -qF 'depois da aprovação, caminho da tarefa' <<< '$out' && ! grep -qF 'antes da aprovação' <<< '$out' && ! grep -qF 'outro caminho' <<< '$out'"
+check "fontes: commit com hash e data" bash -c "grep -Eq -- '^- \`[0-9a-f]+\` 2026-01-15 depois da aprovação, caminho da tarefa\$' <<< '$out'"
+check "fontes não alteram a spec nem as tarefas" bash -c "[ '$before' = \"\$(cat '$r8' '$TASKS'/SPEC-008/TASK-*.md | cksum)\" ]"
+sed -i.bak 's/^approved_at: .*/approved_at: 2035-01-01T00:00:00Z/' "$r8" && rm -f "$r8.bak"
+out="$("$FS" --sources SPEC-008 2>&1)"
+check "fontes sem commits no período" bash -c "grep -qF 'Nenhum commit encontrado.' <<< '$out'"
+check "fontes sem memória no período" bash -c "grep -qF 'Nenhuma entrada de memória no período.' <<< '$out'"
+sed -i.bak 's/^approved_at: .*/approved_at: null/' "$r8" && rm -f "$r8.bak"
+check "fontes de spec sem data de aprovação" bash -c "out=\$('$FS' --sources SPEC-008 2>&1); [ \$(grep -c 'Spec sem data de aprovação.' <<< \"\$out\") -eq 2 ] && grep -qF 'sem data de aprovação' <<< \"\$out\""
+rm -rf "$R/.git"
+check "fontes fora de um repositório git" bash -c "'$FS' --sources SPEC-008 | grep -qF 'Fora de um repositório git.'"
+rm -rf "$R/nao" "$R/fin-outro.txt" "$TASKS/SPEC-008"
+mv "$R/.fin-tasks" "$TASKS/SPEC-008"; mv "$R/.fin-r8" "$r8"; rm -rf "$H/memory"; mv "$R/.fin-mem" "$H/memory"
+
 # --- Commits sem liberação ---
 CC="$H/scripts/default/git/check-commits.sh"
 AC="$H/skills/default/approve-commit/scripts/approve-commit.sh"

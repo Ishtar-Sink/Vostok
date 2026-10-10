@@ -52,6 +52,8 @@ td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 
 tr:last-child td { border-bottom: 0; }
 td.strong { font-weight: 600; }
 
+.na { color: var(--color-muted); font-style: italic; }
+
 /* Abas */
 .nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
 .nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
@@ -169,11 +171,17 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
   });
 
   // Abas: sem JavaScript, todas as tarefas aparecem em sequência e os links levam a cada uma.
-  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]"));
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
   var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
   // O hash da aba (#task-01) não coincide com o id da seção (p-task-01): o link continua compartilhável
   // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
   function show(id) {
+    if (!tabs.length) return;
     id = id.replace(/^p-/, "");
     if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
     tabs.forEach(function (a) {

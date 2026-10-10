@@ -689,12 +689,32 @@ check "tarefa ajustada pode ser aprovada de novo" "$AT" --approve SPEC-008 TASK-
 sed -i.bak 's/^1\. Criar o script com testes e docs\.$/1. Criar o script./' "$t1" && rm -f "$t1.bak"
 check "edição manual em tarefa aprovada também derruba a aprovação" bash -c "'$AT2' --record-manual SPEC-008 TASK-01 | grep -qF 'Aprovação de TASK-01 derrubada' && sed -n '2,/^---/p' '$t1' | grep -qx 'status: pending'"
 
-# Status fora de pending e approved.
-for st in in_progress validating blocked done; do
-  set_status "$t2" "$st"; before="$(sum "$t2")"
-  check "adjust-task recusa tarefa $st e informa o status" bash -c "'$AT2' --record SPEC-008 TASK-02 'x' 2>&1 | grep -qF \"a tarefa TASK-02 está com status '$st'\" && [ '$before' = \"\$(cksum < '$t2')\" ]"
+# Status aceitos: os cinco, e só done é recusada.
+for st in pending approved in_progress validating blocked; do
+  set_status "$t2" "$st"
+  check "adjust-task --record aceita tarefa $st" bash -c "'$AT2' --record SPEC-008 TASK-02 'ajuste em $st' | grep -qF 'registrado em TASK-02'"
 done
-fails "--record-manual recusa tarefa fora de pending e approved" "$AT2" --record-manual SPEC-008 TASK-02
+set_status "$t2" done; before="$(sum "$t2")"
+check "adjust-task recusa tarefa done e informa o status" bash -c "'$AT2' --record SPEC-008 TASK-02 'x' 2>&1 | grep -qF \"a tarefa TASK-02 está com status 'done'\" && [ '$before' = \"\$(cksum < '$t2')\" ]"
+fails "--record-manual recusa tarefa done" "$AT2" --record-manual SPEC-008 TASK-02
+check "--record-manual recusado não altera a tarefa done" [ "$before" = "$(sum "$t2")" ]
+
+# Ajuste de tarefa em execução: volta a in_progress, zera os resultados, mantém o baseline e a aprovação.
+set_status "$t2" blocked
+mkdir -p "$TASKS/SPEC-008/evidence/TASK-02/baseline"; echo base > "$TASKS/SPEC-008/evidence/TASK-02/baseline/1.out"
+for kv in attempts:2 tests_result:failed regression_result:failed evidence_result:passed; do
+  sed -i.bak "s/^${kv%%:*}: .*/${kv%%:*}: ${kv##*:}/" "$t2" && rm -f "$t2.bak"
+done
+sed -i.bak 's/^approved_at: .*/approved_at: 2026-01-01T00:00:00Z/' "$t2" && rm -f "$t2.bak"
+check "ajuste em execução avisa que voltou para in_progress" bash -c "'$AT2' --record SPEC-008 TASK-02 'Passo corrigido' | grep -qF \"Ajuste em execução: TASK-02 voltou para 'in_progress'\""
+check "ajuste em execução: in_progress e resultados zerados" bash -c "fmx=\$(sed -n '2,/^---/p' '$t2'); for l in 'status: in_progress' 'attempts: 0' 'tests_result: null' 'regression_result: null' 'evidence_result: null' 'approved_at: 2026-01-01T00:00:00Z'; do grep -qx \"\$l\" <<< \"\$fmx\" || exit 1; done"
+check "ajuste em execução mantém o baseline" [ "$(cat "$TASKS/SPEC-008/evidence/TASK-02/baseline/1.out")" = base ]
+check "ajuste em execução grava a linha ajuste no registro" bash -c "sed -n '/^## Registro de execução\$/,/^## /p' '$t2' | grep -qE '^\| [0-9]+ \| [0-9-]{10} \| ajuste \| in_progress \| Passo corrigido \|\$'"
+check "ajuste em execução: hash atualizado" bash -c "'$AT2' --record-manual SPEC-008 TASK-02 | grep -qx 'Nenhuma edição manual.'"
+set_status "$t2" validating
+sed -i.bak 's/^attempts: .*/attempts: 1/;s/^tests_result: .*/tests_result: passed/' "$t2" && rm -f "$t2.bak"
+sed -i.bak 's/^1\. /1. Edição manual: /' "$t2" && rm -f "$t2.bak"
+check "--record-manual em execução zera os resultados" bash -c "'$AT2' --record-manual SPEC-008 TASK-02 >/dev/null && fmx=\$(sed -n '2,/^---/p' '$t2') && grep -qx 'status: in_progress' <<< \"\$fmx\" && grep -qx 'attempts: 0' <<< \"\$fmx\" && grep -qx 'tests_result: null' <<< \"\$fmx\" && sed -n '/^## Registro de execução\$/,/^## /p' '$t2' | grep -qF '| ajuste | in_progress | Edição manual'"
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
 
 # Execução de tarefas.
@@ -1221,12 +1241,12 @@ check "técnico: não traz o conteúdo do executivo" bash -c "! grep -qF 'Só o 
 check "técnico: requisitos com a descrição da spec e as tarefas que os cobrem (RF-09)" bash -c "grep -qF '<tr><td class=\"mono\">RF-01</td><td>' '$TX' && grep -qF '<span class=\"chip\">TASK-01</span><span class=\"chip\">TASK-02</span></td></tr>' '$TX' && grep -qF '<td class=\"mono\">RF-02</td>' '$TX'"
 check "técnico: requisito aparece uma vez" bash -c "[ \$(grep -c '<td class=\"mono\">RF-01</td>' '$TX') -eq 1 ]"
 check "técnico: arquivos alterados com a ação" bash -c "grep -qF '<tr><td><span class=\"tag criar\">criar</span></td><td class=\"path\">nao/existe/novo.sh</td></tr>' '$TX' && grep -qF '<tr><td><span class=\"tag alterar\">alterar</span></td><td class=\"path\">AGENTS.md</td></tr>' '$TX'"
-check "técnico: fora de um repositório git (CB-04)" grep -qxF '<p>Fora de um repositório git.</p>' "$TX"
-check "técnico: diffs sem git informam que não há base (CB-11)" grep -qxF '<p>Sem base de comparação: fora de um repositório git.</p>' "$TX"
+check "técnico: fora de um repositório git (CB-04)" grep -qxF '<p class="na">Não se aplica. Fora de um repositório git.</p>' "$TX"
+check "técnico: diffs sem git informam que não há base (CB-11)" grep -qxF '<p class="na">Não se aplica. Sem base de comparação: fora de um repositório git.</p>' "$TX"
 gf init -q -b main
 "$FS" --build SPEC-008 > /dev/null
-check "técnico: sem commits no período (CB-04)" grep -qxF '<p>Nenhum commit encontrado.</p>' "$TX"
-check "técnico: diffs sem commit anterior à aprovação (CB-11)" grep -qxF '<p>Sem base de comparação: nenhum commit anterior à aprovação da spec.</p>' "$TX"
+check "técnico: sem commits no período (CB-04)" grep -qxF '<p class="na">Não se aplica. Nenhum commit encontrado.</p>' "$TX"
+check "técnico: diffs sem commit anterior à aprovação (CB-11)" grep -qxF '<p class="na">Não se aplica. Sem base de comparação: nenhum commit anterior à aprovação da spec.</p>' "$TX"
 mkdir -p "$R/nao/existe"
 commit_at 2026-01-05T12:00:00Z nao/existe/novo.sh 'antes da aprovação'
 sed -i.bak 's|^- `AGENTS.md` (alterar): .*|&\n- `nao/existe/doc.md` (alterar): texto.\n- `nao/existe/bin.dat` (alterar): binário.\n- `nao/existe/igual.txt` (alterar): sem mudança.\n- `nao/existe/novo.sh` (alterar): criado por outra tarefa.|' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
@@ -1289,7 +1309,12 @@ check "evidências: impressão mostra todos os painéis (CT-16)" bash -c "sed -n
 check "evidências: peça com tarefa, nome e tipo (RF-10)" bash -c "grep -qF '<span class=\"piece-id\">TASK-01</span> — Criar script' '$EV' && grep -qF '<b>foto.png</b><span class=\"tag manual\">manual</span>' '$EV' && grep -qF '<b>saida.log</b><span class=\"tag auto\">automática</span>' '$EV'"
 check "evidências: uma peça por evidência" bash -c "[ \$(grep -c '^<figure class=\"piece\">' '$EV') -eq 6 ]"
 check "evidências: como chegar e como ler de cada peça (RF-10)" bash -c "grep -qxF '    <p><b>Como chegar</b>passos de foto.png</p>' '$EV' && grep -qxF '    <p><b>Como ler</b>olhe <strong>foto.png</strong></p>' '$EV'"
-check "evidências: tarefa sem evidência ganha uma peça que informa (CB-02)" bash -c "grep -qF '<span class=\"piece-id\">TASK-02</span> — Documentar</div><p>Esta tarefa não gera evidência.</p>' '$EV'"
+check "evidências: tarefa sem evidência ganha uma peça que informa (CB-02)" bash -c "grep -qF '<span class=\"piece-id\">TASK-02</span> — Documentar</div><p class=\"na\">Não se aplica. Esta tarefa não gera evidência.</p>' '$EV'"
+check "seções sem dados: \"Não se aplica.\" com o motivo, fora do git e na tarefa sem evidência (CT-17)" bash -c 'grep -qxF "<p class=\"na\">Não se aplica. Fora de um repositório git.</p>" "$1" && grep -qxF "<p class=\"na\">Não se aplica. Sem base de comparação: fora de um repositório git.</p>" "$1" && grep -qF "<p class=\"na\">Não se aplica. Esta tarefa não gera evidência.</p>" "$2"' _ "$TX" "$EV"
+check "seções sem dados: .na estilizado com tokens nos três documentos (CT-17)" bash -c 'for f in "$@"; do grep -qF ".na { color: var(--color-muted);" "$f" || exit 1; done' _ "$EX" "$TX" "$EV"
+check "abas: todo link do menu tem painel e o script remove os sem painel (CT-18)" bash -c 'for f in "$@"; do for t in $(grep -o "data-tab=\"[^\"]*\"" "$f" | sed "s/data-tab=\"//; s/\"\$//" | sort -u); do grep -qF "id=\"p-$t\"" "$f" || exit 1; done; grep -qF "removeChild(a)" "$f" || exit 1; done' _ "$EX" "$TX" "$EV"
+check "abas: endereço inexistente abre a primeira aba (CT-18)" bash -c 'for f in "$@"; do grep -qF "if (!document.getElementById(\"p-\" + id)) id = tabs[0].getAttribute(\"data-tab\");" "$f" || exit 1; done' _ "$EX" "$TX" "$EV"
+check "impressão do técnico e das evidências: painéis em página nova, sem menu nem botão (CT-19)" bash -c 'for f in "$@"; do p=$(sed -n "/@media print/,/^}/p" "$f"); grep -qF ".tbtn, .nav" <<< "$p" && grep -qF "display: none" <<< "$p" && grep -qF ".panel + .panel { break-before: page;" <<< "$p" && grep -qF ".tabs .panel:not(.on), .panel { display: block; }" <<< "$p" || exit 1; done' _ "$TX" "$EV"
 b64="$(base64 < "$EVD/foto.png" | tr -d '\n')"
 check "evidências: imagem pequena embutida em base64 (CT-08)" grep -qF "<img alt=\"foto.png\" src=\"data:image/png;base64,$b64\">" "$EV"
 check "evidências: texto embutido num bloco de código (CT-08)" grep -qF '<pre><code>ok' "$EV"
@@ -1532,7 +1557,11 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize finish-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
+
+# CT-03: a skill substituída não deixa referências fora de work/ e dos cenários com agente. Roda na árvore real, não na cópia.
+OLD_SKILL="validate-""task"
+check "nenhuma referência à skill substituída" bash -c "! grep -rn '$OLD_SKILL' '$SOURCE_HARNESS' '$SOURCE_ROOT/.claude' '$SOURCE_ROOT/.agents' '$SOURCE_ROOT/AGENTS.md' --exclude-dir=work --exclude-dir=worktrees --exclude=agent-scenarios.md"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

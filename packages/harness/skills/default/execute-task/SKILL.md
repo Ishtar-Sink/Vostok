@@ -94,7 +94,7 @@ Siga os "Passos", na ordem, mudando só os arquivos de "Mudar". Se um passo exig
 
 ### 7. Seguir para a validação
 
-Siga a skill `validate-task`, que executa os testes, compara com o baseline, grava as evidências e conclui a tarefa. Não responda ao usuário com o template `completion` antes de a validação terminar.
+Siga a skill `finish-task`, que executa os testes, compara com o baseline, grava as evidências e conclui a tarefa. Não responda ao usuário com o template `completion` antes de a validação terminar.
 
 ## Formatos de resposta
 

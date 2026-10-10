@@ -1,6 +1,6 @@
 ---
 name: adjust-task
-description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, com status pending ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
+description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
 allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/adjust-task/scripts/*) Bash(packages/harness/scripts/default/*)
 metadata:
   version: "1.0.0"
@@ -16,7 +16,7 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 
 ## Termos
 
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`. Só tarefas com status `pending` ou `approved` são ajustadas.
+- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`. Tarefas com status `pending`, `approved`, `in_progress`, `validating` ou `blocked` são ajustadas; `done`, não.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto da tarefa que o ajuste muda: uma subseção ("Passos", "Baseline"), um item ou um critério.
@@ -26,7 +26,7 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 
 ## Regras
 
-[adjust-task-01]: Só ajuste tarefas com status `pending` ou `approved`. Nunca edite a spec, o plano nem outras tarefas.
+[adjust-task-01]: Não ajuste tarefas `done`. Nunca edite a spec, o plano nem outras tarefas.
 [adjust-task-02]: Nunca edite uma tarefa sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os scripts os alteram.
 [adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `effort` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
@@ -35,6 +35,8 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 [adjust-task-07]: Não amplie o pedido. O que não foi pedido e for necessário para a tarefa continuar coerente (um passo que cita o arquivo removido de "Mudar") é inferência e aparece na resposta.
 [adjust-task-08]: Todos os ajustes de um pedido são registrados juntos, com um único `--record`.
 [adjust-task-09]: Não aprove nem execute a tarefa como parte do ajuste. A aprovação é feita pela skill `approve-task`, só a pedido do usuário.
+[adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`.
+[adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o script a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 
 ## Checklist
 
@@ -76,7 +78,7 @@ Use a tarefa sem perguntar em qualquer um destes casos:
 
 Nos demais casos, **PARE** e pergunte qual ajustar, com o template `question`, uma opção por tarefa candidata (spec, ID e título). Não edite nada antes da resposta.
 
-Tarefa citada que não existe: **PARE** e informe as tarefas da spec. Tarefa com status fora de `pending` e `approved`: o script recusa no passo 3; **PARE** e informe o status.
+Tarefa citada que não existe: **PARE** e informe as tarefas da spec. Tarefa `done`: o script recusa no passo 3; **PARE** e informe o status.
 
 ### 3. Registrar edições manuais
 
@@ -147,7 +149,7 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 packages/harness/skills/default/adjust-task/scripts/adjust-task.sh --record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGENTS.md removido de Mudar"
 ```
 
-O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Se recusar o ajuste, volte ao passo 8.
+O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 
@@ -156,7 +158,7 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho da tarefa, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
-- **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo.
+- **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
 
 ## Formatos de resposta

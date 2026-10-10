@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Registra os ajustes de uma tarefa com status `pending` ou `approved`: edições feitas à mão e ajustes do
+# Registra os ajustes de uma tarefa em qualquer status menos `done`: edições feitas à mão e ajustes do
 # agente. Segue o registro da spec e do plano (scripts/lib/adjustments.sh): contagem, datas, hash do
 # conteúdo e uma linha por ajuste em "Histórico de ajustes". A validação é a da tarefa (scripts/lib/task.sh).
-# Um ajuste numa tarefa `approved` a devolve para `pending` e limpa os campos da aprovação.
+# Um ajuste numa tarefa `approved` a devolve para `pending` e limpa os campos da aprovação. Um ajuste numa
+# tarefa `in_progress`, `validating` ou `blocked` a deixa `in_progress`, com tentativas e resultados zerados,
+# mantém o baseline e os campos da aprovação, não pede nova aprovação e acrescenta a linha `ajuste` ao
+# "Registro de execução". Tarefa `done` é recusada.
 #
 # Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID>
 #        Compara o hash gravado com o do conteúdo atual. Se forem diferentes, registra um ajuste de origem
@@ -36,11 +39,15 @@ die() { echo "Erro: $*" >&2; exit 1; }
 tasks_root="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")"
 pending_status="$(config_get "$TASKS_CONFIG" status.pending)"
 approved_status="$(config_get "$TASKS_CONFIG" status.approved)"
+in_progress_status="$(config_get "$TASKS_CONFIG" status.in_progress)"
+validating_status="$(config_get "$TASKS_CONFIG" status.validating)"
+blocked_status="$(config_get "$TASKS_CONFIG" status.blocked)"
+done_status="$(config_get "$TASKS_CONFIG" status.done)"
 task_prefix="$(config_get "$TASKS_CONFIG" id.prefix)"
 approved_at_field="$(config_get "$SPECS_CONFIG" approved_at_field)"
 approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
 
-# Caminho da tarefa. Falha se ela não existir ou não estiver com status pending ou approved.
+# Caminho da tarefa. Falha se ela não existir ou estiver com status done.
 # find_task <SPEC_ID> <TASK_ID>
 find_task() {
   local file status
@@ -49,8 +56,10 @@ find_task() {
   file="$tasks_root/$1/$2.md"
   [ -f "$file" ] || die "tarefa $2 não encontrada em $1"
   status="$(frontmatter_get "$file" status 2>/dev/null || true)"
-  [ "$status" = "$pending_status" ] || [ "$status" = "$approved_status" ] ||
-    die "a tarefa $2 está com status '$status'; só tarefas com status '$pending_status' ou '$approved_status' são ajustadas"
+  case "$status" in
+    "$pending_status" | "$approved_status" | "$in_progress_status" | "$validating_status" | "$blocked_status") ;;
+    *) die "a tarefa $2 está com status '$status'; tarefas com status '$done_status' não são ajustadas" ;;
+  esac
   printf '%s' "$file"
 }
 
@@ -71,6 +80,23 @@ drop_approval() {
   echo "Aprovação de $2 derrubada: o status voltou para '$pending_status'; aprove-a de novo antes de executar."
 }
 
+# Devolve uma tarefa em execução (in_progress, validating ou blocked) para in_progress, com tentativas e
+# resultados zerados e a linha `ajuste` no registro. Mantém o baseline e os campos da aprovação.
+# Não faz nada nas demais.
+# restart_execution <arquivo> <TASK_ID> <resumo>
+restart_execution() {
+  local status
+  status="$(frontmatter_get "$1" status 2>/dev/null || true)"
+  [ "$status" = "$in_progress_status" ] || [ "$status" = "$validating_status" ] || [ "$status" = "$blocked_status" ] || return 0
+  frontmatter_set "$1" status "$in_progress_status"
+  frontmatter_set "$1" attempts 0
+  frontmatter_set "$1" tests_result null
+  frontmatter_set "$1" regression_result null
+  frontmatter_set "$1" evidence_result null
+  task_record_step "$1" ajuste "$in_progress_status" "$3"
+  echo "Ajuste em execução: $2 voltou para '$in_progress_status', com tentativas e resultados zerados e o baseline mantido."
+}
+
 record_manual() {
   local file summary count errors
   file="$(find_task "$1" "$2")"
@@ -82,6 +108,7 @@ record_manual() {
   count="$(adjustment_record "$file" "$(adjustment_origin manual)" "$summary")"
   echo "Ajuste manual $count registrado em $2: $summary"
   drop_approval "$file" "$2"
+  restart_execution "$file" "$2" "$summary"
   errors="$(errors_of "$1" "$2" "$file")"
   [ -z "$errors" ] || printf 'Problemas de validação:\n%s\n' "$errors"
 }
@@ -103,6 +130,7 @@ record() {
   count="$(adjustment_record "$file" "$(adjustment_origin agent)" "$summary")"
   echo "Ajuste $count registrado em $2: $file"
   drop_approval "$file" "$2"
+  restart_execution "$file" "$2" "$summary"
 }
 
 case "${1:-}" in

@@ -1,18 +1,18 @@
 ---
-name: validate-task
-description: "Valida e conclui uma tarefa em execução, em work/tasks/: executa os testes da Verificação, compara com o baseline para achar regressões, grava as evidências, confere os critérios de conclusão e marca a tarefa como done, e a spec como implemented na última tarefa. Bloqueia a tarefa depois do máximo de falhas ou numa regressão e a retoma com a decisão do usuário. Use ao fim da execução de uma tarefa (skill execute-task) ou quando o usuário pedir para validar, testar ou revalidar uma tarefa em andamento, ou para retomar uma tarefa bloqueada."
+name: finish-task
+description: "Finaliza uma tarefa em execução, em work/tasks/, só a pedido do usuário: executa os testes da Verificação, compara com o baseline para achar regressões, grava as evidências, confere os critérios de conclusão e marca a tarefa como done, e a spec como implemented na última tarefa. Bloqueia a tarefa depois do máximo de falhas ou numa regressão e a retoma com a decisão do usuário. Use quando o usuário pedir para finalizar, concluir, validar, testar ou revalidar uma tarefa em andamento, ou para retomar uma tarefa bloqueada."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
   requires: "rules/agent/anti-loop.md config/tasks.yml"
-  scripts: "scripts/default/tasks/load-task.sh scripts/default/memory/search-memory.sh skills/default/validate-task/scripts/validate-task.sh"
+  scripts: "scripts/default/tasks/load-task.sh scripts/default/memory/search-memory.sh skills/default/finish-task/scripts/finish-task.sh"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
-# Validar tarefa
+# Finalizar tarefa
 
-Comprova e conclui uma tarefa implementada: testes da "Verificação", comparação com o baseline, evidências e critérios de conclusão, parando para o usuário decidir sempre que ela ficar bloqueada.
+Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da "Verificação", comparação com o baseline, evidências e critérios de conclusão, parando para o usuário decidir sempre que ela ficar bloqueada.
 
 ## Termos
 
@@ -26,13 +26,14 @@ Comprova e conclui uma tarefa implementada: testes da "Verificação", comparaç
 
 ## Regras
 
-[validate-task-01]: Só os scripts gravam status, resultados, tentativas e o registro. Nunca os edite à mão.
-[validate-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.
-[validate-task-03]: Execute `--resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando.
-[validate-task-04]: Corrija falhas de testes no código da tarefa, nunca na "Verificação", no "Baseline" ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.
-[validate-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
-[validate-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `--finish`.
-[validate-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
+[finish-task-01]: Só os scripts gravam status, resultados, tentativas e o registro. Nunca os edite à mão.
+[finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.
+[finish-task-03]: Execute `--resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando.
+[finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na "Verificação", no "Baseline" ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.
+[finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
+[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `--finish`.
+[finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
+[finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
 
 ## Checklist
 
@@ -52,12 +53,12 @@ Copie e marque o progresso:
 
 ### 1. Identificar a tarefa
 
-Vindo da skill `execute-task`, use a tarefa que acabou de ser implementada. A pedido do usuário, procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`, ou pergunte qual com o template `question`.
+Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
 
 Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele definiu (correção, ajuste ou aceite da diferença) e execute:
 
 ```bash
-packages/harness/skills/default/validate-task/scripts/validate-task.sh --resume <SPEC_ID> <TASK_ID> "decisão do usuário, em uma linha"
+packages/harness/skills/default/finish-task/scripts/finish-task.sh --resume <SPEC_ID> <TASK_ID> "decisão do usuário, em uma linha"
 ```
 
 Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/<TASK_ID>/validation/`.
@@ -67,7 +68,7 @@ Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com
 Execute:
 
 ```bash
-packages/harness/skills/default/validate-task/scripts/validate-task.sh --tests <SPEC_ID> <TASK_ID>
+packages/harness/skills/default/finish-task/scripts/finish-task.sh --tests <SPEC_ID> <TASK_ID>
 ```
 
 O script executa o bloco `bash` de "Verificação" a partir da raiz do projeto e para no primeiro comando com falha. Se falhar:
@@ -82,7 +83,7 @@ O script executa o bloco `bash` de "Verificação" a partir da raiz do projeto e
 Execute:
 
 ```bash
-packages/harness/skills/default/validate-task/scripts/validate-task.sh --regression <SPEC_ID> <TASK_ID>
+packages/harness/skills/default/finish-task/scripts/finish-task.sh --regression <SPEC_ID> <TASK_ID>
 ```
 
 O script executa de novo os comandos de "Baseline" e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos e as diferenças. As opções incluem corrigir a regressão e aceitar a diferença como esperada.
@@ -92,7 +93,7 @@ O script executa de novo os comandos de "Baseline" e compara com o baseline. Se 
 Execute:
 
 ```bash
-packages/harness/skills/default/validate-task/scripts/validate-task.sh --evidence <SPEC_ID> <TASK_ID>
+packages/harness/skills/default/finish-task/scripts/finish-task.sh --evidence <SPEC_ID> <TASK_ID>
 ```
 
 O script grava a saída de cada evidência automática e confere as manuais:
@@ -109,7 +110,7 @@ Para cada critério de "Concluída quando", faça a comprovação descrita em "C
 Execute:
 
 ```bash
-packages/harness/skills/default/validate-task/scripts/validate-task.sh --finish <SPEC_ID> <TASK_ID>
+packages/harness/skills/default/finish-task/scripts/finish-task.sh --finish <SPEC_ID> <TASK_ID>
 ```
 
 O script exige testes, regressão e evidências `passed` e todos os critérios marcados, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. Se ele recusar, volte à etapa que falta.

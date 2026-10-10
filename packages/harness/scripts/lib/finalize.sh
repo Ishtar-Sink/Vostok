@@ -849,7 +849,7 @@ finalize_requirements_html() {
   local req tasks text chips t map
   map="$(finalize_requirement_map "$2")"
   if [ -z "$map" ]; then
-    echo '<p>Nenhum requisito coberto pelas tarefas.</p>'
+    echo '<p class="na">Não se aplica. Nenhum requisito coberto pelas tarefas.</p>'
     return 0
   fi
   echo '<div class="tw"><table>'
@@ -874,7 +874,7 @@ finalize_files_html() {
   local action path items
   items="$(finalize_changed_items "$1")"
   if [ -z "$items" ]; then
-    echo '<p>Nenhum arquivo alterado.</p>'
+    echo '<p class="na">Não se aplica. Nenhum arquivo alterado.</p>'
     return 0
   fi
   echo '<div class="tw"><table>'
@@ -904,7 +904,7 @@ finalize_commits_html() {
     fi
   done <<< "$lines"
   if [ "$found" -eq 0 ]; then
-    printf '<p>%s</p>\n' "$(printf '%s' "$lines" | head -1 | finalize_html_escape)"
+    printf '<p class="na">Não se aplica. %s</p>\n' "$(printf '%s' "$lines" | head -1 | finalize_html_escape)"
     return 0
   fi
   echo '<div class="tw"><table>'
@@ -1002,12 +1002,12 @@ finalize_diffs_html() {
   root="$(_task_root_dir)"
   if ! base="$(finalize_diff_base "$1" 2>&1)"; then
     reason="$base"
-    printf '<p>Sem base de comparação: %s.</p>\n' "$(printf '%s' "$reason" | finalize_html_escape)"
+    printf '<p class="na">Não se aplica. Sem base de comparação: %s.</p>\n' "$(printf '%s' "$reason" | finalize_html_escape)"
     return 0
   fi
   paths="$(finalize_modified_paths "$2")"
   if [ -z "$paths" ]; then
-    echo '<p>Nenhum arquivo alterado, só criados ou removidos.</p>'
+    echo '<p class="na">Não se aplica. Nenhum arquivo alterado, só criados ou removidos.</p>'
     return 0
   fi
   while IFS= read -r path; do
@@ -1252,7 +1252,7 @@ _finalize_evidence_html() {
         render "$templates/$FINALIZE_EVIDENCE_ITEM_TEMPLATE" | finalize_splice "@@FINALIZE_MEDIA@@" "$media" >> "$items"
     done <<< "$(finalize_evidence_items "$task")"
     if [ "$n" -eq 0 ]; then
-      printf '<div class="piece none"><div class="piece-top"><span class="piece-id">%s</span> — %s</div><p>Esta tarefa não gera evidência.</p></div>\n' \
+      printf '<div class="piece none"><div class="piece-top"><span class="piece-id">%s</span> — %s</div><p class="na">Não se aplica. Esta tarefa não gera evidência.</p></div>\n' \
         "$(printf '%s' "$tid" | finalize_html_escape)" "$(printf '%s' "$ttitle" | finalize_html_escape)" >> "$items"
     fi
     echo '</section>' >> "$items"

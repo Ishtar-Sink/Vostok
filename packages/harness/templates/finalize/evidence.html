@@ -39,7 +39,8 @@ h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
 .lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
 
 main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
-section.sec { padding: 30px 0 4px; scroll-margin-top: 48px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
 .sec-h { margin: 0 0 14px; }
 .sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
 /* Tabelas */
@@ -51,7 +52,7 @@ td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 
 tr:last-child td { border-bottom: 0; }
 td.strong { font-weight: 600; }
 
-/* Sumário */
+/* Abas */
 .nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
 .nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
 .nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
@@ -115,6 +116,8 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .tbtn, .nav { display: none; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
   main { padding-bottom: 0; }
   .piece { break-inside: avoid; }
   .piece-media pre { max-height: none; white-space: pre-wrap; overflow: visible; }
@@ -144,7 +147,7 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
 </header>
 
 <nav class="nav" aria-label="Tarefas">
-  <div class="nav-in">
+  <div class="nav-in" role="tablist">
 #{NAV}
   </div>
 </nav>
@@ -165,16 +168,32 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
     button.setAttribute("aria-pressed", light ? "true" : "false");
   });
 
-  // Sumário: marca a tarefa que está na tela.
-  var links = Array.prototype.slice.call(document.querySelectorAll(".nav a"));
-  var sections = links.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
-  function mark() {
-    var current = 0;
-    sections.forEach(function (s, i) { if (s && s.getBoundingClientRect().top <= 80) current = i; });
-    links.forEach(function (a, i) { a.classList.toggle("on", i === current); });
+  // Abas: sem JavaScript, todas as tarefas aparecem em sequência e os links levam a cada uma.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#task-01) não coincide com o id da seção (p-task-01): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
   }
-  window.addEventListener("scroll", mark, { passive: true });
-  mark();
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  if (tabs.length) {
+    document.body.classList.add("tabs");
+    show((location.hash || "").replace("#", ""));
+  }
 })();
 </script>
 </body>

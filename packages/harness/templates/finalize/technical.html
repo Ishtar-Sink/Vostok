@@ -39,7 +39,8 @@ h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
 .lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
 
 main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
-section.sec { padding: 30px 0 4px; scroll-margin-top: 48px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
 .sec-h { margin: 0 0 14px; }
 .sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
 /* Tabelas */
@@ -51,7 +52,7 @@ td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 
 tr:last-child td { border-bottom: 0; }
 td.strong { font-weight: 600; }
 
-/* Sumário */
+/* Abas */
 .nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
 .nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
 .nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
@@ -123,7 +124,8 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
   details.dfile { break-inside: auto; }
   main { padding-bottom: 0; }
   .hd { padding-top: 0; }
-  section.sec.page { break-before: page; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
   .sec-h, tr, th { break-inside: avoid; }
   .sec-h { break-after: avoid; }
 }
@@ -150,86 +152,86 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
   </div>
 </header>
 
-<nav class="nav" aria-label="Sumário">
-  <div class="nav-in">
-    <a href="#visao-geral">Visão geral</a>
-    <a href="#arquitetura">Arquitetura</a>
-    <a href="#o-que-foi-feito">O que foi feito</a>
-    <a href="#requisitos">Requisitos</a>
-    <a href="#arquivos">Arquivos</a>
-    <a href="#diffs">Diffs</a>
-    <a href="#commits">Commits</a>
-    <a href="#decisoes">Decisões</a>
-    <a href="#aprendizados">Aprendizados</a>
-    <a href="#atencao">Atenção</a>
-    <a href="#referencias">Referências</a>
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
   </div>
 </nav>
 
 <main>
-  <section class="sec" id="visao-geral">
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
     <div class="sec-h"><h2>Visão geral</h2></div>
     <div class="md">
 #{OVERVIEW}
     </div>
   </section>
 
-  <section class="sec" id="arquitetura">
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
     <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
     <div class="md">
 #{ARCHITECTURE}
     </div>
   </section>
 
-  <section class="sec" id="o-que-foi-feito">
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
     <div class="sec-h"><h2>O que foi feito</h2></div>
     <div class="md">
 #{DONE}
     </div>
   </section>
 
-  <section class="sec page" id="requisitos">
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
     <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
 #{REQUIREMENTS}
   </section>
 
-  <section class="sec" id="arquivos">
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
     <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
 #{FILES}
   </section>
 
-  <section class="sec" id="diffs">
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
     <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
 #{DIFFS}
   </section>
 
-  <section class="sec" id="commits">
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
     <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
 #{COMMITS}
   </section>
 
-  <section class="sec page" id="decisoes">
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
     <div class="sec-h"><h2>Decisões</h2></div>
     <div class="md">
 #{DECISIONS}
     </div>
   </section>
 
-  <section class="sec" id="aprendizados">
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
     <div class="sec-h"><h2>Aprendizados</h2></div>
     <div class="md">
 #{LEARNINGS}
     </div>
   </section>
 
-  <section class="sec" id="atencao">
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
     <div class="sec-h"><h2>Pontos de atenção</h2></div>
     <div class="note warn"><b>Antes de mexer</b>
 #{ATTENTION}
     </div>
   </section>
 
-  <section class="sec" id="referencias">
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
     <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
     <div class="md">
 #{REFERENCES}
@@ -249,16 +251,30 @@ footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px)
     button.setAttribute("aria-pressed", light ? "true" : "false");
   });
 
-  // Sumário: marca a seção que está na tela.
-  var links = Array.prototype.slice.call(document.querySelectorAll(".nav a"));
-  var sections = links.map(function (a) { return document.getElementById(a.getAttribute("href").slice(1)); });
-  function mark() {
-    var current = 0;
-    sections.forEach(function (s, i) { if (s.getBoundingClientRect().top <= 80) current = i; });
-    links.forEach(function (a, i) { a.classList.toggle("on", i === current); });
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
   }
-  window.addEventListener("scroll", mark, { passive: true });
-  mark();
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
 
   // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
   var closed = [];

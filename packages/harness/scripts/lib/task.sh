@@ -216,7 +216,18 @@ task_evidence_path() {
   printf '%s/%s/%s' "$(dirname "$1")" "$(config_get "$(_tasks_config)" evidence_dir)" "$(basename "$1" .md)"
 }
 
-# Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo, já que a linha faz parte dele.
+# Imprime o hash do conteúdo da tarefa depois do front-matter, sem a seção "Registro de execução", escrita só
+# pelos scripts: gravar uma linha nela não muda o hash. Como `spec_content_hash`, ignora `\r`.
+# task_content_hash <arquivo>
+task_content_hash() {
+  frontmatter_body "$1" | RECORD_HEADING="## $(config_get "$(_tasks_config)" record_section)" awk '
+    /^[ \t]*```/ { in_code = !in_code }
+    !in_code && /^## / { skipping = ($0 == ENVIRON["RECORD_HEADING"]) }
+    !skipping { print }
+  ' | sha256_hash
+}
+
+# Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo, que não inclui a linha.
 # Barras verticais são escapadas para não quebrar a tabela.
 # task_record_step <arquivo> <etapa> <resultado> <detalhe>
 task_record_step() {

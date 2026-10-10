@@ -3,7 +3,8 @@
 # do conteúdo (`content_hash_field`) e acrescenta uma linha à seção `adjustment_history_section`.
 # Origens, resumo do ajuste manual e seção de histórico vêm de config/specs.yml.
 # Uso: source "$HARNESS_DIR/scripts/lib/adjustments.sh"
-#      (requer HARNESS_DIR e as libs config.sh, text.sh, frontmatter.sh, markdown.sh e spec-validation.sh)
+#      (requer HARNESS_DIR e as libs config.sh, text.sh, frontmatter.sh, markdown.sh e spec-validation.sh;
+#      para tarefas, também plan.sh e task.sh)
 
 _adjustment_config() {
   config_get "$HARNESS_DIR/config/specs.yml" "$1"
@@ -29,12 +30,23 @@ adjustment_clean_summary() {
   printf '%s' "$summary"
 }
 
+# Hash do conteúdo do documento: o da tarefa (sem o "Registro de execução") em arquivos que têm essa
+# seção, e o de `spec_content_hash` nos demais (specs e planos).
+# adjustment_content_hash <arquivo>
+adjustment_content_hash() {
+  if markdown_section "$1" "$(config_get "$HARNESS_DIR/config/tasks.yml" record_section)" > /dev/null 2>&1; then
+    task_content_hash "$1"
+  else
+    spec_content_hash "$1"
+  fi
+}
+
 # Estado do hash do conteúdo: `same` ou `changed`. Sem hash gravado, o estado é `changed`.
 # adjustment_hash_state <arquivo>
 adjustment_hash_state() {
   local stored
   stored="$(frontmatter_get "$1" "$(_adjustment_config content_hash_field)" 2>/dev/null || true)"
-  if [ "$stored" = "$(spec_content_hash "$1")" ]; then
+  if [ "$stored" = "$(adjustment_content_hash "$1")" ]; then
     echo same
   else
     echo changed
@@ -44,7 +56,7 @@ adjustment_hash_state() {
 # Grava o hash do conteúdo atual no front-matter.
 # adjustment_store_hash <arquivo>
 adjustment_store_hash() {
-  frontmatter_put "$1" "$(_adjustment_config content_hash_field)" "$(spec_content_hash "$1")"
+  frontmatter_put "$1" "$(_adjustment_config content_hash_field)" "$(adjustment_content_hash "$1")"
 }
 
 # Seções (títulos `## `) com linhas alteradas desde o último commit, separadas por vírgula.

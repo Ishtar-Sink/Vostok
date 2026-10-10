@@ -587,7 +587,7 @@ check "planejada: approve-spec recusa" bash -c "! '$AP' --approve SPEC-008 >/dev
 
 # Aprovação de tarefas.
 AT="$H/skills/default/approve-task/scripts/approve-task.sh"
-store_hash() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; adjustment_store_hash "$1"' _ "$1"; }
+store_hash() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments plan task; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; adjustment_store_hash "$1"' _ "$1"; }
 set_status() { sed -i.bak "s/^status: .*/status: $2/" "$1" && rm -f "$1.bak"; }
 cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
 t3="$TASKS/SPEC-008/TASK-03.md"
@@ -702,7 +702,7 @@ ET="$H/skills/default/execute-task/scripts/execute-task.sh"
 cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
 EV="$TASKS/SPEC-008/evidence"
 rec() { sed -n '/^## Registro de execução$/,/^## /p' "$1" | grep '^| [0-9]' | cut -d'|' -f2,4,5 | tr -d ' ' | paste -sd ';' -; }
-hash_ok() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; [ "$(adjustment_hash_state "$1")" = same ]' _ "$1"; }
+hash_ok() { HARNESS_DIR="$H" bash -c 'for l in config text frontmatter markdown spec-validation adjustments plan task; do source "$HARNESS_DIR/scripts/lib/$l.sh"; done; [ "$(adjustment_hash_state "$1")" = same ]' _ "$1"; }
 python3 - "$t1" <<'PY'
 import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
 s = s.replace('### Baseline\n\n- `true`\n', '### Baseline\n\n- `ls AGENTS.md`\n- `echo "a|b"; echo erro >&2`\n- `false`\n', 1)
@@ -738,6 +738,11 @@ check "--start inicia a tarefa" bash -c "'$ET' --start SPEC-008 TASK-01 | grep -
 check "iniciada: status in_progress" bash -c "sed -n '2,/^---/p' '$t1' | grep -qx 'status: in_progress'"
 check "iniciada: linha no registro" [ "$(rec "$t1")" = '1|início|in_progress' ]
 check "iniciada: hash do conteúdo atualizado" hash_ok "$t1"
+check "registro não muda o hash da tarefa (CT-07)" bash -c "[ '$(fm "$t1" content_hash)' = '$(fm "$t1" approved_hash)' ]"
+cp "$t1" "$R/.t1-hash"
+sed -i.bak 's/^1\. Criar o script\.$/1. Criar o script à mão./' "$t1" && rm -f "$t1.bak"
+check "edição fora do registro muda o hash da tarefa" bash -c "! HARNESS_DIR='$H' bash -c 'for l in config text frontmatter markdown spec-validation adjustments plan task; do source \"\$HARNESS_DIR/scripts/lib/\$l.sh\"; done; [ \"\$(adjustment_hash_state \"\$1\")\" = same ]' _ '$t1'"
+cp "$R/.t1-hash" "$t1"; rm -f "$R/.t1-hash"
 fails "--start de tarefa já iniciada" "$ET" --start SPEC-008 TASK-01
 check "--baseline coleta um arquivo por comando" bash -c "'$ET' --baseline SPEC-008 TASK-01 | grep -qF '3 comando(s); códigos de saída: 0, 0, 1' && [ \"\$(ls '$EV/TASK-01/baseline' | paste -sd ' ' -)\" = '01.out 02.out 03.out' ]"
 check "baseline: comando, código e saída, a partir da raiz" bash -c "[ \"\$(cat '$EV/TASK-01/baseline/01.out')\" = \"\$(printf '\$ ls AGENTS.md\nexit: 0\nAGENTS.md')\" ]"
@@ -755,7 +760,7 @@ check "--start aceita dependência done" "$ET" --start SPEC-008 TASK-02
 rm -rf "$TASKS/SPEC-008"; mv "$R/.tasks-ok" "$TASKS/SPEC-008"
 
 # Validação de tarefas: testes, regressão e retomada.
-VT="$H/skills/default/validate-task/scripts/validate-task.sh"
+VT="$H/skills/default/finish-task/scripts/finish-task.sh"
 cp -R "$TASKS/SPEC-008" "$R/.tasks-ok"
 fmv() { sed -n '2,/^---/p' "$1" | grep "^$2:" | sed "s/^$2: //"; }
 python3 - "$t1" <<'PY'
@@ -766,9 +771,12 @@ open(p, 'w', encoding='utf-8').write(s)
 PY
 store_hash "$t1"; "$AT" --approve SPEC-008 TASK-01 > /dev/null
 echo um > "$R/estado.txt"; rm -f "$R/.falha"
-fails "validate-task sem argumentos" "$VT"
-fails "validate-task com ID inválido" "$VT" --tests SPEC-008 ../TASK-01
+fails "finish-task sem argumentos" "$VT"
+fails "finish-task com ID inválido" "$VT" --tests SPEC-008 ../TASK-01
 check "--tests recusa tarefa aprovada, ainda não iniciada" bash -c "'$VT' --tests SPEC-008 TASK-01 2>&1 | grep -qF \"a tarefa TASK-01 está com status 'approved'; só tarefas com status 'in_progress' ou 'validating' são validadas\""
+# Só o finish-task.sh --finish grava o status 'done' (RF-04): nenhum outro script o grava.
+check "só o finish-task.sh grava o status done" bash -c "! grep -rE 'frontmatter_set[^|;]*status[^|;]*done' '$H/scripts' '$H/skills' --include='*.sh' | grep -v '/finish-task/scripts/finish-task.sh'"
+check "o finish-task.sh grava o status done" grep -qE 'frontmatter_set[^|;]*status[^|;]*done' "$VT"
 "$ET" --start SPEC-008 TASK-01 > /dev/null
 mv "$TASKS/SPEC-008" "$R/.sem-baseline"; cp -R "$R/.sem-baseline" "$TASKS/SPEC-008"
 check "--regression recusa sem baseline" bash -c "'$VT' --regression SPEC-008 TASK-01 2>&1 | grep -qF 'o baseline de TASK-01 não foi coletado'"
@@ -961,6 +969,22 @@ check "fontes: memória com status e data" bash -c "grep -qF -- '- \`DEC-102\` D
 check "fontes: commits só do período e dos caminhos das tarefas" bash -c "grep -qF 'depois da aprovação, caminho da tarefa' <<< '$out' && ! grep -qF 'antes da aprovação' <<< '$out' && ! grep -qF 'outro caminho' <<< '$out'"
 check "fontes: commit com hash e data" bash -c "grep -Eq -- '^- \`[0-9a-f]+\` 2026-01-15 depois da aprovação, caminho da tarefa\$' <<< '$out'"
 check "fontes não alteram a spec nem as tarefas" bash -c "[ '$before' = \"\$(cat '$r8' '$TASKS'/SPEC-008/TASK-*.md | cksum)\" ]"
+# Limite final dos commits (CT-11, CB-09): o `approved_at` mais antigo das specs aprovadas depois.
+commit_at 2026-01-20T12:00:00Z nao/existe/novo.sh 'antes da spec seguinte'
+commit_at 2026-02-03T12:00:00Z nao/existe/novo.sh 'entre as specs seguintes'
+commit_at 2026-02-10T12:00:00Z nao/existe/novo.sh 'depois das specs seguintes'
+out="$("$FS" --sources SPEC-008 2>&1)"
+check "sem spec aprovada depois, os commits não têm limite final (CB-09)" bash -c "grep -qF 'antes da spec seguinte' <<< '$out' && grep -qF 'entre as specs seguintes' <<< '$out' && grep -qF 'depois das specs seguintes' <<< '$out'"
+printf -- '---\nid: SPEC-097\napproved_at: 2026-01-05T00:00:00Z\n---\n' > "$H/work/specs/refined/SPEC-097-anterior.md"
+printf -- '---\nid: SPEC-099\napproved_at: 2026-02-01T00:00:00Z\n---\n' > "$H/work/specs/refined/SPEC-099-seguinte.md"
+mkdir -p "$H/work/.archive/SPEC-098"
+printf -- '---\nid: SPEC-098\napproved_at: 2026-02-05T00:00:00Z\n---\n' > "$H/work/.archive/SPEC-098/spec.md"
+out="$("$FS" --sources SPEC-008 2>&1)"
+check "fontes: commits até o approved_at da spec seguinte (CT-11)" bash -c "grep -qF 'antes da spec seguinte' <<< '$out' && ! grep -qF 'entre as specs seguintes' <<< '$out' && ! grep -qF 'depois das specs seguintes' <<< '$out'"
+rm "$H/work/specs/refined/SPEC-099-seguinte.md"
+out="$("$FS" --sources SPEC-008 2>&1)"
+check "fontes: o limite vem também da spec arquivada (CT-11)" bash -c "grep -qF 'entre as specs seguintes' <<< '$out' && ! grep -qF 'depois das specs seguintes' <<< '$out'"
+rm -rf "$H/work/.archive/SPEC-098" "$H/work/specs/refined/SPEC-097-anterior.md"
 sed -i.bak 's/^approved_at: .*/approved_at: 2035-01-01T00:00:00Z/' "$r8" && rm -f "$r8.bak"
 out="$("$FS" --sources SPEC-008 2>&1)"
 check "fontes sem commits no período" bash -c "grep -qF 'Nenhum commit encontrado.' <<< '$out'"
@@ -1184,7 +1208,8 @@ check "técnico: tema escuro, botão e tokens do claro" bash -c "head -2 '$TX' |
 check "técnico: impressão no tema da tela, sem o botão nem o sumário" bash -c "p=\$(sed -n '/@media print/,/^}/p' '$TX'); grep -qF 'print-color-adjust: exact' <<< \"\$p\" && grep -qF '.tbtn, .nav { display: none; }' <<< \"\$p\" && grep -qF 'break-before: page' <<< \"\$p\""
 check "técnico: sem variáveis sem preencher" bash -c "! grep -q '#{' '$TX'"
 check "técnico: título, ID e datas" bash -c "grep -qF '<h1>$(fm "$r8" title | tr -d '"')</h1>' '$TX' && grep -qF 'Documento técnico · SPEC-008 · aprovada em 2026-01-10 · concluída em 2026-02-03' '$TX'"
-check "técnico: sumário com uma entrada por seção" bash -c "for id in visao-geral arquitetura o-que-foi-feito requisitos arquivos commits decisoes aprendizados atencao referencias; do grep -qF \"<a href=\\\"#\$id\\\">\" '$TX' && grep -qF \"<section class=\\\"sec\" '$TX' && grep -qF \"id=\\\"\$id\\\">\" '$TX' || exit 1; done"
+check "técnico: uma aba e um painel por seção, com o endereço #<aba> (CT-15)" bash -c "for id in visao-geral arquitetura o-que-foi-feito requisitos arquivos diffs commits decisoes aprendizados atencao referencias; do grep -qF \"<a href=\\\"#p-\$id\\\" role=\\\"tab\\\" data-tab=\\\"\$id\\\">\" '$TX' && grep -qF \"<section class=\\\"panel\\\" id=\\\"p-\$id\\\" role=\\\"tabpanel\\\" data-panel=\\\"\$id\\\">\" '$TX' || exit 1; done; [ \$(grep -c 'role=\"tab\"' '$TX') -eq 11 ] && [ \$(grep -c 'role=\"tabpanel\"' '$TX') -eq 11 ] && grep -qF 'role=\"tablist\"' '$TX'"
+check "técnico: script das abas com history.replaceState (CT-15)" bash -c "grep -qF 'history.replaceState' '$TX' && grep -qF 'document.body.classList.add(\"tabs\")' '$TX'"
 sed -i.bak -e '/^## Decisões$/,/^## Aprendizados$/s/^Texto da seção\.$/Escolheu <bash> \& testes./' \
   -e '/^## Referências$/,/^# Evidências$/s/^Texto da seção\.$/- `docs\/ref.md`: motivo da leitura./' "$FC" && rm -f "$FC.bak"
 sed -i.bak 's/^covers: .*/covers: [RF-01, RF-02]/' "$TASKS/SPEC-008/TASK-02.md" && rm -f "$TASKS/SPEC-008/TASK-02.md.bak"
@@ -1215,7 +1240,7 @@ GIT_AUTHOR_DATE=2026-01-20T12:00:00Z GIT_COMMITTER_DATE=2026-01-20T12:00:00Z gf 
 printf 'a\000c\n' > "$R/nao/existe/bin.dat"
 "$FS" --build SPEC-008 > /dev/null
 check "técnico: commits do período com hash, data e mensagem escapada" bash -c "grep -Eq '^<tr><td class=\"mono\">[0-9a-f]+</td><td class=\"mono\">2026-01-15</td><td>depois &lt;da&gt; &amp; aprovação</td></tr>\$' '$TX' && ! grep -qF 'antes da aprovação' '$TX'"
-dsec="$(sed -n '/id="diffs"/,/id="commits"/p' "$TX")"
+dsec="$(sed -n '/id="p-diffs"/,/id="p-commits"/p' "$TX")"
 check "técnico: um bloco expansível por arquivo alterado, sem os criados (RF-17)" bash -c "[ \$(grep -c '^<details class=\"dfile\">\$' <<< '$dsec') -eq 4 ] && grep -qF 'nao/existe/doc.md' <<< '$dsec' && ! grep -qF 'nao/existe/novo.sh' <<< '$dsec'"
 check "técnico: diff com as linhas removidas e acrescentadas e os totais (CT-17)" bash -c "grep -qF '<b class=\"path\">nao/existe/doc.md</b><span class=\"tag criar\">+2</span><span class=\"tag remover\">−1</span>' <<< '$dsec'"
 check "técnico: linha mudada fica lado a lado, escapada (CT-17)" grep -qxF '<tr><td class="ln">2</td><td class="code del">dois</td><td class="ln">2</td><td class="code add">DOIS &lt;b&gt; &amp; &quot;x&quot;</td></tr>' <<< "$dsec"
@@ -1259,7 +1284,8 @@ check "--build do documento de evidências não altera a spec nem as tarefas" ba
 check "evidências: tema escuro, botão e impressão no tema da tela (CT-10)" bash -c "head -2 '$EV' | paste -sd ' ' - | grep -qxF '<!doctype html> <html lang=\"pt-BR\" data-theme=\"dark\">' && grep -qF 'id=\"theme-toggle\"' '$EV' && grep -qF 'print-color-adjust: exact' '$EV' && grep -qF '.tbtn, .nav { display: none; }' '$EV'"
 check "evidências: sem variáveis sem preencher" bash -c "! grep -q '#{' '$EV'"
 check "evidências: resumo com as contagens" grep -qF '<strong>6 evidência(s)</strong> em <strong>2 tarefa(s)</strong>: 3 embutida(s) no documento e 3 na pasta' "$EV"
-check "evidências: uma seção por tarefa, com o sumário" bash -c "[ \$(grep -c '^<section class=\"sec\" id=\"t-task-0' '$EV') -eq 2 ] && grep -qF '<a href=\"#t-task-01\">TASK-01</a>' '$EV' && grep -qF '<a href=\"#t-task-02\">TASK-02</a>' '$EV'"
+check "evidências: um link role=tab e um painel por tarefa (CT-16)" bash -c "[ \$(grep -c '^<section class=\"panel\" id=\"p-task-0[12]\" role=\"tabpanel\" data-panel=\"task-0[12]\">' '$EV') -eq 2 ] && grep -qF '<a href=\"#p-task-01\" role=\"tab\" data-tab=\"task-01\">TASK-01</a>' '$EV' && grep -qF '<a href=\"#p-task-02\" role=\"tab\" data-tab=\"task-02\">TASK-02</a>' '$EV' && grep -qF 'role=\"tablist\"' '$EV'"
+check "evidências: impressão mostra todos os painéis (CT-16)" bash -c "sed -n '/@media print/,/^}/p' '$EV' | grep -qF '.tabs .panel:not(.on), .panel { display: block; }'"
 check "evidências: peça com tarefa, nome e tipo (RF-10)" bash -c "grep -qF '<span class=\"piece-id\">TASK-01</span> — Criar script' '$EV' && grep -qF '<b>foto.png</b><span class=\"tag manual\">manual</span>' '$EV' && grep -qF '<b>saida.log</b><span class=\"tag auto\">automática</span>' '$EV'"
 check "evidências: uma peça por evidência" bash -c "[ \$(grep -c '^<figure class=\"piece\">' '$EV') -eq 6 ]"
 check "evidências: como chegar e como ler de cada peça (RF-10)" bash -c "grep -qxF '    <p><b>Como chegar</b>passos de foto.png</p>' '$EV' && grep -qxF '    <p><b>Como ler</b>olhe <strong>foto.png</strong></p>' '$EV'"
@@ -1293,6 +1319,20 @@ sed -i.bak 's/^title: .*/title: "Criar <script> \& testes"/' "$t1" && rm -f "$t1
 "$FS" --build SPEC-008 > /dev/null
 check "executivo: títulos da spec e das tarefas escapados" bash -c "grep -qF '<h1>Planejar &amp; &lt;revisar&gt;</h1>' '$EX' && grep -qF '<span class=\"id\">TASK-01</span>Criar &lt;script&gt; &amp; testes</span>' '$EX'"
 
+# Falha na geração (--build): erro, sem sucesso e com os documentos anteriores intactos (CT-12).
+"$FS" --build SPEC-008 > /dev/null
+h_ex="$(fl sha256_hash < "$EX")"; h_tx="$(fl sha256_hash < "$TX")"; h_ev="$(fl sha256_hash < "$EV")"
+mv "$H/templates/finalize/technical.html" "$R/.technical-ok"
+out="$("$FS" --build SPEC-008 2>&1)"; rc=$?
+mv "$R/.technical-ok" "$H/templates/finalize/technical.html"
+check "--build com falha na geração do técnico termina com erro (RF-16, CT-12)" [ "$rc" -ne 0 ]
+check "--build com falha mostra o erro e não diz que gerou (RF-16, CT-12)" bash -c "grep -qF 'falha ao gerar tecnico.html' <<< \"\$1\" && ! grep -qF 'Documentos de' <<< \"\$1\"" _ "$out"
+check "--build com falha mantém o técnico anterior com o mesmo sha256 (RF-17, CB-10)" [ "$h_tx" = "$(fl sha256_hash < "$TX")" ]
+check "--build com falha para no documento e mantém o de evidências (CB-10)" [ "$h_ev" = "$(fl sha256_hash < "$EV")" ]
+check "--build com falha não deixa temporários" bash -c "[ -z \"\$(find '$H/work/finalize/SPEC-008' -name '*.new' -o -name '.assets.new')\" ]"
+"$FS" --build SPEC-008 > /dev/null
+check "--build volta a gerar depois da falha, com o executivo igual" [ "$h_ex" = "$(fl sha256_hash < "$EX")" ]
+
 # Arquivamento (--archive).
 ARC="$H/work/.archive/SPEC-008"; SD="$R/docs/specs/SPEC-008"; FD="$H/work/finalize/SPEC-008"
 snap() { find "$r8" "$TASKS/SPEC-008" "$FD" -type f -exec cksum {} + 2>/dev/null | sort; }
@@ -1307,6 +1347,10 @@ rmdir "$ARC"
 mv "$FD/evidencias.html" "$R/.ev-html"
 check "--archive sem os três documentos é recusado" bash -c "'$FS' --archive SPEC-008 2>&1 | grep -qF 'documento ausente: packages/harness/work/finalize/SPEC-008/evidencias.html; gere com --build' && [ ! -e '$ARC' ] && [ -f '$r8' ]"
 mv "$R/.ev-html" "$FD/evidencias.html"
+# Falha forçada: um arquivo comum no lugar de docs/specs impede a publicação, depois de o arquivo ser montado.
+rmdir "$R/docs/specs" 2>/dev/null; : > "$R/docs/specs"
+check "--archive com a cópia dos documentos publicados falhando desfaz tudo (RF-18, CT-13)" bash -c "! '$FS' --archive SPEC-008 >/dev/null 2>&1 && '$FS' --archive SPEC-008 2>&1 | grep -qF 'falha ao copiar para o arquivo; nada foi removido' && [ ! -e '$ARC' ] && [ -f '$R/docs/specs' ] && [ -f '$r8' ] && [ -d '$TASKS/SPEC-008' ] && [ -d '$FD' ] && [ '$before' = \"\$(find '$r8' '$TASKS/SPEC-008' '$FD' -type f -exec cksum {} + 2>/dev/null | sort)\" ] && grep -qx 'status: implemented' '$r8'"
+rm -f "$R/docs/specs"; mkdir -p "$R/docs/specs"
 cp "$r8" "$R/.arc-r8"; cp "$FD/executivo.html" "$R/.arc-exec"
 out="$("$FS" --archive SPEC-008 2>&1)"
 check "--archive arquiva (CT-11)" grep -qxF "Spec SPEC-008 arquivada em packages/harness/work/.archive/SPEC-008, com status 'archived'." <<< "$out"
@@ -1488,7 +1532,7 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
-check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize validate-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
+check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
 
 echo
 echo "Passou: $PASS  Falhou: $FAIL"

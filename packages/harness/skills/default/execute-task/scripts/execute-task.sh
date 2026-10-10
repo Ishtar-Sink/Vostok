@@ -59,7 +59,7 @@ start_blockers() {
     echo "a tarefa $id está com status '$status'; só tarefas com status '$approved_status' são executadas. Peça a aprovação ao usuário (skill approve-task)"
     return
   fi
-  [ "$(frontmatter_get "$file" "$approved_hash_field" 2>/dev/null || true)" = "$(spec_content_hash "$file")" ] ||
+  [ "$(frontmatter_get "$file" "$approved_hash_field" 2>/dev/null || true)" = "$(adjustment_content_hash "$file")" ] ||
     echo "a tarefa $id mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
   while IFS= read -r dep; do
     [ -n "$dep" ] || continue

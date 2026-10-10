@@ -95,7 +95,7 @@ execution_subsections:
 change_subsection: Mudar
 
 # Subseção "Verificação": um bloco `bash` com os comandos que comprovam a tarefa, executado pelo
-# validate-task.sh --tests como um script, que para no primeiro comando com falha.
+# finish-task.sh --tests como um script, que para no primeiro comando com falha.
 verify_subsection: Verificação
 
 # Subseção "Baseline": um comando por item ("- `comando`"), rodado antes e depois da mudança.

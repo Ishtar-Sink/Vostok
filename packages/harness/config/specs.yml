@@ -13,7 +13,7 @@ status:
   refined: refined
   approved: approved
   planned: planned
-  implemented: implemented   # todas as tarefas da spec concluídas (validate-task.sh --finish)
+  implemented: implemented   # todas as tarefas da spec concluídas (finish-task.sh --finish)
   archived: archived         # spec finalizada e arquivada (finalize-spec.sh --archive)
 
 # --- Rascunho (create-new-spec.sh) ---

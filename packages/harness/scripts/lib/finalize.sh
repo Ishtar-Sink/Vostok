@@ -193,10 +193,28 @@ finalize_sources_memory() {
   [ "$found" -eq 1 ] || echo "Nenhuma entrada de memória no período."
 }
 
-# Bloco "## Commits" das fontes: commits desde a aprovação da spec que alteram os caminhos das tarefas.
+# O menor `approved_at` maior que o da spec, entre as outras specs em `refined/` e em `<paths.archive>/*/spec.md`.
+# Vazio se nenhuma spec foi aprovada depois. As datas são ISO 8601 em UTC, então a comparação é textual.
+# finalize_next_approved_at <arquivo da spec>
+finalize_next_approved_at() {
+  local approved specs_dir file value next=""
+  approved="$(finalize_approved_at "$1")"
+  [ -n "$approved" ] || return 0
+  specs_dir="$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.specs)")"
+  for file in "$specs_dir/$(config_get "$HARNESS_DIR/config/specs.yml" refined_dir)"/*.md \
+    "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.archive)")"/*/spec.md; do
+    [ -f "$file" ] || continue
+    value="$(finalize_approved_at "$file")"
+    [ -n "$value" ] && [[ "$value" > "$approved" ]] || continue
+    if [ -z "$next" ] || [[ "$value" < "$next" ]]; then next="$value"; fi
+  done
+  printf '%s' "$next"
+}
+
+# Bloco "## Commits" das fontes: commits desde a aprovação da spec, até a da spec seguinte, que alteram os caminhos das tarefas.
 # finalize_sources_commits <arquivo da spec> <pasta das tarefas da spec>
 finalize_sources_commits() {
-  local approved root action path paths=() log
+  local approved until root action path paths=() log
   echo "## Commits"
   echo
   root="$(_task_root_dir)"
@@ -216,7 +234,8 @@ finalize_sources_commits() {
     echo "Nenhum commit encontrado."
     return 0
   fi
-  log="$(git -C "$root" log --since="$approved" --format='- `%h` %ad %s' --date=short -- "${paths[@]}" 2>/dev/null || true)"
+  until="$(finalize_next_approved_at "$1")"
+  log="$(git -C "$root" log --since="$approved" ${until:+--until="$until"} --format='- `%h` %ad %s' --date=short -- "${paths[@]}" 2>/dev/null || true)"
   if [ -n "$log" ]; then
     printf '%s\n' "$log"
   else
@@ -726,12 +745,31 @@ finalize_timeline_html() {
   done
 }
 
-# Gera o documento executivo a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Não usa a
+# Executa o comando, que escreve um documento na saída padrão, num temporário ao lado de <documento>. Se o comando
+# falhar ou escrever no stderr, apaga o temporário, mostra o stderr e falha, deixando o documento anterior como
+# estava; senão, o temporário substitui o documento. Roda no shell atual (não chame dentro de `$()`).
+# finalize_generate <documento> <comando> [argumentos...]
+finalize_generate() {
+  local out="$1" tmp err status=0
+  shift
+  mkdir -p "$(dirname "$out")"
+  tmp="$out.new"; err="$(mktemp)"
+  "$@" > "$tmp" 2> "$err" || status=$?
+  if [ "$status" -ne 0 ] || [ -s "$err" ]; then
+    cat "$err" >&2
+    echo "Erro: falha ao gerar $(basename "$out")" >&2
+    rm -f "$tmp" "$err"
+    return 1
+  fi
+  mv "$tmp" "$out"
+  rm -f "$err"
+}
+
+# Escreve na saída padrão o documento executivo a partir do conteúdo, da spec e das tarefas. Não usa a
 # data da execução: gerar de novo com as mesmas entradas dá o mesmo arquivo.
-# finalize_build_executive <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
-finalize_build_executive() {
-  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part deliveries count
-  out="$(finalize_document_path "$id" executive)"
+# _finalize_executive_html <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+_finalize_executive_html() {
+  local id="$1" spec="$2" tasks_dir="$3" title approved last task date tokens part deliveries count
   tokens="$(finalize_css_tokens)" || return 1
   title="$(frontmatter_get "$spec" title | finalize_html_escape)"
   approved="$(finalize_approved_at "$spec")"
@@ -745,7 +783,6 @@ finalize_build_executive() {
   part="$(finalize_content_part "$(finalize_content_path "$id")" Executivo)"
   deliveries="$(printf '%s\n' "$part" | finalize_part_section Entregas)"
   count="$(printf '%s\n' "$deliveries" | finalize_deliveries | grep -c '^E' || true)"
-  mkdir -p "$(dirname "$out")"
   TPL_DOC_TITLE="$id · Resumo executivo · $title" \
   TPL_TOKENS="$tokens" \
   TPL_SPEC_ID="$id" \
@@ -763,7 +800,15 @@ finalize_build_executive() {
   TPL_RISKS="$(printf '%s\n' "$part" | finalize_part_section 'Riscos e limitações' | finalize_block_html)" \
   TPL_INDICATORS="$(finalize_indicators_html "$tasks_dir")" \
   TPL_TIMELINE="$(finalize_timeline_html "$tasks_dir")" \
-    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_EXECUTIVE_TEMPLATE" > "$out"
+    render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_EXECUTIVE_TEMPLATE"
+}
+
+# Gera o documento executivo e imprime o caminho; em falha, mantém o anterior e termina com erro.
+# finalize_build_executive <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_executive() {
+  local out
+  out="$(finalize_document_path "$1" executive)"
+  finalize_generate "$out" _finalize_executive_html "$1" "$2" "$3" || return 1
   printf '%s' "$out"
 }
 
@@ -988,13 +1033,12 @@ finalize_diffs_html() {
   done <<< "$paths"
 }
 
-# Gera o documento técnico a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Como o
+# Escreve na saída padrão o documento técnico a partir do conteúdo, da spec e das tarefas. Como o
 # executivo, não usa a data da execução. Os diffs entram por `finalize_splice`, porque podem passar do limite
 # de tamanho de uma variável de ambiente.
-# finalize_build_technical <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
-finalize_build_technical() {
-  local id="$1" spec="$2" tasks_dir="$3" out title approved last task date tokens part diffs
-  out="$(finalize_document_path "$id" technical)"
+# _finalize_technical_html <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+_finalize_technical_html() {
+  local id="$1" spec="$2" tasks_dir="$3" title approved last task date tokens part diffs
   tokens="$(finalize_css_tokens)" || return 1
   title="$(frontmatter_get "$spec" title | finalize_html_escape)"
   approved="$(finalize_approved_at "$spec")"
@@ -1006,7 +1050,6 @@ finalize_build_technical() {
   done
   approved="${approved%%T*}"
   part="$(finalize_content_part "$(finalize_content_path "$id")" Técnico)"
-  mkdir -p "$(dirname "$out")"
   diffs="$(mktemp)"
   finalize_diffs_html "$spec" "$tasks_dir" > "$diffs"
   TPL_DOC_TITLE="$id · Documento técnico · $title" \
@@ -1027,8 +1070,16 @@ finalize_build_technical() {
   TPL_ATTENTION="$(printf '%s\n' "$part" | finalize_part_section 'Pontos de atenção' | finalize_block_html)" \
   TPL_REFERENCES="$(printf '%s\n' "$part" | finalize_part_section 'Referências' | finalize_block_html)" \
     render "$(harness_path "$(config_get "$HARNESS_DIR/config/main.yml" paths.templates)")/$FINALIZE_TECHNICAL_TEMPLATE" \
-    | finalize_splice "@@FINALIZE_DIFFS@@" "$diffs" > "$out"
+    | finalize_splice "@@FINALIZE_DIFFS@@" "$diffs"
   rm -f "$diffs"
+}
+
+# Gera o documento técnico e imprime o caminho; em falha, mantém o anterior e termina com erro.
+# finalize_build_technical <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_technical() {
+  local out
+  out="$(finalize_document_path "$1" technical)"
+  finalize_generate "$out" _finalize_technical_html "$1" "$2" "$3" || return 1
   printf '%s' "$out"
 }
 
@@ -1152,15 +1203,13 @@ finalize_media_to_file() {
     "$(finalize_human_size "$bytes")" "$reason" > "$out"
 }
 
-# Gera o documento de evidências a partir do conteúdo, da spec e das tarefas, e imprime o caminho. Uma peça por
-# evidência, agrupadas por tarefa; evidências que não são embutidas são copiadas para `assets/` ao lado do
-# HTML (a pasta é refeita a cada geração). Define FINALIZE_N_EMBEDDED e FINALIZE_N_ASSETS.
-# finalize_build_evidence <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
-finalize_build_evidence() {
-  local id="$1" spec="$2" tasks_dir="$3" out dir title approved last task date tokens content
-  local tid ttitle evidence_dir name kind how reading class items media n_items=0 n_tasks=0 nav="" templates summary
-  out="$(finalize_document_path "$id" evidence)"
-  dir="$(dirname "$out")"
+# Escreve na saída padrão o documento de evidências a partir do conteúdo, da spec e das tarefas. Uma peça por
+# evidência, agrupadas numa aba por tarefa; evidências que não são embutidas são copiadas para `assets/` dentro
+# de <pasta de montagem>. Define FINALIZE_N_EMBEDDED e FINALIZE_N_ASSETS.
+# _finalize_evidence_html <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec> <pasta de montagem> <pasta dos documentos>
+_finalize_evidence_html() {
+  local id="$1" spec="$2" tasks_dir="$3" stage="$4" dir="$5" title approved last task date tokens content
+  local tid slug ttitle evidence_dir name kind how reading class items media n_items=0 n_tasks=0 nav="" templates summary
   content="$(finalize_content_path "$id")"
   tokens="$(finalize_css_tokens)" || return 1
   title="$(frontmatter_get "$spec" title | finalize_html_escape)"
@@ -1169,8 +1218,6 @@ finalize_build_evidence() {
   FINALIZE_N_EMBEDDED=0
   FINALIZE_N_ASSETS=0
   last=""
-  mkdir -p "$dir"
-  rm -rf "${dir:?}/$FINALIZE_ASSETS_DIR"
   items="$(mktemp)"; media="$(mktemp)"
   for task in "$tasks_dir"/*.md; do
     [ -f "$task" ] || continue
@@ -1180,16 +1227,17 @@ finalize_build_evidence() {
     ttitle="$(frontmatter_get "$task" title)"
     evidence_dir="$(task_evidence_path "$task")"
     n_tasks=$((n_tasks + 1))
-    nav="$nav    <a href=\"#t-$(printf '%s' "$tid" | tr '[:upper:]' '[:lower:]')\">$(printf '%s' "$tid" | finalize_html_escape)</a>"$'\n'
+    slug="$(printf '%s' "$tid" | tr '[:upper:]' '[:lower:]')"
+    nav="$nav    <a href=\"#p-$slug\" role=\"tab\" data-tab=\"$slug\">$(printf '%s' "$tid" | finalize_html_escape)</a>"$'\n'
     {
-      printf '<section class="sec" id="t-%s">\n' "$(printf '%s' "$tid" | tr '[:upper:]' '[:lower:]')"
+      printf '<section class="panel" id="p-%s" role="tabpanel" data-panel="%s">\n' "$slug" "$slug"
       printf '<div class="sec-h"><h2>%s — %s</h2></div>\n' "$(printf '%s' "$tid" | finalize_html_escape)" "$(printf '%s' "$ttitle" | finalize_html_escape)"
     } >> "$items"
     n=0
     while IFS=$'\t' read -r name kind; do
       [ -n "$name" ] || continue
       n=$((n + 1)); n_items=$((n_items + 1))
-      finalize_media_to_file "$evidence_dir/$name" "$tid" "$name" "$dir" "$media"
+      finalize_media_to_file "$evidence_dir/$name" "$tid" "$name" "$stage" "$media"
       how="$(finalize_evidence_field "$content" "## $tid / $name" "$FINALIZE_EVIDENCE_HOW")"
       reading="$(finalize_evidence_field "$content" "## $tid / $name" "$FINALIZE_EVIDENCE_READ")"
       class=auto; [ "$kind" = manual ] && class=manual
@@ -1219,8 +1267,30 @@ finalize_build_evidence() {
   TPL_SUMMARY="$summary" \
   TPL_NAV="$nav" \
   TPL_ITEMS="@@FINALIZE_ITEMS@@" \
-    render "$templates/$FINALIZE_EVIDENCE_TEMPLATE" | finalize_splice "@@FINALIZE_ITEMS@@" "$items" > "$out"
+    render "$templates/$FINALIZE_EVIDENCE_TEMPLATE" | finalize_splice "@@FINALIZE_ITEMS@@" "$items"
   rm -f "$items" "$media"
+}
+
+# Gera o documento de evidências e imprime o caminho. As evidências fora do documento são montadas ao lado e só
+# trocam `assets/` depois do documento gerado com sucesso; em falha, mantém o anterior e termina com erro.
+# Define FINALIZE_N_EMBEDDED e FINALIZE_N_ASSETS (chame sem `$()`).
+# finalize_build_evidence <SPEC_ID> <arquivo da spec> <pasta das tarefas da spec>
+finalize_build_evidence() {
+  local out dir stage
+  out="$(finalize_document_path "$1" evidence)"
+  dir="$(dirname "$out")"
+  stage="$dir/.assets.new"
+  FINALIZE_N_EMBEDDED=0
+  FINALIZE_N_ASSETS=0
+  mkdir -p "$dir"
+  rm -rf "$stage"
+  if ! finalize_generate "$out" _finalize_evidence_html "$1" "$2" "$3" "$stage" "$dir"; then
+    rm -rf "$stage"
+    return 1
+  fi
+  rm -rf "${dir:?}/$FINALIZE_ASSETS_DIR"
+  [ ! -d "$stage/$FINALIZE_ASSETS_DIR" ] || mv "$stage/$FINALIZE_ASSETS_DIR" "$dir/$FINALIZE_ASSETS_DIR"
+  rm -rf "$stage"
   printf '%s' "$out"
 }
 

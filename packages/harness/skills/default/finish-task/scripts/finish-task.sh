@@ -4,25 +4,25 @@
 # execução". As evidências ficam em `paths.tasks`/<SPEC_ID>/`evidence_dir`/<TASK_ID>/, e as saídas da
 # validação, em validation/ dentro dela.
 #
-# Uso: validate-task.sh --tests <SPEC_ID> <TASK_ID>
+# Uso: finish-task.sh --tests <SPEC_ID> <TASK_ID>
 #        Só em `in_progress` ou `validating`. Executa o bloco `bash` de "Verificação" a partir da raiz do
 #        projeto, parando no primeiro comando com falha. Em sucesso, `tests_result: passed`. Em falha,
 #        `tests_result: failed`, regressão e evidências de volta a `null` e `attempts` + 1; ao atingir
 #        `max_attempts`, a tarefa fica `blocked`. Termina com erro se os testes falharem.
-#      validate-task.sh --regression <SPEC_ID> <TASK_ID>
+#      finish-task.sh --regression <SPEC_ID> <TASK_ID>
 #        Só em `in_progress` ou `validating`, com o baseline coletado. Executa de novo cada comando de
 #        "Baseline" e compara o código de saída e a saída. Com diferença, `regression_result: failed`, a
 #        tarefa fica `blocked` e os comandos são listados. Termina com erro se houver regressão.
-#      validate-task.sh --evidence <SPEC_ID> <TASK_ID>
+#      finish-task.sh --evidence <SPEC_ID> <TASK_ID>
 #        Só em `in_progress` ou `validating`. Executa cada evidência automática a partir da raiz do projeto e
 #        grava a saída no arquivo dela; lista as manuais cujo arquivo ainda não foi anexado. Tudo presente,
 #        ou "Não se aplica.", `evidence_result: passed`; faltando manual, `pending`. Uma evidência
 #        automática com código de saída diferente de zero termina com erro, sem gravar o resultado.
-#      validate-task.sh --finish <SPEC_ID> <TASK_ID>
+#      finish-task.sh --finish <SPEC_ID> <TASK_ID>
 #        Exige testes, regressão e evidências `passed` e todos os critérios de "Concluída quando" marcados
 #        (check-done.sh). Grava `done` e, se todas as tarefas da spec estiverem `done`, muda o status da
 #        spec para `implemented`.
-#      validate-task.sh --resume <SPEC_ID> <TASK_ID> "decisão do usuário"
+#      finish-task.sh --resume <SPEC_ID> <TASK_ID> "decisão do usuário"
 #        Só em `blocked`. Volta a `validating`, zera `attempts` e os resultados e registra a decisão.
 set -euo pipefail
 
@@ -41,7 +41,7 @@ MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
 TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
 
-USAGE='Uso: validate-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"'
+USAGE='Uso: finish-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"'
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
@@ -73,7 +73,7 @@ require_running() {
   local status
   status="$(status_of "$1")"
   [ "$status" != "$blocked_status" ] ||
-    die "a tarefa $2 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: validate-task.sh --resume"
+    die "a tarefa $2 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: finish-task.sh --resume"
   [ "$status" = "$in_progress_status" ] || [ "$status" = "$validating_status" ] ||
     die "a tarefa $2 está com status '$status'; só tarefas com status '$in_progress_status' ou '$validating_status' são validadas"
 }

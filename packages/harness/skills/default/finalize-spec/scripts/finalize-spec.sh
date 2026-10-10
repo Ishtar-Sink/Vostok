@@ -83,9 +83,11 @@ case "$1" in
     spec="$(require_finalizable "$2")"
     require_valid_content "$2"
     tasks_dir="$(finalize_tasks_dir "$2")"
-    executive="$(finalize_build_executive "$2" "$spec" "$tasks_dir")"
-    technical="$(finalize_build_technical "$2" "$spec" "$tasks_dir")"
-    finalize_build_evidence "$2" "$spec" "$tasks_dir" > /dev/null
+    # Para no primeiro documento que falhar; os anteriores ficam como estavam. A evidência é chamada sem `$()`
+    # para que FINALIZE_N_ASSETS chegue até aqui.
+    executive="$(finalize_build_executive "$2" "$spec" "$tasks_dir")" || exit 1
+    technical="$(finalize_build_technical "$2" "$spec" "$tasks_dir")" || exit 1
+    finalize_build_evidence "$2" "$spec" "$tasks_dir" > /dev/null || exit 1
     evidence="$(finalize_document_path "$2" evidence)"
     echo "Documentos de $2 gerados em $(finalize_rel "$(finalize_content_dir "$2")"):"
     echo "  - $(basename "$executive")"

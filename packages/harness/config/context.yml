@@ -40,3 +40,9 @@ skills:
     - config/tasks.yml
   refine-spec:
     - rules/project/naming-convention.md
+  init-harness:
+    - rules/project/naming-convention.md
+    - templates/rules/category.md
+  adjust-rules:
+    - rules/project/naming-convention.md
+    - templates/rules/category.md

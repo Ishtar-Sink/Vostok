@@ -1627,6 +1627,137 @@ check "regras: regra removida é aceita" bash -c "'$VR' | grep -qx 'Regras e map
 rm -f "$PRJ/estilo.md"
 check "regras: estado final restaurado" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
 
+# --- init-harness ---
+IH="$H/skills/default/init-harness/scripts/init-harness.sh"
+IHR="$R/ih-rules.txt"
+cp "$H/config/context.yml" "$R/context-ih.orig"
+check "init-harness: finalize da skill" "$C" --finalize init-harness
+check "init-harness: entrada no mapa com os arquivos da skill" bash -c "awk '/^  init-harness:/{f=1;next} f&&/^  [^ ]/{exit} f' '$H/config/context.yml' | grep -q 'templates/rules/category.md'"
+check "init-harness: passo 1 com --skill" grep -qF 'load-extra-context.sh --skill init-harness' "$H/skills/default/init-harness/SKILL.md"
+check "init-harness: redirecionamento gerado" test -f "$R/.claude/skills/init-harness/SKILL.md"
+check "init-harness: carrega o contexto" bash -c "'$CX/load-extra-context.sh' --skill init-harness | grep -q 'rules/project/naming-convention.md'"
+fails "init-harness: sem argumentos" "$IH"
+fails "init-harness: opção inválida" "$IH" --foo
+
+# --detect: projeto sem sinais não imprime nada (FA-01); com manifestos, lista categoria, arquivo e sinal
+check "init-harness: --detect sem sinais de código" bash -c "[ -z \"\$('$IH' --detect | grep -v '^architecture: packages:')\" ]"
+mkdir -p "$R/migrations" "$R/tests"
+printf '{"devDependencies":{"eslint":"1","vitest":"1","prisma":"1"}}\n' > "$R/package.json"
+printf '[package]\nname = "x"\n' > "$R/Cargo.toml"
+check "init-harness: --detect cita o manifesto" bash -c "'$IH' --detect | grep -qx 'stack: package.json: Node.js'"
+check "init-harness: --detect de duas stacks" bash -c "'$IH' --detect | grep -qx 'stack: Cargo.toml: Rust'"
+check "init-harness: --detect de lint e teste" bash -c "'$IH' --detect | grep -qx 'code-style: package.json: eslint/prettier/biome nas dependências' && '$IH' --detect | grep -qx 'testing: package.json: framework de teste nas dependências'"
+check "init-harness: --detect de banco e pastas" bash -c "'$IH' --detect | grep -qx 'database: migrations: pasta de banco de dados' && '$IH' --detect | grep -qx 'testing: tests: pasta de testes'"
+rm -rf "$R/migrations" "$R/tests" "$R/package.json" "$R/Cargo.toml"
+
+# --write: entrada válida cria a categoria pelo template, com IDs em sequência (RF-20)
+printf 'titulo: Testes\nproposito: Define como o projeto testa.\n- Testes com vitest.\nCada módulo tem testes.\n' > "$IHR"
+fails "init-harness: --write com categoria inválida" "$IH" --write Bad_Cat "$IHR"
+fails "init-harness: --write com arquivo inexistente" "$IH" --write testing "$R/nao-existe.txt"
+printf '# só comentário\n\n' > "$R/ih-vazio.txt"
+fails "init-harness: --write sem regras" "$IH" --write testing "$R/ih-vazio.txt"
+check "init-harness: --preview de categoria nova não grava" bash -c "'$IH' --preview testing '$IHR' | grep -q 'Categoria nova' && [ ! -e '$PRJ/testing.md' ]"
+check "init-harness: --write cria a categoria" "$IH" --write testing "$IHR"
+check "init-harness: título e propósito" bash -c "[ \"\$(sed -n 1p '$PRJ/testing.md')\" = '# Testes' ] && grep -qx 'Define como o projeto testa.' '$PRJ/testing.md'"
+check "init-harness: IDs numerados" bash -c "grep -qx '\[project/testing-01\]: Testes com vitest.' '$PRJ/testing.md' && grep -qx '\[project/testing-02\]: Cada módulo tem testes.' '$PRJ/testing.md'"
+check "init-harness: categoria gravada é válida" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+
+# CB-08: sem mudança, nada é alterado
+sum_before="$(sum "$PRJ/testing.md")"
+check "init-harness: reexecução sem mudança" bash -c "'$IH' --write testing '$IHR' | grep -q 'Nenhuma mudança'"
+check "init-harness: reexecução não altera o arquivo" bash -c "[ \"\$(cksum < '$PRJ/testing.md')\" = '$sum_before' ]"
+check "init-harness: --preview sem mudança" bash -c "'$IH' --preview testing '$IHR' | grep -qx 'Nenhuma mudança.'"
+
+# RF-22: só a regra confirmada muda; a removida mantém o ID
+printf 'Testes de integração rodam no CI.\nremover: 1\n' > "$R/ih-update.txt"
+check "init-harness: --preview mostra a mudança" bash -c "'$IH' --preview testing '$R/ih-update.txt' | grep -q '^+\[project/testing-03\]'"
+check "init-harness: --preview não grava" bash -c "[ \"\$(cksum < '$PRJ/testing.md')\" = '$sum_before' ]"
+check "init-harness: --write atualiza" "$IH" --write testing "$R/ih-update.txt"
+check "init-harness: regra nova ganha o próximo ID" grep -qx '\[project/testing-03\]: Testes de integração rodam no CI.' "$PRJ/testing.md"
+check "init-harness: regra removida mantém o ID" bash -c "grep -qE '^\[project/testing-01\]: Removida em [0-9]{4}-[0-9]{2}-[0-9]{2}\.$' '$PRJ/testing.md'"
+check "init-harness: regra intacta preservada" grep -qx '\[project/testing-02\]: Cada módulo tem testes.' "$PRJ/testing.md"
+check "init-harness: categoria atualizada é válida" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+printf 'remover: 1\n' > "$R/ih-remove.txt"
+fails "init-harness: remover em categoria inexistente" "$IH" --write inexistente "$R/ih-remove.txt"
+
+# --load: required e mapa (RF-21)
+fails "init-harness: --load de categoria sem arquivo" "$IH" --load nao-existe always
+fails "init-harness: --load com skill inexistente" "$IH" --load testing fantasma
+fails "init-harness: --load sem destino" "$IH" --load testing ""
+check "init-harness: --load always" "$IH" --load testing always
+check "init-harness: required recebe a categoria" bash -c "awk '/^required:/{f=1;next} /^[^ #]/{f=0} f' '$CTX' | grep -qx '  - rules/project/testing.md'"
+check "init-harness: --load repetido não duplica" bash -c "'$IH' --load testing always >/dev/null && [ \$(grep -c 'rules/project/testing.md' '$CTX') -eq 1 ]"
+cp "$R/context-ih.orig" "$CTX"
+check "init-harness: --load em duas skills" "$IH" --load testing execute-task,finish-task
+check "init-harness: mapa de execute-task" bash -c "awk '/^  execute-task:/{f=1;next} f&&/^  [^ ]/{exit} f' '$CTX' | grep -qx '    - rules/project/testing.md'"
+check "init-harness: mapa de finish-task" bash -c "awk '/^  finish-task:/{f=1;next} f&&/^  [^ ]/{exit} f' '$CTX' | grep -qx '    - rules/project/testing.md'"
+check "init-harness: itens anteriores do mapa preservados" bash -c "awk '/^  execute-task:/{f=1;next} f&&/^  [^ ]/{exit} f' '$CTX' | grep -qx '    - config/tasks.yml'"
+check "init-harness: mapa continua válido" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+cp "$R/context-ih.orig" "$CTX"
+check "init-harness: --load em skill com entrada vazia" bash -c "cp '$CTX' '$R/ctx-ih.bak' && printf '  review-ih: []\n' >> '$CTX' && mkdir -p '$H/skills/custom/review-ih' && '$IH' --load testing review-ih && grep -qx '    - rules/project/testing.md' '$CTX' && ! grep -q 'review-ih: \[\]' '$CTX'"
+rm -rf "$H/skills/custom/review-ih"
+
+# Restaura o mapa e remove as categorias de teste
+cp "$R/context-ih.orig" "$CTX"
+rm -f "$PRJ/testing.md" "$IHR" "$R/ih-vazio.txt" "$R/ih-update.txt" "$R/ih-remove.txt" "$R/ctx-ih.bak"
+check "init-harness: estado final restaurado" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.' && ! grep -q 'rules/project/testing.md' '$CTX'"
+
+# --- adjust-rules ---
+AR="$H/skills/default/adjust-rules/scripts/adjust-rules.sh"
+cp "$CTX" "$R/context-ar.orig"
+fails "adjust-rules: sem argumentos" "$AR"
+fails "adjust-rules: opção desconhecida" "$AR" --foo
+fails "adjust-rules: categoria fora de kebab-case" "$AR" --next-id Bad_Name
+fails "adjust-rules: --next-id de categoria inexistente" "$AR" --next-id nao-existe
+check "adjust-rules: --next-id da categoria language" bash -c "[ \"\$('$AR' --next-id language)\" = project/language-06 ]"
+
+# --create-category: arquivo pelo template, válido para o validador
+fails "adjust-rules: --create-category sem propósito" "$AR" --create-category api "API"
+check "adjust-rules: --create-category api" "$AR" --create-category api "API" "Define as regras de APIs do projeto."
+check "adjust-rules: categoria criada com o título na primeira linha" bash -c "[ \"\$(head -n 1 '$PRJ/api.md')\" = '# API' ] && grep -qxF 'Define as regras de APIs do projeto.' '$PRJ/api.md'"
+check "adjust-rules: categoria criada sem sobras do template" bash -c "! grep -qE '#[{]|<!--' '$PRJ/api.md'"
+check "adjust-rules: validador aceita a categoria nova" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+fails "adjust-rules: --create-category repetida" "$AR" --create-category api "API" "Outro."
+fails "adjust-rules: --create-category fora de kebab-case" "$AR" --create-category Api "API" "Propósito."
+check "adjust-rules: --next-id sem regras" bash -c "[ \"\$('$AR' --next-id api)\" = project/api-01 ]"
+
+# Regras da categoria nova: --remove marca a regra e o ID não volta (RF-27, CB-05)
+printf '[project/api-01]: Regra um.\n[project/api-02]: Regra dois.\n' >> "$PRJ/api.md"
+check "adjust-rules: --next-id com regras" bash -c "[ \"\$('$AR' --next-id api)\" = project/api-03 ]"
+fails "adjust-rules: --remove de ID inexistente" "$AR" --remove api 07
+fails "adjust-rules: --remove com número inválido" "$AR" --remove api x
+check "adjust-rules: --remove api 2" "$AR" --remove api 2
+check "adjust-rules: regra marcada como removida" grep -qxF "[project/api-02]: Removida em $(date +%Y-%m-%d)." "$PRJ/api.md"
+check "adjust-rules: regra vizinha intacta" grep -qxF '[project/api-01]: Regra um.' "$PRJ/api.md"
+check "adjust-rules: --next-id conta a removida" bash -c "[ \"\$('$AR' --next-id api)\" = project/api-03 ]"
+fails "adjust-rules: --remove de regra já removida" "$AR" --remove api 02
+check "adjust-rules: validador aceita a removida" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+check "adjust-rules: --remove da última regra" "$AR" --remove api 01
+check "adjust-rules: após remover todas, o ID segue a sequência" bash -c "[ \"\$('$AR' --next-id api)\" = project/api-03 ]"
+check "adjust-rules: validador aceita todas removidas" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+
+# --load e --unload: mapa de skills e required
+fails "adjust-rules: --load de categoria inexistente" "$AR" --load nao-existe always
+fails "adjust-rules: --load em skill inexistente" "$AR" --load api fantasma
+check "adjust-rules: --load api na execute-task" "$AR" --load api execute-task
+check "adjust-rules: mapa cita a categoria na execute-task" bash -c "awk '/^  execute-task:/ { s = 1; next } /^  [^ ]/ { s = 0 } s' '$CTX' | grep -qxF '    - rules/project/api.md'"
+check "adjust-rules: --load repetido não duplica" bash -c "'$AR' --load api execute-task >/dev/null && [ \$(grep -c 'rules/project/api.md' '$CTX') -eq 1 ]"
+check "adjust-rules: --load em duas skills (uma sem itens)" "$AR" --load api create-skill,approve-spec
+check "adjust-rules: skill sem itens ganha o item" bash -c "awk '/^  approve-spec:/ { s = 1; next } /^  [^ ]/ { s = 0 } s' '$CTX' | grep -qxF '    - rules/project/api.md'"
+check "adjust-rules: --load always entra em required" "$AR" --load api always
+check "adjust-rules: required cita a categoria" bash -c "awk '/^required:/ { s = 1; next } /^[^ ]/ { s = 0 } s' '$CTX' | grep -qxF '  - rules/project/api.md'"
+check "adjust-rules: validador aceita o mapa" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+check "adjust-rules: load-extra-context carrega a categoria" bash -c "'$CX/load-extra-context.sh' --skill execute-task | grep -qF 'Define as regras de APIs do projeto.'"
+check "adjust-rules: --unload da execute-task" "$AR" --unload api execute-task
+fails "adjust-rules: --unload do que não está carregado" "$AR" --unload api execute-task
+check "adjust-rules: --unload always" "$AR" --unload api always
+check "adjust-rules: --unload esvazia a entrada" bash -c "'$AR' --unload api approve-spec >/dev/null && grep -qx '  approve-spec: \[\]' '$CTX'"
+check "adjust-rules: --unload da create-skill" "$AR" --unload api create-skill
+check "adjust-rules: mapa só difere pela entrada vazia" bash -c "diff <(grep -v approve-spec '$CTX') <(grep -v approve-spec '$R/context-ar.orig') >/dev/null"
+rm -f "$PRJ/api.md"
+cp "$R/context-ar.orig" "$CTX"
+check "adjust-rules: estado final restaurado" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+
 # --- Skills ---
 cp "$H/config/context.yml" "$R/context-skills.orig"
 fails "nome de skill inválido" "$C" 'Bad_Name'

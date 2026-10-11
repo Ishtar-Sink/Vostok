@@ -5,7 +5,8 @@
 #   e SPEC-003 Painel de métricas (rascunho). Alguns cenários removem specs (ver `prune`),
 #   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`), da
 #   SPEC-001 já planejada (ver `planned`), das tarefas dela aprovadas (ver `tasks_approved`,
-#   `failing_verify` e `independent`) ou da SPEC-001 implementada (ver `implemented` e `implemented_too`).
+#   `failing_verify` e `independent`), da TASK-01 em execução (ver `started`, `changing_baseline`,
+#   `env_verify` e `blocked_by_env`) ou da SPEC-001 implementada (ver `implemented` e `implemented_too`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -132,6 +133,70 @@ independent() {
   "$1/packages/harness/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-02 "Sem dependência" > /dev/null
 }
 
+# Inicia a TASK-01 (aprovada), coleta o baseline e escreve o `export-memory.sh`, como a `execute-task` deixa a tarefa:
+# em execução, com o código implementado e sem nenhuma validação.
+started() {
+  local dir="$1" ph="$1/packages/harness" s
+  "$ph/skills/default/execute-task/scripts/execute-task.sh" --start SPEC-001 TASK-01 > /dev/null
+  "$ph/skills/default/execute-task/scripts/execute-task.sh" --baseline SPEC-001 TASK-01 > /dev/null
+  s="$ph/scripts/default/memory/export-memory.sh"
+  cat > "$s" <<'SH'
+#!/usr/bin/env bash
+# Exporta as entradas ativas de um tipo de memória em JSON, em memory/export.json.
+set -euo pipefail
+case "${1:-}" in
+  decision|issue|knowledge|all) ;;
+  *) echo "Tipo inválido: ${1:-}. Tipos: decision, issue, knowledge, all." >&2; exit 1 ;;
+esac
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/memory"
+mkdir -p "$dir"
+echo '[]' > "$dir/export.json"
+SH
+  chmod +x "$s"
+}
+
+# Troca o "Baseline" da TASK-01 (pendente) por um comando que muda depois da tarefa: o arquivo de exportação ainda
+# não existe no baseline e passa a existir quando o script é executado. Registra o ajuste.
+changing_baseline() {
+  local ph="$1/packages/harness"
+  python3 - "$ph/work/tasks/SPEC-001/TASK-01.md" <<'PY'
+import sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+old = '- `packages/harness/scripts/default/memory/search-memory.sh decision memória`'
+assert old in s
+s = s.replace(old, '- `cat packages/harness/memory/export.json 2>/dev/null || echo ausente`', 1)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+  "$ph/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-01 "Baseline que muda com a tarefa" > /dev/null
+}
+
+# Troca a "Verificação" da TASK-01 (pendente) por uma que depende de um arquivo do ambiente
+# (`packages/harness/memory/.ambiente`) e registra o ajuste.
+env_verify() {
+  local ph="$1/packages/harness"
+  python3 - "$ph/work/tasks/SPEC-001/TASK-01.md" <<'PY'
+import re, sys; p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+v = '```bash\ns=packages/harness/scripts/default/memory/export-memory.sh\ntest -x "$s"\n"$s" decision\ntest "$(cat packages/harness/memory/export.json)" = "[]"\ntest -f packages/harness/memory/.ambiente   # o ambiente de exportação precisa estar preparado\n```'
+s = re.sub(r'```bash\n.*?```', lambda m: v, s, count=1, flags=re.S)
+open(p, 'w', encoding='utf-8').write(s)
+PY
+  "$ph/skills/default/adjust-task/scripts/adjust-task.sh" --record SPEC-001 TASK-01 "Verificação que depende do ambiente" > /dev/null
+}
+
+# Bloqueia a TASK-01 (em execução) por falha nos testes, nas duas tentativas de `max_attempts`, e depois prepara o
+# ambiente (cria o arquivo de que a "Verificação" depende), como o usuário faria antes de pedir a retomada.
+blocked_by_env() {
+  local ph="$1/packages/harness" i
+  for i in 1 2; do
+    "$ph/skills/default/finish-task/scripts/finish-task.sh" --tests SPEC-001 TASK-01 > /dev/null 2>&1 || true
+  done
+  : > "$ph/memory/.ambiente"
+}
+
+# Executa os testes da TASK-01 (em execução), para que ela tenha resultado gravado.
+tested() {
+  "$1/packages/harness/skills/default/finish-task/scripts/finish-task.sh" --tests SPEC-001 TASK-01 > /dev/null
+}
+
 # Leva a SPEC-001 (tarefas aprovadas) a `implemented`, como se as três tarefas tivessem sido executadas: um
 # repositório git com um commit anterior à aprovação, o script `export-memory.sh` e os demais caminhos de "Mudar"
 # num commit posterior, liberados para o check-commits.sh, as tarefas `done` com o registro de execução e as
@@ -206,7 +271,7 @@ implemented_too() {
 }
 
 for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13 \
-  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b fn01 fn02 fn03; do
+  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b tk20 tk21 tk22 tk23 fn01 fn02 fn03; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
@@ -220,8 +285,12 @@ for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02
     pl13a|pl13b|pl13c) approve "$DEST/$scenario" SPEC-001 SPEC-002; plan "$DEST/$scenario" ;;
     tk01|tk19|tk17a) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
     tk04|tk09|tk17b) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
-    tk15) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; failing_verify "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
+    tk15) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; failing_verify "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; started "$DEST/$scenario" ;;
     tk16) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; independent "$DEST/$scenario"; tasks_approved "$DEST/$scenario" ;;
+    tk20) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; started "$DEST/$scenario" ;;
+    tk21) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; changing_baseline "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; started "$DEST/$scenario" ;;
+    tk22) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; env_verify "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; started "$DEST/$scenario"; blocked_by_env "$DEST/$scenario" ;;
+    tk23) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; started "$DEST/$scenario"; tested "$DEST/$scenario" ;;
     fn01) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario" ;;
     fn02) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario"; implemented_too "$DEST/$scenario" ;;
     fn03) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;

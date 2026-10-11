@@ -1,6 +1,6 @@
 # Cenários com agente
 
-Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan`, `approve-plan`, `approve-task`, `adjust-task`, `execute-task`, `validate-task` e `finalize-spec` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
+Roteiro dos cenários que exercitam as skills `adjust-spec`, `approve-spec`, `plan-tasks`, `adjust-plan`, `approve-plan`, `approve-task`, `adjust-task`, `execute-task`, `finish-task` e `finalize-spec` com um agente de verdade, e os resultados da última execução. Os scripts são cobertos por `tests/run-tests.sh`; aqui fica o que depende do agente: identificar a spec, decompor o pedido, perguntar ou aplicar.
 
 ## Como executar
 
@@ -123,18 +123,22 @@ Em todos os cenários, os planos e as tarefas criados passaram na validação, `
 
 ## Cenários do fluxo da tarefa
 
-Os casos de teste citados são os da spec do fluxo da tarefa (skills `approve-task`, `adjust-task`, `execute-task` e `validate-task`). Todos partem da SPEC-001 planejada, com as três tarefas do plano da fixture. A TASK-01 é detalhada de acordo com a spec, com "Verificação" que exporta as decisões da memória vazia e testa um tipo inválido. As TASK-02 e TASK-03 usam os valores padrão de `fill-refined.py`.
+Os casos de teste citados são os da spec do fluxo da tarefa (skills `approve-task`, `adjust-task`, `execute-task` e, desde a SPEC-004, `finish-task`, que substituiu a `validate-task`). Todos partem da SPEC-001 planejada, com as três tarefas do plano da fixture. A TASK-01 é detalhada de acordo com a spec, com "Verificação" que exporta as decisões da memória vazia e testa um tipo inválido. As TASK-02 e TASK-03 usam os valores padrão de `fill-refined.py`.
 
 | Cenário | Caso de teste | Tarefas | Mensagem do usuário | Resultado esperado |
 |---|---|---|---|---|
 | tk01 | CT-01 | todas `pending` | "aprova todas as tarefas da SPEC-001" | As três viram `approved`, com `approved_hash`. |
 | tk19 | CT-19 | todas `pending` | "aprova as tarefas" | Lista as `pending` e pergunta quais aprovar com o template `question`, sem aprovar nenhuma. |
 | tk04 | CT-04 | todas `approved` | "na TASK-03 da SPEC-001, acrescenta no fim dos passos um passo para rodar a suíte inteira, e acrescenta o arquivo `packages/harness/config/memory.yml` na lista de Ler" | Dois ajustes listados, uma linha `agente` no histórico e a TASK-03 de volta a `pending`. |
-| tk09 | CT-09 | todas `approved` | "executa a TASK-01 da SPEC-001" | Baseline, código, testes, regressão e evidências; TASK-01 `done`, com uma linha por etapa no registro e as evidências em `evidence/TASK-01/`. |
-| tk15 | CT-15 | todas `approved`; a "Verificação" da TASK-01 nunca passa (`failing_verify`) | "executa a TASK-01 da SPEC-001" | Para com o template `blocker` depois de 2 tentativas, mostrando a falha; TASK-01 `blocked`. |
+| tk09 | CT-04, CT-09 | todas `approved` | "executa a TASK-01 da SPEC-001" | Baseline e código, sem nenhuma validação; TASK-01 `in_progress`, com as linhas início e baseline no registro; sugere finalizar a tarefa em linguagem natural, sem chamar a `finish-task`. |
+| tk15 | CT-15 | TASK-01 `in_progress`, com o código escrito; a "Verificação" nunca passa (`failing_verify`, `started`) | "finaliza a TASK-01 da SPEC-001" | Para com o template `blocker` depois de 2 tentativas, mostrando a falha; TASK-01 `blocked`. |
 | tk16 | CT-16 | todas `approved`; a TASK-02 sem dependência (`independent`) | "executa a próxima tarefa" | Pergunta entre TASK-01 e TASK-02 com o template `question`, sem iniciar nenhuma. |
 | tk17a | CT-17 | todas `pending` | "executa a TASK-01 da SPEC-001, não precisa aprovar, eu confio" | Recusa, porque a tarefa não está aprovada, sem aprová-la por conta própria. |
 | tk17b | CT-17 | todas `approved` | "executa a TASK-02 da SPEC-001" | Recusa, porque a TASK-01, de que ela depende, não está `done`. |
+| tk20 | CT-01 | TASK-01 `in_progress`, com o código escrito e sem validação (`started`) | "finaliza a TASK-01 da SPEC-001" | Testes, regressão e evidências; critérios marcados só depois de comprovados; TASK-01 `done`, com a linha de cada etapa no registro. |
+| tk21 | CT-08 | Como o tk20, com o "Baseline" `cat packages/harness/memory/export.json 2>/dev/null \|\| echo ausente`, que muda depois da tarefa (`changing_baseline`) | "finaliza a TASK-01 da SPEC-001" | Os testes passam e a regressão acusa o comando; TASK-01 `blocked`; para com o template `blocker`, mostrando o comando e as opções, sem retomar nem ajustar sozinho. |
+| tk22 | CT-09 | TASK-01 `blocked` por falha nos testes (2 tentativas); a "Verificação" depende de `packages/harness/memory/.ambiente`, que já foi criado (`env_verify`, `blocked_by_env`) | "preparei o ambiente de exportação; retoma a TASK-01 da SPEC-001 e valida de novo" | `--resume` com a decisão do usuário; depois testes, regressão e evidências; TASK-01 `done`, com a linha `retomada` no registro. |
+| tk23 | CT-10 | TASK-01 `validating`, com os testes `passed` (`tested`) | "na TASK-01 da SPEC-001, acrescenta no fim dos passos um passo para exportar também o tipo issue e conferir que o arquivo de exportação continua sendo uma lista JSON" | Um ajuste registrado com origem `agente`; TASK-01 `in_progress`, com `attempts` e os resultados zerados, o baseline mantido, `approved_at` mantido e a linha `ajuste` no registro. |
 
 ## Resultados dos cenários do fluxo da tarefa
 
@@ -157,6 +161,24 @@ Nenhum arquivo fora do esperado mudou (conferido com `cksum`). Observações dos
 - No tk09 e no tk15, os agentes estranharam o `content_hash` diferente do `approved_hash` depois do `--start`. Não é falha: o `--start` compara os dois antes de iniciar, e a linha que ele grava no "Registro de execução" muda o `content_hash`. O `approved_hash` guarda a versão aprovada. Débito DT-003 em `docs/debitos-tecnicos.md`.
 - Na primeira execução do tk09, o agente notou que uma tarefa `in_progress` não pode ser ajustada (a `adjust-task` aceita só `pending` e `approved`). Hoje não há caminho para ajustar uma tarefa em execução (débito DT-001).
 - A retomada com `--resume` e a parada por regressão não têm cenário com agente; ficam cobertas pela suíte (débito DT-002).
+
+## Resultados dos cenários do fluxo da tarefa com a finish-task
+
+Execução de 2026-10-11, com Claude Code (Sonnet 5.5) como agente, cada cenário numa cópia própria da fixture e sem respostas do usuário. As cópias não são repositórios git, então o `check-commits.sh` respondeu "nada a verificar" em todas.
+
+| Cenário | Resultado | Arquivos alterados | Observação |
+|---|---|---|---|
+| tk09 | passou | TASK-01, `export-memory.sh` e `evidence/TASK-01/baseline/` | Iniciou a tarefa, coletou o baseline e escreveu o script. Conferiu à mão a "Verificação" e apagou o `export.json` gerado. Não rodou testes, regressão nem evidências: TASK-01 `in_progress`, com as linhas início e baseline no registro. Sugeriu "finaliza a TASK-01" (skill `finish-task`). |
+| tk15 | passou | TASK-01 e `validation/tests.out` | Rodou `--tests` duas vezes; depois da 1ª falha buscou o erro na memória. TASK-01 `blocked`, com `attempts: 2`. Parou com o template `blocker`, mostrando o comando e duas opções (ajustar a "Verificação" ou retomar aceitando a falha). |
+| tk20 | passou | TASK-01, `export.txt`, `validation/` e `memory/export.json` | Testes, regressão e evidências; conferiu os critérios à mão antes de marcá-los. TASK-01 `done`, com seis linhas no registro, e sugeriu a TASK-02. |
+| tk21 | passou | TASK-01, `validation/` e `memory/export.json` | Os testes passaram e a regressão acusou o comando do "Baseline" (`ausente` virou `[]`). TASK-01 `blocked`. Parou com o template `blocker`, mostrando o comando e três opções (aceitar a diferença, ajustar o "Baseline" ou tratar como regressão real), sem retomar nem ajustar sozinho. |
+| tk22 | passou | TASK-01 e `evidence/TASK-01/` | Usou `--resume` com a decisão do usuário (ambiente preparado), validou de novo e concluiu: TASK-01 `done`, com a linha `retomada` e nove linhas no registro. Não alterou código. |
+| tk23 | passou | TASK-01 | Skill `adjust-task`. Um ajuste com origem `agente`; TASK-01 de `validating` para `in_progress`, com `attempts` e os três resultados `null`, baseline e `approved_at` mantidos, a linha `ajuste` no registro e `adjustments: 1`. Trocou `criar` por `alterar` em "Mudar" do `export-memory.sh`, que já existia, e registrou isso como inferência. |
+
+Observações:
+
+- A parada por regressão (tk21) e a retomada de uma tarefa `blocked` (tk22) agora têm cenário com agente, o que cobre o DT-002. O ajuste de uma tarefa em execução (tk23) cobre o DT-001.
+- O tk09 e o tk15 mudaram em relação à execução de 2026-10-02: a `execute-task` termina sem validar, e a falha de testes do tk15 acontece na `finish-task`.
 
 ## Cenários da finalização
 

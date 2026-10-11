@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-004 · Resumo executivo · Refinamento da Base</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 8px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 18px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+.block { margin-top: 26px; }
+
+/* Indicadores */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--color-line);
+        border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin: 0 0 20px; }
+.kpi { background: var(--color-surface); padding: 15px 17px; }
+.kpi b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.kpi b small { font-size: 15px; font-weight: 500; color: var(--color-muted); letter-spacing: 0; }
+.kpi span { display: block; font-size: 11.5px; color: var(--color-muted); margin-top: 4px; }
+
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.tag.alto { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.medio { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.baixo { background: var(--color-surface-2); color: var(--color-muted); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Cartões das entregas */
+.cards { display: grid; gap: 10px; }
+details.card { background: var(--color-surface); border: 1px solid var(--color-line); border-left: 3px solid var(--color-line);
+               border-radius: 9px; overflow: hidden; }
+details.card.impact-alto { border-left-color: var(--color-primary); }
+details.card.impact-medio { border-left-color: var(--color-ok); }
+details.card > summary { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; padding: 15px 18px; cursor: pointer; list-style: none; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.card[open] > summary::before { content: "\2212"; }
+details.card > summary > b { font-size: 14.5px; letter-spacing: -.008em; flex: 1; min-width: 200px; }
+details.card > summary:hover { background: var(--color-surface-2); }
+details.card > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.card[open] > summary { border-bottom: 1px solid var(--color-line); }
+.card-body { padding: 14px 18px 16px 40px; color: var(--color-muted); font-size: 13.5px; }
+.card-body p { margin: 0 0 10px; }
+.card-body p:last-child { margin-bottom: 0; }
+.card-body p > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em;
+                               color: var(--color-ink); opacity: .7; margin-bottom: 2px; font-weight: 700; }
+.ctl { display: flex; gap: 8px; justify-content: flex-end; margin: -6px 0 12px; }
+.ctl button { font: inherit; font-size: 12px; color: var(--color-muted); background: none; border: 1px solid var(--color-line);
+              border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.ctl button:hover { color: var(--color-ink); border-color: var(--color-primary); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+/* Linha do tempo */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--color-line); display: grid; gap: 10px; }
+.timeline li { position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; font-size: 13.5px; }
+.timeline li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 10px; height: 10px; border-radius: 50%;
+                       background: var(--color-bg); border: 2px solid var(--color-primary); }
+.timeline li.pending::before { border-color: var(--color-muted); }
+.timeline .date { font: 500 12px/1.4 var(--font-mono); color: var(--color-muted); }
+.timeline .task { overflow-wrap: anywhere; }
+.timeline .id { font: 700 11.5px var(--font-mono); color: var(--color-primary); margin-right: 6px; }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .card-body { padding-left: 18px; }
+  .timeline li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+@page { margin: 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav, .ctl { display: none; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; padding-top: 14mm; }
+  main { padding-bottom: 14mm; }
+  details.card, .kpi, .timeline li, tr { break-inside: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Resumo executivo · SPEC-004 · aprovada em 2026-10-09 · concluída em 2026-10-11</p>
+    <h1>Refinamento da Base</h1>
+    <div class="lede">
+<p>Esta entrega fecha as pendências da base: <strong>nenhum débito técnico ficou aberto</strong>, e a conclusão de uma tarefa passou a ser <strong>um passo próprio, pedido pelo usuário</strong>, separado da execução. Uma tarefa em andamento agora pode ser <strong>ajustada sem recomeçar</strong>, a geração dos documentos finais <strong>avisa quando algo dá errado</strong>, e os três documentos de cada spec <strong>navegam do mesmo jeito, por abas</strong>.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-panorama" role="tab" data-tab="panorama">Panorama</a>
+    <a href="#p-entregas" role="tab" data-tab="entregas">Entregas</a>
+    <a href="#p-antes-e-depois" role="tab" data-tab="antes-e-depois">Antes e depois</a>
+    <a href="#p-execucao" role="tab" data-tab="execucao">Execução</a>
+    <a href="#p-proximos-passos" role="tab" data-tab="proximos-passos">Próximos passos</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="panel" id="p-panorama" role="tabpanel" data-panel="panorama">
+    <div class="sec-h"><h2>O que foi entregue</h2><p>As entregas desta spec e o valor de cada uma.</p></div>
+<div class="kpis">
+<div class="kpi"><b>6 de 6</b><span>Débitos técnicos resolvidos, três deles encontrados na spec anterior</span></div>
+<div class="kpi"><b>13 de 13</b><span>Tarefas concluídas com testes, regressão e evidências aprovados</span></div>
+<div class="kpi"><b>+31</b><span>Testes automáticos novos, de 703 para 734, sem falhas</span></div>
+<div class="kpi"><b>6</b><span>Cenários com agente real executados, todos aprovados, três deles para situações antes sem cobertura</span></div>
+<div class="kpi"><b>7</b><span>Tarefas executadas ao mesmo tempo na primeira onda, cada uma isolada das outras</span></div>
+<div class="kpi"><b>3</b><span>Documentos de cada spec com a mesma navegação por abas</span></div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Entrega</th><th>Impacto</th><th>Valor</th></tr></thead>
+<tbody>
+<tr><td class="strong">Finalizar a tarefa como passo próprio</td><td><span class="tag alto">Impacto alto</span></td><td>o usuário decide quando uma tarefa está pronta, e nenhuma tarefa é dada como concluída sem comprovação.</td></tr>
+<tr><td class="strong">Ajuste de tarefa em andamento</td><td><span class="tag alto">Impacto alto</span></td><td>corrigir um erro descoberto no meio do trabalho deixa de exigir edição fora do fluxo, e o ajuste fica registrado.</td></tr>
+<tr><td class="strong">Geração dos documentos que avisa as falhas</td><td><span class="tag medio">Impacto médio</span></td><td>um documento quebrado ou com informação de outra spec não chega mais ao leitor sem aviso.</td></tr>
+<tr><td class="strong">Documentos com navegação por abas</td><td><span class="tag medio">Impacto médio</span></td><td>o leitor encontra o que procura sem rolar documentos longos e sabe quando uma seção não tem dados.</td></tr>
+<tr><td class="strong">Débitos técnicos zerados</td><td><span class="tag medio">Impacto médio</span></td><td>a base volta a não ter pendências conhecidas, com o que foi resolvido documentado.</td></tr>
+</tbody>
+</table></div>
+    <div class="note"><b>O recorte deste documento</b>
+<p>Cobre os débitos registrados até aqui, o novo passo de finalizar tarefas e a navegação dos documentos finais. Ficaram de fora a reabertura de specs arquivadas, a atualização do mapa do projeto e a migração do harness para outra linguagem.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-entregas" role="tabpanel" data-panel="entregas">
+    <div class="sec-h"><h2>As 5 entregas</h2><p>Abra cada entrega para ver o que mudou, o valor e como perceber.</p></div>
+    <div class="ctl"><button type="button" data-cards="open">Abrir todas</button><button type="button" data-cards="close">Fechar todas</button></div>
+    <div class="cards">
+<details class="card impact-alto">
+<summary><b>Finalizar a tarefa como passo próprio</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>a execução termina com o código pronto, e só um pedido separado do usuário valida e conclui a tarefa. Esse passo roda os testes, compara com o estado anterior, guarda as provas e confere os critérios.</p>
+<p><b>Valor</b>o usuário decide quando uma tarefa está pronta, e nenhuma tarefa é dada como concluída sem comprovação.</p>
+<p><b>Como perceber</b>ao terminar uma execução, o agente sugere pedir para finalizar a tarefa.</p>
+
+</div>
+</details>
+<details class="card impact-alto">
+<summary><b>Ajuste de tarefa em andamento</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>uma tarefa em execução, em validação ou bloqueada pode ser ajustada por conversa. O que já foi medido e o código escrito são mantidos, e os resultados voltam a zero.</p>
+<p><b>Valor</b>corrigir um erro descoberto no meio do trabalho deixa de exigir edição fora do fluxo, e o ajuste fica registrado.</p>
+<p><b>Como perceber</b>a tarefa volta ao estado de execução e ganha uma linha de ajuste no histórico.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Geração dos documentos que avisa as falhas</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>se algo falha na geração dos documentos finais, o processo termina com erro e mantém os documentos anteriores. A lista de commits de uma spec também passou a parar na aprovação da spec seguinte.</p>
+<p><b>Valor</b>um documento quebrado ou com informação de outra spec não chega mais ao leitor sem aviso.</p>
+<p><b>Como perceber</b>a geração mostra o erro em vez da mensagem de sucesso.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Documentos com navegação por abas</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>o técnico e as evidências passaram a abrir por abas, como o resumo executivo. Seções sem informação mostram &quot;Não se aplica.&quot; com o motivo, e a impressão traz todas as abas.</p>
+<p><b>Valor</b>o leitor encontra o que procura sem rolar documentos longos e sabe quando uma seção não tem dados.</p>
+<p><b>Como perceber</b>cada seção do técnico e cada tarefa nas evidências tem a própria aba, e um endereço de aba inexistente abre a primeira.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Débitos técnicos zerados</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+
+<p><b>O que mudou</b>os débitos abertos foram resolvidos, e três novos, achados ao finalizar a spec anterior, foram registrados e resolvidos. Os testes cobrem agora a parada por regressão, a retomada de uma tarefa bloqueada e o ajuste em andamento, e o desfazer do arquivamento.</p>
+<p><b>Valor</b>a base volta a não ter pendências conhecidas, com o que foi resolvido documentado.</p>
+<p><b>Como perceber</b>o registro de débitos mostra todos como resolvidos, cada um com a tarefa que o resolveu.</p>
+</div>
+</details>
+    </div>
+  </section>
+
+  <section class="panel" id="p-antes-e-depois" role="tabpanel" data-panel="antes-e-depois">
+    <div class="sec-h"><h2>Antes e depois</h2><p>Como era e como ficou para quem usa.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Situação</th><th>Antes</th><th>Depois</th></tr>
+</thead>
+<tbody>
+<tr><td>Concluir uma tarefa</td><td>Acontecia no fim da execução, sem pedido separado</td><td>Passo próprio, a pedido do usuário</td></tr>
+<tr><td>Erro descoberto no meio da tarefa</td><td>Sem saída: edição fora do fluxo</td><td>Ajuste registrado, sem perder o que já foi medido</td></tr>
+<tr><td>Falha na geração dos documentos</td><td>Sucesso informado com documento quebrado</td><td>Erro e documentos anteriores mantidos</td></tr>
+<tr><td>Commits no documento técnico</td><td>Incluíam trabalho de outras specs</td><td>Só os da própria spec</td></tr>
+<tr><td>Navegação dos documentos</td><td>Abas só no resumo executivo</td><td>Abas nos três documentos</td></tr>
+<tr><td>Débitos técnicos</td><td>3 abertos</td><td>Nenhum aberto</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-execucao" role="tabpanel" data-panel="execucao">
+    <div class="sec-h"><h2>Como foi executado</h2><p>Tarefas, testes e evidências, da aprovação em 2026-10-09 à conclusão em 2026-10-11.</p></div>
+<div class="kpis">
+<div class="kpi"><b>13<small> / 13</small></b><span>Tarefas concluídas</span></div>
+<div class="kpi"><b>13<small> / 13</small></b><span>Tarefas com testes aprovados</span></div>
+<div class="kpi"><b>21<small> / 21</small></b><span>Evidências geradas</span></div>
+</div>
+    <div class="block">
+      <h3>Linha do tempo</h3>
+      <ol class="timeline">
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-01</span>Hash da tarefa sem o registro</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-02</span>Script finish-task.sh</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-03</span>Skill finish-task</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-04</span>Execução sem validação</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-05</span>Ajuste de tarefa em execução</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-06</span>Cenários com agente do fluxo novo</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-07</span>Limite final dos commits</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-08</span>Falha detectada no build</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-09</span>Teste do desfazer do arquivamento</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-10</span>Abas no documento técnico</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-11</span>Abas no documento de evidências</span></li>
+      <li><span class="date">2026-10-10</span><span class="task"><span class="id">TASK-12</span>Seções sem dados, menu e impressão</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-13</span>Registro e baixa dos débitos</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="panel" id="p-proximos-passos" role="tabpanel" data-panel="proximos-passos">
+    <div class="sec-h"><h2>Próximos passos</h2><p>O que vem a seguir e o que depende de decisão.</p></div>
+    <div class="md">
+<ul>
+<li>Decidir se vale reabrir ou listar specs já arquivadas.</li>
+<li>Atualizar o mapa do projeto com o novo fluxo da tarefa.</li>
+<li>Planejar a migração do harness para a nova linguagem, já decidida.</li>
+</ul>
+    </div>
+    <div class="note warn"><b>Riscos e limitações</b>
+<ul>
+<li>Um ajuste em andamento não pede nova aprovação, porque vem de um pedido do usuário; ele fica registrado no histórico da tarefa.</li>
+<li>Uma edição manual no registro de execução deixou de ser detectada, risco aceito porque só o sistema escreve nele.</li>
+<li>A proibição de mudar o estado anterior de uma tarefa já medida é uma regra para o agente, não uma trava no sistema.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · resumo executivo de SPEC-004, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#execucao) não coincide com o id da seção (p-execucao): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll("details.card"));
+  Array.prototype.forEach.call(document.querySelectorAll("[data-cards]"), function (b) {
+    b.addEventListener("click", function () {
+      var open = b.getAttribute("data-cards") === "open";
+      cards.forEach(function (d) { d.open = open; });
+    });
+  });
+
+  // Na impressão, as entregas fechadas abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = cards.filter(function (d) { return !d.open; });
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

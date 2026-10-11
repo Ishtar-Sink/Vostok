@@ -60,6 +60,17 @@ fails "load-extra-context sem argumentos" "$CX/load-extra-context.sh"
 fails "load-extra-context com caminho inexistente" "$CX/load-extra-context.sh" nao/existe.md
 mkdir -p "$H/ctx teste/sub" && echo oi > "$H/ctx teste/sub/a b.md"
 check "load-extra-context com espaço e pasta aninhada" bash -c "'$CX/load-extra-context.sh' 'ctx teste' | grep -q 'ctx teste/sub/a b.md'"
+# --skill (CT-01 a CT-04): mapa de teste na cópia, restaurado ao final
+cp "$H/config/context.yml" "$H/config/context.yml.orig"
+printf '\nskills:\n  approve-task:   # comentário\n    - "rules/project/language.md"\n    - templates/responses/question.md\n  outra-skill:\n    - x.md\n  approve-plan:\n    - rules/project/nao-existe.md\n    - rules/project/language.md\n' >> "$H/config/context.yml"
+check "CT-01 --skill imprime os dois arquivos na ordem do mapa" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-task) && head -1 <<< \"\$out\" | grep -q 'Contexto adicional' && [ \$(grep -c '^--- arquivo:' <<< \"\$out\") -eq 2 ] && [ \$(grep -n 'language.md' <<< \"\$out\" | head -1 | cut -d: -f1) -lt \$(grep -n 'question.md' <<< \"\$out\" | head -1 | cut -d: -f1) ]"
+check "CT-02 skill sem entrada imprime só o cabeçalho" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-spec) && grep -q 'Contexto adicional' <<< \"\$out\" && ! grep -q '^--- arquivo:' <<< \"\$out\""
+fails "CT-03 skill inexistente" "$CX/load-extra-context.sh" --skill nao-existe
+check "CT-03 mensagem cita a skill" bash -c "'$CX/load-extra-context.sh' --skill nao-existe 2>&1 | grep -qF \"Skill 'nao-existe' não existe\""
+fails "CT-04 caminho inexistente na entrada" "$CX/load-extra-context.sh" --skill approve-plan
+check "CT-04 mensagem cita a skill e o caminho, e os demais são carregados" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-plan 2>&1); grep -qF \"skills.approve-plan: 'rules/project/nao-existe.md' não existe\" <<< \"\$out\" && grep -q '^--- arquivo:.*language.md' <<< \"\$out\""
+fails "--skill sem nome" "$CX/load-extra-context.sh" --skill
+mv "$H/config/context.yml.orig" "$H/config/context.yml"
 
 # --- Memória ---
 check "busca vazia" bash -c "'$M/search-memory.sh' all | grep -q 'Nenhuma entrada'"
@@ -1536,6 +1547,60 @@ check "depois do --commit, commit por fora continua apontado" bash -c "echo z > 
 for i in $(seq 1 150); do echo "$i" > "$R/v.txt"; g add v.txt; g commit -qm "v$i"; done
 check "150 commits: bloqueia e lista todos" bash -c "[ \$('$CC' 2>&1 | grep -c '^- .* v[0-9]* (arquivos: v.txt)') -eq 150 ]"
 check "150 commits: --revert" bash -c "'$AC' --revert '$(token)' | grep -qF '150 commit(s) desfeito(s)' && '$CC'"
+
+# --- Regras ---
+VR="$H/scripts/default/rules/validate-rules.sh"
+CTX="$H/config/context.yml"
+PRJ="$H/rules/project"
+cp "$CTX" "$R/context.yml.orig"
+check "regras: o estado atual é válido" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+
+# CT-10: skill inexistente no mapa
+printf '\nskills:\n  fantasma:\n    - config/tasks.yml\n' >> "$CTX"
+fails "regras: skill inexistente no mapa" "$VR"
+check "regras: erro cita skills.fantasma" bash -c "'$VR' | grep -qF 'config/context.yml: skills.fantasma:'"
+cp "$R/context.yml.orig" "$CTX"
+
+# Caminho inexistente no mapa
+printf '\nskills:\n  execute-task:\n    - rules/project/nao-existe.md\n' >> "$CTX"
+fails "regras: caminho inexistente no mapa" "$VR"
+check "regras: erro cita skill e caminho do mapa" bash -c "'$VR' | grep -qF 'skills.execute-task: caminho inexistente: rules/project/nao-existe.md'"
+cp "$R/context.yml.orig" "$CTX"
+
+# CT-11: caminho inexistente em required
+printf '  - rules/project/nao-existe.md\n' >> "$CTX"
+fails "regras: caminho inexistente em required" "$VR"
+check "regras: erro cita o caminho de required" bash -c "'$VR' | grep -qF 'required: caminho inexistente: rules/project/nao-existe.md'"
+cp "$R/context.yml.orig" "$CTX"
+
+# CT-12: arquivo de categoria sem título e fora de kebab-case
+printf 'Sem título.\n\n[project/CodeStyle-01]: Regra.\n' > "$PRJ/CodeStyle.md"
+fails "regras: CodeStyle.md inválido" "$VR"
+check "regras: erro de nome" bash -c "'$VR' | grep -qF 'rules/project/CodeStyle.md:1: nome fora de kebab-case'"
+check "regras: erro de título" bash -c "'$VR' | grep -qF 'rules/project/CodeStyle.md:1: primeira linha deve ser o título'"
+rm -f "$PRJ/CodeStyle.md"
+
+# Sem frase de propósito
+printf '# Estilo\n\n[project/estilo-01]: Regra.\n' > "$PRJ/estilo.md"
+fails "regras: categoria sem propósito" "$VR"
+check "regras: erro de propósito cita a linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:3: falta a frase de propósito'"
+rm -f "$PRJ/estilo.md"
+
+# CT-13: ID repetido, fora de sequência e com outro prefixo, um erro por linha
+printf '# Estilo\n\nPropósito.\n\n[project/estilo-01]: A.\n[project/estilo-01]: B.\n[project/estilo-04]: C.\n[agent/estilo-05]: D.\n[project/outro-05]: E.\n[project/estilo-5]: F.\n' > "$PRJ/estilo.md"
+fails "regras: IDs inválidos" "$VR"
+check "regras: ID repetido cita arquivo e linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:6: ID repetido'"
+check "regras: ID fora de sequência cita a linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:7: ID fora de sequência'"
+check "regras: prefixo errado cita a linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:8: ID fora do formato'"
+check "regras: outro nome no ID cita a linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:9: ID fora do formato'"
+check "regras: NN com um dígito cita a linha" bash -c "'$VR' | grep -qF 'rules/project/estilo.md:10: ID fora do formato'"
+check "regras: um erro por linha" bash -c "[ \$('$VR' | grep -c '^rules/project/estilo.md:') -eq 5 ]"
+
+# CB-05: regra removida conta na sequência
+printf '# Estilo\n\nPropósito.\n\n[project/estilo-01]: Removida em 2026-10-11.\n[project/estilo-02]: Regra.\n' > "$PRJ/estilo.md"
+check "regras: regra removida é aceita" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
+rm -f "$PRJ/estilo.md"
+check "regras: estado final restaurado" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
 
 # --- Skills ---
 fails "nome de skill inválido" "$C" 'Bad_Name'

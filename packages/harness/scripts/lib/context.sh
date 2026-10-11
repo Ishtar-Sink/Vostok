@@ -32,3 +32,30 @@ print_context_path() {
     return 1
   fi
 }
+
+# Imprime os itens da lista `skills.<skill>` do mapa de contexto, um por linha, sem comentários nem aspas.
+# Sem saída (e sucesso) se a chave `skills` ou a entrada da skill não existirem.
+# context_skill_entries <arquivo> <skill>
+context_skill_entries() {
+  awk -v want="$2" '
+    /^[ \t]*(#|$)/ { next }
+    /^[^ \t]/ { inskills = ($0 ~ /^skills:[ \t]*(#.*)?$/); inentry = 0; next }
+    !inskills { next }
+    /^[ \t]*-[ \t]/ {
+      if (!inentry) next
+      item = $0
+      sub(/^[ \t]*-[ \t]+/, "", item)
+      sub(/[ \t]+#.*$/, "", item)
+      gsub(/[ \t]+$/, "", item)
+      if (item ~ /^".*"$/ || item ~ /^\047.*\047$/) item = substr(item, 2, length(item) - 2)
+      print item
+      next
+    }
+    {
+      key = $0
+      sub(/^[ \t]+/, "", key)
+      sub(/[ \t]*:.*$/, "", key)
+      inentry = (key == want)
+    }
+  ' "$1"
+}

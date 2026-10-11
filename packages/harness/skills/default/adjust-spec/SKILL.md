@@ -5,7 +5,6 @@ allowed-tools: Read Edit Bash(packages/harness/skills/default/adjust-spec/script
 metadata:
   version: "1.2.0"
   author: "Victor Batalha"
-  requires: "rules/agent/template-usage.md rules/project/naming-convention.md skills/default/refine-spec/references/sections.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/memory/search-memory.sh skills/default/adjust-spec/scripts/adjust-spec.sh"
   templates: "templates/spec/sections"
 ---
@@ -61,7 +60,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh rules/agent/template-usage.md rules/project/naming-convention.md skills/default/refine-spec/references/sections.md
+packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-spec
 ```
 
 ### 2. Identificar a spec

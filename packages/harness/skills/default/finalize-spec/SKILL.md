@@ -5,8 +5,7 @@ allowed-tools: Read Edit Glob Grep Bash(packages/harness/skills/default/finalize
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "config/specs.yml config/documents.yml rules/agent/anti-loop.md"
-  scripts: "skills/default/finalize-spec/scripts/finalize-spec.sh scripts/default/git/check-commits.sh"
+  scripts: "scripts/default/context/load-extra-context.sh skills/default/finalize-spec/scripts/finalize-spec.sh scripts/default/git/check-commits.sh"
   templates: "templates/finalize/content.md templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -38,18 +37,27 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 Copie e marque o progresso:
 
 ```
-- [ ] 1. Identificar a spec
-- [ ] 2. Ler as fontes
-- [ ] 3. Criar e escrever o conteúdo
-- [ ] 4. Validar o conteúdo
-- [ ] 5. Gerar e conferir os documentos
-- [ ] 6. Arquivar
-- [ ] 7. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Identificar a spec
+- [ ] 3. Ler as fontes
+- [ ] 4. Criar e escrever o conteúdo
+- [ ] 5. Validar o conteúdo
+- [ ] 6. Gerar e conferir os documentos
+- [ ] 7. Arquivar
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Identificar a spec
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill finalize-spec
+```
+
+### 2. Identificar a spec
 
 As specs ficam em `packages/harness/work/specs/refined/`. Use a spec citada pelo usuário. Sem citação, leia o front-matter das refinadas e liste as com status `implemented`:
 
@@ -57,7 +65,7 @@ As specs ficam em `packages/harness/work/specs/refined/`. Use a spec citada pelo
 - Mais de uma: **PARE** e pergunte qual, com o template `question` (FA-02).
 - Nenhuma: informe as specs e o status de cada uma, e encerre.
 
-### 2. Ler as fontes
+### 3. Ler as fontes
 
 Execute:
 
@@ -69,7 +77,7 @@ Se o script recusar (spec fora de `implemented` ou tarefa fora de `done`), **PAR
 
 Leia a saída inteira, a spec, as evidências citadas e o código dos caminhos alterados. Anote, para a síntese: o problema e o resultado; as entregas e o valor de cada uma; o que mudou para quem usa; os números que as fontes comprovam; as decisões, os aprendizados (memória do período, ajustes, bloqueios e retomadas) e os riscos.
 
-### 3. Criar e escrever o conteúdo
+### 4. Criar e escrever o conteúdo
 
 Execute:
 
@@ -87,7 +95,7 @@ Substitua cada variável `#{...}` seguindo os comentários do arquivo e as regra
 
 Use só o Markdown aceito, descrito no topo do arquivo.
 
-### 4. Validar o conteúdo
+### 5. Validar o conteúdo
 
 Execute:
 
@@ -97,7 +105,7 @@ packages/harness/skills/default/finalize-spec/scripts/finalize-spec.sh --validat
 
 Corrija no conteúdo cada problema listado e valide de novo, respeitando [finalize-spec-07]. Uma evidência ausente não se corrige no conteúdo: **PARE** e responda com o template `blocker`, citando a evidência e a tarefa.
 
-### 5. Gerar e conferir os documentos
+### 6. Gerar e conferir os documentos
 
 Execute:
 
@@ -111,9 +119,9 @@ Confira os três documentos listados pelo script:
 - `tecnico.html`: requisitos com as tarefas, arquivos, diffs, commits e referências.
 - `evidencias.html`: uma peça por evidência, com "Como chegar" e "Como ler".
 
-Se algo estiver errado, corrija o conteúdo e repita os passos 4 e 5.
+Se algo estiver errado, corrija o conteúdo e repita os passos 5 e 6.
 
-### 6. Arquivar
+### 7. Arquivar
 
 Execute:
 
@@ -123,7 +131,7 @@ packages/harness/skills/default/finalize-spec/scripts/finalize-spec.sh --archive
 
 Se o script recusar porque um destino já existe (FA-04), **PARE** e responda com o template `blocker`, com a mensagem do script. Não remova nem renomeie o destino sem a decisão do usuário.
 
-### 7. Responder ao usuário
+### 8. Responder ao usuário
 
 Execute `packages/harness/scripts/default/git/check-commits.sh` e responda com o template `completion`, com os caminhos do arquivo e dos documentos publicados. Em "Próximos passos", sugira o commit dos documentos em `docs/specs/<SPEC_ID>/`.
 

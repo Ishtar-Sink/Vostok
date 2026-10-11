@@ -5,7 +5,7 @@ allowed-tools: Read Bash(packages/harness/skills/default/approve-spec/scripts/*)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/specs/list-specs.sh skills/default/approve-spec/scripts/approve-spec.sh"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh skills/default/approve-spec/scripts/approve-spec.sh"
 ---
 
 # Aprovar spec
@@ -23,7 +23,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 ## Regras
 
 [approve-spec-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
-[approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 1).
+[approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 2).
 [approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o script.
 [approve-spec-04]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; correções na spec são feitas pela skill `adjust-spec`.
 
@@ -32,15 +32,24 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 Copie e marque o progresso:
 
 ```
-- [ ] 1. Identificar a spec
-- [ ] 2. Conferir os impedimentos
-- [ ] 3. Aprovar
-- [ ] 4. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Identificar a spec
+- [ ] 3. Conferir os impedimentos
+- [ ] 4. Aprovar
+- [ ] 5. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Identificar a spec
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill approve-spec
+```
+
+### 2. Identificar a spec
 
 Para saber quais specs podem ser aprovadas, execute `packages/harness/scripts/default/specs/list-specs.sh refined` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
 
@@ -57,7 +66,7 @@ Nos demais casos:
 
 Spec citada com status `draft`: **PARE** e informe que ela precisa ser refinada antes. Spec citada com status `approved`: **PARE** e informe que ela já está aprovada.
 
-### 2. Conferir os impedimentos
+### 3. Conferir os impedimentos
 
 Execute:
 
@@ -73,7 +82,7 @@ O script lista cada impedimento, sem alterar nada. Com impedimentos, **PARE** e 
 | Pendência aberta | Responder à pendência; o ajuste é feito com a skill `adjust-spec`. |
 | Edição manual sem registro (inclusive spec sem `content_hash`) | Executar o comando indicado pelo script (`adjust-spec.sh --record-manual`) ou pedir um ajuste. |
 
-### 3. Aprovar
+### 4. Aprovar
 
 Execute:
 
@@ -83,7 +92,7 @@ packages/harness/skills/default/approve-spec/scripts/approve-spec.sh --approve <
 
 O script confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do script.
 
-### 4. Responder ao usuário
+### 5. Responder ao usuário
 
 Responda com o template `completion`:
 

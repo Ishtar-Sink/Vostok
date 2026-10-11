@@ -5,7 +5,6 @@ allowed-tools: #{SKILL_ALLOWED_TOOLS}
 metadata:
   version: "1.0.0"
   author: "#{AUTHOR}"
-  requires: "#{SKILL_REQUIRES}"
   scripts: "#{SKILL_SCRIPTS}"
   templates: "#{SKILL_TEMPLATES}"
 ---
@@ -31,6 +30,14 @@ Copie e marque o progresso:
 ```
 
 ## Passos
+
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill #{SKILL_NAME}
+```
 
 #{SKILL_STEPS}
 

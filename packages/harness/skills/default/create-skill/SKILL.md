@@ -5,7 +5,6 @@ allowed-tools: Read Edit Bash(packages/harness/skills/default/create-skill/scrip
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "rules/agent/template-usage.md rules/project/naming-convention.md"
   scripts: "scripts/default/context/load-extra-context.sh skills/default/create-skill/scripts/create-skill.sh"
   templates: "templates/skill/skill.md templates/skill/redirect.md templates/skill/script.sh"
 ---
@@ -54,7 +53,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh rules/agent/template-usage.md rules/project/naming-convention.md templates/skill/skill.md
+packages/harness/scripts/default/context/load-extra-context.sh --skill create-skill
 ```
 
 ### 2. Levantar os requisitos
@@ -109,20 +108,19 @@ Substitua as variáveis do template:
 |---|---|---|
 | `#{SKILL_DESCRIPTION}` | Até 1024 caracteres, seguindo [create-skill-04]. Escape aspas duplas com `\"`. | Não |
 | `#{SKILL_ALLOWED_TOOLS}` | Ferramentas liberadas, separadas por espaço. Ex.: `Read Edit Bash(packages/harness/skills/custom/<nome>/scripts/*)` | Sim |
-| `#{SKILL_REQUIRES}` | Regras e arquivos carregados no passo 1 da skill, relativos à raiz do harness. | Sim |
 | `#{SKILL_SCRIPTS}` | Scripts executados pela skill, relativos à raiz do harness. | Sim |
 | `#{SKILL_TEMPLATES}` | Templates usados pela skill, relativos à raiz do harness. | Sim |
 | `#{SKILL_TITLE}` | Nome da skill em português, como ação. Ex.: `Revisar código`. | Não |
 | `#{SKILL_SUMMARY}` | Uma frase com o resultado da skill. | Não |
 | `#{SKILL_TERMS}` | Lista `- **Termo:** definição.` | Sim |
 | `#{SKILL_RULES}` | Uma regra por linha, no formato `[<nome>-NN]: regra.` | Sim |
-| `#{SKILL_CHECKLIST}` | Uma linha `- [ ] N. Passo` para cada passo. | Não |
-| `#{SKILL_STEPS}` | Uma seção `### N. Passo` para cada passo, com comandos exatos e condições **PARE**. | Não |
+| `#{SKILL_CHECKLIST}` | Uma linha `- [ ] N. Passo` para cada passo, começando por `- [ ] 1. Carregar o contexto`. | Não |
+| `#{SKILL_STEPS}` | Uma seção `### N. Passo` para cada passo, a partir do `### 2.` (o passo 1, de carregar o contexto, já vem no template), com comandos exatos e condições **PARE**. | Não |
 | `#{SKILL_RESPONSE_FORMATS}` | Só formatos próprios da skill, como uma tabela extra. Perguntas, conclusão e bloqueios usam `templates/responses/`. | Sim |
 
 Para um campo opcional que não se aplica, remova a linha dele do front-matter. Para uma seção opcional que não se aplica, remova a seção inteira.
 
-Se a skill carrega contexto, o passo 1 dela executa `load-extra-context.sh` com os mesmos caminhos de `requires`.
+O passo 1 da skill criada já vem do template e carrega o contexto dela com `load-extra-context.sh --skill <nome>`. As regras e arquivos da skill são ligados no mapa `skills` do `config/context.yml`, pela `adjust-rules` ou à mão (RN-02); a criação da skill só acrescenta a entrada vazia.
 
 ### 6. Validar e finalizar
 
@@ -132,7 +130,7 @@ Execute:
 packages/harness/skills/default/create-skill/scripts/create-skill.sh --finalize <nome>
 ```
 
-O script valida a skill e lista todos os problemas encontrados: variáveis sem preencher, `name` diferente do nome da pasta, `description` vazia, longa demais ou com tags XML, SKILL.md com mais de 500 linhas e caminhos de `metadata` que não existem. Sem problemas, ele gera os redirecionamentos e atualiza o catálogo.
+O script valida a skill e lista todos os problemas encontrados: variáveis sem preencher, `name` diferente do nome da pasta, `description` vazia, longa demais ou com tags XML, SKILL.md com mais de 500 linhas e caminhos de `metadata` e da entrada da skill no mapa que não existem. Sem problemas, ele gera os redirecionamentos e atualiza o catálogo.
 
 Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 

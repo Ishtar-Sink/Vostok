@@ -5,7 +5,6 @@ allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/approve-plan/
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "rules/agent/template-usage.md config/tasks.yml"
   scripts: "scripts/default/context/load-extra-context.sh skills/default/approve-plan/scripts/approve-plan.sh scripts/default/tasks/load-task.sh"
   templates: "templates/task/task.md"
 ---
@@ -54,7 +53,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh rules/agent/template-usage.md config/tasks.yml
+packages/harness/scripts/default/context/load-extra-context.sh --skill approve-plan
 ```
 
 ### 2. Identificar o plano

@@ -5,8 +5,7 @@ allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "rules/agent/anti-loop.md config/tasks.yml"
-  scripts: "scripts/default/tasks/load-task.sh scripts/default/memory/search-memory.sh skills/default/finish-task/scripts/finish-task.sh"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/tasks/load-task.sh scripts/default/memory/search-memory.sh skills/default/finish-task/scripts/finish-task.sh"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -40,18 +39,27 @@ Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da 
 Copie e marque o progresso:
 
 ```
-- [ ] 1. Identificar a tarefa
-- [ ] 2. Executar os testes
-- [ ] 3. Verificar regressões
-- [ ] 4. Gravar as evidências
-- [ ] 5. Conferir os critérios de conclusão
-- [ ] 6. Concluir
-- [ ] 7. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Identificar a tarefa
+- [ ] 3. Executar os testes
+- [ ] 4. Verificar regressões
+- [ ] 5. Gravar as evidências
+- [ ] 6. Conferir os critérios de conclusão
+- [ ] 7. Concluir
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Identificar a tarefa
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill finish-task
+```
+
+### 2. Identificar a tarefa
 
 Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
 
@@ -63,7 +71,7 @@ packages/harness/skills/default/finish-task/scripts/finish-task.sh --resume <SPE
 
 Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/<TASK_ID>/validation/`.
 
-### 2. Executar os testes
+### 3. Executar os testes
 
 Execute:
 
@@ -78,7 +86,7 @@ O script executa o bloco `bash` de "Verificação" a partir da raiz do projeto e
 3. Se não houver o que corrigir no código da tarefa (a falha depende do ambiente ou da própria "Verificação"), execute `--tests` de novo mesmo assim, até o script bloquear a tarefa. Não pare antes: só uma tarefa bloqueada recebe a decisão do usuário pelo `--resume`.
 4. Se o script bloquear a tarefa, **PARE** e responda com o template `blocker`, com as falhas, as tentativas e o comando que falhou (linha "comando com falha" da saída).
 
-### 3. Verificar regressões
+### 4. Verificar regressões
 
 Execute:
 
@@ -88,7 +96,7 @@ packages/harness/skills/default/finish-task/scripts/finish-task.sh --regression 
 
 O script executa de novo os comandos de "Baseline" e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos e as diferenças. As opções incluem corrigir a regressão e aceitar a diferença como esperada.
 
-### 4. Gravar as evidências
+### 5. Gravar as evidências
 
 Execute:
 
@@ -101,11 +109,11 @@ O script grava a saída de cada evidência automática e confere as manuais:
 - Evidência automática com erro: corrija a causa no código da tarefa e execute `--evidence` de novo. Se o erro estiver no próprio comando da evidência, **PARE** e responda com o template `blocker`: mudar a evidência é um ajuste (skill `adjust-task`).
 - Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo script. Com os arquivos, execute `--evidence` de novo.
 
-### 5. Conferir os critérios de conclusão
+### 6. Conferir os critérios de conclusão
 
 Para cada critério de "Concluída quando", faça a comprovação descrita em "Como comprovar". Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.
 
-### 6. Concluir
+### 7. Concluir
 
 Execute:
 
@@ -115,7 +123,7 @@ packages/harness/skills/default/finish-task/scripts/finish-task.sh --finish <SPE
 
 O script exige testes, regressão e evidências `passed` e todos os critérios marcados, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. Se ele recusar, volte à etapa que falta.
 
-### 7. Responder ao usuário
+### 8. Responder ao usuário
 
 Responda com o template `completion`:
 

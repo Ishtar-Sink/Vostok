@@ -5,8 +5,7 @@ allowed-tools: Read Glob Bash(packages/harness/skills/default/approve-task/scrip
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "config/tasks.yml"
-  scripts: "scripts/default/tasks/load-task.sh skills/default/approve-task/scripts/approve-task.sh"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/tasks/load-task.sh skills/default/approve-task/scripts/approve-task.sh"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -25,7 +24,7 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 ## Regras
 
 [approve-task-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
-[approve-task-02]: Aprove só as tarefas citadas. Sem citação, não aprove nenhuma: pergunte quais (passo 2).
+[approve-task-02]: Aprove só as tarefas citadas. Sem citação, não aprove nenhuma: pergunte quais (passo 3).
 [approve-task-03]: Use `--all` só quando o usuário pedir explicitamente todas as tarefas ("aprova todas", "aprova todas as tarefas da SPEC-002"). "Aprova as tarefas" não é pedido de todas.
 [approve-task-04]: Nunca edite as tarefas nem o front-matter nesta skill. Quem grava a aprovação é o script.
 [approve-task-05]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; mudanças na tarefa são feitas pela skill `adjust-task`.
@@ -35,16 +34,25 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 Copie e marque o progresso:
 
 ```
-- [ ] 1. Identificar a spec
-- [ ] 2. Identificar as tarefas
-- [ ] 3. Conferir os impedimentos
-- [ ] 4. Aprovar
-- [ ] 5. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Identificar a spec
+- [ ] 3. Identificar as tarefas
+- [ ] 4. Conferir os impedimentos
+- [ ] 5. Aprovar
+- [ ] 6. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Identificar a spec
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill approve-task
+```
+
+### 2. Identificar a spec
 
 As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, uma pasta por spec, e os IDs são numerados dentro de cada spec. Procure as tarefas citadas com Glob (`packages/harness/work/tasks/*/TASK-03.md`):
 
@@ -52,15 +60,15 @@ As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, uma pasta por spec
 - Tarefa citada que existe em mais de uma spec: **PARE** e pergunte de qual, com o template `question`, uma opção por spec. Não aprove nada antes da resposta.
 - Tarefa citada que não existe: **PARE** e informe as tarefas existentes.
 
-Sem citação, considere as specs com tarefas `pending`. Se houver mais de uma, a pergunta do passo 2 traz as tarefas de todas, com a spec de cada uma.
+Sem citação, considere as specs com tarefas `pending`. Se houver mais de uma, a pergunta do passo 3 traz as tarefas de todas, com a spec de cada uma.
 
-### 2. Identificar as tarefas
+### 3. Identificar as tarefas
 
 Com citação, use as tarefas citadas. Com pedido explícito de todas, use `--all`.
 
 Sem citação: leia o front-matter das tarefas da spec, liste as que estão com status `pending` e **PARE**. Pergunte quais aprovar, com o template `question`, usando a [lista de tarefas pendentes](#lista-de-tarefas-pendentes) e as opções "todas", "só algumas (diga quais)" e "nenhuma". Não aprove nada antes da resposta. Sem tarefas `pending`, informe que não há tarefas para aprovar e encerre.
 
-### 3. Conferir os impedimentos
+### 4. Conferir os impedimentos
 
 Execute, com os IDs ou `--all`:
 
@@ -76,17 +84,17 @@ O script lista os impedimentos de cada tarefa, sem alterar nada. Se houver algum
 | Edição manual sem registro | Registrar a edição com `adjust-task.sh --record-manual` ou pedir um ajuste (skill `adjust-task`). |
 | Problema de validação | Ajustar a tarefa com a skill `adjust-task`. |
 
-### 4. Aprovar
+### 5. Aprovar
 
-Execute, com os mesmos argumentos do passo 3:
+Execute, com os mesmos argumentos do passo 4:
 
 ```bash
 packages/harness/skills/default/approve-task/scripts/approve-task.sh --approve <SPEC_ID> <TASK_ID ...>
 ```
 
-O script confere de novo e aprova todas as tarefas pedidas, ou nenhuma. Se ele recusar, volte ao passo 3.
+O script confere de novo e aprova todas as tarefas pedidas, ou nenhuma. Se ele recusar, volte ao passo 4.
 
-### 5. Responder ao usuário
+### 6. Responder ao usuário
 
 Responda com o template `completion`:
 

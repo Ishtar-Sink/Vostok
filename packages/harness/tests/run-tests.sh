@@ -62,6 +62,7 @@ mkdir -p "$H/ctx teste/sub" && echo oi > "$H/ctx teste/sub/a b.md"
 check "load-extra-context com espaço e pasta aninhada" bash -c "'$CX/load-extra-context.sh' 'ctx teste' | grep -q 'ctx teste/sub/a b.md'"
 # --skill (CT-01 a CT-04): mapa de teste na cópia, restaurado ao final
 cp "$H/config/context.yml" "$H/config/context.yml.orig"
+sed -i.bak '/^skills:/,$d' "$H/config/context.yml" && rm -f "$H/config/context.yml.bak" # tira o mapa real
 printf '\nskills:\n  approve-task:   # comentário\n    - "rules/project/language.md"\n    - templates/responses/question.md\n  outra-skill:\n    - x.md\n  approve-plan:\n    - rules/project/nao-existe.md\n    - rules/project/language.md\n' >> "$H/config/context.yml"
 check "CT-01 --skill imprime os dois arquivos na ordem do mapa" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-task) && head -1 <<< \"\$out\" | grep -q 'Contexto adicional' && [ \$(grep -c '^--- arquivo:' <<< \"\$out\") -eq 2 ] && [ \$(grep -n 'language.md' <<< \"\$out\" | head -1 | cut -d: -f1) -lt \$(grep -n 'question.md' <<< \"\$out\" | head -1 | cut -d: -f1) ]"
 check "CT-02 skill sem entrada imprime só o cabeçalho" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-spec) && grep -q 'Contexto adicional' <<< \"\$out\" && ! grep -q '^--- arquivo:' <<< \"\$out\""
@@ -71,6 +72,30 @@ fails "CT-04 caminho inexistente na entrada" "$CX/load-extra-context.sh" --skill
 check "CT-04 mensagem cita a skill e o caminho, e os demais são carregados" bash -c "out=\$('$CX/load-extra-context.sh' --skill approve-plan 2>&1); grep -qF \"skills.approve-plan: 'rules/project/nao-existe.md' não existe\" <<< \"\$out\" && grep -q '^--- arquivo:.*language.md' <<< \"\$out\""
 fails "--skill sem nome" "$CX/load-extra-context.sh" --skill
 mv "$H/config/context.yml.orig" "$H/config/context.yml"
+
+# Migração do requires para o mapa (CT-05 a CT-07): skills padrão e lista esperada de caminhos
+# (igual ao mapa-antes.txt da migração, sem os caminhos de `required`)
+DEFAULT_SKILLS="adjust-plan adjust-spec adjust-task approve-commit approve-plan approve-spec approve-task execute-task finalize-spec finish-task plan-tasks refine-spec"
+expected_map() { # nome da skill -> caminhos esperados, separados por espaço
+  case "$1" in
+    adjust-plan) echo "config/tasks.yml skills/default/plan-tasks/SKILL.md" ;;
+    adjust-spec) echo "rules/project/naming-convention.md skills/default/refine-spec/references/sections.md" ;;
+    adjust-task) echo "config/tasks.yml skills/default/approve-plan/SKILL.md" ;;
+    approve-plan|approve-task|execute-task|finish-task|plan-tasks) echo "config/tasks.yml" ;;
+    finalize-spec) echo "config/specs.yml config/documents.yml" ;;
+    refine-spec) echo "rules/project/naming-convention.md" ;;
+    create-skill) echo "rules/project/naming-convention.md templates/skill/skill.md" ;;
+    *) echo "" ;; # approve-commit e approve-spec: sem entrada
+  esac
+}
+for s in $DEFAULT_SKILLS create-skill; do
+  check "CT-06 mapa de $s bate com a lista esperada" bash -c "[ \"\$(source '$H/scripts/lib/context.sh'; context_skill_entries '$H/config/context.yml' $s | tr '\n' ' ' | sed 's/ \$//')\" = '$(expected_map "$s")' ]"
+  check "--skill $s roda sem erro" "$CX/load-extra-context.sh" --skill "$s"
+done
+for s in $DEFAULT_SKILLS; do
+  check "CT-05 $s sem requires" bash -c "! grep -q 'requires:' '$H/skills/default/$s/SKILL.md'"
+  check "CT-07 $s com load-extra-context.sh --skill $s" grep -q "load-extra-context.sh --skill $s\$" "$H/skills/default/$s/SKILL.md"
+done
 
 # --- Memória ---
 check "busca vazia" bash -c "'$M/search-memory.sh' all | grep -q 'Nenhuma entrada'"
@@ -1568,7 +1593,7 @@ check "regras: erro cita skill e caminho do mapa" bash -c "'$VR' | grep -qF 'ski
 cp "$R/context.yml.orig" "$CTX"
 
 # CT-11: caminho inexistente em required
-printf '  - rules/project/nao-existe.md\n' >> "$CTX"
+awk '{ print } /^  - templates\/responses$/ { print "  - rules/project/nao-existe.md" }' "$R/context.yml.orig" > "$CTX" # entra em required
 fails "regras: caminho inexistente em required" "$VR"
 check "regras: erro cita o caminho de required" bash -c "'$VR' | grep -qF 'required: caminho inexistente: rules/project/nao-existe.md'"
 cp "$R/context.yml.orig" "$CTX"
@@ -1603,9 +1628,14 @@ rm -f "$PRJ/estilo.md"
 check "regras: estado final restaurado" bash -c "'$VR' | grep -qx 'Regras e mapa válidos.'"
 
 # --- Skills ---
+cp "$H/config/context.yml" "$R/context-skills.orig"
 fails "nome de skill inválido" "$C" 'Bad_Name'
 fails "nome reservado" "$C" claude-x
 check "cria skill custom" "$C" review-x
+# CT-08: a skill criada ganha a entrada vazia no mapa e o passo 1 com --skill
+check "CT-08: entrada vazia no mapa" grep -qx '  review-x: \[\]' "$H/config/context.yml"
+check "CT-08: passo 1 com --skill <nome>" grep -qF 'load-extra-context.sh --skill review-x' "$H/skills/custom/review-x/SKILL.md"
+check "CT-08: template sem requires" bash -c "! grep -q requires '$H/skills/custom/review-x/SKILL.md'"
 fails "skill duplicada" "$C" review-x
 check "cria script da skill" "$C" --script review-x list-files
 fails "finalize com template sem preencher" "$C" --finalize review-x
@@ -1613,7 +1643,7 @@ s="$H/skills/custom/review-x/SKILL.md"
 python3 - "$s" <<'EOF'
 import sys,re; p=sys.argv[1]; s=open(p).read()
 s=s.replace('description: "#{SKILL_DESCRIPTION}"','description: >\n  Revisa código: usa | regras.\n  Use quando pedirem review.')
-s=re.sub(r'  (requires|scripts|templates): .*\n','',s); s=re.sub(r'#\{[A-Z_]+\}','x',s); open(p,'w').write(s)
+s=re.sub(r'  (scripts|templates): .*\n','',s); s=re.sub(r'#\{[A-Z_]+\}','x',s); open(p,'w').write(s)
 EOF
 fill "$H/skills/custom/review-x/scripts/list-files.sh"
 check "finalize com description em bloco" "$C" --finalize review-x
@@ -1622,7 +1652,16 @@ check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude
 check "finalize repetido não duplica no catálogo" bash -c "'$C' --finalize review-x >/dev/null && [ \$(grep -c '| review-x |' '$H/context/skill-catalog.md') -eq 1 ]"
 sed -i.bak 's/^name: review-x/name: outro/' "$s" && rm -f "$s.bak"
 fails "name diferente da pasta" "$C" --finalize review-x
+sed -i.bak 's/^name: outro/name: review-x/' "$s" && rm -f "$s.bak"
+# CT-09: caminho inexistente na entrada do mapa faz o --finalize falhar citando o caminho
+awk '/^  review-x: \[\]$/ { print "  review-x:"; print "    - rules/project/nao-existe.md"; next } { print }' "$H/config/context.yml" > "$R/ctx.tmp" && cat "$R/ctx.tmp" > "$H/config/context.yml"
+fails "CT-09: caminho inexistente no mapa" "$C" --finalize review-x
+check "CT-09: mensagem cita o caminho" bash -c "'$C' --finalize review-x 2>&1 | grep -qF \"skills.review-x: 'rules/project/nao-existe.md' não existe\""
 check "finalize das skills padrão" bash -c "'$C' --finalize create-skill >/dev/null && '$C' --finalize refine-spec >/dev/null && '$C' --finalize adjust-spec >/dev/null && '$C' --finalize approve-spec >/dev/null && '$C' --finalize plan-tasks >/dev/null && '$C' --finalize adjust-plan >/dev/null && '$C' --finalize approve-plan >/dev/null && '$C' --finalize approve-commit >/dev/null && '$C' --finalize approve-task >/dev/null && '$C' --finalize adjust-task >/dev/null && '$C' --finalize execute-task >/dev/null && '$C' --finalize finish-task >/dev/null && '$C' --finalize finalize-spec >/dev/null"
+
+# Restaura o mapa de contexto da cópia, sem as skills de teste
+cp "$R/context-skills.orig" "$H/config/context.yml"
+check "mapa de contexto restaurado" bash -c "! grep -q review-x '$H/config/context.yml'"
 
 # CT-03: a skill substituída não deixa referências fora de work/ e dos cenários com agente. Roda na árvore real, não na cópia.
 OLD_SKILL="validate-""task"

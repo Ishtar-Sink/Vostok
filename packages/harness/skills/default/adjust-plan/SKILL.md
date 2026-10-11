@@ -5,7 +5,6 @@ allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/adjust-plan/s
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "config/tasks.yml skills/default/plan-tasks/SKILL.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/memory/search-memory.sh skills/default/adjust-plan/scripts/adjust-plan.sh"
 ---
 
@@ -59,7 +58,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh config/tasks.yml
+packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-plan
 ```
 
 Os formatos das tabelas do plano estão em "Formatos de resposta" da skill [plan-tasks](../plan-tasks/SKILL.md).

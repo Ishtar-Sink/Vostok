@@ -15,9 +15,11 @@ HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml
 source "$HARNESS_DIR/scripts/lib/config.sh"
 source "$HARNESS_DIR/scripts/lib/text.sh"
 source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+source "$HARNESS_DIR/scripts/lib/rules.sh"
 
 MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SKILLS_CONFIG="$HARNESS_DIR/config/skills.yml"
+CONTEXT_CONFIG="$HARNESS_DIR/config/context.yml"
 
 USAGE="Uso: create-skill.sh [--default] <nome> | --script <nome> <nome-do-script> | --finalize <nome>"
 
@@ -30,7 +32,7 @@ MAX_DESCRIPTION_LENGTH=1024
 # Recomendação da Anthropic para o SKILL.md continuar eficiente no contexto do agente.
 MAX_SKILL_LINES=500
 # Chaves de `metadata` com caminhos (relativos à raiz do harness) que precisam existir.
-METADATA_PATH_KEYS=(requires scripts templates)
+METADATA_PATH_KEYS=(scripts templates)
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
@@ -76,7 +78,43 @@ create_skill() {
   TPL_AUTHOR="$(yaml_escape "$(git -C "$HARNESS_DIR" config user.name 2>/dev/null || printf '%s' "${USER:-}")")" \
     render "$templates_dir/$(config_get "$SKILLS_CONFIG" template)" > "$dir/SKILL.md"
 
+  add_context_entry "$name"
   echo "Skill '$name' criada em $dir/SKILL.md"
+}
+
+# Acrescenta `  <nome>: []` ao bloco `skills:` do mapa de contexto, ou cria o bloco se não existir.
+# Não duplica uma entrada existente.
+add_context_entry() {
+  local name="$1" tmp
+  [ -f "$CONTEXT_CONFIG" ] || die "mapa de contexto não encontrado: $CONTEXT_CONFIG"
+  if awk -v name="$name" '
+    /^[^ \t#]/ { inside = ($0 ~ /^skills:/) }
+    inside && index($0, "  " name ":") == 1 { found = 1 }
+    END { exit !found }' "$CONTEXT_CONFIG"; then
+    return 0
+  fi
+
+  tmp="$(mktemp)"
+  if grep -q '^skills:' "$CONTEXT_CONFIG"; then
+    # Insere depois da última linha de conteúdo do bloco (ignora comentários e linhas em branco do fim).
+    awk -v entry="  $name: []" '
+      { line[NR] = $0 }
+      END {
+        for (i = 1; i <= NR; i++) {
+          if (line[i] ~ /^[^ \t#]/) inside = (line[i] ~ /^skills:/)
+          if (inside && line[i] !~ /^[ \t]*(#|$)/) last = i
+        }
+        for (i = 1; i <= NR; i++) {
+          print line[i]
+          if (i == last) print entry
+        }
+      }' "$CONTEXT_CONFIG" > "$tmp"
+  else
+    { cat "$CONTEXT_CONFIG"; printf '\n# Regras e arquivos carregados por cada skill (`load-extra-context.sh --skill <nome>`).\nskills:\n  %s: []\n' "$name"; } > "$tmp"
+  fi
+  cat "$tmp" > "$CONTEXT_CONFIG"
+  rm -f "$tmp"
+  echo "Mapa de contexto atualizado: $CONTEXT_CONFIG"
 }
 
 create_script() {
@@ -122,6 +160,12 @@ skill_errors() {
       [ -e "$HARNESS_DIR/$path" ] || echo "metadata.$key: '$path' não existe na raiz do harness"
     done
   done
+
+  # Caminhos da entrada da skill no mapa de contexto.
+  _rules_context_entries | awk -F'\t' -v n="$name" '$1 == "skill" && $2 == n && $3 != "" { print $3 }' |
+    while IFS= read -r path; do
+      [ -e "$(harness_path "$path")" ] || echo "skills.$name: '$path' não existe"
+    done
 }
 
 write_redirects() {

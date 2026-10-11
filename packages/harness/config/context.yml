@@ -8,3 +8,35 @@ required:
   - rules/agent
   - rules/project/language.md
   - templates/responses
+
+# Carregado sob demanda por `load-extra-context.sh --skill <nome>`, no passo 1 de cada skill.
+# Cada entrada lista os arquivos que a skill carrega além de `required`, na ordem em que aparecem aqui.
+# Skills sem entrada carregam só o contexto obrigatório.
+skills:
+  adjust-plan:
+    - config/tasks.yml
+    - skills/default/plan-tasks/SKILL.md
+  adjust-spec:
+    - rules/project/naming-convention.md
+    - skills/default/refine-spec/references/sections.md
+  adjust-task:
+    - config/tasks.yml
+    - skills/default/approve-plan/SKILL.md
+  approve-plan:
+    - config/tasks.yml
+  approve-task:
+    - config/tasks.yml
+  create-skill:
+    - rules/project/naming-convention.md
+    - templates/skill/skill.md
+  execute-task:
+    - config/tasks.yml
+  finalize-spec:
+    - config/specs.yml
+    - config/documents.yml
+  finish-task:
+    - config/tasks.yml
+  plan-tasks:
+    - config/tasks.yml
+  refine-spec:
+    - rules/project/naming-convention.md

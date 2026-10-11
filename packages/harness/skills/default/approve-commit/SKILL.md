@@ -5,8 +5,7 @@ allowed-tools: Read Bash(packages/harness/skills/default/approve-commit/scripts/
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "rules/agent/boundaries.md"
-  scripts: "scripts/default/git/check-commits.sh skills/default/approve-commit/scripts/approve-commit.sh"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/git/check-commits.sh skills/default/approve-commit/scripts/approve-commit.sh"
   templates: "templates/responses/question.md templates/responses/completion.md"
 ---
 
@@ -24,7 +23,7 @@ metadata:
 ## Regras
 
 [approve-commit-01]: Só execute esta skill a pedido do usuário, numa mensagem dele posterior à que mostrou os commits. Nunca libere nem desfaça na mesma resposta em que os commits foram apontados.
-[approve-commit-02]: O pedido tem que dizer o que fazer: liberar ou desfazer. "Ok", "segue" ou um pedido sobre outro assunto não são liberação; na dúvida, pergunte (passo 2).
+[approve-commit-02]: O pedido tem que dizer o que fazer: liberar ou desfazer. "Ok", "segue" ou um pedido sobre outro assunto não são liberação; na dúvida, pergunte (passo 3).
 [approve-commit-03]: Nunca edite nem apague o arquivo de referência. Só o script o altera.
 [approve-commit-04]: Desfaça só pelo script. Se ele recusar, não use `git reset`, `git revert` nem outro comando: mostre o motivo e deixe a decisão com o usuário.
 [approve-commit-05]: Commite só pelo `--commit` e só quando a mensagem do usuário pedir commit. Nunca use `git commit`, `git commit-tree` nem outro comando que crie commits.
@@ -35,15 +34,24 @@ metadata:
 Pedido de commit: siga [Fazer commits](#fazer-commits). Pedido de liberar ou desfazer, copie e marque o progresso:
 
 ```
-- [ ] 1. Mostrar os commits
-- [ ] 2. Confirmar a decisão
-- [ ] 3. Liberar ou desfazer
-- [ ] 4. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Mostrar os commits
+- [ ] 3. Confirmar a decisão
+- [ ] 4. Liberar ou desfazer
+- [ ] 5. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Mostrar os commits
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill approve-commit
+```
+
+### 2. Mostrar os commits
 
 Execute:
 
@@ -53,15 +61,15 @@ packages/harness/skills/default/approve-commit/scripts/approve-commit.sh --show
 
 O script lista os commits novos e removidos e o código de liberação. Sem commits, responda que não há nada a liberar e encerre.
 
-### 2. Confirmar a decisão
+### 3. Confirmar a decisão
 
-Compare a lista com a que o usuário viu. Execute o passo 3 sem perguntar só se as duas forem iguais e o pedido disser liberar ou desfazer.
+Compare a lista com a que o usuário viu. Execute o passo 4 sem perguntar só se as duas forem iguais e o pedido disser liberar ou desfazer.
 
 Nos demais casos, **PARE** e pergunte com o template `question`, mostrando a lista e as opções: liberar todos ou desfazer os novos.
 
-### 3. Liberar ou desfazer
+### 4. Liberar ou desfazer
 
-Execute, com o código do passo 1:
+Execute, com o código do passo 2:
 
 ```bash
 packages/harness/skills/default/approve-commit/scripts/approve-commit.sh --approve <código>
@@ -70,7 +78,7 @@ packages/harness/skills/default/approve-commit/scripts/approve-commit.sh --rever
 
 O `--revert` desfaz os commits novos da branch atual com `git reset --mixed`: as alterações continuam na pasta de trabalho, fora de stage. Ele recusa commits já enviados ao remoto, commits removidos e commits fora da branch atual. Se recusar, **PARE** e responda com o template `blocker`, com a mensagem do script.
 
-### 4. Responder ao usuário
+### 5. Responder ao usuário
 
 Execute `packages/harness/scripts/default/git/check-commits.sh` e confirme que ele passa. Responda com o template `completion`:
 
@@ -87,6 +95,6 @@ tipo(escopo): mensagem
 MSG
 ```
 
-Com caminhos, relativos à raiz do projeto, o script commita só eles, com o conteúdo atual da pasta de trabalho, inclusive arquivos novos e removidos. Sem caminhos, commita o que está em stage, para quando um arquivo precisa ser dividido entre commits. O script recusa se já houver commits sem liberação: nesse caso, siga os passos 1 a 4 antes. Se ele recusar por outro motivo, **PARE** e responda com o template `blocker`.
+Com caminhos, relativos à raiz do projeto, o script commita só eles, com o conteúdo atual da pasta de trabalho, inclusive arquivos novos e removidos. Sem caminhos, commita o que está em stage, para quando um arquivo precisa ser dividido entre commits. O script recusa se já houver commits sem liberação: nesse caso, siga os passos 2 a 5 antes. Se ele recusar por outro motivo, **PARE** e responda com o template `blocker`.
 
 Depois do último commit, execute `packages/harness/scripts/default/git/check-commits.sh` e responda com o template `completion`, com os commits feitos (hash e mensagem).

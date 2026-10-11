@@ -5,8 +5,7 @@ allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "rules/agent/boundaries.md config/tasks.yml"
-  scripts: "scripts/default/tasks/load-task.sh skills/default/execute-task/scripts/execute-task.sh"
+  scripts: "scripts/default/context/load-extra-context.sh scripts/default/tasks/load-task.sh skills/default/execute-task/scripts/execute-task.sh"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -36,18 +35,27 @@ Leva uma tarefa aprovada de `approved` a `in_progress`, coleta o estado anterior
 Copie e marque o progresso:
 
 ```
-- [ ] 1. Identificar a tarefa
-- [ ] 2. Iniciar
-- [ ] 3. Carregar a tarefa
-- [ ] 4. Coletar o baseline
-- [ ] 5. Implementar os testes
-- [ ] 6. Implementar o código
-- [ ] 7. Responder ao usuário
+- [ ] 1. Carregar o contexto
+- [ ] 2. Identificar a tarefa
+- [ ] 3. Iniciar
+- [ ] 4. Carregar a tarefa
+- [ ] 5. Coletar o baseline
+- [ ] 6. Implementar os testes
+- [ ] 7. Implementar o código
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
 
-### 1. Identificar a tarefa
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill execute-task
+```
+
+### 2. Identificar a tarefa
 
 As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, e os IDs são numerados dentro de cada spec. Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-05.md`):
 
@@ -55,7 +63,7 @@ As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, e os IDs são nume
 - Tarefa citada que existe em mais de uma spec: **PARE** e pergunte de qual, com o template `question`.
 - Sem citação ("executa a próxima"): leia o front-matter das tarefas e liste as executáveis. Uma só: use essa. Mais de uma: **PARE** e pergunte qual, com o template `question`, usando a [lista de tarefas executáveis](#lista-de-tarefas-executáveis). Nenhuma: informe as tarefas aprovadas com dependências pendentes e as pendentes de aprovação, e encerre.
 
-### 2. Iniciar
+### 3. Iniciar
 
 Execute:
 
@@ -71,11 +79,11 @@ O script confere se a tarefa está aprovada, sem mudança depois da aprovação 
 | Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
 | Dependência fora de `done` | Executar e concluir a dependência antes. |
 
-### 3. Carregar a tarefa
+### 4. Carregar a tarefa
 
 Execute `packages/harness/scripts/default/tasks/load-task.sh <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
 
-### 4. Coletar o baseline
+### 5. Coletar o baseline
 
 Antes de mudar qualquer arquivo, execute:
 
@@ -85,15 +93,15 @@ packages/harness/skills/default/execute-task/scripts/execute-task.sh --baseline 
 
 O script executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Se o script recusar, **PARE** e responda com o template `blocker`.
 
-### 5. Implementar os testes
+### 6. Implementar os testes
 
 Implemente primeiro os testes automatizados que a "Verificação" e os "Passos" pedem, para que comprovem a tarefa antes do código existir.
 
-### 6. Implementar o código
+### 7. Implementar o código
 
 Siga os "Passos", na ordem, mudando só os arquivos de "Mudar". Se um passo exigir algo fora da tarefa, **PARE** e pergunte ao usuário, com o template `question`.
 
-### 7. Responder ao usuário
+### 8. Responder ao usuário
 
 Execute `packages/harness/scripts/default/git/check-commits.sh` e responda com o template `completion`:
 

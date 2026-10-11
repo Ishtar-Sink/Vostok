@@ -5,7 +5,6 @@ allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/adjust-task/s
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  requires: "config/tasks.yml skills/default/approve-plan/SKILL.md"
   scripts: "scripts/default/context/load-extra-context.sh scripts/default/memory/search-memory.sh scripts/default/tasks/load-task.sh skills/default/adjust-task/scripts/adjust-task.sh"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
@@ -62,7 +61,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh config/tasks.yml
+packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-task
 ```
 
 Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-plan](../approve-plan/SKILL.md).

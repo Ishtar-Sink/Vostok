@@ -358,11 +358,11 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
    status: "done" (feito), "wip" (em andamento), "planned" (planejado)
    ===================================================================== */
 const DATA = {
-  updatedAt: "28/09/2026 - 08:42:32",
-  head: "511c23d",
+  updatedAt: "11/10/2026 - 06:38:53",
+  head: "ab31c1d",
 
   phases: [
-    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 85 },
+    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 95 },
     { n: "Fase 2", t: "Serviços e painel", s: "Servidor HTTP com MongoDB, servidor MCP e painel web.", status: "planned", progress: 0 },
     { n: "Fase 3", t: "Harness nos dois sentidos", s: "Harness local sincronizado com os serviços.", status: "planned", progress: 0 }
   ],
@@ -381,11 +381,11 @@ const DATA = {
       },
       nodes: [
         { id: "dev", x: 30, y: 250, w: 150, label: "Desenvolvedor", sub: "pede e revisa", status: "done",
-          d: { text: "Quem conversa com o agente na ferramenta de IA e aprova o trabalho.", list: ["Pede specs, refinamentos e ajustes em linguagem natural.", "Aprova specs na ferramenta de IA (approve-spec) e, na fase 2, também pelo painel web."] } },
+          d: { text: "Quem conversa com o agente na ferramenta de IA e aprova o trabalho.", list: ["Pede specs, refinamentos e ajustes em linguagem natural.", "Aprova specs na ferramenta de IA (approve-spec) e, na fase 2, também pelo painel web.", "Aprova as tarefas antes da execução (approve-task) e pede os commits, que o agente só faz pela approve-commit."] } },
         { id: "tools", x: 215, y: 250, w: 205, label: "Ferramentas de IA", sub: "Claude Code, Codex, Cursor", status: "done",
           d: { text: "O agente roda dentro da ferramenta do desenvolvedor. O harness não depende de nenhuma delas.", list: ["Claude Code lê `.claude/skills/`.", "Codex lê `.agents/skills/`.", "Cursor lê as duas pastas; por isso `.cursor/skills` fica desligado."] } },
         { id: "harness", x: 450, y: 250, w: 170, label: "Harness", sub: "packages/harness", status: "wip",
-          d: { text: "A parte instalável: regras, skills, scripts, templates e memória. Tudo configurável fica em `config/`.", list: ["Determinístico sempre que possível: scripts validam o que o agente produz.", "Compatível com bash 3.2 e awk/sed do BSD (macOS).", "Toda resposta ao usuário segue um template."] } },
+          d: { text: "A parte instalável: regras, skills, scripts, templates e memória. Tudo configurável fica em `config/`.", list: ["Determinístico sempre que possível: scripts validam o que o agente produz.", "Compatível com bash 3.2 e awk/sed do BSD (macOS).", "Toda resposta ao usuário segue um template.", "Commits só com liberação do usuário, conferidos por script antes de cada conclusão."] } },
         { id: "mcp", x: 450, y: 90, w: 170, label: "Servidor MCP", sub: "apps/mcp", status: "planned",
           d: { text: "Ponto de entrada do agente nos serviços. O agente consulta o trabalho por pull, sem despachante.", list: ["Lê specs, tarefas e eventos pelo servidor HTTP.", "Um despachante (claude -p, codex exec) fica como evolução opcional."] } },
         { id: "server", x: 680, y: 90, w: 160, label: "Servidor HTTP", sub: "apps/server", status: "planned",
@@ -430,17 +430,17 @@ const DATA = {
         { id: "ctx", x: 700, y: 20, w: 250, label: "context/", sub: "catálogo de skills", mono: true, status: "done",
           d: { text: "`skill-catalog.md`, gerado pela create-skill, lista as skills padrão e as customizadas.", list: [] } },
         { id: "ragent", x: 700, y: 120, w: 250, label: "rules/agent/", sub: "5 arquivos de regras", mono: true, status: "done",
-          d: { text: "Regras de comportamento do agente.", list: ["anti-loop: busca issues antes de corrigir; no máximo 2 tentativas.", "boundaries: commit e stage só com pedido do usuário; harness prevalece.", "memory: quando e como registrar decisões, issues e conhecimento.", "responses: toda resposta usa um template.", "template-usage: variáveis no formato `#{VAR}`."] } },
+          d: { text: "Regras de comportamento do agente.", list: ["anti-loop: busca issues antes de corrigir; no máximo 2 tentativas.", "boundaries: commit só pela approve-commit, a pedido do usuário; stage só com pedido; `check-commits.sh` antes de toda conclusão; harness prevalece.", "memory: quando e como registrar decisões, issues e conhecimento.", "responses: toda resposta usa um template.", "template-usage: variáveis no formato `#{VAR}`."] } },
         { id: "rlang", x: 700, y: 220, w: 250, label: "rules/project/language.md", sub: "docs em pt-br, código em en", mono: true, status: "done",
           d: { text: "Idioma do projeto: documentação em português, código em inglês.", list: [] } },
         { id: "resp", x: 700, y: 320, w: 250, label: "templates/responses/", sub: "6 templates de resposta", mono: true, status: "done",
-          d: { text: "Formatos obrigatórios das respostas ao usuário.", list: ["general", "question", "completion", "blocker", "decision-conflict", "decision-proposal"] } },
+          d: { text: "Formatos obrigatórios das respostas ao usuário.", list: ["general", "question", "completion (com Próximos passos em linguagem natural ou skills, e a verificação de commits antes de responder)", "blocker", "decision-conflict", "decision-proposal"] } },
         { id: "skill", x: 230, y: 430, w: 160, label: "Skill invocada", sub: "passo 1 da skill", status: "done",
           d: { text: "Cada skill carrega as regras extras de que precisa no primeiro passo.", list: [] } },
         { id: "extra", x: 440, y: 430, w: 205, label: "load-extra-context.sh", sub: "arquivos específicos", mono: true, status: "done",
           d: { text: "Carrega pastas ou arquivos pedidos, relativos à raiz do harness.", cmds: ["load-extra-context.sh rules/agent/template-usage.md \\\n  rules/project/naming-convention.md"] } },
         { id: "extras", x: 700, y: 430, w: 250, label: "Regras e referências", sub: "naming-convention, sections.md…", status: "done",
-          d: { text: "O que cada skill declara em `metadata.requires`.", list: ["refine-spec e adjust-spec: template-usage, naming-convention.", "adjust-spec também carrega `refine-spec/references/sections.md`.", "plan-tasks e approve-plan: template-usage e `config/tasks.yml`."] } }
+          d: { text: "O que cada skill declara em `metadata.requires`.", list: ["refine-spec e adjust-spec: template-usage, naming-convention.", "adjust-spec também carrega `refine-spec/references/sections.md`.", "plan-tasks e approve-plan: template-usage e `config/tasks.yml`.", "approve-task, adjust-task, execute-task e finish-task: `config/tasks.yml`; execute-task também boundaries e finish-task, anti-loop.", "approve-commit: boundaries."] } }
       ],
       edges: [
         { from: "claude", to: "agents", label: "lê" },
@@ -459,10 +459,10 @@ const DATA = {
       id: "specs",
       tab: "Ciclo da spec",
       title: "Ciclo de vida de uma spec",
-      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação ao planejamento. A execução vem depois.",
+      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação ao planejamento e à execução, até a spec implementada.",
       intro: {
         kicker: "Specs",
-        title: "Rascunho, refinada, ajustes, aprovação",
+        title: "Do rascunho à spec implementada",
         text: "Cada etapa tem uma skill e um script. O agente escreve o conteúdo; os scripts criam arquivos, validam e registram.",
         list: ["IDs no formato SPEC-001, com a sequência em `config/sequences.yml`.", "Cinco tipos: feature, improvement, fix, study e analysis."]
       },
@@ -485,8 +485,10 @@ const DATA = {
           d: { kicker: "Skill", text: "Aprova a spec refinada: confere os impedimentos, muda o status para `approved`, grava a versão aprovada e remove o rascunho. A spec continua em `refined/`.", cmds: ["approve-spec.sh --validate <SPEC_ID>", "approve-spec.sh --approve <SPEC_ID>"], list: ["Impedimentos: spec inválida, pendência aberta, spec sem `content_hash` ou edição manual sem registro.", "`approved_hash` guarda o `content_hash` aprovado, para a granularização conferir depois.", "Um ajuste depois da aprovação a derruba: o status volta a `refined`.", "Na fase 2, a aprovação feita na ferramenta é enviada ao servidor pelo MCP; também será possível aprovar pela web.", "Validado em 5 cenários com agente."] } },
         { id: "tasks", x: 330, y: 300, w: 170, label: "Planejamento", sub: "plan-tasks · approve-plan", status: "done",
           d: { text: "Quebra da spec aprovada em tarefas, com plano para revisão, ajustes e aprovação. Detalhes na aba Planejamento.", list: ["Ao aprovar o plano, a spec passa a `planned`."] } },
-        { id: "exec", x: 100, y: 300, w: 170, label: "Execução", sub: "agente implementa", status: "planned",
-          d: { text: "O agente executa as tarefas seguindo o harness.", list: [] } }
+        { id: "exec", x: 100, y: 300, w: 170, label: "Execução", sub: "approve · execute · finish", status: "done",
+          d: { text: "Cada tarefa é aprovada, executada e validada, com baseline, testes, regressão e evidências. Detalhes na aba Execução.", list: ["A conclusão da última tarefa marca a spec como `implemented`."] } },
+        { id: "implemented", x: 100, y: 460, w: 170, label: "implemented", sub: "spec implementada", state: true, status: "done",
+          d: { kicker: "Estado", text: "Todas as tarefas da spec estão `done`. O `finish-task.sh --finish` da última tarefa grava o status.", list: [] } }
       ],
       edges: [
         { from: "ask", to: "new", label: "título" },
@@ -499,7 +501,8 @@ const DATA = {
         { from: "refined", to: "approve", label: "--approve", sides: ["b", "r"], so: [-60, 0] },
         { from: "approve", to: "adjust", label: "ajuste derruba a aprovação", sides: ["r", "l"] },
         { from: "approve", to: "tasks", label: "planejar a aprovada" },
-        { from: "tasks", to: "exec", label: "executar", planned: true }
+        { from: "tasks", to: "exec", label: "executar as tarefas" },
+        { from: "exec", to: "implemented", label: "última tarefa done" }
       ]
     },
 
@@ -530,7 +533,7 @@ const DATA = {
         { id: "papprove", x: 605, y: 200, w: 150, label: "approve-plan", sub: "skill · 7 passos", status: "done",
           d: { kicker: "Skill", text: "Só a pedido do usuário. Cria um arquivo por tarefa, detalha cada uma e conclui o planejamento.", cmds: ["approve-plan.sh --create-tasks <SPEC_ID>", "approve-plan.sh --validate <SPEC_ID>", "approve-plan.sh --mark-planned <SPEC_ID>"], list: ["Recusa spec alterada, plano desatualizado ou edição manual sem registro.", "A validação confere subseções, resumo executivo de até 5 linhas, campos do card, caminhos a mudar e cobertura."] } },
         { id: "ptaskfiles", x: 805, y: 200, w: 150, label: "tarefas", sub: "work/tasks", state: true, status: "done",
-          d: { kicker: "Estado", text: "Um `TASK-NN.md` por tarefa, com front-matter (effort, depends_on, covers, type, labels) e duas seções.", list: ["Execução, para o agente: Ler, Mudar, Passos, Verificação e Concluída quando.", "Descrição, para pessoas: Resumo executivo, Detalhes técnicos e Card pronto para Jira ou Businessmap."] } },
+          d: { kicker: "Estado", text: "Um `TASK-NN.md` por tarefa, com status `pending`, front-matter (effort, depends_on, covers, type, labels e content_hash) e quatro seções.", list: ["Execução, para o agente: Ler, Mudar, Passos, Baseline, Verificação, Evidências e Concluída quando (caixas de seleção, cada uma com \"Como comprovar\" em linguagem simples).", "Descrição, para pessoas: Resumo executivo, Detalhes técnicos e Card pronto para Jira ou Businessmap.", "Registro de execução e Histórico de ajustes, preenchidos pelos scripts.", "Daqui segue para a aba Execução."] } },
         { id: "pplanned", x: 605, y: 390, w: 150, label: "planned", sub: "spec planejada", state: true, status: "done",
           d: { kicker: "Estado", text: "A spec fica com status `planned` e o plano é removido. Mudá-la exige um novo ciclo.", list: [] } },
         { id: "pload", x: 805, y: 390, w: 150, label: "load-task.sh", sub: "scripts/default/tasks", mono: true, status: "done",
@@ -547,6 +550,102 @@ const DATA = {
         { from: "papprove", to: "ptaskfiles", label: "--create-tasks" },
         { from: "papprove", to: "pplanned", label: "--mark-planned", sides: ["b", "t"] },
         { from: "ptaskfiles", to: "pload", label: "carrega a Execução", sides: ["b", "t"] }
+      ]
+    },
+
+    {
+      id: "execucao",
+      tab: "Execução",
+      title: "Execução de tarefas",
+      text: "Da tarefa pendente à aprovada, da execução à finalização a pedido do usuário, até a tarefa concluída e a spec implementada.",
+      intro: {
+        kicker: "Execução",
+        title: "Aprovar, executar, finalizar",
+        text: "Uma tarefa por pedido. Os scripts conferem cada passagem de status; o agente implementa, mas não pula etapas nem marca a tarefa como concluída por conta própria. Concluir é um pedido separado do usuário, atendido pela `finish-task`.",
+        list: ["Cada etapa grava uma linha no \"Registro de execução\" da tarefa.", "Saídas e evidências ficam em `work/tasks/<SPEC_ID>/evidence/<TASK_ID>/`.", "Sem commit nem stage durante a execução."]
+      },
+      nodes: [
+        { id: "tpending", x: 20, y: 60, w: 130, label: "pending", sub: "tarefa criada", state: true, status: "done",
+          d: { kicker: "Estado", text: "Status das tarefas criadas pela approve-plan e das que voltam de um ajuste.", list: [] } },
+        { id: "tapprove", x: 185, y: 60, w: 160, label: "approve-task", sub: "skill · 5 passos", status: "done",
+          d: { kicker: "Skill", text: "Aprova uma, várias ou todas as tarefas pendentes, só a pedido do usuário. Sem citação, lista as pendentes e pergunta.", cmds: ["approve-task.sh --validate <SPEC_ID> <TASK_ID…>|--all", "approve-task.sh --approve <SPEC_ID> <TASK_ID…>|--all"], list: ["Grava a aprovação em todas ou em nenhuma.", "Recusa tarefa inválida, fora de `pending` ou com edição manual sem registro.", "`approved_hash` guarda a versão aprovada."] } },
+        { id: "tapproved", x: 380, y: 60, w: 130, label: "approved", sub: "pronta", state: true, status: "done",
+          d: { kicker: "Estado", text: "Tarefa aprovada, com `approved_at` e `approved_hash`.", list: [] } },
+        { id: "texecute", x: 545, y: 60, w: 170, label: "execute-task", sub: "skill · 7 passos", status: "done",
+          d: { kicker: "Skill", text: "Confere se a tarefa pode começar, coleta o baseline antes de qualquer mudança e implementa os testes e depois o código. Termina com a tarefa em execução, sem validar.", cmds: ["execute-task.sh --start <SPEC_ID> <TASK_ID>", "execute-task.sh --baseline <SPEC_ID> <TASK_ID>"], list: ["O `--start` recusa tarefa sem aprovação, alterada depois de aprovada ou com dependência fora de `done`.", "O baseline roda os comandos da subseção a partir da raiz e grava `baseline/NN.out`.", "Sem citação e com mais de uma executável, pergunta qual.", "Responde com `completion` e sugere, em linguagem natural, pedir para finalizar a tarefa."] } },
+        { id: "tprogress", x: 780, y: 60, w: 170, label: "in_progress", sub: "em execução", state: true, status: "done",
+          d: { kicker: "Estado", text: "Tarefa iniciada, com o baseline coletado e o código implementado. O hash do conteúdo ignora o \"Registro de execução\", então `content_hash` e `approved_hash` continuam iguais.", list: ["Pode ser ajustada: o ajuste mantém o baseline e zera os resultados."] } },
+        { id: "tadjust", x: 185, y: 250, w: 160, label: "adjust-task", sub: "skill · 10 passos", status: "done",
+          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem numa tarefa `pending`, `approved`, `in_progress`, `validating` ou `blocked`. Uma tarefa `done` é recusada.", cmds: ["adjust-task.sh --record-manual <SPEC_ID> <TASK_ID>", "adjust-task.sh --validate <SPEC_ID> <TASK_ID>", "adjust-task.sh --record <SPEC_ID> <TASK_ID> \"resumo\""], list: ["Ajustar uma tarefa aprovada derruba a aprovação: ela volta a `pending`.", "Ajustar uma tarefa em execução a deixa `in_progress`, com tentativas e resultados zerados, baseline mantido e uma linha `ajuste` no registro, sem nova aprovação.", "Não muda a subseção Baseline de uma tarefa com o baseline coletado.", "Todos os ajustes de uma mensagem viram uma linha no histórico."] } },
+        { id: "tmanual", x: 20, y: 250, w: 130, label: "Edição manual", sub: "feita à mão", status: "done",
+          d: { text: "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, a tarefa não é aprovada.", list: [] } },
+        { id: "tvalidate", x: 780, y: 250, w: 170, label: "finish-task", sub: "skill · 7 passos", status: "done",
+          d: { kicker: "Skill", text: "A pedido do usuário, roda os testes da Verificação, compara com o baseline, grava as evidências, confere os critérios e conclui a tarefa. É o único passo que grava `done`.", cmds: ["finish-task.sh --tests <SPEC_ID> <TASK_ID>", "finish-task.sh --regression <SPEC_ID> <TASK_ID>", "finish-task.sh --evidence <SPEC_ID> <TASK_ID>", "finish-task.sh --finish <SPEC_ID> <TASK_ID>", "finish-task.sh --resume <SPEC_ID> <TASK_ID> \"decisão\""], list: ["Os testes rodam com `set -eo pipefail` e mostram o comando que falhou.", "Evidências automáticas, manuais (anexadas pelo usuário) ou \"Não se aplica.\".", "O `--finish` exige testes, regressão e evidências `passed` e todos os critérios marcados (`check-done.sh`)."] } },
+        { id: "tblocked", x: 545, y: 250, w: 170, label: "blocked", sub: "aguarda o usuário", state: true, status: "done",
+          d: { kicker: "Estado", text: "Depois de `max_attempts` (2) falhas nos testes ou numa regressão. O agente para com o template `blocker` e opções.", list: ["Volta à validação com o `--resume` e a decisão do usuário, registrada na tarefa."] } },
+        { id: "tdone", x: 780, y: 430, w: 170, label: "done", sub: "tarefa concluída", state: true, status: "done",
+          d: { kicker: "Estado", text: "Testes, regressão e evidências aprovados e critérios de conclusão comprovados.", list: ["Libera as tarefas que dependem desta."] } },
+        { id: "timplemented", x: 545, y: 430, w: 170, label: "implemented", sub: "spec implementada", state: true, status: "done",
+          d: { kicker: "Estado", text: "Quando a última tarefa da spec fica `done`, o `--finish` marca a spec como `implemented`.", list: [] } }
+      ],
+      edges: [
+        { from: "tpending", to: "tapprove", label: "pedido de aprovação" },
+        { from: "tapprove", to: "tapproved", label: "--approve" },
+        { from: "tapproved", to: "texecute", label: "pedido de execução" },
+        { from: "texecute", to: "tprogress", label: "--start e --baseline" },
+        { from: "tapproved", to: "tadjust", label: "ajuste derruba a aprovação", sides: ["b", "t"], to_: [30, 0] },
+        { from: "tadjust", to: "tpending", label: "--record", sides: ["t", "b"], so: [-30, 0] },
+        { from: "tmanual", to: "tadjust", label: "--record-manual detecta" },
+        { from: "tprogress", to: "tvalidate", label: "pedido para finalizar", sides: ["b", "t"] },
+        { from: "tvalidate", to: "tblocked", label: "2 falhas ou regressão", bend: -14 },
+        { from: "tblocked", to: "tvalidate", label: "--resume com a decisão", sides: ["r", "l"], bend: 14 },
+        { from: "tblocked", to: "tadjust", label: "ajuste volta a in_progress", sides: ["l", "r"] },
+        { from: "tvalidate", to: "tdone", label: "--finish", sides: ["b", "t"] },
+        { from: "tdone", to: "timplemented", label: "última tarefa da spec" }
+      ]
+    },
+
+    {
+      id: "commits",
+      tab: "Commits",
+      title: "Commits com liberação",
+      text: "O agente só commita a pedido do usuário, e um script confere antes de cada conclusão se apareceu algum commit sem liberação.",
+      intro: {
+        kicker: "Commits",
+        title: "Pedido de commit é a liberação",
+        text: "Uma regra sozinha não impediu commits sem pedido. Agora a conferência é determinística: as refs locais são comparadas com a última liberação, e qualquer commit novo ou removido bloqueia a conclusão até o usuário decidir.",
+        list: ["[agent/boundaries-01]: commit só pela approve-commit (`--commit`).", "[agent/boundaries-04]: `check-commits.sh` antes de toda resposta `completion`.", "Vale também para commits feitos à mão pelo usuário."]
+      },
+      nodes: [
+        { id: "cask", x: 20, y: 60, w: 160, label: "Pedido de commit", sub: "mensagem do usuário", status: "done",
+          d: { text: "\"pode commitar\", \"faça o commit atomizado\". O commit tem só o que o usuário pediu.", list: [] } },
+        { id: "capprove", x: 240, y: 60, w: 190, label: "approve-commit", sub: "skill · 4 passos", status: "done",
+          d: { kicker: "Skill", text: "Único caminho do agente para commitar. Também libera ou desfaz os commits apontados pela verificação.", cmds: ["approve-commit.sh --commit [caminho…] < mensagem", "approve-commit.sh --show", "approve-commit.sh --approve <código>", "approve-commit.sh --revert <código>"], list: ["Um commit por chamada; commits atômicos com uma chamada por grupo de arquivos.", "Recusa commitar se já houver commits sem liberação.", "O `--revert` faz `reset --mixed` e recusa commits já enviados ao remoto."] } },
+        { id: "crepo", x: 500, y: 60, w: 180, label: "Refs locais", sub: "HEAD, branches e tags", status: "done",
+          d: { text: "O que é comparado. Remotos e stash ficam de fora.", list: ["Commit novo: alcançável hoje e não pela referência (inclui amend e rebase).", "Commit removido: estava na referência e saiu do histórico."] } },
+        { id: "cdirect", x: 760, y: 60, w: 200, label: "Commit sem liberação", sub: "git commit direto", status: "done",
+          d: { text: "Feito pelo agente, fora da skill, ou pelo próprio usuário. Não é impedido na hora; é apontado na próxima conclusão.", list: [] } },
+        { id: "ccompletion", x: 20, y: 250, w: 160, label: "Template completion", sub: "antes de responder", status: "done",
+          d: { text: "O template de conclusão manda executar `check-commits.sh` antes de responder.", list: [] } },
+        { id: "ccheck", x: 240, y: 250, w: 190, label: "check-commits.sh", sub: "scripts/default/git", mono: true, status: "done",
+          d: { text: "Compara as refs locais com a referência. Na primeira execução, só grava a referência.", cmds: ["packages/harness/scripts/default/git/check-commits.sh"], list: ["Sem diferença: \"Nenhum commit sem liberação.\"", "Com diferença: lista os commits e manda parar com o template `blocker`."] } },
+        { id: "cack", x: 500, y: 250, w: 180, label: ".state/commit-ack", sub: "referência", mono: true, status: "done",
+          d: { text: "Estado das refs na última liberação, fora do git (`paths.state`). Só os scripts o alteram.", list: ["O código de liberação é o hash dessa referência: se o repositório mudar depois de mostrado, a ação é recusada."] } },
+        { id: "cblocker", x: 240, y: 430, w: 190, label: "Template blocker", sub: "agente para", status: "done",
+          d: { text: "O agente mostra os commits e não conclui nenhuma resposta até a decisão do usuário.", list: [] } },
+        { id: "cdecide", x: 500, y: 430, w: 180, label: "Decisão do usuário", sub: "liberar ou desfazer", status: "done",
+          d: { text: "Numa mensagem posterior à que mostrou os commits. \"Ok\" ou \"segue\" não contam como liberação.", list: [] } }
+      ],
+      edges: [
+        { from: "cask", to: "capprove", label: "pede o commit" },
+        { from: "capprove", to: "crepo", label: "--commit" },
+        { from: "capprove", to: "cack", label: "libera no mesmo passo", sides: ["b", "t"], so: [40, 0], to_: [-40, 0] },
+        { from: "cdirect", to: "crepo", label: "muda as refs" },
+        { from: "ccompletion", to: "ccheck", label: "executa" },
+        { from: "ccheck", to: "cack", label: "compara as refs" },
+        { from: "ccheck", to: "cblocker", label: "commit novo ou removido", sides: ["b", "t"] },
+        { from: "cblocker", to: "cdecide", label: "mostra a lista" },
+        { from: "cdecide", to: "cack", label: "--approve ou --revert", sides: ["t", "b"] }
       ]
     },
 
@@ -604,8 +703,8 @@ const DATA = {
       nodes: [
         { id: "create", x: 30, y: 210, w: 180, label: "create-skill", sub: "skill · 7 passos", status: "done",
           d: { kicker: "Skill", text: "Cria skills no formato padrão, com scripts, redirecionamentos e entrada no catálogo.", cmds: ["create-skill.sh [--default] <nome>", "create-skill.sh --script <nome> <script>", "create-skill.sh --finalize <nome>"], list: ["O `--finalize` valida o SKILL.md e gera redirecionamentos e catálogo."] } },
-        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "7 skills padrão", mono: true, status: "done",
-          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.2.0)", "approve-spec (v1.0.0)", "plan-tasks (v1.0.0)", "adjust-plan (v1.0.0)", "approve-plan (v1.0.0)", "create-skill (v1.0.0)"] } },
+        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "12 skills padrão", mono: true, status: "done",
+          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.2.0)", "approve-spec (v1.0.0)", "plan-tasks (v1.0.0)", "adjust-plan (v1.0.0)", "approve-plan (v1.0.0)", "approve-task (v1.0.0)", "adjust-task (v1.0.0)", "execute-task (v1.0.0)", "finish-task (v1.0.0)", "approve-commit (v1.0.0)", "create-skill (v1.0.0)"] } },
         { id: "claudeDir", x: 580, y: 50, w: 190, label: ".claude/skills/", sub: "redirecionamento", mono: true, status: "done",
           d: { text: "Lido pelo Claude Code e pelo Cursor.", list: [] } },
         { id: "agentsDir", x: 580, y: 220, w: 190, label: ".agents/skills/", sub: "redirecionamento", mono: true, status: "done",
@@ -630,22 +729,22 @@ const DATA = {
 
     { id: "estrutura", tab: "Estrutura", kind: "folders", title: "Estrutura do harness",
       text: "Pastas de `packages/harness/`. Clique em uma pasta para ver os arquivos.",
-      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 265 casos passam no Linux e no macOS."] } },
+      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 506 casos passam no Linux e no macOS."] } },
 
     { id: "historico", tab: "Histórico", kind: "timeline", title: "Histórico de commits",
       text: "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
-      intro: { kicker: "Histórico", title: "35 commits em 3 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
+      intro: { kicker: "Histórico", title: "59 commits em 7 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
   ],
 
   folders: [
     { path: "config/", desc: "Tudo o que é configurável", files: [
-      ["main.yml", "Caminhos: raiz, specs, planos, tarefas, templates, scripts, docs, memória."],
+      ["main.yml", "Caminhos: raiz, specs, planos, tarefas, templates, scripts, docs, memória e estado local."],
       ["context.yml", "Fontes carregadas em toda sessão."],
-      ["specs.yml", "IDs, status (até planned), tipos, seções por tipo, front-matter, hash e histórico."],
+      ["specs.yml", "IDs, status (até implemented), tipos, seções por tipo, front-matter, hash e histórico."],
       ["skills.yml", "Pastas, templates, redirecionamentos e catálogo."],
       ["memory.yml", "Tipos, prefixos, status, categorias e limite de busca."],
       ["sequences.yml", "Próximo número de cada sequência de IDs."],
-      ["tasks.yml", "ID, tipos, níveis, pesos e limites de esforço, templates e seções das tarefas."]] },
+      ["tasks.yml", "ID, tipos, níveis, pesos e limites de esforço, templates, seções, status, evidências e tentativas das tarefas."]] },
     { path: "scripts/default/", desc: "Scripts chamados pelo agente", files: [
       ["context/load-context.sh", "Carrega o contexto obrigatório."],
       ["context/load-extra-context.sh", "Carrega arquivos específicos."],
@@ -655,15 +754,19 @@ const DATA = {
       ["memory/add-memory.sh", "Cria entradas de memória."],
       ["memory/search-memory.sh", "Busca na memória."],
       ["memory/update-memory.sh", "Altera um campo de uma entrada."],
-      ["tasks/load-task.sh", "Carrega a execução de uma tarefa."]] },
+      ["tasks/load-task.sh", "Carrega a execução de uma tarefa."],
+      ["tasks/check-done.sh", "Confere se todos os critérios de conclusão estão marcados."],
+      ["git/check-commits.sh", "Aponta commits sem liberação do usuário."]] },
     { path: "scripts/lib/", desc: "Funções compartilhadas", files: [
       ["config.sh", "config_get, config_list, config_block, config_set."],
       ["text.sh", "render, template_leftovers, clean_title, slugify, sha256_hash."],
       ["frontmatter.sh", "Leitura e escrita de front-matter, CRLF e blocos."],
       ["markdown.sh", "Seções, subseções e tabelas, ignorando blocos de código."],
       ["spec-validation.sh", "refined_errors, spec_content_hash e spec_open_pending."],
-      ["adjustments.sh", "Registro de ajustes compartilhado por specs e planos."],
+      ["adjustments.sh", "Registro de ajustes compartilhado por specs, planos e tarefas."],
       ["plan.sh", "Níveis, cobertura, dependências e validação do plano."],
+      ["task.sh", "Validação, baseline, evidências e registro de execução das tarefas."],
+      ["commits.sh", "Referência das refs locais e comparação de commits."],
       ["memory.sh", "Tipos, arquivos e IDs da memória."],
       ["context.sh", "Impressão das fontes de contexto."]] },
     { path: "skills/", desc: "Skills padrão e customizadas", files: [
@@ -673,18 +776,23 @@ const DATA = {
       ["default/plan-tasks/", "Planeja as tarefas de specs aprovadas."],
       ["default/adjust-plan/", "Ajusta planos de tarefas."],
       ["default/approve-plan/", "Aprova planos e cria as tarefas."],
+      ["default/approve-task/", "Aprova tarefas pendentes."],
+      ["default/adjust-task/", "Ajusta tarefas, inclusive as em execução."],
+      ["default/execute-task/", "Inicia tarefas, coleta o baseline e implementa, sem validar."],
+      ["default/finish-task/", "Valida, bloqueia, retoma e conclui tarefas, a pedido do usuário."],
+      ["default/approve-commit/", "Faz, libera e desfaz commits."],
       ["default/create-skill/", "Cria novas skills."],
       ["custom/", "Skills do usuário (vazia)."]] },
     { path: "templates/", desc: "Modelos usados pelos scripts", files: [
-      ["responses/", "6 templates de resposta ao usuário."],
+      ["responses/", "6 templates de resposta ao usuário; completion com Próximos passos."],
       ["spec/", "new.md, refined.md e 21 seções em sections/."],
       ["plan/", "Plano de tarefas."],
-      ["task/", "Tarefa, com Execução e Descrição."],
+      ["task/", "Tarefa, com Execução, Descrição, Registro de execução e Histórico de ajustes."],
       ["skill/", "SKILL.md, redirecionamento e script."],
       ["memory/", "Arquivo e entradas de cada tipo."]] },
     { path: "rules/", desc: "Regras do agente e do projeto", files: [
       ["agent/anti-loop.md", "Busca de issues e limite de tentativas."],
-      ["agent/boundaries.md", "Commit, stage e precedência do harness."],
+      ["agent/boundaries.md", "Commit pela approve-commit, stage, precedência do harness e verificação de commits."],
       ["agent/memory.md", "Uso da memória (01 a 09)."],
       ["agent/responses.md", "Respostas com template (01 a 04)."],
       ["agent/template-usage.md", "Formato das variáveis de template."],
@@ -695,12 +803,14 @@ const DATA = {
     { path: "memory/", desc: "Memória do agente", files: [
       ["decisions.md", "Decisões (DEC)."], ["issues.md", "Issues (ISS)."], ["knowledge.md", "Conhecimento (KNW)."]] },
     { path: "work/", desc: "Specs e tarefas em andamento", files: [
-      ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas, aprovadas e planejadas."], ["plans/", "Planos em revisão."], ["tasks/", "Tarefas por spec."]] },
+      ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas, aprovadas e planejadas."], ["plans/", "Planos em revisão."], ["tasks/", "Tarefas por spec, com evidence/ por tarefa."]] },
     { path: "tests/", desc: "Testes dos scripts e cenários", files: [
-      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (265 casos)."],
-      ["agent-scenarios.md", "Roteiro e resultados dos 30 cenários com agente."],
+      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (506 casos)."],
+      ["agent-scenarios.md", "Roteiro e resultados dos 33 cenários com agente."],
       ["fixtures/agent-scenarios.sh", "Monta as cópias dos cenários."],
-      ["fixtures/fill-refined.py", "Preenche specs, planos e tarefas de teste."]] }
+      ["fixtures/fill-refined.py", "Preenche specs, planos e tarefas de teste."]] },
+    { path: ".state/", desc: "Estado local de cada clone, fora do git", files: [
+      ["commit-ack", "Referência dos commits liberados pelo usuário."]] }
   ],
 
   commits: [
@@ -738,14 +848,61 @@ const DATA = {
     ["8d05809", "2026-09-27", "docs: add spec approval to the diagrams panel"],
     ["4860ab5", "2026-09-28", "docs(memory): record Vostok as the product name"],
     ["c456b11", "2026-09-28", "docs: rename diagrams panel to Vostok and timestamp updates"],
-    ["511c23d", "2026-09-28", "docs: add project README"]
+    ["511c23d", "2026-09-28", "docs: add project README"],
+    ["1aafbc3", "2026-09-30", "feat(adjust-spec): share adjustment recording and refuse planned specs"],
+    ["73187a1", "2026-09-30", "refactor(approve-spec): treat a missing content hash as an unrecorded edit"],
+    ["c238719", "2026-09-30", "feat(tasks): add task planning config, templates and plan lib"],
+    ["858287a", "2026-09-30", "feat(plan-tasks): add skill to plan the tasks of approved specs"],
+    ["cd99b30", "2026-09-30", "feat(adjust-plan): add skill to adjust task plans"],
+    ["d7782d6", "2026-09-30", "feat(approve-plan): add skill to approve plans and create tasks"],
+    ["e45a64b", "2026-09-30", "test(harness): cover task planning"],
+    ["ad1b4ca", "2026-09-30", "docs: add task planning to the Vostok map"],
+    ["23786ad", "2026-10-01", "feat(completion): add NEXT_STEPS section to completion template"],
+    ["9c7678e", "2026-10-01", "feat(tasks): add task lifecycle fields, baseline and evidence to the task template"],
+    ["91f0b8a", "2026-10-01", "feat(approve-plan): require done criteria as checkboxes with how to prove them"],
+    ["a7d5ded", "2026-10-01", "feat(tasks): add check-done script to require all done criteria checked"],
+    ["7d89861", "2026-10-01", "docs(responses): suggest next steps as natural language requests or skills"],
+    ["acba29c", "2026-10-02", "feat(tasks): validate task baseline and evidence in a shared lib and hash created tasks"],
+    ["72c3521", "2026-10-02", "feat(harness): block completion on commits not released by the user"],
+    ["ee1ae07", "2026-10-02", "feat(approve-commit): commit at the user's request and release it in the same step"],
+    ["3829c70", "2026-10-02", "feat(approve-task): approve one, several or all pending tasks atomically"],
+    ["fd0e4e9", "2026-10-02", "feat(adjust-task): record manual edits and agent adjustments of a task"],
+    ["c1f2a44", "2026-10-02", "feat(tasks): require the execution record and adjustment history sections"],
+    ["2a02c82", "2026-10-02", "feat(execute-task): start an approved task and collect its baseline"],
+    ["8daf3fd", "2026-10-02", "feat(validate-task): run task tests, check regressions and resume blocked tasks"],
+    ["5fd648b", "2026-10-02", "feat(validate-task): record task evidence and finish tasks"],
+    ["3a3fc48", "2026-10-03", "docs: add technical debt log with task flow debts"],
+    ["e96fc1a", "2026-10-03", "test(agent-scenarios): add task flow scenarios and their results"],
+    ["2ac0228", "2026-10-06", "feat(finalize-spec): add finalization base that refuses specs not ready to finalize"],
+    ["aed44f8", "2026-10-06", "docs(memory): record Rust as the harness language"],
+    ["70e7e4e", "2026-10-06", "feat(finalize-spec): print the synthesis sources of an implemented spec"],
+    ["5959938", "2026-10-06", "feat(finalize-spec): create and validate the content of the finalization documents"],
+    ["2b4a468", "2026-10-06", "feat(finalize-spec): add document tokens, restricted markdown and html escaping"],
+    ["b4c20d1", "2026-10-06", "feat(finalize-spec): build the executive document focused on deliveries and value"],
+    ["cf3c856", "2026-10-06", "feat(finalize-spec): build the technical document"],
+    ["80160b8", "2026-10-06", "feat(finalize-spec): show side-by-side diffs of the changed files"],
+    ["a3d89ae", "2026-10-06", "feat(finalize-spec): build the evidence document"],
+    ["b7f2d71", "2026-10-06", "feat(finalize-spec): archive a finalized spec"],
+    ["02d58ca", "2026-10-06", "feat(finalize-spec): add the finalize-spec skill"],
+    ["e3bb37f", "2026-10-06", "test(finalize-spec): add agent scenarios for the spec finalization"],
+    ["29f3fbd", "2026-10-06", "fix(finalize-spec): splice the diffs into the technical document"],
+    ["4ec5ade", "2026-10-06", "docs(spec-002): publish the executive and technical documents of the task flow"],
+    ["207e5d2", "2026-10-06", "docs(spec-003): publish the executive and technical documents of the spec finalization"],
+    ["123a608", "2026-10-10", "feat(harness): finish-task script, task hash and finalization fixes with tabbed documents"],
+    ["5721c1b", "2026-10-10", "feat(harness): finish-task skill, in-execution task adjustments and empty-section tabs"],
+    ["55a8fc7", "2026-10-11", "feat(execute-task): finish without validating and suggest finishing the task"],
+    ["dddd36d", "2026-10-11", "test(agent-scenarios): add finish-task scenarios for regression, resume and in-execution adjustment"],
+    ["f8cf6e7", "2026-10-11", "docs(debitos): register DT-004 to DT-006 and resolve all open technical debts"],
+    ["ab31c1d", "2026-10-11", "docs(spec-004): publish the executive and technical documents of the base refinement"]
   ],
 
   changes: [
     ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."],
     ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura; aprovação também pela ferramenta de IA na arquitetura."],
     ["2026-09-28", "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."],
-    ["2026-09-28", "Planejamento de tarefas (plan-tasks, adjust-plan, approve-plan e load-task.sh): nova aba, ciclo da spec até planned, skills, estrutura e histórico até 511c23d."]
+    ["2026-09-28", "Planejamento de tarefas (plan-tasks, adjust-plan, approve-plan e load-task.sh): nova aba, ciclo da spec até planned, skills, estrutura e histórico até 511c23d."],
+    ["2026-10-03", "Execução de tarefas (approve-task, adjust-task, execute-task e validate-task) e commits com liberação (approve-commit e check-commits.sh): duas abas novas, ciclo da spec até implemented, skills, estrutura e histórico até e96fc1a."],
+    ["2026-10-11", "Fluxo novo da tarefa (SPEC-004): a finish-task substitui a validate-task e conclui a pedido do usuário, a execute-task termina sem validar, a adjust-task ajusta tarefas em execução e o hash ignora o registro. Histórico até ab31c1d, com a finalização de specs (SPEC-003) nos commits."]
   ]
 };
 

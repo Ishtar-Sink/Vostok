@@ -422,8 +422,9 @@ fn digits(bytes: &[u8], index: usize, count: usize) -> bool {
     (0..count).all(|offset| is_digit_at(bytes, index + offset))
 }
 
-/// Tamanho do resto de uma data de modificação do `diff` (` HH:MM:SS[.n] +zzzz`), se houver.
-fn diff_mtime_len(bytes: &[u8]) -> Option<usize> {
+/// Tamanho do resto de uma data de modificação do `diff` (` HH:MM:SS[.n] +zzzz`), se houver. No
+/// cabeçalho (depois de uma tabulação), o fuso é opcional: o `diff` do macOS não o escreve.
+fn diff_mtime_len(bytes: &[u8], in_header: bool) -> Option<usize> {
     let clock = bytes.first() == Some(&b' ')
         && digits(bytes, 1, 2)
         && bytes.get(3) == Some(&b':')
@@ -443,7 +444,11 @@ fn diff_mtime_len(bytes: &[u8]) -> Option<usize> {
     let zone = bytes.get(index) == Some(&b' ')
         && matches!(bytes.get(index + 1), Some(b'+' | b'-'))
         && digits(bytes, index + 2, 4);
-    zone.then_some(index + 6)
+    if zone {
+        Some(index + 6)
+    } else {
+        in_header.then_some(index)
+    }
 }
 
 /// Troca datas, horas e sequências hexadecimais (hashes) por marcadores.
@@ -460,6 +465,7 @@ fn replace_volatile(text: &str) -> String {
             && bytes.get(index + 7) == Some(&b'-')
             && digits(bytes, index + 8, 2)
         {
+            let in_header = index > 0 && bytes[index - 1] == b'\t';
             index += 10;
             let time = bytes.get(index) == Some(&b'T')
                 && digits(bytes, index + 1, 2)
@@ -470,7 +476,7 @@ fn replace_volatile(text: &str) -> String {
             if time && bytes.get(index + 9) == Some(&b'Z') {
                 out.push_str("<DATETIME>");
                 index += 10;
-            } else if let Some(len) = diff_mtime_len(&bytes[index..]) {
+            } else if let Some(len) = diff_mtime_len(&bytes[index..], in_header) {
                 out.push_str("<MTIME>");
                 index += len;
             } else {

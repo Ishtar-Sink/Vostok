@@ -80,7 +80,7 @@ coverage_analysis:
   - synthesis
 
 # --- Arquivo de tarefa ---
-# Seção carregada pelo load-task.sh e suas subseções obrigatórias.
+# Seção carregada pelo vostok task load e suas subseções obrigatórias.
 execution_section: Execução
 execution_subsections:
   - Ler
@@ -95,7 +95,7 @@ execution_subsections:
 change_subsection: Mudar
 
 # Subseção "Verificação": um bloco `bash` com os comandos que comprovam a tarefa, executado pelo
-# finish-task.sh --tests como um script, que para no primeiro comando com falha.
+# vostok task tests como um script, que para no primeiro comando com falha.
 verify_subsection: Verificação
 
 # Subseção "Baseline": um comando por item ("- `comando`"), rodado antes e depois da mudança.
@@ -115,7 +115,7 @@ evidence_none: Não se aplica.
 done_subsection: Concluída quando
 done_proof_label: Como comprovar
 
-# Seção para leitura humana, fora do load-task.sh, e suas subseções obrigatórias.
+# Seção para leitura humana, fora do vostok task load, e suas subseções obrigatórias.
 description_section: Descrição
 description_subsections:
   - Resumo executivo

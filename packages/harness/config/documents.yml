@@ -1,5 +1,5 @@
-# Configurações dos documentos HTML gerados pela finalização de specs (finalize-spec.sh).
-# Os valores seguem o subconjunto de YAML lido por scripts/lib/config.sh: sem níveis além de `grupo.chave`
+# Configurações dos documentos HTML gerados pela finalização de specs (`vostok finalize`).
+# Os valores seguem o subconjunto de YAML lido pelo vostok: sem níveis além de `grupo.chave`
 # e com listas em itens `- valor`. Cores e fontes são a única fonte da identidade visual dos documentos.
 
 # Limite, em megabytes, para embutir uma evidência (imagem ou vídeo) no HTML em base64.

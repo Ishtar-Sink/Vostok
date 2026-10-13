@@ -338,3 +338,19 @@ fn extract_writes_every_embedded_file() {
         );
     }
 }
+
+#[test]
+fn closed_output_pipe_ends_without_panic() {
+    let project = Project::new();
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_vostok"))
+        .args(["context", "load"])
+        .current_dir(project.root())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("panicked"), "{stderr}");
+}

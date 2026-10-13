@@ -453,6 +453,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "include_dir",
+ "libc",
  "sha2",
  "tempfile",
 ]

@@ -4,4 +4,4 @@
 
 #{MEMORY_DESCRIPTION}
 
-Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não carregue este arquivo inteiro.
+Entradas criadas por `vostok memory add` e consultadas por `vostok memory search`. Não carregue este arquivo inteiro.

@@ -1,6 +1,6 @@
 # Memória do agente: decisões, problemas (issues) e conhecimentos do projeto.
 # Os arquivos ficam em `paths.agent_memory` (main.yml). Cada entrada é um bloco `## <ID>: <título>`
-# com campos fixos, criado por add-memory.sh e consultado por search-memory.sh.
+# com campos fixos, criado por `vostok memory add` e consultado por `vostok memory search`.
 
 # Tipos de memória, na ordem usada quando a busca é em `all`.
 types:
@@ -69,7 +69,7 @@ issue_categories:
   - ferramenta     # limitações ou falhas do agente e das ferramentas dele
   - desempenho     # lentidão, memória, timeouts
 
-# Front-matter dos arquivos de memória, criado por `add-memory.sh --init`. Os `---` são adicionados pelo script.
+# Front-matter dos arquivos de memória, criado por `vostok memory init`. Os `---` são adicionados pelo comando.
 # Variáveis: #{MEMORY_TYPE}, #{MEMORY_TITLE}, #{MEMORY_DESCRIPTION}, #{DATETIME} (ISO 8601, UTC).
 file_front_matter: |
   type: #{MEMORY_TYPE}

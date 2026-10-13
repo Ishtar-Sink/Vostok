@@ -1,4 +1,4 @@
-<!-- Conteúdo dos documentos de #{SPEC_ID}, escrito pelo agente. O finalize-spec.sh --build transforma este arquivo em HTML. -->
+<!-- Conteúdo dos documentos de #{SPEC_ID}, escrito pelo agente. O `vostok finalize build` transforma este arquivo em HTML. -->
 <!-- Markdown aceito: parágrafos, listas com "- " ou "1. ", tabelas, `código` e **negrito**. -->
 <!-- Não use outros títulos, blocos de código, imagens nem HTML; "### " só nas entregas do executivo. Comentários como estes não aparecem nos documentos. -->
 <!-- Cada título "## " precisa de texto, e todas as variáveis de template precisam ser substituídas. -->

@@ -5,10 +5,7 @@
 //! bash produziram, normalizando o que muda com o relógio e com a pasta.
 //!
 //! Variáveis de ambiente úteis na depuração:
-//! - `GOLDEN_CASE=0131` reproduz só esse caso (o estado anterior continua sendo reconstruído);
-//!
-//! `replay_group_with(grupo, Backend::Bash)` roda os scripts bash de `packages/harness` em vez do
-//! `vostok`, para conferir o próprio reprodutor (`tests/golden.rs`, testes ignorados).
+//! - `GOLDEN_CASE=0131` reproduz só esse caso (o estado anterior continua sendo reconstruído).
 
 #![allow(dead_code)]
 
@@ -25,17 +22,6 @@ const MAX_REPORTED: usize = 15;
 
 fn golden_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/golden")
-}
-
-fn source_harness() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/harness")
-}
-
-/// Quem executa os casos: o binário `vostok` ou os scripts bash originais.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Backend {
-    Vostok,
-    Bash,
 }
 
 /// Raiz fixa usada pelo gerador; aparece no conteúdo de alguns arquivos.
@@ -530,13 +516,9 @@ fn is_git_internal(path: &str) -> bool {
     in_git && !path.ends_with(".git/index.ls")
 }
 
-fn run_case(case: &Case, root: &Path, temp: &Path, backend: Backend) -> std::process::Output {
+fn run_case(case: &Case, root: &Path, temp: &Path) -> std::process::Output {
     let substitute = |value: &str| value.replace("<ROOT>", root.to_str().unwrap());
-    let mut args: Vec<String> = if backend == Backend::Bash {
-        case.args.iter().map(|arg| substitute(arg)).collect()
-    } else {
-        case.vostok.iter().map(|arg| substitute(arg)).collect()
-    };
+    let mut args: Vec<String> = case.vostok.iter().map(|arg| substitute(arg)).collect();
     for (index, sha) in &case.argfiles {
         let original = &case.args[*index];
         let file = temp.join(format!("argfile-{index}"));
@@ -547,17 +529,10 @@ fn run_case(case: &Case, root: &Path, temp: &Path, backend: Backend) -> std::pro
             }
         }
     }
-    let mut command = if backend == Backend::Bash {
-        let script = find_script(root, &case.script);
-        let mut command = Command::new("bash");
-        command.arg(script).args(&args).current_dir("/");
-        command
-    } else {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_vostok"));
-        command.args(&args).current_dir(root);
-        command
-    };
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vostok"));
     command
+        .args(&args)
+        .current_dir(root)
         .env("GIT_AUTHOR_NAME", "T")
         .env("GIT_AUTHOR_EMAIL", "t@t")
         .env("GIT_COMMITTER_NAME", "T")
@@ -568,35 +543,6 @@ fn run_case(case: &Case, root: &Path, temp: &Path, backend: Backend) -> std::pro
     let mut child = command.spawn().expect("executar o caso");
     child.stdin.take().unwrap().write_all(&case.stdin).ok();
     child.wait_with_output().unwrap()
-}
-
-/// Com o backend bash, troca os gravadores do estado pelos scripts originais e devolve o caminho do chamado.
-fn find_script(root: &Path, name: &str) -> PathBuf {
-    let harness = root.join("packages/harness");
-    let mut found = None;
-    let mut stack = vec![source_harness()];
-    while let Some(dir) = stack.pop() {
-        for entry in fs::read_dir(&dir).unwrap().flatten() {
-            let path = entry.path();
-            let rel = path.strip_prefix(source_harness()).unwrap().to_path_buf();
-            if path.is_dir() {
-                if !rel.starts_with("work") && !rel.starts_with("tests") {
-                    stack.push(path);
-                }
-            } else if path.extension().is_some_and(|ext| ext == "sh")
-                && rel.to_string_lossy().contains("scripts/")
-            {
-                let target = harness.join(&rel);
-                if target.exists() {
-                    fs::copy(&path, &target).unwrap();
-                    if path.file_name().unwrap() == name {
-                        found = Some(target);
-                    }
-                }
-            }
-        }
-    }
-    found.unwrap_or_else(|| panic!("script {name} não encontrado no estado"))
 }
 
 /// Os scripts do harness aparecem nos estados como gravadores do gerador; não fazem parte da comparação.
@@ -669,11 +615,6 @@ fn compare_case(
 
 /// Reproduz os casos de um grupo com o `vostok` e devolve as diferenças.
 pub fn replay_group(group: &str) -> Vec<Failure> {
-    replay_group_with(group, Backend::Vostok)
-}
-
-/// Reproduz os casos de um grupo com o backend indicado e devolve as diferenças.
-pub fn replay_group_with(group: &str, backend: Backend) -> Vec<Failure> {
     let only = std::env::var("GOLDEN_CASE")
         .ok()
         .and_then(|value| value.parse::<u32>().ok());
@@ -687,7 +628,7 @@ pub fn replay_group_with(group: &str, backend: Backend) -> Vec<Failure> {
             let root = temp.path().join("root");
             fs::create_dir_all(&root).unwrap();
             materialize(&root, &state);
-            let output = run_case(&case, &root, temp.path(), backend);
+            let output = run_case(&case, &root, temp.path());
             let reason = compare_case(&case, &state, &root, &output);
             release(&root);
             if let Some(reason) = reason {
@@ -706,12 +647,7 @@ pub fn replay_group_with(group: &str, backend: Backend) -> Vec<Failure> {
 
 /// Falha o teste com um resumo das diferenças do grupo, reproduzido com o `vostok`.
 pub fn assert_group(group: &str) {
-    assert_group_with(group, Backend::Vostok);
-}
-
-/// Falha o teste com um resumo das diferenças do grupo, reproduzido com o backend indicado.
-pub fn assert_group_with(group: &str, backend: Backend) {
-    let failures = replay_group_with(group, backend);
+    let failures = replay_group(group);
     if failures.is_empty() {
         return;
     }

@@ -5,7 +5,7 @@ usage: |
   BLOCKER_SUMMARY: o que está bloqueado, em uma frase.
   ERROR_OUTPUT: a saída relevante do erro, sem cortar a mensagem principal.
   ATTEMPTS: lista numerada das tentativas e do resultado de cada uma.
-  MEMORY_SEARCH: termos usados em `search-memory.sh issue` e os IDs encontrados, ou "Nenhuma entrada encontrada".
+  MEMORY_SEARCH: termos usados em `vostok memory search issue` e os IDs encontrados, ou "Nenhuma entrada encontrada".
   Opções: de 2 a 4, a primeira sendo a recomendada.
 ---
 

@@ -1,20 +1,18 @@
 # Fixtures de equivalência
 
-Saídas de referência dos scripts bash do harness. Os testes de integração do `vostok` reproduzem cada caso com o subcomando equivalente e comparam saída, código de saída e arquivos (SPEC-005, CT-10 e CT-12).
+Saídas de referência dos antigos scripts bash do harness. Os testes de integração do `vostok` reproduzem cada caso com o subcomando equivalente e comparam saída, código de saída e arquivos (SPEC-005, CT-10 e CT-12).
 
-## Como gerar
+## Origem
 
-```bash
-apps/cli/tests/fixtures/generate.sh
-```
+As fixtures estão congeladas: os scripts bash e a suíte deles saíram do harness na SPEC-005 (TASK-11). A última geração é a do commit `6452e65`, com o gerador `apps/cli/tests/fixtures/generate.sh` daquele commit (`git show 6452e65:apps/cli/tests/fixtures/generate.sh`), que rodava a suíte bash com cada script trocado por um gravador. Cada chamada a um script virou um caso.
 
-O gerador roda a suíte bash (`packages/harness/tests/run-tests.sh`) com cada script do harness trocado por um gravador. Cada chamada a um script vira um caso. Requer Linux (GNU `date`), bash, git e python3, e leva cerca de 2 minutos.
+A geração era estável. Para isso, o gerador:
 
-A geração é estável: rodar de novo não muda nenhum arquivo. Para isso, o gerador:
+- usava uma raiz fixa para a cópia da suíte (`$TMPDIR/vostok-golden-root`);
+- parava o relógio em 2026-10-01T00:00:00Z, com um `date` próprio no `PATH` e as datas de commit do git fixas;
+- trocava nos textos gravados a raiz por `<ROOT>`, os temporários do `mktemp` por `<TMP>` e as datas de modificação do `diff` por `<MTIME>`.
 
-- usa uma raiz fixa para a cópia da suíte (`$TMPDIR/vostok-golden-root`);
-- para o relógio em 2026-10-01T00:00:00Z, com um `date` próprio no `PATH` e as datas de commit do git fixas;
-- troca nos textos gravados a raiz por `<ROOT>`, os temporários do `mktemp` por `<TMP>` e as datas de modificação do `diff` por `<MTIME>`.
+Uma mudança de comportamento do `vostok` que altere um caso exige editar a fixture do caso (e o blob dela), com a justificativa no commit.
 
 ## Estrutura
 

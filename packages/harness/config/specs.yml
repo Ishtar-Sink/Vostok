@@ -13,10 +13,10 @@ status:
   refined: refined
   approved: approved
   planned: planned
-  implemented: implemented   # todas as tarefas da spec concluídas (finish-task.sh --finish)
-  archived: archived         # spec finalizada e arquivada (finalize-spec.sh --archive)
+  implemented: implemented   # todas as tarefas da spec concluídas (vostok task finish)
+  archived: archived         # spec finalizada e arquivada (vostok finalize archive)
 
-# --- Rascunho (create-new-spec.sh) ---
+# --- Rascunho (vostok spec new) ---
 
 # Template da nova spec, relativo a `paths.templates` (main.yml).
 template: spec/new.md
@@ -41,7 +41,7 @@ front_matter: |
   updated_at: #{DATETIME}
   tags: []
 
-# --- Refinada (create-refined-spec.sh) ---
+# --- Refinada (vostok spec refine) ---
 
 # Template da spec refinada, relativo a `paths.templates` (main.yml). A variável #{SECTIONS}
 # recebe as seções do tipo da spec, lidas de `sections_dir`.
@@ -147,7 +147,7 @@ refined_front_matter: |
 # Gravado ao marcar a spec como refinada e a cada ajuste; um hash diferente indica edição manual.
 content_hash_field: content_hash
 
-# --- Ajuste (adjust-spec.sh) ---
+# --- Ajuste (vostok spec adjust) ---
 
 # Seção fixa do histórico de ajustes, em `sections_dir`. Ela fica no fim da refinada e
 # recebe uma linha por ajuste, sempre escrita pelo script.
@@ -166,14 +166,14 @@ manual_adjustment_summary: Edição manual
 # Uma pendência aberta é uma linha de dados cuja primeira coluna é diferente de `-`.
 pending_heading: Pendências
 
-# --- Aprovação (approve-spec.sh) ---
+# --- Aprovação (vostok spec approve) ---
 
 # Campos do front-matter gravados na aprovação: a data e o hash do conteúdo aprovado
 # (igual a `content_hash_field` no momento da aprovação). Um ajuste grava `null` nos dois.
 approved_at_field: approved_at
 approved_hash_field: approved_hash
 
-# --- Finalização (finalize-spec.sh) ---
+# --- Finalização (vostok finalize) ---
 
 # Template do arquivo de conteúdo dos documentos, relativo a `paths.templates` (main.yml).
 finalize_content_template: finalize/content.md

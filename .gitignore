@@ -1,2 +1,7 @@
 .env
 apps/cli/target/
+
+# Harness instalado: estado local, specs arquivadas e evidências ficam fora do git.
+vostok/.state/
+vostok/work/.archive/
+vostok/work/**/evidence

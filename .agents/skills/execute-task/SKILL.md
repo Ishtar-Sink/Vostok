@@ -5,4 +5,4 @@ allowed-tools: Read Edit Write Glob Grep Bash
 ---
 
 > Este é apenas um redirecionamento para a skill.
-> Leia e siga o arquivo `packages/harness/skills/default/execute-task/SKILL.md`.
+> Leia e siga o arquivo `vostok/skills/default/execute-task/SKILL.md`.

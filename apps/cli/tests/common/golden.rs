@@ -365,6 +365,11 @@ fn walk(root: &Path, dir: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
                 let rel = relative(root, &path.join("index.ls"));
                 files.insert(rel, out.stdout);
             }
+            // O conteúdo interno do git fica fora da comparação, e o git pode mexer nele em segundo
+            // plano (ex.: manutenção automática depois de um commit, no macOS).
+            if is_git_internal(&(relative(root, &path) + "/")) {
+                continue;
+            }
             walk(root, &path, files);
         } else if file_type.is_file() {
             let rel = relative(root, &path);

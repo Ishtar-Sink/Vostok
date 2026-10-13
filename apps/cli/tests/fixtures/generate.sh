@@ -236,6 +236,9 @@ mkdir -p "$GOLDEN/blobs"
 export GOLDEN_ROOT="$ROOT" GOLDEN_DIR="$GOLDEN" GOLDEN_STATE="$WORK/state.json"
 export GOLDEN_RECORD="$WORK/record.py" GOLDEN_HOOK="$WORK/hook.sh" GOLDEN_EPOCH="$EPOCH" PATH="$WORK/bin:$PATH"
 export GIT_AUTHOR_DATE="@$EPOCH +0000" GIT_COMMITTER_DATE="@$EPOCH +0000"
+# Packs do git variam entre execuções (ordem das threads): uma thread, e o remoto guarda objetos soltos.
+export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=pack.threads GIT_CONFIG_VALUE_0=1
+export GIT_CONFIG_KEY_1=transfer.unpackLimit GIT_CONFIG_VALUE_1=100000
 # A suíte fica em `packages/harness/tests`: roda a cópia de lá para resolver os caminhos de origem.
 cp "$WORK/run-tests.sh" "$SOURCE_ROOT/packages/harness/tests/.run-tests-golden.sh"
 trap 'rm -rf "$WORK" "$SOURCE_ROOT/packages/harness/tests/.run-tests-golden.sh" "$ROOT"' EXIT

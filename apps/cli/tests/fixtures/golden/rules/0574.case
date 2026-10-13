@@ -24,8 +24,8 @@ testing
 
 @stdout 0
 
-@stderr 59
-Erro: informe 'always' ou as skills separadas por vírgula
+@stderr 45
+Erro: informe 'always' ou ao menos uma skill
 
 @exit 1
 1

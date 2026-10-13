@@ -17,19 +17,19 @@ check
 @stderr 307
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- b3eea8b detached (arquivos: d.txt)
+- 43a832e detached (arquivos: d.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 765
 W 0ae8c7a3736beb576d4667f7b3bd08d66232d936fdd2c7386f66e2695af5a211 .git/COMMIT_EDITMSG
-W 7a037c9dfc2fefac275da29fc0be9c53dc4b9f618332464806d710935fac39bb .git/HEAD
-W 5d2c6cdfd456abbb4aa5e838895110ca28891e6c34d4359f9ef8aedbcd9c557d .git/index.ls
-W f3f0573ea25fa71f40b0079f3584fa50f100eb9c49965fd587d7c0dfcf7d6c2c .git/logs/HEAD
+W 1244feade64c787379a3e386d43296edddd3c91545d809c2e1e5c41e5c2c8f72 .git/HEAD
+W 18a4173f80beedffd0aa8852c87b89746569fbc63b383b26a74dfedc7e087e88 .git/index.ls
+W a5b41ace1ad471dbd0d4605c0049be43981caee3cf4a26c3cb4b95339630e102 .git/logs/HEAD
+W 7e92cb5996a060087b2128e0472df3925a6df1849180328e86894dcae3148545 .git/objects/43/a832e5b2cca01ad6b7d7b609165edde413d5a6
 W 18d4561bdb8ef785674dce9d18732bb572e2031789b573aea489e17a54930590 .git/objects/4b/cfe98e640c8284511312660fb8709b0afa888e
-W 5d52f20de6212728f38e3c7f18e93c8f1566b33d2c0cfae2f4efb989d6ab5521 .git/objects/b3/eea8b396be59f70ca571e749cefde99746f38c
-W 7f46a84a3f366b476eb45f3076671e5412cd69ef23b69d3e9694d5594f839e66 .git/objects/e1/18d8eea41e36f83b0f5a8f58522b017b0ad767
+W 6b541297ddeb201ea1b0c970792d95e00374a5d5fe0939aaaea0f18fbb871d77 .git/objects/de/728f2162b27a375e09b113d710ca1871c9091a
 W 8d74beec1be996322ad76813bafb92d40839895d6dd7ee808b17ca201eac98be d.txt
 @post 0
 

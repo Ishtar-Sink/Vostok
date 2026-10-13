@@ -27,7 +27,7 @@ Erro: a pasta de tarefas de SPEC-008 já existe: <ROOT>/packages/harness/work/ta
 
 @exit 1
 1
-@pre 0
-
+@pre 104
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/
 @post 0
 

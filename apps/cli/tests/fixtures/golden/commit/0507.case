@@ -26,7 +26,7 @@ feat: c1 e c 2
 corpo "com" aspas
 
 @stdout 48
-Commit feito e liberado: fdd07e9 feat: c1 e c 2
+Commit feito e liberado: c9904d8 feat: c1 e c 2
 
 @stderr 0
 
@@ -36,13 +36,13 @@ Commit feito e liberado: fdd07e9 feat: c1 e c 2
 
 @post 1142
 W 47a2f7e22e43b6083a3e8304a6aada1561ed7dccb7da405dd120bf23c6c066c8 .git/COMMIT_EDITMSG
-W 29b4fc75361c39445e6ee86136e4199be36e42a74ac9520d74e763179ebac3ac .git/index.ls
-W 4775d9ef40ead9e7505d3ec48bc7cc62fc4d5d10fa35ca82f33f9f697c7b9e4c .git/logs/HEAD
-W cd34c1ed1672e778e9f10ef955db2e2b9c9a4fa879eb336f4819ea64b3ed3e6d .git/logs/refs/heads/main
+W 79cff9544ac9e60eba06ec1e59b8cbdda395e9c42252749209df9e2815d49390 .git/index.ls
+W f83c9e319cfaa1c84da936823158a03e0bef8eddd8c69059ea8947d71f888116 .git/logs/HEAD
+W 8f1a1cdb130ea0d8176fb10ba4b3f0b99f43fda9248e8e1f22eafbd3dc28b708 .git/logs/refs/heads/main
+W 31d284f7877505e399c9e75bb0b42726524bfe06535f1ab34b6b770f2562937e .git/objects/13/5b34b085070d9cbcef4ce239d3951119a6e1b6
 W 5badc114a1646d087cb890dec02d65ad0e76c0deb11113cb926844f9066640de .git/objects/16/f9ec009e5568c435f473ba3a1df732d49ce8c3
-W b88311586a613c291217e6ae4678af4340a43450278d41f1ad899d74a8f952ac .git/objects/61/17518358854d6bc2b1b74e729357c8628fa05a
-W 409235b09769576f179d381937b4c0dae2b4317dc8fd84b55b7e687e68ca13ca .git/objects/9a/38c930e18bbcd3a6611ca096f4d16923e26fd9
+W 90ed01a0d14ef9e7f365d11cb5ffbe7d48d498607b126a307e8e93b71511a7aa .git/objects/34/fd5969bb6bd492e379f76c6ee4bbbb6670eb38
 W f7ccadea3ab57e22f6e17d5967771cf7326f76b73d94f8c869d11b0bc36f75dc .git/objects/ae/9304576a6ec3419b231b2b9c8e33a06f97f9fb
-W 0c846ddf9e9b32e77a25d3fcce78b251258964c291cd719ed8a95cb880d3c7c3 .git/objects/fd/d07e9f935dffcac84052b1128c50f67158bae2
-W 91b1f3315a715385b9eaa52707c0a111f07cbfd5b06c5a2cd0cdea8fbc2df313 .git/refs/heads/main
-W 08832db2f2c9113ec155f54156409ef42b51ea33aa617a91cfda3bfcbcaea978 packages/harness/.state/commit-ack
+W ecbf2ffb457b7fd41bd4702e23ad7bf44b6305b678f32a5cec4cb5f873d681d0 .git/objects/c9/904d8533671d4ef90281525068d52c279eb549
+W ec45f592a242588dbf8a80965c236736084eb551713626d5ef550d7080733ce0 .git/refs/heads/main
+W 11b57fdaa156a0f566acd85914aefb52541d7159e83139111f8fcc59b2c293d4 packages/harness/.state/commit-ack

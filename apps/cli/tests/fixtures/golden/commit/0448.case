@@ -21,7 +21,7 @@ approve
 @stdout 0
 
 @stderr 118
-Erro: o repositório mudou desde a verificação (código atual: dc2ebb6e6c87); mostre os commits ao usuário de novo
+Erro: o repositório mudou desde a verificação (código atual: cc4c0fff3bb8); mostre os commits ao usuário de novo
 
 @exit 1
 1

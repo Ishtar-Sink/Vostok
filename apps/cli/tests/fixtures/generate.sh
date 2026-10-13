@@ -67,6 +67,12 @@ def snapshot():
                 continue
             with open(full, "rb") as handle:
                 files[rel] = blob(handle.read())
+        if base != ROOT and not os.access(base, os.W_OK):
+            # Pasta sem permissão de escrita: entra com "/" no fim e o conteúdo "readonly".
+            files[os.path.normpath(rel_base) + "/"] = blob(b"readonly\n")
+        elif not dirs and not names and base != ROOT:
+            # Pasta vazia: entra com "/" no fim, para comandos que olham só a existência dela.
+            files[os.path.normpath(rel_base) + "/"] = blob(b"")
         if ".git" in dirs and os.path.isdir(os.path.join(base, ".git")):
             rel = os.path.normpath(os.path.join(rel_base, ".git/index.ls"))
             files[rel] = blob(git_index(base))

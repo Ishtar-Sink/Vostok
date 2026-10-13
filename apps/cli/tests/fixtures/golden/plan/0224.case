@@ -37,7 +37,8 @@ D packages/harness/work/plans/SPEC-008.md.ok
 D packages/harness/work/specs/refined/SPEC-008-planejar.md.ok
 D packages/harness/work/tasks/SPEC-008.bak/TASK-01.md
 D packages/harness/work/tasks/SPEC-008.bak/TASK-02.md
-@post 395
+@post 491
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/plans/
 W 87a6ed747680f4ee3cc3611889390b63cd34823405b26a2aa0e9553f396903f5 packages/harness/work/specs/refined/SPEC-008-planejar.md
 W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md

@@ -20,6 +20,6 @@ Nenhum commit sem liberação.
 @exit 1
 0
 @pre 82
-W daca295403f78d7aef731ac303b6ded35b92c1ebe7b6cb164a2391a7de09452b .git/FETCH_HEAD
+W 5fb15020819468411eba264bf6d15831b1ab11c2375a40324bedc83c4beb6458 .git/FETCH_HEAD
 @post 0
 

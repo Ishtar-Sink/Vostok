@@ -29,9 +29,11 @@ Erro: categoria inválida: 'Bad_Cat' (use kebab-case, ex.: code-style)
 
 @exit 1
 1
-@pre 107
+@pre 130
 W cde3195de6566b529e0e5d2e9f3ae0dc4fac06f05d9304b6e3785897ab4055d6 ih-rules.txt
 D Cargo.toml
+D migrations/
 D package.json
+D tests/
 @post 0
 

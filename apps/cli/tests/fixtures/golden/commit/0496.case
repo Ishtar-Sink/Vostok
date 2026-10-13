@@ -16,9 +16,9 @@ show
 
 @stdout 126
 Commits novos:
-- 8c3c6c8 r2 (arquivos: r2.txt)
-- 68ed689 r1 (arquivos: base.txt, r1.txt)
-Código de liberação: 8f437b9f1cc6
+- 174d218 r2 (arquivos: r2.txt)
+- c7f14c8 r1 (arquivos: base.txt, r1.txt)
+Código de liberação: dabcecbae44b
 
 @stderr 0
 
@@ -26,17 +26,17 @@ Código de liberação: 8f437b9f1cc6
 0
 @pre 1508
 W 88ff59171e2945f488cf3c1e6fdf759d73cb9f5e78c662afd5a65336fec5f679 .git/COMMIT_EDITMSG
-W 500827de64789f077a7a554bfaea4a7f7da868f687b098840771920bab4e058d .git/index.ls
-W 51ed78d1f15d04516ad72bd890e71cb9446a29a2081bb6770216cc94fc678a1e .git/logs/HEAD
-W 15e50f3c27febbf2bf1929fa68bebd092cec34702b83cba364a5ead775c91b5f .git/logs/refs/heads/main
-W 42b66eff4a0b758803fb19bc46ca58bbcbbbbc8164fb8f3dc268f3c44f8cdc1d .git/objects/59/b22f02f117a9add23a2d7035df05b8a963bf28
-W ea9453f3eb085d702563de7e5fa2f4aeadec1b44856af3927ec70be253f13384 .git/objects/68/ed689fbff00830981b8cccc8637fec15937d46
-W 09ea730d75d712ff196fb1ff06c9434b6caf1a5c2d503b6b48c3a2e9fe2ac1ad .git/objects/8c/3c6c858a7d8649ca4c6aabc538bc9592e0ae8e
+W c489b65049fe8b0a17d76b5b241ced3d331d53bd3f7486506f6f83628cc3b84f .git/index.ls
+W eb59a4cedc82bed806feca5c9173135a572cda28022f3c015d311cd2084eb95c .git/logs/HEAD
+W 8543d34086f8095d43b4eccaff0d47c6f7b9509ef8486767e4cc336e6c9025f4 .git/logs/refs/heads/main
+W 31891a50fd2242e43ccdf9db3ff46eb1463e46c2a4df41396642de405b52c626 .git/objects/17/4d2180349cab0a976957b4c376f164a1e94fdf
+W 31f1b9d8167dc6ff10bf8b46e51bdd297c1a09ad6c983425082dcf028a5d76ca .git/objects/42/f8bfd36d693663c3c6ec9652ed7e720348137b
+W 84dda74796966cfcabe5a89c3f263874403fc37b34afeebbdf7a643301aa272e .git/objects/5c/0a35161d954e26dc1d78ac36102ed0edf9d252
 W f10c95e4aca1b3e8a4e979cea1bfd3b0ba10509e83eab06ede1d06d50b520cc6 .git/objects/9a/6c8d12dea8859b821b2ba705f7efd6cc914aa5
-W edda2fae58218dc8e1b4044d37478a76290d0dd4af6ac437f849ad4d26ab200b .git/objects/f1/d634169d15cef3d360fb22a2957156743d7939
+W 0e14d9902ffddcebacc04b206a589daf72ebd0951836ac2e20ed2fd625b058cd .git/objects/c7/f14c8c9deb3e1f52a98e17b339188c0a1bc456
 W 0e2eeed76072f54fff4c34e6ed61cc199e818bbeb073c88a46d2736ed46bb99a .git/objects/f7/d55cf9a84e9ea95e8db2b6264e5a5db85d22ad
 W ce528e63602bc84a733e627b5c2ac2a114397de98fe1232d7d50a4f6905cdf3f .git/objects/fd/23ab1228087dd6d8e1f82aad0a1a87d7f3aab8
-W 64b87b5985817b0759fdb4faf3aadb594215154fb0965f80271f00074c7f1015 .git/refs/heads/main
+W f283739a027273a437cf4682db57ea9b7099c63b62460284ac11d025dde8b213 .git/refs/heads/main
 W c42405306ac7c76c5ac3dc4c82b68a113da905c7447f395fc01c8029a3131d05 base.txt
 W fa347eb70a4d91f765ee8d48e892e3a7e07df3d4d76d1feb2a0feea19d9c83f6 r1.txt
 W 88ff59171e2945f488cf3c1e6fdf759d73cb9f5e78c662afd5a65336fec5f679 r2.txt

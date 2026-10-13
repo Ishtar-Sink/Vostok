@@ -17,22 +17,23 @@ check
 @stderr 349
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 1a5aafd enviado (arquivos: base.txt, r1.txt, r2.txt) [já enviado ao remoto]
+- 4c2832b enviado (arquivos: base.txt, r1.txt, r2.txt) [já enviado ao remoto]
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
-@pre 3187
+@pre 3459
 W 23e8999dda7afdd82d31992ca17f5e604d7a0898a0b85e74378d3562b812e0e9 .git/COMMIT_EDITMSG
 W b14f48897cd5b3b634aebddf38e78d4804efcb0491c12c843e02ad25143d6d83 .git/config
-W 500827de64789f077a7a554bfaea4a7f7da868f687b098840771920bab4e058d .git/index.ls
-W b7e2d7a8dd899582343e99ee3bdf1b715e7617c4f12b091144a8605050a8f48a .git/logs/HEAD
-W fc23682c04d59e0b9099ffad274f65d2a91ca7ea6a47b5c21cf1f64e1b1e066a .git/logs/refs/heads/main
-W 33b7e2c198ab7af5758967212ed7647e006e71816b3eb4b81d1690533cca2a1a .git/logs/refs/remotes/origin/main
-W 00774441196c02c886f225e4ccfe4ac934f7c2b5158ffc34758cb8864e9708ce .git/objects/1a/5aafdad0cbc1faeeee27c5a0770bd6b5b648ee
-W 9f898efb769df9324a774f71ca1421d603ce8b509871978c3a7b73dacdfa3915 .git/refs/heads/main
-W 9f898efb769df9324a774f71ca1421d603ce8b509871978c3a7b73dacdfa3915 .git/refs/remotes/origin/main
+W c489b65049fe8b0a17d76b5b241ced3d331d53bd3f7486506f6f83628cc3b84f .git/index.ls
+W e44805df6f3c5457a136cffbd11fd23fa585b52d200cbf6aa2f197a95be4cf76 .git/logs/HEAD
+W 6a35bd2cfbd53e2fa4cb6d9a90fb2a7edd91cab6ed6a8cf09831be33fdf14527 .git/logs/refs/heads/main
+W 074e424e235d35f6ef0ae8b6e069b694dbcab704765115c06ed299cf218833f4 .git/logs/refs/remotes/origin/main
+W e62c5db8cf1c18c4281b07649c50b467738120e40c24fbba99e2978e645b5b7f .git/objects/4c/2832bb1de8504c4fad3e286fe941ce0d5c970e
+W 7ca09bebb264a6693bdaae00a8a8029c9753a711fe9d9e5ab19fc9c1539bcc5f .git/refs/heads/main
+W 7ca09bebb264a6693bdaae00a8a8029c9753a711fe9d9e5ab19fc9c1539bcc5f .git/refs/remotes/origin/main
 W 28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80 .remote.git/HEAD
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .remote.git/branches/
 W dd548269913b6adbdfa7049170ea86850050cb762ea3b9c510a0b2986d2113e3 .remote.git/config
 W 85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee .remote.git/description
 W 0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7 .remote.git/hooks/applypatch-msg.sample
@@ -50,9 +51,11 @@ W a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f .remote.git/h
 W 44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92 .remote.git/hooks/sendemail-validate.sample
 W 8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106 .remote.git/hooks/update.sample
 W 6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1 .remote.git/info/exclude
-W 04fbd250f2d6791d8ea9c44f2a8d2242239b5e8dec57c1c6eb92e313fc9c867b .remote.git/objects/pack/pack-7e6931b142a7ea5285c0f1c91147f59ebb958944.idx
-W 8c9d17b64bd6b7de774060225e74494ac55f17b5dd731d84abfe8e0e6cc762d9 .remote.git/objects/pack/pack-7e6931b142a7ea5285c0f1c91147f59ebb958944.pack
-W 65e91d4a1458d6c021bb64bfdba5990f5450c0854513e7faab249868b8490dc0 .remote.git/objects/pack/pack-7e6931b142a7ea5285c0f1c91147f59ebb958944.rev
-W 9f898efb769df9324a774f71ca1421d603ce8b509871978c3a7b73dacdfa3915 .remote.git/refs/heads/main
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .remote.git/objects/info/
+W dd000d80f5f3ddc010a049776c78a500bc4d80159c0ec5c70f1f563164528583 .remote.git/objects/pack/pack-d9d02c939abfe173ab53d8b6ff71717a69fc5711.idx
+W 3d3eb1968f234017f02d2db20fb63a680571113a6fff6bfbc21d2ee97ad07336 .remote.git/objects/pack/pack-d9d02c939abfe173ab53d8b6ff71717a69fc5711.pack
+W 82781c7c43f1f4e53515a0b6f48b4536a4b5e0447eea2a5670b15fd53cf67955 .remote.git/objects/pack/pack-d9d02c939abfe173ab53d8b6ff71717a69fc5711.rev
+W 7ca09bebb264a6693bdaae00a8a8029c9753a711fe9d9e5ab19fc9c1539bcc5f .remote.git/refs/heads/main
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .remote.git/refs/tags/
 @post 0
 

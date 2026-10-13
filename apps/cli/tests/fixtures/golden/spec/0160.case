@@ -23,8 +23,8 @@ SPEC-008 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-008-planejar.md
 
 @exit 1
 0
-@pre 0
-
+@pre 36
+D packages/harness/work/specs/draft/
 @post 226
 W be05c6301fbd056e0bfba7f46b060f2b2a5737bd58e821dbc2dd61ac0eb02777 packages/harness/config/sequences.yml
 W 0be098e5e698f0d46b8cbb01801f34701de1637f8a98ec043f2c1991339dec95 packages/harness/work/specs/draft/SPEC-008-planejar.md

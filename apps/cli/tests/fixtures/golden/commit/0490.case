@@ -7,13 +7,13 @@ commit
 @arg 9
 --approve
 @arg 12
-53682a12908c
+81dba30d476e
 @vostok 6
 commit
 @vostok 7
 approve
 @vostok 12
-53682a12908c
+81dba30d476e
 @cwd 9
 <OUTSIDE>
 @stdin 0
@@ -28,4 +28,4 @@ Referência de commits refeita a partir do estado atual.
 @pre 0
 
 @post 101
-W 53682a12908ca3e939281a78379b5927655777499ffa2c5622360c0b76d415b9 packages/harness/.state/commit-ack
+W 81dba30d476e0af0ec2daff021b52c7cc6b46f3a1854704faa80b6d0eed41036 packages/harness/.state/commit-ack

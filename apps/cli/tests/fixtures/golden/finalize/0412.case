@@ -28,10 +28,11 @@ Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
 
 @exit 1
 0
-@pre 2073
+@pre 2150
 W 91050c2effc4fe3180e7ec13d306ab8d0e864e110d094621b3340372002a7457 .fin-docs/tecnico.html
 D .git/COMMIT_EDITMSG
 D .git/HEAD
+D .git/branches/
 D .git/config
 D .git/description
 D .git/hooks/applypatch-msg.sample
@@ -74,7 +75,10 @@ D .git/objects/d9/09ddec4f595d681d802585d8a0e0c00136a07f
 D .git/objects/df/4a6051c524cd9d1c759a23247d1556c2ce85f4
 D .git/objects/e0/0675b317b5cd0e6b15f997158d4472a7e04dd0
 D .git/objects/e8/873ca8bad29d9c6515fbcc7b3e9694e81f3603
+D .git/objects/info/
+D .git/objects/pack/
 D .git/refs/heads/main
+D .git/refs/tags/
 D nao/existe/bin.dat
 D nao/existe/doc.md
 D nao/existe/igual.txt

@@ -22,8 +22,8 @@ always
 <OUTSIDE>
 @stdin 0
 
-@stdout 47
-Registrado: rules/project/testing.md (sempre).
+@stdout 41
+Categoria 'testing' carregada em always.
 
 @stderr 0
 

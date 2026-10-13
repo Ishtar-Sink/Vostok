@@ -28,7 +28,7 @@ Erro: a aprovação foi gravada, mas o rascunho não pôde ser removido; remova-
 
 @exit 1
 1
-@pre 0
-
+@pre 101
+W e8556b2a4c237957175ab9e9f63a67b39feb54b8d33b2b27f7e3c9af0d323900 packages/harness/work/specs/draft/
 @post 133
 W 99dc4e8cefd9a480594fe52d9a33e2cae87a98f5d2aaf4553473c0939af87235 packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md

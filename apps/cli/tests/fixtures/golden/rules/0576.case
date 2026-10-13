@@ -23,7 +23,7 @@ always
 @stdin 0
 
 @stdout 51
-Já registrado: rules/project/testing.md (sempre).
+A categoria 'testing' já era carregada em always.
 
 @stderr 0
 

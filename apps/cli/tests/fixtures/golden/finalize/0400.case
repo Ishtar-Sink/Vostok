@@ -25,10 +25,11 @@ Conteúdo de SPEC-008 criado em packages/harness/work/finalize/SPEC-008/content.
 
 @exit 1
 0
-@pre 306
+@pre 363
 W 2b78f38a84d0f784c429e6b906b596e8bacba11405c10855e01ae6c4b691ee78 packages/harness/work/specs/refined/SPEC-008-planejar.md
 W 9733e65ea30a271f7614ad2a2f201abb60c5ccd3df8b26624042842df5751da3 packages/harness/work/tasks/SPEC-008/TASK-01.md
 D .fin-content
 D packages/harness/work/finalize/SPEC-008/content.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/
 @post 117
 W cbc1a40888cf0630e60d2dd94d33698a071aa228440abdcb117a24e41c8626d5 packages/harness/work/finalize/SPEC-008/content.md

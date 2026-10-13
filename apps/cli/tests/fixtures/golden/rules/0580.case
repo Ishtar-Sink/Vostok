@@ -19,7 +19,7 @@ Regras e mapa válidos.
 
 @exit 1
 0
-@pre 221
+@pre 265
 W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b packages/harness/config/context.yml
 D ctx-ih.bak
 D ih-remove.txt
@@ -27,5 +27,6 @@ D ih-rules.txt
 D ih-update.txt
 D ih-vazio.txt
 D packages/harness/rules/project/testing.md
+D packages/harness/skills/custom/review-ih/
 @post 0
 

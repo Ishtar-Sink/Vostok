@@ -29,8 +29,10 @@ Tarefas de SPEC-008 criadas em <ROOT>/packages/harness/work/tasks/SPEC-008:
 
 @exit 1
 0
-@pre 0
-
-@post 229
+@pre 135
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/
+D packages/harness/work/tasks/SPEC-008/
+@post 260
 W 70958fdd5eb10b6cf115826baf05e3684788c8912897fc23afd98b68791616f6 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W e6c5fa2321bb9af886629fb74dcefd6304f31861d50f1c596d01d2c3e1b8758c packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/

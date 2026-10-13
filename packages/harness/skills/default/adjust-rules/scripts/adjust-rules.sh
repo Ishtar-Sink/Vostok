@@ -171,7 +171,7 @@ context_edit() {
         } else {
           for (i = 1; i <= NR; i++) {
             if (i == head && target != "required" && line[i] ~ /\[\][ \t]*(#.*)?$/) {
-              sub(/[ \t]*\[\][ \t]*(#.*)?$/, ":", line[i])
+              sub(/[ \t]*\[\][ \t]*(#.*)?$/, "", line[i])
               print line[i]; print "    - " path; continue
             }
             print line[i]

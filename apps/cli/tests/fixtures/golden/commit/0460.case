@@ -17,15 +17,15 @@ check
 @stderr 307
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 2a83b43 baixo nível (arquivos: -)
+- e9d3bc6 baixo nível (arquivos: -)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 384
-W a91ae3dab8bd0a5fb3748824ba8e99ab02c48b87f1e64cb4c1222cca4b79073f .git/logs/HEAD
-W a91ae3dab8bd0a5fb3748824ba8e99ab02c48b87f1e64cb4c1222cca4b79073f .git/logs/refs/heads/main
-W f723baef74aeb94599c8a086e7e84a6b782f4ecedfb3a2da7b4ff5af055d9329 .git/objects/2a/83b430c56fb19da1ab6e0439814c3132f4f257
-W b3943e0021e347ca98e6d820ce725769d59d0ff119a3c843a305d73214410da3 .git/refs/heads/main
+W 0b9d2298a2d472f3645b616dcc4ad53e06e60c0620f884127424d7747841ab5a .git/logs/HEAD
+W 0b9d2298a2d472f3645b616dcc4ad53e06e60c0620f884127424d7747841ab5a .git/logs/refs/heads/main
+W bcb824d1a045d9ce2f59a6d9b54378ff8144f12b2ac11e02d0ab403c31c3ed77 .git/objects/e9/d3bc6b16f5aa083940c94019d7c21a2a39c19e
+W 45d954945ec258e0312a4aa43ea991a87ad950d20bd2044c45803dd7073d74b0 .git/refs/heads/main
 @post 0
 

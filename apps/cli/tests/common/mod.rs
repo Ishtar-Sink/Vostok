@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+pub mod golden;
+
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;

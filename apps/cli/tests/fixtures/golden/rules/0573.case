@@ -24,8 +24,8 @@ fantasma
 
 @stdout 0
 
-@stderr 36
-Erro: skill inexistente: 'fantasma'
+@stderr 76
+Erro: a skill 'fantasma' não existe em skills/default nem em skills/custom
 
 @exit 1
 1

@@ -20,11 +20,11 @@ Nenhum commit sem liberação.
 @exit 1
 0
 @pre 501
-W 3e0db83cb548542141e41e8bcffca2914716dd3701772263e68c7ce388f523ae .git/ORIG_HEAD
-W e1b24edd3aed3aa340cbd2b629e596b072a16e254c14a23fc735d5b1582e71f7 .git/index.ls
-W 97e88429e0312eade33a9c7fa5bafb86f70ddf65c66b12febf16e0baf0573fad .git/logs/HEAD
-W 97e88429e0312eade33a9c7fa5bafb86f70ddf65c66b12febf16e0baf0573fad .git/logs/refs/heads/main
-W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/heads/main
+W 0e875d97b572b91a0ea140088715b83a0d06fb9dbc59e0913a294ce8d0a76d7f .git/ORIG_HEAD
+W 762dfde8d470f70f86e1337dcee01fae9985e1b3c6007adeca952d5bc3498b92 .git/index.ls
+W 1f9dc52ebc9fa1b4c0d32c2eaec16919823381765d740d665b000e3bc3649b68 .git/logs/HEAD
+W 1f9dc52ebc9fa1b4c0d32c2eaec16919823381765d740d665b000e3bc3649b68 .git/logs/refs/heads/main
+W 7cc4b3ca1420a6cb9453fbc2eb4d605246cbfb442ed51cb76d9e3ef4afa503b2 .git/refs/heads/main
 W f34848ca92665c342abd5816c9e3eda0e82180671195362bcd0080544a3bc2ac base.txt
 @post 0
 

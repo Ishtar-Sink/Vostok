@@ -26,8 +26,9 @@ Erro: o conteúdo de SPEC-008 tem problemas:
 
 @exit 1
 1
-@pre 183
+@pre 305
 W 59d3c8d8b6b1e287afa313bd2fca8cffa104c608057da2873e6b7e45f72a83d6 packages/harness/work/finalize/SPEC-008/content.md
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/
 D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
 @post 0
 

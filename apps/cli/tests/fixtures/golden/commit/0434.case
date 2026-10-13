@@ -19,8 +19,9 @@ Referência de commits gravada na primeira verificação: <ROOT>/packages/harnes
 
 @exit 1
 0
-@pre 1789
+@pre 2210
 W 28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80 .git/HEAD
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/branches/
 W cfe7ba1238c9a78be7535d7c63bcaf5a4d5011d46b07c9b45d3bbf7d6c312dfe .git/config
 W 85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee .git/description
 W 0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7 .git/hooks/applypatch-msg.sample
@@ -39,5 +40,9 @@ W 44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92 .git/hooks/se
 W 8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106 .git/hooks/update.sample
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/index.ls
 W 411d3763855eb4dc661427283b419f2aad30890cb06571c2997eeda7559327f6 .git/info/exclude
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/objects/info/
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/objects/pack/
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/refs/heads/
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .git/refs/tags/
 @post 101
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/.state/commit-ack

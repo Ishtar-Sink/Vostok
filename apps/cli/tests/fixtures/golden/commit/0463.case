@@ -17,9 +17,9 @@ check
 @stderr 400
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 9e4f9b9 amend (arquivos: -)
+- b2adc43 amend (arquivos: -)
 Commits removidos (estavam liberados e saíram do histórico):
-- 2a83b43 baixo nível (arquivos: -)
+- e9d3bc6 baixo nível (arquivos: -)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
@@ -27,9 +27,9 @@ PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuári
 @pre 542
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .cc
 W 138bbc7121d0dbfb632d2203f1f8664f63dc0ed13c02034ab2ab278bd62eff95 .git/COMMIT_EDITMSG
-W bc5834c9d19f1933bb496009c3a92788dcafe8a55c52546be32360dad84e23c9 .git/logs/HEAD
-W bc5834c9d19f1933bb496009c3a92788dcafe8a55c52546be32360dad84e23c9 .git/logs/refs/heads/main
-W a8f7f7a3460f8da3d3198bd0fa4ea2539ccee1841f9e5ac58c7599caccee22ba .git/objects/9e/4f9b9b98695db2753413477bbfbdfd4850d7f3
-W 9257fabef79fb1ab336034c6c34fbea9ddad24e16283044b75dc443b0c295263 .git/refs/heads/main
+W 6ff836192dd07afbb2f32500eaa33f7f860b39ccc69690f05ac6ec54b3cebd64 .git/logs/HEAD
+W 6ff836192dd07afbb2f32500eaa33f7f860b39ccc69690f05ac6ec54b3cebd64 .git/logs/refs/heads/main
+W 1866dedd40198432727b07b5412884eb50c5da385312965ecc40734cf973c7df .git/objects/b2/adc43ca62f77258d4e9dbc9b6515dd13f35605
+W 8b2718ab2e59ea51bea1eee4e2270188e5a610975aa095cc4cb8091298978d8f .git/refs/heads/main
 @post 0
 

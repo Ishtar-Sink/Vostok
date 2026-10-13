@@ -26,7 +26,10 @@ Erro: a spec SPEC-008 não pode ser arquivada:
 
 @exit 1
 1
-@pre 0
-
+@pre 243
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 docs/specs/
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/.archive/SPEC-008/
+D docs/specs/SPEC-008/
+D packages/harness/work/.archive/
 @post 0
 

@@ -17,7 +17,7 @@ check
 @stderr 307
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- b7241cb por fora (arquivos: x.txt)
+- ed25ad6 por fora (arquivos: x.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1

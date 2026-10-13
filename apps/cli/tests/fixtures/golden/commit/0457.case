@@ -7,13 +7,13 @@ commit
 @arg 9
 --approve
 @arg 12
-3f99117f2ee7
+deecc4d7b3a8
 @vostok 6
 commit
 @vostok 7
 approve
 @vostok 12
-3f99117f2ee7
+deecc4d7b3a8
 @cwd 9
 <OUTSIDE>
 @stdin 0

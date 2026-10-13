@@ -22,15 +22,16 @@ review-ih
 <OUTSIDE>
 @stdin 0
 
-@stdout 50
-Registrado: rules/project/testing.md (review-ih).
+@stdout 44
+Categoria 'testing' carregada em review-ih.
 
 @stderr 0
 
 @exit 1
 0
-@pre 180
+@pre 289
 W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b ctx-ih.bak
 W fa8a0312c1efe1a0183713edfde8eb6eb2e0673f0f15ca2554cfe3a00b2d1c79 packages/harness/config/context.yml
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/skills/custom/review-ih/
 @post 102
 W fb5ef6536db8ca7a7b7484c974d34d3ded2cf131356a94414a02930b63d57801 packages/harness/config/context.yml

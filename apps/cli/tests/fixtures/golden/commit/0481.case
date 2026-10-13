@@ -7,13 +7,13 @@ commit
 @arg 8
 --revert
 @arg 12
-efd63d3f2288
+70754c7f811c
 @vostok 6
 commit
 @vostok 6
 revert
 @vostok 12
-efd63d3f2288
+70754c7f811c
 @cwd 9
 <OUTSIDE>
 @stdin 0

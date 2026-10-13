@@ -26,11 +26,12 @@ Executivo e técnico publicados em docs/specs/SPEC-008.
 
 @exit 1
 0
-@pre 164
+@pre 243
 W d4d9ae78b9c62ee49eb5efec28dd658ebf5d2efaeb05238c1574a670b2d88eb5 .arc-exec
 W 77f8d8f8d76c58a61d1dc226e4f432f18304b6bf462771b85c8c8bd0730a05e1 .arc-r8
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 docs/specs/
 D docs/specs
-@post 3134
+@post 3281
 W d4d9ae78b9c62ee49eb5efec28dd658ebf5d2efaeb05238c1574a670b2d88eb5 docs/specs/SPEC-008/executivo.html
 W 5081a8114261a66f084702fedee6a79728607a12a7ebdcd0d2a814e4da7305e3 docs/specs/SPEC-008/tecnico.html
 W 17a71a212c8c02ce15d22b4a79483beaca6257caa74127c9679b20c00216ac20 packages/harness/work/.archive/SPEC-008/content.md
@@ -48,6 +49,9 @@ W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 packages/harn
 W 77a72d578fba569c94579b1ba9f03e22ea4d264f0a29150dcdd50c508c1e1e52 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/saida.log
 W dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/saida.txt
 W c81ca5eda5947c7826ad046fdbdc2a25a846b835a6c34c237cc8b3afbe9ec6cc packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/video.mp4
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/finalize/
+D docs/specs/
+D packages/harness/work/.archive/
 D packages/harness/work/finalize/SPEC-008/assets/TASK-01/Nome com espaço.zip
 D packages/harness/work/finalize/SPEC-008/assets/TASK-01/pacote.zip
 D packages/harness/work/finalize/SPEC-008/content.md

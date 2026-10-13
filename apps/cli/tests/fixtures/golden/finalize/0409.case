@@ -28,7 +28,7 @@ Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
 
 @exit 1
 0
-@pre 3574
+@pre 3593
 W 60bff3ed8c188d2615a55ad142ba0fe75801ef4fe36b3ad0d4ebc9fd83f81fa5 .git/COMMIT_EDITMSG
 W 93958ed374ced21b460f6a4d622cfc090c36c7cefe96bd4c57b0105cbb9eb31d .git/index.ls
 W afb8ba89684fe01c18588c7f4365bad35e7c2364de916e975423d4d5799e8824 .git/logs/HEAD
@@ -61,5 +61,6 @@ W f6f6e85673e19f486a97196c2f32d67671242fe8299e415a09d8d7fe5d712943 nao/existe/do
 W 2ba8cbe40f944a964faf7e7d6df1fb91358efc6dee462f8ef03656bb8e9df507 nao/existe/igual.txt
 W 0296ed7579e123cea5bf86607a28296a9aeb032671d96e1091b71e9fadf32c1a nao/existe/novo.sh
 W ff7195ac7d38586fc57ba711719ffcf8e953a435ea65a4760c58aa15dbf11781 packages/harness/work/tasks/SPEC-008/TASK-02.md
+D .git/refs/heads/
 @post 119
 W 91050c2effc4fe3180e7ec13d306ab8d0e864e110d094621b3340372002a7457 packages/harness/work/finalize/SPEC-008/tecnico.html

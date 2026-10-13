@@ -24,8 +24,8 @@ always
 
 @stdout 0
 
-@stderr 124
-Erro: a categoria 'nao-existe' não existe em rules/project/nao-existe.md: grave-a antes de registrar onde ela é carregada
+@stderr 72
+Erro: a categoria 'nao-existe' não existe: rules/project/nao-existe.md
 
 @exit 1
 1

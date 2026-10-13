@@ -17,20 +17,20 @@ check
 @stderr 324
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- e0302be commit do agente (arquivos: um arquivo.txt)
+- 04ecbd9 commit do agente (arquivos: um arquivo.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 889
 W 27c08383afe62f190215756e8c58472b3caf7728d9850689dff1c432d8da53f1 .git/COMMIT_EDITMSG
-W 5148bb0ecc82cb95d6c9bdac2cca8eb65e70adcef1ee0bfa83457c98d8e2cc27 .git/index.ls
-W 2da6829df54415cbd46cfc0391a5130521e8ced6593f2ea695ec30d399684014 .git/logs/HEAD
-W 2da6829df54415cbd46cfc0391a5130521e8ced6593f2ea695ec30d399684014 .git/logs/refs/heads/main
+W 293f157dc93ca94d2ef4bb5dd8fe9ec35de68f6c71713f7b6c3e62212ab48c0e .git/index.ls
+W 637cd6210eff62bb618cde5745f9930257eb593c22b935c612a286e8f3bf4d8e .git/logs/HEAD
+W 637cd6210eff62bb618cde5745f9930257eb593c22b935c612a286e8f3bf4d8e .git/logs/refs/heads/main
+W d36de93bd9c8b72b7ed5dd741b43ea2577408442cc267f4021186c8cdc622eea .git/objects/04/ecbd99a5e15a55449df660115d30762e980595
+W 90ce0b575b2953bef79720d49fcd0c716f60b2d448a3975d48ef1bbb98e9cf47 .git/objects/75/780839bc54c0e1f8f8f8c4ceac69191af64882
 W 8a49f5e4f80a540d3bb959fdb1bcc80af4cc6050c40aa0e72199e64216519935 .git/objects/8a/6e397be49d2632f2e4e5c624eb781ae852b787
-W 6874a9d4da7a91da55e04900b80b335512bdd597d08492a08ccda9d62c7a1013 .git/objects/a8/c9cdfad1950b7f7e949a1f82be6d2f51a9d92b
-W f455dbfc0e226d13eebc9feeede3ecb42efb4e8afd36094152782e1432b46385 .git/objects/e0/302be2146d320c80983a986649e0be3419d2d7
-W e630cfd6695a0f81708aacfdefbf0f280468e5d39e03691cc11c0c6de57f9e00 .git/refs/heads/main
+W 217725cf1157becc98f913682a44d72e1964a1dfa56135a4cf8b4c27eac58570 .git/refs/heads/main
 W a40d028e3ae829b8a064a597ab8c33a632f376d74c328d69e78d7549508d893c um arquivo.txt
 D novo.txt
 @post 0

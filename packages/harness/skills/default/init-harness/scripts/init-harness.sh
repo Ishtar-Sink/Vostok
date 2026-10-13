@@ -26,8 +26,6 @@ source "$HARNESS_DIR/scripts/lib/config.sh"
 
 USAGE='Uso: init-harness.sh --detect | --write <categoria> <arquivo-de-regras> | --preview <categoria> <arquivo-de-regras> | --load <categoria> always|<skill>[,<skill>...]'
 
-CONTEXT_CONFIG="$HARNESS_DIR/config/context.yml"
-SKILLS_CONFIG="$HARNESS_DIR/config/skills.yml"
 CATEGORY_TEMPLATE="$HARNESS_DIR/templates/rules/category.md"
 RULES_DIR="$HARNESS_DIR/rules/project"
 
@@ -225,90 +223,9 @@ preview_category() {
 
 # --- load ---
 
-# Registra <caminho> no `config/context.yml`: em `required` (modo required) ou na lista de <skill>
-# do mapa `skills` (modo skill). Cria a entrada da skill se não existir. Não repete um item.
-# context_add <required|skill> <skill|-> <caminho>
-context_add() {
-  local mode="$1" skill="$2" path="$3" tmp label status=0
-  tmp="$(new_tmp)"
-  awk -v mode="$mode" -v skill="$skill" -v path="$path" '
-    # Comentários e linhas em branco ficam em espera e saem depois do item novo.
-    function flush_pend(   i) { for (i = 1; i <= np; i++) print pend[i]; np = 0 }
-    function leave_required() { if (inreq && !has) { print "  - " path; has = 1; done = 1 } }
-    function leave_skill() { if (cur && !has) { print "    - " path; done = 1 } cur = 0 }
-    function leave_skills() {
-      leave_skill()
-      if (inskills && mode == "skill" && !seen) { print "  " skill ":"; print "    - " path; done = 1; seen = 1 }
-    }
-    /^[ \t]*(#|$)/ && (inreq || inskills) { pend[++np] = $0; next }
-    /^[^ \t#]/ {
-      if (inreq) leave_required()
-      if (inskills) leave_skills()
-      flush_pend()
-      inreq = ($0 ~ /^required:/ && mode == "required"); inskills = ($0 ~ /^skills:/ && mode == "skill")
-      print; next
-    }
-    inreq {
-      item = $0; sub(/^[ \t]*-[ \t]+/, "", item); sub(/[ \t]+#.*$/, "", item); gsub(/[ \t]+$/, "", item)
-      if (item == path) has = 1
-      flush_pend(); print; next
-    }
-    inskills && /^  [^ \t-][^:]*:/ {
-      leave_skill()
-      name = $0; sub(/^  /, "", name); sub(/[ \t]*:.*$/, "", name)
-      flush_pend()
-      if (name == skill) {
-        seen = 1
-        if ($0 ~ /:[ \t]*\[\][ \t]*$/) { print "  " name ":"; print "    - " path; done = 1; next }
-        cur = 1; has = 0
-      }
-      print; next
-    }
-    inskills && cur && /^[ \t]+-[ \t]/ {
-      item = $0; sub(/^[ \t]*-[ \t]+/, "", item); sub(/[ \t]+#.*$/, "", item); gsub(/[ \t]+$/, "", item)
-      if (item == path) has = 1
-      flush_pend(); print; next
-    }
-    { flush_pend(); print }
-    END {
-      if (inreq) leave_required()
-      if (inskills) leave_skills()
-      flush_pend()
-      if (mode == "skill" && !seen && !inskills) { print "skills:"; print "  " skill ":"; print "    - " path; done = 1 }
-      if (!done && !has) exit 3
-    }
-  ' "$CONTEXT_CONFIG" > "$tmp" || status=$?
-  [ "$status" -eq 0 ] || die "não consegui registrar '$path' em config/context.yml"
-  if [ "$mode" = required ]; then label="sempre"; else label="$skill"; fi
-  if cmp -s "$tmp" "$CONTEXT_CONFIG"; then
-    echo "Já registrado: $path ($label)."
-  else
-    cat "$tmp" > "$CONTEXT_CONFIG"
-    echo "Registrado: $path ($label)."
-  fi
-}
-
+# O registro é o mesmo da skill adjust-rules: um só comportamento e as mesmas mensagens.
 load_category() {
-  local cat="$1" where="$2" rel skill rel_default rel_custom
-  check_category "$cat"
-  rel="rules/project/$cat.md"
-  [ -f "$HARNESS_DIR/$rel" ] || die "a categoria '$cat' não existe em $rel: grave-a antes de registrar onde ela é carregada"
-  [ -n "$where" ] || die "informe 'always' ou as skills separadas por vírgula"
-  if [ "$where" = always ]; then
-    context_add required - "$rel"
-    return
-  fi
-  rel_default="$(config_get "$SKILLS_CONFIG" dirs.default)"
-  rel_custom="$(config_get "$SKILLS_CONFIG" dirs.custom)"
-  # Valida todas as skills antes de gravar qualquer uma.
-  for skill in $(printf '%s' "$where" | tr ',' ' '); do
-    printf '%s' "$skill" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' || die "nome de skill inválido: '$skill'"
-    [ -d "$(harness_path "$rel_default")/$skill" ] || [ -d "$(harness_path "$rel_custom")/$skill" ] ||
-      die "skill inexistente: '$skill'"
-  done
-  for skill in $(printf '%s' "$where" | tr ',' ' '); do
-    context_add skill "$skill" "$rel"
-  done
+  "$HARNESS_DIR/skills/default/adjust-rules/scripts/adjust-rules.sh" --load "$1" "$2"
 }
 
 case "${1:-}" in

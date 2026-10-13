@@ -17,14 +17,14 @@ check
 @stderr 310
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- f2a533e em outra branch (arquivos: -)
+- 7725353 em outra branch (arquivos: -)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 304
-W aeeb4f5633365e87a9e5cf53d9e1ca91c5291af1b43756475eea83c8f1f32c05 .git/logs/refs/heads/outra
-W b3302e2fc83729ca7acc48d6eaeadc2c9fb11405f8fe634b1aca31cd9c2e4e42 .git/objects/f2/a533e41aa836b2719bedbb7b307e8d7e5841bf
-W b6957fcbd7c86b24f197fcd57894bc5d5a882dc935d4e9000677ef9c68041c77 .git/refs/heads/outra
+W 8039401a331e344a63e53c346df5450071a39a4cbdfda04c54d524d07cc1f3cf .git/logs/refs/heads/outra
+W b04ea5358311e0eb800b165a0bda5c9016c25ce7c2e44bf5fb1b57234b3c64c8 .git/objects/77/2535390ad2ab86f35a7c3417ed92fe33b5d010
+W 54c887a9cc441e9510fa4c6e1494e1040fa62157a0cef0cf45c5f45741531f23 .git/refs/heads/outra
 @post 0
 

@@ -20,7 +20,7 @@ c 2.txt
 chore: remove c 2
 
 @stdout 51
-Commit feito e liberado: beb741c chore: remove c 2
+Commit feito e liberado: 92c17b0 chore: remove c 2
 
 @stderr 0
 
@@ -30,11 +30,11 @@ Commit feito e liberado: beb741c chore: remove c 2
 D c 2.txt
 @post 898
 W 32346d4e823d8f75d7c6f5def2a91f5fb1dfe06cf2f758aab661030363583e6a .git/COMMIT_EDITMSG
-W 3b25605b87947248c839068416d1f1f65253c9a5dd9aafc7383007fca3e0aa6b .git/index.ls
-W a8e229f356f3e5f51a51439190aba6b3e3e6fccea84ada2aa0f1620118e786e8 .git/logs/HEAD
-W f6817bf908475f7bf55cd42c6e31595f94c94db9377f7efc87d011512d5a43e0 .git/logs/refs/heads/main
-W 0b3100cc17f430a4279aa6dda64e58ffa0980c6761c81c1987c7b410914b3721 .git/objects/31/a5c14441770a994314cfe6a8131142aa8666c9
-W 548466b8538d85911873fcdb42ff74bdc14138287fe31c83e9e683cdb0abb43c .git/objects/9e/bb48e7581e77b76364b510d99fa1bcb9f6bd15
-W 5bd6c5b9927b6d8650ce657c15928c7b47b70d62db1934d7fb364c20ab24d9ab .git/objects/be/b741cdaa4d280e20e8101673f1dc44f0058c4b
-W eb95b8a8b6730c1b6cd62f2f36e44b370d65433c72c6d2cb068df5b288584ecf .git/refs/heads/main
-W 1c290b120746cebdd3057e4db11680f4e06bf9e98f51ccec0b1ff924bbc04a02 packages/harness/.state/commit-ack
+W 49e078979587a2f49802a21c6047836190c053d9eb01d7747301d488e9e80cfa .git/index.ls
+W e554c60ecaa473fc0cd687a6e3caeae8845c621544c18f6c0f66066dc3fb2a81 .git/logs/HEAD
+W eabd8f1d8e1d7325927889516d888f724b6b9fc0ad98b3cbba880d130c6ff59f .git/logs/refs/heads/main
+W af9d7af26c8971a45497df8b08dc36ec050e60640911198242c5fb3c25a1d9f6 .git/objects/5b/80e24850ca210c08f3a583153a224b82abc749
+W 0723531305fbbb2de100b3972a761ef074ac436c60efa4a14210642e63ad9920 .git/objects/92/c17b07a837d6a645203ddf11fc1d198d1c4a44
+W 324dd6d445e2e45d570536a8e4dc26d741828303b9a113007405d2d1c944f314 .git/objects/bb/1f54429f79280f0a54a7fdfd991082413961fa
+W cfdd399ac70110455b22cf04c4d0f5e198d184560b76e7c8cf42d52eda16d853 .git/refs/heads/main
+W dcbc8ab3143ad113b38bb048aeb2d58530dbfe96279d1b364042fb09b3e36d7f packages/harness/.state/commit-ack

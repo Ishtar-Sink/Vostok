@@ -16,16 +16,16 @@ show
 
 @stdout 182
 Commits novos:
-- 9e4f9b9 amend (arquivos: -)
+- b2adc43 amend (arquivos: -)
 Commits removidos (estavam liberados e saíram do histórico):
-- 2a83b43 baixo nível (arquivos: -)
-Código de liberação: cec76e7a8e84
+- e9d3bc6 baixo nível (arquivos: -)
+Código de liberação: df3a2957e4d3
 
 @stderr 0
 
 @exit 1
 0
 @pre 70
-W 41bb4758898bbad7c38bd59c8599c7f9f15fbfd1e2356b8e85ec18981ee6fec5 .cc
+W 513e91c9f0ec3f4959422ce4055f2e6b4fc53c2544462ef0149dba523d8a726b .cc
 @post 0
 

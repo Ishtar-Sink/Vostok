@@ -22,9 +22,9 @@ execute-task,finish-task
 <OUTSIDE>
 @stdin 0
 
-@stdout 105
-Registrado: rules/project/testing.md (execute-task).
-Registrado: rules/project/testing.md (finish-task).
+@stdout 93
+Categoria 'testing' carregada em execute-task.
+Categoria 'testing' carregada em finish-task.
 
 @stderr 0
 

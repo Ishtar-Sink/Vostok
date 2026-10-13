@@ -25,9 +25,11 @@ Plano de SPEC-008 criado em <ROOT>/packages/harness/work/plans/SPEC-008.md
 
 @exit 1
 0
-@pre 166
+@pre 262
 W ff5682d91ff2d0fd4fbaaa36ffd752f4750f1339577b5adb29fcddfa657eec9c .plan-errors
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/plans/
 D packages/harness/work/plans/SPEC-008.md
 D packages/harness/work/plans/SPEC-008.md.ok
-@post 106
+@post 137
 W 98efd86bd497fa0de2a24649097f9f5ff03eb6ceb297f7b6cc2b78ff56509ea6 packages/harness/work/plans/SPEC-008.md
+D packages/harness/work/plans/

@@ -25,7 +25,8 @@ Arquivo de memória criado: <ROOT>/packages/harness/memory/knowledge.md
 0
 @pre 0
 
-@post 308
+@post 335
 W 14e8d4b632f548dc91cf28be5447b9d514b610797c4d8deb7ae4dd6f8b6361ad packages/harness/memory/decisions.md
 W 457f95639ff9a416520835a6e4262411eebd9d8ea83cf9298676057a5b940f12 packages/harness/memory/issues.md
 W 29b7e4a41ff3dee70d220da43316fbcf11eca476b490e85cc065f5d4f36d3c41 packages/harness/memory/knowledge.md
+D packages/harness/memory/

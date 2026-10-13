@@ -19,7 +19,7 @@ Sem repositório git em <ROOT>; nada a verificar.
 
 @exit 1
 0
-@pre 433
+@pre 467
 W 87a6ed747680f4ee3cc3611889390b63cd34823405b26a2aa0e9553f396903f5 packages/harness/work/specs/refined/SPEC-008-planejar.md
 W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
@@ -28,5 +28,6 @@ D .arc-r8
 D .fin-r8
 D .fin-tasks/TASK-01.md
 D .fin-tasks/TASK-02.md
+D packages/harness/work/finalize/
 @post 0
 

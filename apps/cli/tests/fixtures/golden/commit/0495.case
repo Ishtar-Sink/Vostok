@@ -19,7 +19,9 @@ Referência de commits gravada na primeira verificação: <ROOT>/packages/harnes
 
 @exit 1
 0
-@pre 36
+@pre 128
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/.state/
 D packages/harness/.state/commit-ack
-@post 101
-W 53682a12908ca3e939281a78379b5927655777499ffa2c5622360c0b76d415b9 packages/harness/.state/commit-ack
+@post 128
+W 81dba30d476e0af0ec2daff021b52c7cc6b46f3a1854704faa80b6d0eed41036 packages/harness/.state/commit-ack
+D packages/harness/.state/

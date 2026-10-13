@@ -81,9 +81,10 @@ Fora de um repositório git.
 
 @exit 1
 0
-@pre 2240
+@pre 2317
 D .git/COMMIT_EDITMSG
 D .git/HEAD
+D .git/branches/
 D .git/config
 D .git/description
 D .git/hooks/applypatch-msg.sample
@@ -132,6 +133,9 @@ D .git/objects/e0/0675b317b5cd0e6b15f997158d4472a7e04dd0
 D .git/objects/e1/04c626fd09114998a2ba9e1aaddfec01e58087
 D .git/objects/ef/994d37a4048f8d5b73b8fe94ff0af02fc01a15
 D .git/objects/f7/ab573b5f8374f17a1f0e811cb48e101bda3edc
+D .git/objects/info/
+D .git/objects/pack/
 D .git/refs/heads/main
+D .git/refs/tags/
 @post 0
 

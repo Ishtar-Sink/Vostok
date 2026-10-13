@@ -46,7 +46,7 @@ Cada seção é `@<nome> <tamanho em bytes>`, uma quebra de linha, o conteúdo e
 | `pre` | Mudanças feitas pela própria suíte desde o caso anterior, antes desta chamada. |
 | `post` | Mudanças feitas por esta chamada. |
 
-`pre` e `post` têm uma linha por arquivo: `W <sha256> <caminho>` (gravado com o conteúdo do blob) ou `D <caminho>` (removido). Os caminhos são relativos à raiz.
+`pre` e `post` têm uma linha por arquivo: `W <sha256> <caminho>` (gravado com o conteúdo do blob) ou `D <caminho>` (removido). Os caminhos são relativos à raiz. Uma pasta vazia aparece com `/` no fim do caminho e conteúdo vazio; uma pasta sem permissão de escrita, com `/` no fim e o conteúdo `readonly`.
 
 ## Como reproduzir um caso
 
@@ -58,5 +58,5 @@ Cada seção é `@<nome> <tamanho em bytes>`, uma quebra de linha, o conteúdo e
 
 - O índice do git não é gravado como binário: `.git/index.ls` guarda a saída de `git ls-files -s -z`, e o teste recria o índice com `git update-index --index-info`.
 - Os scripts originais e os gravadores (`*.real`) ficam fora dos estados.
-- `init-harness.sh --load` e `adjust-rules.sh --load` viram o mesmo `vostok rules load`; a seção `script` indica qual deles gerou o caso.
+- `init-harness.sh --load` e `adjust-rules.sh --load` viram o mesmo `vostok rules load` (o primeiro delega ao segundo); a seção `script` indica qual deles gerou o caso.
 - Chamadas aninhadas (um script chamando outro) contam como um caso só, o de fora.

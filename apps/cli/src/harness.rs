@@ -35,7 +35,7 @@ impl Harness {
 
     /// Procura o harness a partir do diretório atual.
     pub fn from_current_dir() -> Result<Self> {
-        Self::locate(&std::env::current_dir()?)
+        Self::locate(&crate::support::current_dir()?)
     }
 
     /// Caminho de um arquivo de `config/`.

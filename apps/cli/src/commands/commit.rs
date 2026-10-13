@@ -261,8 +261,7 @@ struct Repo {
 impl Repo {
     fn open(harness: &Harness) -> Result<Self> {
         let root = harness.path("root")?;
-        let root = root
-            .canonicalize()
+        let root = crate::support::existing_dir(&root)
             .with_context(|| format!("raiz do projeto inexistente: {}", root.display()))?;
         Ok(Self {
             root,

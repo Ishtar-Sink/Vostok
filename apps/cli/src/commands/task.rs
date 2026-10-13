@@ -256,7 +256,7 @@ impl Tasks {
     /// Raiz do projeto (`paths.root`), de onde os comandos da tarefa são executados.
     fn project_root(&self) -> Result<PathBuf> {
         let root = self.harness.path("root")?;
-        fs::canonicalize(&root).with_context(|| format!("pasta {} não encontrada", root.display()))
+        crate::support::existing_dir(&root)
     }
 
     fn task_file(&self, spec: &str, task: &str) -> PathBuf {

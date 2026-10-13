@@ -385,20 +385,28 @@ fn relative(root: &Path, path: &Path) -> String {
 
 // --- Normalização ---
 
+/// Troca os temporários do `mktemp` (`<pasta temporária>/tmp.XXXX`) por `<TMP>`; a pasta temporária
+/// é `/tmp` nas fixtures e a do sistema (`TMPDIR`, ex.: `/var/folders/...` no macOS) na reprodução.
 fn replace_tmp(text: &str) -> String {
-    let mut out = String::new();
-    let mut rest = text;
-    while let Some(start) = rest.find("/tmp/tmp.") {
-        out.push_str(&rest[..start]);
-        let after = &rest[start + 9..];
-        let len = after
-            .find(|c: char| !c.is_ascii_alphanumeric())
-            .unwrap_or(after.len());
-        out.push_str("<TMP>");
-        rest = &after[len..];
+    let system = std::env::temp_dir();
+    let system = format!("{}/tmp.", system.to_string_lossy().trim_end_matches('/'));
+    let mut text = text.to_string();
+    for prefix in ["/tmp/tmp.", system.as_str()] {
+        let mut out = String::new();
+        let mut rest = text.as_str();
+        while let Some(start) = rest.find(prefix) {
+            out.push_str(&rest[..start]);
+            let after = &rest[start + prefix.len()..];
+            let len = after
+                .find(|c: char| !c.is_ascii_alphanumeric())
+                .unwrap_or(after.len());
+            out.push_str("<TMP>");
+            rest = &after[len..];
+        }
+        out.push_str(rest);
+        text = out;
     }
-    out.push_str(rest);
-    out
+    text
 }
 
 fn is_digit_at(bytes: &[u8], index: usize) -> bool {
@@ -537,6 +545,7 @@ fn run_case(case: &Case, root: &Path, temp: &Path) -> std::process::Output {
     command
         .args(&args)
         .current_dir(root)
+        .env("PWD", root)
         .env("GIT_AUTHOR_NAME", "T")
         .env("GIT_AUTHOR_EMAIL", "t@t")
         .env("GIT_COMMITTER_NAME", "T")

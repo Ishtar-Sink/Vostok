@@ -42,7 +42,7 @@ impl Project {
 /// Comando `vostok` executado em `dir`.
 pub fn vostok_at(dir: &Path) -> Command {
     let mut command = Command::cargo_bin("vostok").expect("binário vostok");
-    command.current_dir(dir);
+    command.current_dir(dir).env("PWD", dir);
     command
 }
 

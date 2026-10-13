@@ -210,7 +210,10 @@ impl Printer {
         if Path::new(&in_harness).exists() {
             return Ok(in_harness);
         }
-        Ok(format!("{}/{source}", std::env::current_dir()?.display()))
+        Ok(format!(
+            "{}/{source}",
+            crate::support::current_dir()?.display()
+        ))
     }
 
     /// Imprime um arquivo ou todos os arquivos de uma pasta. Falso se o caminho não existir.

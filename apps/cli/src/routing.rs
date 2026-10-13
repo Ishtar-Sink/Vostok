@@ -124,7 +124,7 @@ pub fn save_tools(harness: &Harness, tools: &[&Tool]) -> Result<()> {
 /// Raiz do projeto, de `paths.root` do `config/main.yml`.
 pub fn project_root(harness: &Harness) -> Result<PathBuf> {
     let root = harness.path("root")?;
-    root.canonicalize()
+    crate::support::existing_dir(&root)
         .with_context(|| format!("raiz do projeto inexistente: {}", root.display()))
 }
 

@@ -345,6 +345,7 @@ fn closed_output_pipe_ends_without_panic() {
     let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_vostok"))
         .args(["context", "load"])
         .current_dir(project.root())
+        .env("PWD", project.root())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
@@ -386,4 +387,32 @@ fn messages_name_vostok_subcommands_instead_of_scripts() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["task", "load"]));
     assert_eq!(stderr, "Erro: Uso: vostok task load <SPEC_ID> <TASK_ID>\n");
+}
+
+#[cfg(unix)]
+#[test]
+fn paths_in_messages_keep_the_symlink_the_user_went_through() {
+    let project = Project::new();
+    let links = TempDir::new().unwrap();
+    let link = links.path().join("projeto");
+    std::os::unix::fs::symlink(project.root(), &link).unwrap();
+    let stdout = String::from_utf8(
+        vostok_at(&link)
+            .args(["spec", "new", "Pelo link"])
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone(),
+    )
+    .unwrap();
+    assert!(stdout.contains(&link.display().to_string()), "{stdout}");
+}
+
+#[test]
+fn lexical_resolves_dots_without_touching_the_disk() {
+    assert_eq!(
+        lexical(std::path::Path::new("/a/b/../c/./d")),
+        std::path::PathBuf::from("/a/c/d")
+    );
 }

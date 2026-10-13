@@ -148,7 +148,7 @@ impl Finalization {
             })
             .collect();
         let root = harness.path("root")?;
-        let root = fs::canonicalize(&root).unwrap_or(root);
+        let root = crate::support::lexical(&root);
         let finalization = Self {
             harness,
             root,
@@ -243,7 +243,7 @@ impl Finalization {
     fn spec_docs_dir(&self) -> Result<PathBuf> {
         let base = self.harness.path("spec_docs")?;
         let base = if base.is_dir() {
-            fs::canonicalize(&base).unwrap_or(base)
+            crate::support::lexical(&base)
         } else {
             base
         };

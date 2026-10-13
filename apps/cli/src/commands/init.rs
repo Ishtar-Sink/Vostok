@@ -39,7 +39,7 @@ struct Choices {
 }
 
 pub fn run(args: InitArgs) -> Result<()> {
-    let project = std::env::current_dir()?;
+    let project = crate::support::current_dir()?;
     let harness = Harness {
         root: project.join(INSTALL_DIR),
     };

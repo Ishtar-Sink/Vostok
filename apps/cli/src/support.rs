@@ -563,3 +563,55 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     let year = year_of_era + era * 400 + i64::from(month <= 2);
     (year, month, day)
 }
+
+/// Diretório atual como o shell o mostra: o `$PWD`, quando ele aponta para o mesmo diretório que o
+/// sistema informa. Assim um link no caminho (ex.: `/var` → `/private/var` no macOS) não aparece
+/// resolvido nas mensagens.
+pub fn current_dir() -> std::io::Result<std::path::PathBuf> {
+    let physical = std::env::current_dir()?;
+    let logical = std::env::var_os("PWD")
+        .map(std::path::PathBuf::from)
+        .filter(|pwd| pwd.is_absolute() && same_dir(pwd, &physical));
+    Ok(logical.map_or(physical, |pwd| lexical(&pwd)))
+}
+
+#[cfg(unix)]
+fn same_dir(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (fs::metadata(a), fs::metadata(b)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn same_dir(a: &Path, b: &Path) -> bool {
+    a == b
+}
+
+/// Resolve `.` e `..` sem seguir links, como o `cd <caminho> && pwd` do shell.
+pub fn lexical(path: &Path) -> std::path::PathBuf {
+    use std::path::Component;
+    let mut out = std::path::PathBuf::new();
+    for part in path.components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push(part);
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// Caminho lógico de uma pasta que precisa existir.
+pub fn existing_dir(path: &Path) -> Result<std::path::PathBuf> {
+    let logical = lexical(path);
+    if !logical.is_dir() {
+        bail!("pasta {} não encontrada", logical.display());
+    }
+    Ok(logical)
+}

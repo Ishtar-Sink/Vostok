@@ -545,7 +545,7 @@ fn catalog_prefix(harness: &Harness, catalog: &Path) -> String {
 
 fn project_root(harness: &Harness) -> Result<PathBuf> {
     let root = harness.path("root")?;
-    root.canonicalize()
+    crate::support::existing_dir(&root)
         .with_context(|| format!("raiz do projeto inexistente: {}", root.display()))
 }
 

@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-006 · Resumo executivo · Harness do Projeto</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 8px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 18px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+.block { margin-top: 26px; }
+
+/* Indicadores */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--color-line);
+        border: 1px solid var(--color-line); border-radius: 14px; overflow: hidden; margin: 0 0 20px; }
+.kpi { background: var(--color-surface); padding: 15px 17px; }
+.kpi b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.03em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.kpi b small { font-size: 15px; font-weight: 500; color: var(--color-muted); letter-spacing: 0; }
+.kpi span { display: block; font-size: 11.5px; color: var(--color-muted); margin-top: 4px; }
+
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.tag.alto { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.medio { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.baixo { background: var(--color-surface-2); color: var(--color-muted); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Cartões das entregas */
+.cards { display: grid; gap: 10px; }
+details.card { background: var(--color-surface); border: 1px solid var(--color-line); border-left: 3px solid var(--color-line);
+               border-radius: 9px; overflow: hidden; }
+details.card.impact-alto { border-left-color: var(--color-primary); }
+details.card.impact-medio { border-left-color: var(--color-ok); }
+details.card > summary { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; padding: 15px 18px; cursor: pointer; list-style: none; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.card[open] > summary::before { content: "\2212"; }
+details.card > summary > b { font-size: 14.5px; letter-spacing: -.008em; flex: 1; min-width: 200px; }
+details.card > summary:hover { background: var(--color-surface-2); }
+details.card > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.card[open] > summary { border-bottom: 1px solid var(--color-line); }
+.card-body { padding: 14px 18px 16px 40px; color: var(--color-muted); font-size: 13.5px; }
+.card-body p { margin: 0 0 10px; }
+.card-body p:last-child { margin-bottom: 0; }
+.card-body p > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em;
+                               color: var(--color-ink); opacity: .7; margin-bottom: 2px; font-weight: 700; }
+.ctl { display: flex; gap: 8px; justify-content: flex-end; margin: -6px 0 12px; }
+.ctl button { font: inherit; font-size: 12px; color: var(--color-muted); background: none; border: 1px solid var(--color-line);
+              border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.ctl button:hover { color: var(--color-ink); border-color: var(--color-primary); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+/* Linha do tempo */
+.timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--color-line); display: grid; gap: 10px; }
+.timeline li { position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; font-size: 13.5px; }
+.timeline li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 10px; height: 10px; border-radius: 50%;
+                       background: var(--color-bg); border: 2px solid var(--color-primary); }
+.timeline li.pending::before { border-color: var(--color-muted); }
+.timeline .date { font: 500 12px/1.4 var(--font-mono); color: var(--color-muted); }
+.timeline .task { overflow-wrap: anywhere; }
+.timeline .id { font: 700 11.5px var(--font-mono); color: var(--color-primary); margin-right: 6px; }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@media (max-width: 640px) {
+  .card-body { padding-left: 18px; }
+  .timeline li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+@page { margin: 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav, .ctl { display: none; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; padding-top: 14mm; }
+  main { padding-bottom: 14mm; }
+  details.card, .kpi, .timeline li, tr { break-inside: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Resumo executivo · SPEC-006 · aprovada em 2026-10-11 · concluída em 2026-10-13</p>
+    <h1>Harness do Projeto</h1>
+    <div class="lede">
+<p>O harness passou a ter um jeito próprio de <strong>levantar e manter as regras de cada projeto</strong> (arquitetura, tecnologias, estilo de código, testes, segurança e outras). Duas habilidades novas fazem esse trabalho com o usuário, e as regras só entram em ação nos momentos em que importam. O resultado é um agente que segue os padrões do projeto sem carregar tudo em toda conversa, e que <strong>sugere novas regras, mas nunca as grava sem autorização</strong>.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-panorama" role="tab" data-tab="panorama">Panorama</a>
+    <a href="#p-entregas" role="tab" data-tab="entregas">Entregas</a>
+    <a href="#p-antes-e-depois" role="tab" data-tab="antes-e-depois">Antes e depois</a>
+    <a href="#p-execucao" role="tab" data-tab="execucao">Execução</a>
+    <a href="#p-proximos-passos" role="tab" data-tab="proximos-passos">Próximos passos</a>
+  </div>
+</nav>
+
+<main id="main">
+  <section class="panel" id="p-panorama" role="tabpanel" data-panel="panorama">
+    <div class="sec-h"><h2>O que foi entregue</h2><p>As entregas desta spec e o valor de cada uma.</p></div>
+<div class="kpis">
+<div class="kpi"><b>Habilidades novas</b><span><strong>2</strong> (inicializar o harness e ajustar as regras)</span></div>
+<div class="kpi"><b>Habilidades existentes migradas para o carregamento central</b><span><strong>12</strong></span></div>
+<div class="kpi"><b>Categorias de regras que a inicialização percorre</b><span><strong>8</strong> (6 novas, mais idioma e nomeação)</span></div>
+<div class="kpi"><b>Testes automatizados</b><span>de <strong>734</strong> para <strong>905</strong> (<strong>+171</strong>), sem falhas</span></div>
+<div class="kpi"><b>Cenários com agente executados e aprovados</b><span><strong>9</strong> de <strong>9</strong></span></div>
+<div class="kpi"><b>Tarefas concluídas</b><span><strong>8</strong> de <strong>8</strong>, todas com testes, regressão e evidências</span></div>
+</div>
+<div class="tw"><table>
+<thead><tr><th>Entrega</th><th>Impacto</th><th>Valor</th></tr></thead>
+<tbody>
+<tr><td class="strong">Levantamento das regras do projeto</td><td><span class="tag alto">Impacto alto</span></td><td>o projeto começa com regras alinhadas ao que já existe no código, sem partir de uma página em branco, e sem o risco de o agente impor um padrão que ninguém aprovou.</td></tr>
+<tr><td class="strong">Manutenção das regras com autorização</td><td><span class="tag alto">Impacto alto</span></td><td>as regras evoluem com o projeto sem perder o histórico e sem mudanças silenciosas.</td></tr>
+<tr><td class="strong">Carregamento das regras só onde importam</td><td><span class="tag alto">Impacto alto</span></td><td>menos contexto desnecessário em cada conversa e um único lugar para entender e controlar o que o agente lê.</td></tr>
+<tr><td class="strong">Conferência automática das regras</td><td><span class="tag medio">Impacto médio</span></td><td>erros de configuração aparecem na hora, com o arquivo e a linha, e não como comportamento estranho do agente depois.</td></tr>
+</tbody>
+</table></div>
+    <div class="note"><b>O recorte deste documento</b>
+<p>Cobre o mecanismo: a habilidade de inicialização, a de ajuste, o mapa de carregamento e a conferência das regras. As regras do próprio Vostok ainda não foram preenchidas, e a criação da estrutura do harness pela CLI ficou para outra entrega.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-entregas" role="tabpanel" data-panel="entregas">
+    <div class="sec-h"><h2>As 4 entregas</h2><p>Abra cada entrega para ver o que mudou, o valor e como perceber.</p></div>
+    <div class="ctl"><button type="button" data-cards="open">Abrir todas</button><button type="button" data-cards="close">Fechar todas</button></div>
+    <div class="cards">
+<details class="card impact-alto">
+<summary><b>Levantamento das regras do projeto</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+<p><b>O que mudou</b>o harness ganhou uma habilidade que investiga o projeto, propõe regras por categoria com a origem de cada uma, faz as perguntas numa única rodada e grava só o que o usuário confirmar. Numa segunda execução, mostra o que mudaria e altera apenas o confirmado.</p>
+<p><b>Valor</b>o projeto começa com regras alinhadas ao que já existe no código, sem partir de uma página em branco, e sem o risco de o agente impor um padrão que ninguém aprovou.</p>
+<p><b>Como perceber</b>ao pedir para inicializar o harness, o agente apresenta as regras sugeridas e pergunta o que vale.</p>
+
+</div>
+</details>
+<details class="card impact-alto">
+<summary><b>Manutenção das regras com autorização</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+<p><b>O que mudou</b>outra habilidade cria, altera e remove regras e categorias, e decide em quais etapas do trabalho cada regra vale. Uma regra removida deixa uma marca com a data, e o número dela nunca é reaproveitado. O agente passou a sugerir regras quando vê o mesmo padrão ao menos três vezes, no máximo uma sugestão por resposta.</p>
+<p><b>Valor</b>as regras evoluem com o projeto sem perder o histórico e sem mudanças silenciosas.</p>
+<p><b>Como perceber</b>ao notar um padrão repetido, o agente faz uma pergunta com a sugestão e espera a resposta antes de gravar qualquer coisa.</p>
+
+</div>
+</details>
+<details class="card impact-alto">
+<summary><b>Carregamento das regras só onde importam</b><span class="tag alto">Impacto alto</span></summary>
+<div class="card-body">
+<p><b>O que mudou</b>o que cada habilidade precisa carregar passou a viver num único arquivo de configuração, em vez de espalhado por cada habilidade. Ligar ou desligar uma regra de uma habilidade é editar uma lista. Vale também para habilidades criadas pelo usuário, que já nascem ligadas ao mapa.</p>
+<p><b>Valor</b>menos contexto desnecessário em cada conversa e um único lugar para entender e controlar o que o agente lê.</p>
+<p><b>Como perceber</b>cada habilidade abre carregando só o que está listado para ela no mapa.</p>
+
+</div>
+</details>
+<details class="card impact-medio">
+<summary><b>Conferência automática das regras</b><span class="tag medio">Impacto médio</span></summary>
+<div class="card-body">
+<p><b>O que mudou</b>uma verificação confere se o mapa aponta para habilidades e arquivos que existem e se as regras seguem o formato, sem números repetidos ou fora de ordem.</p>
+<p><b>Valor</b>erros de configuração aparecem na hora, com o arquivo e a linha, e não como comportamento estranho do agente depois.</p>
+<p><b>Como perceber</b>as duas habilidades rodam essa conferência ao terminar e corrigem o que ela apontar.</p>
+</div>
+</details>
+    </div>
+  </section>
+
+  <section class="panel" id="p-antes-e-depois" role="tabpanel" data-panel="antes-e-depois">
+    <div class="sec-h"><h2>Antes e depois</h2><p>Como era e como ficou para quem usa.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Situação</th><th>Antes</th><th>Depois</th></tr>
+</thead>
+<tbody>
+<tr><td>Regras do projeto</td><td>Apenas idioma e nomeação</td><td>Categorias levantadas com o usuário, com a origem de cada regra</td></tr>
+<tr><td>Onde se define o que cada habilidade carrega</td><td>Espalhado em cada uma das 12 habilidades</td><td>Um único arquivo de configuração</td></tr>
+<tr><td>Mudança de regra</td><td>Edição manual, sem verificação</td><td>Habilidade própria, com autorização e conferência automática</td></tr>
+<tr><td>Sugestão de regra pelo agente</td><td>Sem orientação</td><td>Só com padrão repetido, uma por resposta, sempre com pergunta</td></tr>
+<tr><td>Habilidade criada pelo usuário</td><td>Carregamento definido dentro da própria habilidade</td><td>Já nasce com entrada no mapa central</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-execucao" role="tabpanel" data-panel="execucao">
+    <div class="sec-h"><h2>Como foi executado</h2><p>Tarefas, testes e evidências, da aprovação em 2026-10-11 à conclusão em 2026-10-13.</p></div>
+<div class="kpis">
+<div class="kpi"><b>8<small> / 8</small></b><span>Tarefas concluídas</span></div>
+<div class="kpi"><b>8<small> / 8</small></b><span>Tarefas com testes aprovados</span></div>
+<div class="kpi"><b>17<small> / 17</small></b><span>Evidências geradas</span></div>
+</div>
+    <div class="block">
+      <h3>Linha do tempo</h3>
+      <ol class="timeline">
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-01</span>Opção --skill no carregamento de contexto</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-02</span>Validador de regras e do mapa</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-03</span>Template de categoria e regra de sugestão</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-04</span>Migração do requires para o mapa</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-05</span>create-skill com o mapa</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-06</span>Skill init-harness</span></li>
+      <li><span class="date">2026-10-11</span><span class="task"><span class="id">TASK-07</span>Skill adjust-rules</span></li>
+      <li><span class="date">2026-10-13</span><span class="task"><span class="id">TASK-08</span>Cenários de agente das regras</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="panel" id="p-proximos-passos" role="tabpanel" data-panel="proximos-passos">
+    <div class="sec-h"><h2>Próximos passos</h2><p>O que vem a seguir e o que depende de decisão.</p></div>
+    <div class="md">
+<ul>
+<li>Rodar a inicialização no próprio Vostok para preencher as regras do projeto, o primeiro uso real da habilidade.</li>
+<li>Decidir a entrega que cria a estrutura do harness pela CLI, que hoje é um pressuposto desta.</li>
+</ul>
+    </div>
+    <div class="note warn"><b>Riscos e limitações</b>
+<ul>
+<li>As regras sugeridas dependem do que o código já mostra: num projeto muito novo, a habilidade só pergunta, e a qualidade depende das respostas.</li>
+<li>Um cenário de reexecução não pôde mostrar o que mudaria antes de gravar, por uma limitação do ambiente de teste; o resultado final foi conferido por outro meio.</li>
+<li>Duas tarefas precisaram de decisão do usuário para aceitar uma diferença esperada no ponto de comparação; o aceite foi feito à mão, porque o harness ainda não tem um comando para isso.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · resumo executivo de SPEC-006, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#execucao) não coincide com o id da seção (p-execucao): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  var cards = Array.prototype.slice.call(document.querySelectorAll("details.card"));
+  Array.prototype.forEach.call(document.querySelectorAll("[data-cards]"), function (b) {
+    b.addEventListener("click", function () {
+      var open = b.getAttribute("data-cards") === "open";
+      cards.forEach(function (d) { d.open = open; });
+    });
+  });
+
+  // Na impressão, as entregas fechadas abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = cards.filter(function (d) { return !d.open; });
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

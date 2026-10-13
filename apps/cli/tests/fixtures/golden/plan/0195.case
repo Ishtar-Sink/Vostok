@@ -22,9 +22,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 143
+@stderr 145
 Erro: as tarefas de SPEC-008 têm problemas:
-as tarefas de SPEC-008 ainda não foram criadas; execute: approve-plan.sh --create-tasks SPEC-008
+as tarefas de SPEC-008 ainda não foram criadas; execute: vostok plan approve create-tasks SPEC-008
 
 @exit 1
 1

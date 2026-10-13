@@ -14,7 +14,7 @@ Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando
 
 ## Termos
 
-- **Plano:** o arquivo `packages/harness/work/plans/<SPEC_ID>.md`, criado pela skill `plan-tasks`. É o único que esta skill edita.
+- **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`, criado pela skill `plan-tasks`. É o único que esta skill edita.
 - **Plano desatualizado:** plano com `spec_hash` diferente do `approved_hash` da spec. Não é ajustado: é recriado pela `plan-tasks`.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
@@ -65,7 +65,7 @@ Os formatos das tabelas do plano estão em "Formatos de resposta" da skill [plan
 
 ### 2. Identificar o plano
 
-Os planos existentes são os arquivos de `packages/harness/work/plans/`, um por spec, com o ID da spec no nome.
+Os planos existentes são os arquivos de `vostok/work/plans/`, um por spec, com o ID da spec no nome.
 
 Use o plano sem perguntar em qualquer um destes casos:
 

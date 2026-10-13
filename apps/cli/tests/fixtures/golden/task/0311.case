@@ -26,8 +26,8 @@ corrigir o estado
 <OUTSIDE>
 @stdin 0
 
-@stdout 140
-Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por --tests.
+@stdout 150
+Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.
 
 @stderr 0
 

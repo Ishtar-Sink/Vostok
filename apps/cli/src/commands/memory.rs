@@ -14,8 +14,8 @@ use crate::support::{
     records, render, script_title, template_leftovers, utc_date, utc_datetime, yaml_escape,
 };
 
-const ADD_USAGE: &str = "Uso: add-memory.sh <tipo> \"Título\" | --init";
-const SEARCH_USAGE: &str = "Uso: search-memory.sh <tipo|all> [termo...] | --id <ID>";
+const ADD_USAGE: &str = "Uso: vostok memory add <tipo> \"Título\" | vostok memory init";
+const SEARCH_USAGE: &str = "Uso: vostok memory search <tipo|all> [termo...] | --id <ID>";
 
 #[derive(Debug, Subcommand)]
 pub enum MemoryCommand {
@@ -170,7 +170,7 @@ impl Memory {
         let file = self.file(kind)?;
         let shown = file.display();
         if frontmatter_get(&file, "updated_at").is_err() {
-            bail!("{shown} não tem front-matter com 'updated_at'. Restaure o cabeçalho do arquivo (ver add-memory.sh --init) antes de continuar");
+            bail!("{shown} não tem front-matter com 'updated_at'. Restaure o cabeçalho do arquivo (ver vostok memory init) antes de continuar");
         }
         let content = read(&file)?;
         let leftovers = template_leftovers(&content);

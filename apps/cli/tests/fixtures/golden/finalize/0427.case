@@ -20,9 +20,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 144
+@stderr 158
 Erro: a spec SPEC-008 não pode ser arquivada:
-  - documento ausente: packages/harness/work/finalize/SPEC-008/evidencias.html; gere com --build
+  - documento ausente: packages/harness/work/finalize/SPEC-008/evidencias.html; gere com vostok finalize build
 
 @exit 1
 1

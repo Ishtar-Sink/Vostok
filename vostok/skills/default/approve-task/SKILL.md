@@ -15,7 +15,7 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 
 ## Termos
 
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`, criado pela skill `approve-plan`.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, criado pela skill `approve-plan`.
 - **Pendente:** tarefa com status `pending`. É a única que pode ser aprovada.
 - **Aprovada:** tarefa com status `approved`, com `approved_at` e `approved_hash` no front-matter. Só ela pode ser executada.
 - **Citação:** tarefa nomeada no pedido pelo ID (`TASK-03`), pelo título ou por um intervalo ("da 1 à 3").
@@ -54,7 +54,7 @@ vostok context load --skill approve-task
 
 ### 2. Identificar a spec
 
-As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, uma pasta por spec, e os IDs são numerados dentro de cada spec. Procure as tarefas citadas com Glob (`packages/harness/work/tasks/*/TASK-03.md`):
+As tarefas ficam em `vostok/work/tasks/<SPEC_ID>/`, uma pasta por spec, e os IDs são numerados dentro de cada spec. Procure as tarefas citadas com Glob (`vostok/work/tasks/*/TASK-03.md`):
 
 - Spec citada no pedido, ou tarefas citadas que existem em uma única spec: use essa spec.
 - Tarefa citada que existe em mais de uma spec: **PARE** e pergunte de qual, com o template `question`, uma opção por spec. Não aprove nada antes da resposta.

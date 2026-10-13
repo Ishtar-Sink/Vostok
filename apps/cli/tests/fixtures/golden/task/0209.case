@@ -14,8 +14,8 @@ load
 
 @stdout 0
 
-@stderr 44
-Erro: Uso: load-task.sh <SPEC_ID> <TASK_ID>
+@stderr 48
+Erro: Uso: vostok task load <SPEC_ID> <TASK_ID>
 
 @exit 1
 1

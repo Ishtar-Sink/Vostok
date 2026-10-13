@@ -18,8 +18,8 @@ SPEC-001
 
 @stdout 0
 
-@stderr 117
-Erro: informe o tipo. Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --validate <SPEC_ID> | --mark-refined <SPEC_ID>
+@stderr 133
+Erro: informe o tipo. Uso: vostok spec refine <SPEC_ID> <tipo> | vostok spec validate <SPEC_ID> | vostok spec mark-refined <SPEC_ID>
 
 @exit 1
 1

@@ -22,9 +22,9 @@ SPEC-006
 
 @stdout 0
 
-@stderr 132
+@stderr 134
 Erro: a spec SPEC-006 não pode ser aprovada:
-edição manual sem registro; registre-a com: adjust-spec.sh --record-manual SPEC-006
+edição manual sem registro; registre-a com: vostok spec adjust record-manual SPEC-006
 
 @exit 1
 1

@@ -24,8 +24,8 @@ TASK-02
 
 @stdout 0
 
-@stderr 130
-Erro: evidências automáticas de TASK-02 com erro; corrija e execute --evidence de novo:
+@stderr 140
+Erro: evidências automáticas de TASK-02 com erro; corrija e execute vostok task evidence de novo:
 - erro.txt: `false` terminou com erro
 
 

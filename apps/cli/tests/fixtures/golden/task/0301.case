@@ -26,8 +26,8 @@ TASK-01
 Testes de TASK-01 falharam (código de saída 1), tentativa 1 de 2. Últimas linhas da saída (<ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out):
     comando com falha (código 1): test ! -e .falha
 
-@stderr 71
-Erro: os testes de TASK-01 falharam; corrija e execute --tests de novo
+@stderr 81
+Erro: os testes de TASK-01 falharam; corrija e execute vostok task tests de novo
 
 @exit 1
 1

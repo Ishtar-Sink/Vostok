@@ -20,9 +20,9 @@ use crate::support::{
 };
 
 const REFINE_USAGE: &str =
-    "Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --validate <SPEC_ID> | --mark-refined <SPEC_ID>";
+    "Uso: vostok spec refine <SPEC_ID> <tipo> | vostok spec validate <SPEC_ID> | vostok spec mark-refined <SPEC_ID>";
 const ADJUST_USAGE: &str =
-    "Uso: adjust-spec.sh --record-manual <SPEC_ID> | --validate <SPEC_ID> | --record <SPEC_ID> \"resumo\"";
+    "Uso: vostok spec adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> \"resumo\"";
 const COMPONENT_ACTIONS: &str = "criar alterar remover";
 
 #[derive(Debug, Subcommand)]
@@ -171,7 +171,7 @@ fn create_new(specs: &Specs, title: String) -> Result<()> {
         Ok(title) => title,
         Err(error) => {
             eprintln!("{error}");
-            bail!("título inválido. Uso: create-new-spec.sh \"Título da spec\"");
+            bail!("título inválido. Uso: vostok spec new \"Título da spec\"");
         }
     };
     let slug = slugify(&title);
@@ -358,7 +358,7 @@ fn create_refined(specs: &Specs, spec_id: &str, kind: &str) -> Result<()> {
         .join(draft.file_name().unwrap_or_default());
     if target.exists() {
         bail!(
-            "a spec refinada já existe: {}. Preencha-a e rode: create-refined-spec.sh --validate {spec_id}",
+            "a spec refinada já existe: {}. Preencha-a e rode: vostok spec validate {spec_id}",
             target.display()
         );
     }
@@ -548,7 +548,7 @@ fn find_refined_to_mark(specs: &Specs, spec_id: &str) -> Result<PathBuf> {
     match find_by_id(&refined_dir, spec_id) {
         Some(refined) => Ok(refined),
         None => bail!(
-            "spec refinada {spec_id} não encontrada em {}. Crie-a com: create-refined-spec.sh {spec_id} <tipo>",
+            "spec refinada {spec_id} não encontrada em {}. Crie-a com: vostok spec refine {spec_id} <tipo>",
             refined_dir.display()
         ),
     }
@@ -1089,7 +1089,7 @@ fn approval_blockers(specs: &Specs, spec_id: &str, file: &Path) -> Result<Vec<St
     let stored = frontmatter_get(file, &specs.setting("content_hash_field")?).unwrap_or_default();
     if stored != content_hash(file)? {
         blockers.push(format!(
-            "edição manual sem registro; registre-a com: adjust-spec.sh --record-manual {spec_id}"
+            "edição manual sem registro; registre-a com: vostok spec adjust record-manual {spec_id}"
         ));
     }
     Ok(blockers)

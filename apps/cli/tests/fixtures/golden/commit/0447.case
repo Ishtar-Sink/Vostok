@@ -16,8 +16,8 @@ approve
 
 @stdout 0
 
-@stderr 114
-Erro: Uso: approve-commit.sh --show | --approve <código> | --commit [caminho...] < mensagem | --revert <código>
+@stderr 102
+Erro: Uso: vostok commit show | approve <código> | commit [caminho...] < mensagem | revert <código>
 
 @exit 1
 1

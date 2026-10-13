@@ -34,10 +34,10 @@ TASK-03
 
 @stdout 0
 
-@stderr 277
+@stderr 279
 Erro: as tarefas de SPEC-008 não podem ser aprovadas:
 TASK-01: status 'approved'; só tarefas com status 'pending' são aprovadas
-TASK-02: edição manual sem registro; registre-a com: adjust-task.sh --record-manual SPEC-008 TASK-02
+TASK-02: edição manual sem registro; registre-a com: vostok task adjust record-manual SPEC-008 TASK-02
 TASK-03: a subseção 'Passos' está vazia
 
 @exit 1

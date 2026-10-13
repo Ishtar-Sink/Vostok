@@ -23,7 +23,7 @@ fn score_refuses_spec_without_plan() {
     let stderr = failure_stderr(project.vostok().args(["plan", "score", "SPEC-404"]));
     assert_eq!(
         stderr,
-        "Erro: a spec SPEC-404 não tem plano de tarefas. Crie-o com: plan-tasks.sh --create SPEC-404\n"
+        "Erro: a spec SPEC-404 não tem plano de tarefas. Crie-o com: vostok plan create SPEC-404\n"
     );
 }
 
@@ -35,7 +35,10 @@ fn adjust_record_without_summary_shows_usage() {
             .vostok()
             .args(["plan", "adjust", "record", "SPEC-001"]),
     );
-    assert!(stderr.starts_with("Erro: Uso: adjust-plan.sh"), "{stderr}");
+    assert!(
+        stderr.starts_with("Erro: Uso: vostok plan adjust"),
+        "{stderr}"
+    );
 }
 
 #[test]
@@ -83,7 +86,10 @@ fn approve_validate_refuses_spec_without_plan() {
 fn empty_spec_id_shows_usage() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["plan", "validate", ""]));
-    assert!(stderr.starts_with("Erro: Uso: plan-tasks.sh"), "{stderr}");
+    assert!(
+        stderr.starts_with("Erro: Uso: vostok plan create"),
+        "{stderr}"
+    );
 }
 
 #[test]

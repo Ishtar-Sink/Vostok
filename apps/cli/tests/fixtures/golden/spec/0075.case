@@ -18,9 +18,9 @@ X #{Y}
 
 @stdout 0
 
-@stderr 138
+@stderr 135
 O título não pode conter '#{', reservado para variáveis de template
-Erro: título inválido. Uso: create-new-spec.sh "Título da spec"
+Erro: título inválido. Uso: vostok spec new "Título da spec"
 
 @exit 1
 1

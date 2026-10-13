@@ -15,7 +15,7 @@ fn golden_task() {
 fn load_without_ids_shows_the_usage() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["task", "load"]));
-    assert_eq!(stderr, "Erro: Uso: load-task.sh <SPEC_ID> <TASK_ID>\n");
+    assert_eq!(stderr, "Erro: Uso: vostok task load <SPEC_ID> <TASK_ID>\n");
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn start_rejects_an_invalid_spec_id() {
 fn start_without_task_id_shows_the_usage() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["task", "start", "SPEC-001"]));
-    assert!(stderr.starts_with("Erro: Uso: execute-task.sh --start"));
+    assert!(stderr.starts_with("Erro: Uso: vostok task start"));
 }
 
 #[test]

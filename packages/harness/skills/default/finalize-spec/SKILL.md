@@ -59,7 +59,7 @@ vostok context load --skill finalize-spec
 
 ### 2. Identificar a spec
 
-As specs ficam em `packages/harness/work/specs/refined/`. Use a spec citada pelo usuário. Sem citação, leia o front-matter das refinadas e liste as com status `implemented`:
+As specs ficam em `vostok/work/specs/refined/`. Use a spec citada pelo usuário. Sem citação, leia o front-matter das refinadas e liste as com status `implemented`:
 
 - Uma só: use essa.
 - Mais de uma: **PARE** e pergunte qual, com o template `question` (FA-02).

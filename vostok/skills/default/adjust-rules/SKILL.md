@@ -15,10 +15,10 @@ Aplica às regras do projeto e ao mapa de contexto todos os ajustes que o usuár
 
 ## Termos
 
-- **Categoria:** arquivo `packages/harness/rules/project/<categoria>.md`. O nome do arquivo, em kebab-case, é o nome da categoria.
+- **Categoria:** arquivo `vostok/rules/project/<categoria>.md`. O nome do arquivo, em kebab-case, é o nome da categoria.
 - **Regra:** linha `[project/<categoria>-NN]: texto.` de uma categoria, com ID sequencial de dois dígitos.
 - **Regra removida:** regra que vira `[project/<categoria>-NN]: Removida em AAAA-MM-DD.`. Ela continua no arquivo, e o ID não volta a ser usado.
-- **Mapa:** o `packages/harness/config/context.yml`. O bloco `required` lista o que toda sessão carrega, e o bloco `skills` lista o que cada skill carrega, além de `required`.
+- **Mapa:** o `vostok/config/context.yml`. O bloco `required` lista o que toda sessão carrega, e o bloco `skills` lista o que cada skill carrega, além de `required`.
 - **Carregar:** registrar a categoria em `required` (`always`) ou na entrada de uma skill do mapa.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
@@ -62,7 +62,7 @@ vostok context load --skill adjust-rules
 
 ### 2. Decompor o pedido em ajustes
 
-Leia as categorias envolvidas em `packages/harness/rules/project/` e o `packages/harness/config/context.yml`. Separe o pedido em ajustes, de qualquer forma que ele venha (prosa, lista ou citação do ID da regra). Cada ajuste é um destes:
+Leia as categorias envolvidas em `vostok/rules/project/` e o `vostok/config/context.yml`. Separe o pedido em ajustes, de qualquer forma que ele venha (prosa, lista ou citação do ID da regra). Cada ajuste é um destes:
 
 | Ajuste | Como aplicar |
 |---|---|

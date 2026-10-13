@@ -15,7 +15,7 @@ metadata:
 
 ## Termos
 
-- **Referência:** o estado das refs locais (HEAD, branches e tags) na última liberação, gravado em `packages/harness/.state/commit-ack`, fora do git.
+- **Referência:** o estado das refs locais (HEAD, branches e tags) na última liberação, gravado em `vostok/.state/commit-ack`, fora do git.
 - **Commit novo:** commit alcançável hoje e não alcançável pela referência. Inclui `--amend`, rebase e commits em outras branches.
 - **Commit removido:** commit da referência que saiu do histórico, por `reset`, rebase ou branch apagada.
 - **Código de liberação:** identifica o estado mostrado ao usuário. Se o repositório mudar depois, o comando recusa a ação.

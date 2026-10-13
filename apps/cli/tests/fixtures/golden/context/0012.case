@@ -18,8 +18,8 @@ load
 
 @stdout 0
 
-@stderr 42
-Uso: load-extra-context.sh --skill <nome>
+@stderr 40
+Uso: vostok context load --skill <nome>
 
 @exit 1
 1

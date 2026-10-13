@@ -22,9 +22,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 164
+@stderr 166
 Erro: o plano de SPEC-008 não pode ser aprovado; nada foi alterado:
-edição manual no plano sem registro; registre-a com: adjust-plan.sh --record-manual SPEC-008
+edição manual no plano sem registro; registre-a com: vostok plan adjust record-manual SPEC-008
 
 @exit 1
 1

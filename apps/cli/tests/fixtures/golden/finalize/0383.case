@@ -20,9 +20,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 146
+@stderr 160
 Erro: o conteúdo de SPEC-008 tem problemas:
-  - conteúdo não encontrado: packages/harness/work/finalize/SPEC-008/content.md; crie com --create
+  - conteúdo não encontrado: packages/harness/work/finalize/SPEC-008/content.md; crie com vostok finalize create
 
 @exit 1
 1

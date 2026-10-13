@@ -105,7 +105,10 @@ fn record_without_summary_shows_usage() {
             .vostok()
             .args(["spec", "adjust", "record", "SPEC-001"]),
     );
-    assert!(stderr.starts_with("Erro: Uso: adjust-spec.sh"), "{stderr}");
+    assert!(
+        stderr.starts_with("Erro: Uso: vostok spec adjust"),
+        "{stderr}"
+    );
 }
 
 #[test]

@@ -10,8 +10,8 @@ task
 
 @stdout 0
 
-@stderr 135
-Erro: Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID> | --validate <SPEC_ID> <TASK_ID> | --record <SPEC_ID> <TASK_ID> "resumo"
+@stderr 133
+Erro: Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> "resumo"
 
 @exit 1
 1

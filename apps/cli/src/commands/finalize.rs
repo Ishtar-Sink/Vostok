@@ -746,7 +746,7 @@ impl Finalization {
         let file = self.content_path()?;
         let Ok(content) = fs::read_to_string(&file) else {
             return Ok(vec![format!(
-                "conteúdo não encontrado: {}; crie com --create",
+                "conteúdo não encontrado: {}; crie com vostok finalize create",
                 self.rel(&file)
             )]);
         };
@@ -2454,7 +2454,7 @@ impl Finalization {
             let document = self.document_path(kind)?;
             if !document.is_file() {
                 problems.push(format!(
-                    "documento ausente: {}; gere com --build",
+                    "documento ausente: {}; gere com vostok finalize build",
                     self.rel(&document)
                 ));
             }

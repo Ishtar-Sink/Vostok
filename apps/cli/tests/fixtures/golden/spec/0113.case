@@ -10,8 +10,8 @@ spec
 
 @stdout 0
 
-@stderr 105
-Erro: Uso: adjust-spec.sh --record-manual <SPEC_ID> | --validate <SPEC_ID> | --record <SPEC_ID> "resumo"
+@stderr 103
+Erro: Uso: vostok spec adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> "resumo"
 
 @exit 1
 1

@@ -168,7 +168,7 @@ fn add_context_entry(harness: &Harness, name: &str) -> Result<()> {
         }
         join_lines(&out)
     } else {
-        format!("{content}\n# Regras e arquivos carregados por cada skill (`load-extra-context.sh --skill <nome>`).\nskills:\n{entry}\n")
+        format!("{content}\n# Regras e arquivos carregados por cada skill (`vostok context load --skill <nome>`).\nskills:\n{entry}\n")
     };
     fs::write(&path, updated)
         .with_context(|| format!("não foi possível gravar {}", path.display()))?;

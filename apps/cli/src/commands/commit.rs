@@ -15,9 +15,9 @@ use clap::Subcommand;
 use crate::harness::Harness;
 use crate::support::sha256_hex;
 
-// As mensagens de uso citam os scripts originais porque as fixtures de equivalência as exigem (RNF-06).
-const CHECK_USAGE: &str = "Uso: check-commits.sh";
-const USAGE: &str = "Uso: approve-commit.sh --show | --approve <código> | --commit [caminho...] < mensagem | --revert <código>";
+const CHECK_USAGE: &str = "Uso: vostok commit check";
+const USAGE: &str =
+    "Uso: vostok commit show | approve <código> | commit [caminho...] < mensagem | revert <código>";
 const STOP: &str = "PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.";
 const NOTHING_PENDING: &str = "Nenhum commit sem liberação.";
 const TOKEN_LENGTH: usize = 12;
@@ -275,7 +275,7 @@ impl Repo {
             bail!("sem repositório git em {}", self.root.display());
         }
         if !self.ack.is_file() {
-            bail!("ainda não há referência de commits; execute check-commits.sh");
+            bail!("ainda não há referência de commits; execute vostok commit check");
         }
         Ok(())
     }
@@ -446,7 +446,7 @@ impl Repo {
         let errors = self.ack_errors()?;
         if !errors.is_empty() {
             bail!(
-                "a referência de commits é inválida; ela só pode ser refeita com --approve:\n{}",
+                "a referência de commits é inválida; ela só pode ser refeita com vostok commit approve:\n{}",
                 errors.join("\n")
             );
         }

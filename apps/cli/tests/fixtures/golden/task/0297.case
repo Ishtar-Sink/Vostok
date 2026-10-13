@@ -24,8 +24,8 @@ TASK-01
 
 @stdout 0
 
-@stderr 100
-Erro: o baseline de TASK-01 não foi coletado; execute: execute-task.sh --baseline SPEC-008 TASK-01
+@stderr 94
+Erro: o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPEC-008 TASK-01
 
 @exit 1
 1

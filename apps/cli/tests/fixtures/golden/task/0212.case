@@ -14,8 +14,8 @@ check-done
 
 @stdout 0
 
-@stderr 45
-Erro: Uso: check-done.sh <SPEC_ID> <TASK_ID>
+@stderr 54
+Erro: Uso: vostok task check-done <SPEC_ID> <TASK_ID>
 
 @exit 1
 1

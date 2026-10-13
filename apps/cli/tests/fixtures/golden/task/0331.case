@@ -22,8 +22,8 @@ TASK-02
 <OUTSIDE>
 @stdin 0
 
-@stdout 142
-Tarefa TASK-02 iniciada: status 'in_progress'. Colete o baseline antes de mudar qualquer arquivo: execute-task.sh --baseline SPEC-008 TASK-02
+@stdout 136
+Tarefa TASK-02 iniciada: status 'in_progress'. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline SPEC-008 TASK-02
 
 @stderr 0
 

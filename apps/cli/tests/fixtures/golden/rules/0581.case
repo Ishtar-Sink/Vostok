@@ -10,8 +10,8 @@ rules
 
 @stdout 0
 
-@stderr 232
-Erro: Uso: adjust-rules.sh --next-id <categoria> | --remove <categoria> <NN> | --create-category <categoria> <título> <propósito> | --load <categoria> always|<skill>[,<skill>...] | --unload <categoria> always|<skill>[,<skill>...]
+@stderr 219
+Erro: Uso: vostok rules next-id <categoria> | remove <categoria> <NN> | create-category <categoria> <título> <propósito> | load <categoria> always|<skill>[,<skill>...] | unload <categoria> always|<skill>[,<skill>...]
 
 @exit 1
 1

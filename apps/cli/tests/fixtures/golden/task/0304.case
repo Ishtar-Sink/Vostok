@@ -24,8 +24,8 @@ TASK-01
 
 @stdout 0
 
-@stderr 126
-Erro: a tarefa TASK-01 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: finish-task.sh --resume
+@stderr 121
+Erro: a tarefa TASK-01 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume
 
 @exit 1
 1

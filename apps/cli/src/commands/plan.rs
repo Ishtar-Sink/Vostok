@@ -56,11 +56,10 @@ pub enum ApproveCommand {
     MarkPlanned { spec_id: String },
 }
 
-const PLAN_USAGE: &str =
-    "Uso: plan-tasks.sh --create <SPEC_ID> | --score <SPEC_ID> | --validate <SPEC_ID>";
+const PLAN_USAGE: &str = "Uso: vostok plan create|score|validate <SPEC_ID>";
 const ADJUST_USAGE: &str =
-    "Uso: adjust-plan.sh --record-manual <SPEC_ID> | --validate <SPEC_ID> | --record <SPEC_ID> \"resumo\"";
-const APPROVE_USAGE: &str = "Uso: approve-plan.sh --create-tasks <SPEC_ID> | --validate <SPEC_ID> | --mark-planned <SPEC_ID>";
+    "Uso: vostok plan adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> \"resumo\"";
+const APPROVE_USAGE: &str = "Uso: vostok plan approve create-tasks|validate|mark-planned <SPEC_ID>";
 
 const TASKS_HEADING: &str = "Tarefas";
 const FACTS_HEADING: &str = "Fatos de esforço";
@@ -388,7 +387,7 @@ impl Workspace {
 
     fn outdated_message(spec_id: &str) -> String {
         format!(
-            "o plano foi feito para outra versão da spec {spec_id}; recrie-o com: plan-tasks.sh --create {spec_id}"
+            "o plano foi feito para outra versão da spec {spec_id}; recrie-o com: vostok plan create {spec_id}"
         )
     }
 
@@ -479,7 +478,9 @@ impl Workspace {
     }
 
     fn missing_plan_for_planning(spec_id: &str) -> String {
-        format!("a spec {spec_id} não tem plano de tarefas. Crie-o com: plan-tasks.sh --create {spec_id}")
+        format!(
+            "a spec {spec_id} não tem plano de tarefas. Crie-o com: vostok plan create {spec_id}"
+        )
     }
 
     fn score(&self, spec_id: &str) -> Result<()> {
@@ -604,7 +605,7 @@ impl Workspace {
         }
         if !self.hash_unchanged(plan)? {
             blockers.push(format!(
-                "edição manual no plano sem registro; registre-a com: adjust-plan.sh --record-manual {spec_id}"
+                "edição manual no plano sem registro; registre-a com: vostok plan adjust record-manual {spec_id}"
             ));
         }
         blockers.extend(self.plan_errors(&read(plan)?, spec)?);
@@ -726,7 +727,7 @@ impl Workspace {
         let dir = self.tasks_dir(spec_id)?;
         if !dir.is_dir() {
             return Ok(vec![format!(
-                "as tarefas de {spec_id} ainda não foram criadas; execute: approve-plan.sh --create-tasks {spec_id}"
+                "as tarefas de {spec_id} ainda não foram criadas; execute: vostok plan approve create-tasks {spec_id}"
             )]);
         }
         let mut tasks = plan_tasks(plan);
@@ -1109,7 +1110,7 @@ impl Finding {
                 stored,
             } => (computed != stored).then(|| {
                 format!(
-                    "{id}: nível \"{stored}\" diferente do calculado \"{computed}\" (execute --score)"
+                    "{id}: nível \"{stored}\" diferente do calculado \"{computed}\" (execute vostok plan score)"
                 )
             }),
         }

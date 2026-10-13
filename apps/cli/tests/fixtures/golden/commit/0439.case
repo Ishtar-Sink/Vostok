@@ -18,8 +18,8 @@ extra
 
 @stdout 0
 
-@stderr 28
-Erro: Uso: check-commits.sh
+@stderr 31
+Erro: Uso: vostok commit check
 
 @exit 1
 1

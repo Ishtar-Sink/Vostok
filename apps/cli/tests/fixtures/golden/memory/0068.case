@@ -22,8 +22,8 @@ X
 
 @stdout 0
 
-@stderr 169
-Erro: <ROOT>/packages/harness/memory/decisions.md não tem front-matter com 'updated_at'. Restaure o cabeçalho do arquivo (ver add-memory.sh --init) antes de continuar
+@stderr 167
+Erro: <ROOT>/packages/harness/memory/decisions.md não tem front-matter com 'updated_at'. Restaure o cabeçalho do arquivo (ver vostok memory init) antes de continuar
 
 @exit 1
 1

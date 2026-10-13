@@ -22,9 +22,9 @@ Tem #{FOO}
 
 @stdout 0
 
-@stderr 141
+@stderr 157
 O título não pode conter '#{', reservado para variáveis de template
-Erro: título inválido. Uso: add-memory.sh <tipo> "Título" | --init
+Erro: título inválido. Uso: vostok memory add <tipo> "Título" | vostok memory init
 
 @exit 1
 1

@@ -24,7 +24,7 @@ SPEC-008
 
 @stderr 161
 Erro: informe as tarefas a aprovar ou --all (só com pedido explícito de aprovar todas)
-Uso: approve-task.sh --validate|--approve <SPEC_ID> <TASK_ID ...>|--all
+Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all
 
 @exit 1
 1

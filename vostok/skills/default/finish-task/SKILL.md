@@ -15,7 +15,7 @@ Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da 
 
 ## Termos
 
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `validating` ou `blocked`.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `validating` ou `blocked`.
 - **Tentativa:** uma execução de `vostok task tests` com falha. Ao atingir `max_attempts` (`config/tasks.yml`), a tarefa fica `blocked`.
 - **Regressão:** um comando de "Baseline" com código de saída ou saída diferente do baseline coletado no início.
 - **Bloqueada:** tarefa com status `blocked`. Só volta com `vostok task resume`, depois de uma decisão do usuário.
@@ -61,7 +61,7 @@ vostok context load --skill finish-task
 
 ### 2. Identificar a tarefa
 
-Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
+Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
 
 Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele definiu (correção, ajuste ou aceite da diferença) e execute:
 

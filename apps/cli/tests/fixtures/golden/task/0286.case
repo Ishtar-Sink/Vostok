@@ -24,8 +24,8 @@ TASK-01
 
 @stdout 0
 
-@stderr 130
-Erro: a tarefa TASK-01 está com status 'approved'; o baseline só é coletado com status 'in_progress' (execute-task.sh --start)
+@stderr 124
+Erro: a tarefa TASK-01 está com status 'approved'; o baseline só é coletado com status 'in_progress' (vostok task start)
 
 @exit 1
 1

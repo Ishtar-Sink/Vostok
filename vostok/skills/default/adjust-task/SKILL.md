@@ -15,7 +15,7 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 
 ## Termos
 
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`. Tarefas com status `pending`, `approved`, `in_progress`, `validating` ou `blocked` são ajustadas; `done`, não.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`. Tarefas com status `pending`, `approved`, `in_progress`, `validating` ou `blocked` são ajustadas; `done`, não.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto da tarefa que o ajuste muda: uma subseção ("Passos", "Baseline"), um item ou um critério.
@@ -68,7 +68,7 @@ Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-pla
 
 ### 2. Identificar a tarefa
 
-As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, e os IDs são numerados dentro de cada spec. Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-03.md`).
+As tarefas ficam em `vostok/work/tasks/<SPEC_ID>/`, e os IDs são numerados dentro de cada spec. Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-03.md`).
 
 Use a tarefa sem perguntar em qualquer um destes casos:
 

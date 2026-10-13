@@ -22,9 +22,9 @@ issue
 
 @stdout 0
 
-@stderr 92
+@stderr 108
 O título está vazio
-Erro: título inválido. Uso: add-memory.sh <tipo> "Título" | --init
+Erro: título inválido. Uso: vostok memory add <tipo> "Título" | vostok memory init
 
 @exit 1
 1

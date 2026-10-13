@@ -88,4 +88,4 @@
 
 # Evidências
 
-<!-- Um bloco por evidência, criado pelo --create. Preencha "Como chegar" (o comando ou os passos que geram a evidência) e "Como ler" (o que observar nela). -->
+<!-- Um bloco por evidência, criado pelo `vostok finalize create`. Preencha "Como chegar" (o comando ou os passos que geram a evidência) e "Como ler" (o que observar nela). -->

@@ -26,9 +26,9 @@ TASK-01
 
 @stdout 0
 
-@stderr 158
+@stderr 160
 Erro: as tarefas de SPEC-008 não podem ser aprovadas:
-TASK-01: edição manual sem registro; registre-a com: adjust-task.sh --record-manual SPEC-008 TASK-01
+TASK-01: edição manual sem registro; registre-a com: vostok task adjust record-manual SPEC-008 TASK-01
 
 @exit 1
 1

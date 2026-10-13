@@ -10,8 +10,8 @@ task
 
 @stdout 0
 
-@stderr 88
-Erro: Uso: execute-task.sh --start <SPEC_ID> <TASK_ID> | --baseline <SPEC_ID> <TASK_ID>
+@stderr 58
+Erro: Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>
 
 @exit 1
 1

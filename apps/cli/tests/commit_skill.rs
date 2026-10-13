@@ -286,7 +286,7 @@ fn create_adds_the_skills_block_when_the_context_has_none() {
 
     assert_eq!(
         read(&context),
-        "required:\n  - rules/agent/boundaries.md\n\n# Regras e arquivos carregados por cada skill (`load-extra-context.sh --skill <nome>`).\nskills:\n  new-one: []\n"
+        "required:\n  - rules/agent/boundaries.md\n\n# Regras e arquivos carregados por cada skill (`vostok context load --skill <nome>`).\nskills:\n  new-one: []\n"
     );
 }
 
@@ -383,7 +383,7 @@ fn commands_outside_git_and_without_reference() {
     git(project.root(), &["init", "-q", "-b", "main"]);
     assert_eq!(
         failure_stderr(&mut commit_cmd(&project, &["approve", "abc"])),
-        "Erro: ainda não há referência de commits; execute check-commits.sh\n"
+        "Erro: ainda não há referência de commits; execute vostok commit check\n"
     );
 }
 

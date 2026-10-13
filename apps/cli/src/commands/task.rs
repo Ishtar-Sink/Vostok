@@ -114,14 +114,13 @@ pub enum ApproveCommand {
     },
 }
 
-const LOAD_USAGE: &str = "Uso: load-task.sh <SPEC_ID> <TASK_ID>";
-const CHECK_DONE_USAGE: &str = "Uso: check-done.sh <SPEC_ID> <TASK_ID>";
+const LOAD_USAGE: &str = "Uso: vostok task load <SPEC_ID> <TASK_ID>";
+const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>";
 const APPROVE_USAGE: &str =
-    "Uso: approve-task.sh --validate|--approve <SPEC_ID> <TASK_ID ...>|--all";
-const ADJUST_USAGE: &str = "Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID> | --validate <SPEC_ID> <TASK_ID> | --record <SPEC_ID> <TASK_ID> \"resumo\"";
-const EXECUTE_USAGE: &str =
-    "Uso: execute-task.sh --start <SPEC_ID> <TASK_ID> | --baseline <SPEC_ID> <TASK_ID>";
-const FINISH_USAGE: &str = "Uso: finish-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> \"decisão\"";
+    "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
+const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
+const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
+const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> \"decisão\"";
 
 /// Ações aceitas em "Mudar", as mesmas dos componentes afetados da spec.
 const COMPONENT_ACTIONS: [&str; 3] = ["criar", "alterar", "remover"];
@@ -479,7 +478,7 @@ impl Tasks {
             }
             if !self.hash_is_current(file)? {
                 problems.push(format!(
-                    "{id}: edição manual sem registro; registre-a com: adjust-task.sh --record-manual {spec} {id}"
+                    "{id}: edição manual sem registro; registre-a com: vostok task adjust record-manual {spec} {id}"
                 ));
             }
             problems.extend(self.errors_of(spec, file)?);
@@ -648,7 +647,7 @@ impl Tasks {
             &format!("aprovada em {approved_at}"),
         )?;
         println!(
-            "Tarefa {task} iniciada: status '{in_progress}'. Colete o baseline antes de mudar qualquer arquivo: execute-task.sh --baseline {spec} {task}"
+            "Tarefa {task} iniciada: status '{in_progress}'. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline {spec} {task}"
         );
         Ok(())
     }
@@ -691,7 +690,7 @@ impl Tasks {
         let status = status_of(&file);
         let in_progress = &self.status.in_progress;
         if status != *in_progress {
-            bail!("a tarefa {task} está com status '{status}'; o baseline só é coletado com status '{in_progress}' (execute-task.sh --start)");
+            bail!("a tarefa {task} está com status '{status}'; o baseline só é coletado com status '{in_progress}' (vostok task start)");
         }
         let dir = self.evidence_dir(&file)?.join("baseline");
         if dir.exists() {
@@ -741,7 +740,7 @@ impl Tasks {
     fn require_running(&self, file: &Path, task: &str) -> Result<()> {
         let status = status_of(file);
         if status == self.status.blocked {
-            bail!("a tarefa {task} está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: finish-task.sh --resume");
+            bail!("a tarefa {task} está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume");
         }
         if status != self.status.in_progress && status != self.status.validating {
             bail!(
@@ -815,7 +814,7 @@ impl Tasks {
         frontmatter_set(&file, "status", validating)?;
         let detail = format!("tentativa {attempts} de {max_attempts}");
         self.record_step(&file, "testes", "failed", &detail)?;
-        bail!("os testes de {task} falharam; corrija e execute --tests de novo")
+        bail!("os testes de {task} falharam; corrija e execute vostok task tests de novo")
     }
 
     fn regression(&self, spec: &str, task: &str) -> Result<()> {
@@ -824,7 +823,7 @@ impl Tasks {
         let evidence = self.evidence_dir(&file)?;
         let base = evidence.join("baseline");
         if !base.is_dir() {
-            bail!("o baseline de {task} não foi coletado; execute: execute-task.sh --baseline {spec} {task}");
+            bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
         }
         let commands = self.baseline_commands(&read(&file)?)?;
         let dir = evidence.join("validation/regression");
@@ -943,7 +942,7 @@ impl Tasks {
 
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
-            bail!("evidências automáticas de {task} com erro; corrija e execute --evidence de novo:\n{failed}");
+            bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
         }
         if !missing.is_empty() {
             frontmatter_set(&file, "evidence_result", "pending")?;
@@ -953,7 +952,7 @@ impl Tasks {
                 "pending",
                 "evidência manual sem arquivo",
             )?;
-            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute --evidence de novo:\n{missing}");
+            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
             return Ok(());
         }
         frontmatter_set(&file, "evidence_result", "passed")?;
@@ -1058,7 +1057,7 @@ impl Tasks {
             validating,
             &format!("decisão do usuário: {decision}"),
         )?;
-        println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por --tests.");
+        println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.");
         Ok(())
     }
 

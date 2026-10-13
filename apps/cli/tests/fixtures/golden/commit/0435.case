@@ -16,8 +16,8 @@ show
 
 @stdout 0
 
-@stderr 70
-Erro: ainda não há referência de commits; execute check-commits.sh
+@stderr 73
+Erro: ainda não há referência de commits; execute vostok commit check
 
 @exit 1
 1

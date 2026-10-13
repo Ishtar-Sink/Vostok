@@ -27,7 +27,7 @@ fn golden_rules() {
 fn context_load_rejects_an_empty_skill_name() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["context", "load", "--skill", ""]));
-    assert_eq!(stderr, "Uso: load-extra-context.sh --skill <nome>\n");
+    assert_eq!(stderr, "Uso: vostok context load --skill <nome>\n");
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn memory_search_without_arguments_is_a_usage_error() {
     let stderr = failure_stderr(project.vostok().args(["memory", "search"]));
     assert_eq!(
         stderr,
-        "Erro: Uso: search-memory.sh <tipo|all> [termo...] | --id <ID>\n"
+        "Erro: Uso: vostok memory search <tipo|all> [termo...] | --id <ID>\n"
     );
 }
 
@@ -63,7 +63,7 @@ fn memory_search_without_arguments_is_a_usage_error() {
 fn memory_search_with_an_empty_id_is_a_usage_error() {
     let project = Project::new();
     let stderr = failure_stderr(project.vostok().args(["memory", "search", "--id", ""]));
-    assert!(stderr.starts_with("Erro: Uso: search-memory.sh"));
+    assert!(stderr.starts_with("Erro: Uso: vostok memory search"));
 }
 
 #[test]

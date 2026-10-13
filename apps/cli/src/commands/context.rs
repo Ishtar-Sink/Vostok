@@ -65,7 +65,7 @@ fn load_paths(printer: &Printer, paths: &[String]) -> Result<bool> {
 /// Contexto adicional de uma skill: os itens da entrada dela no mapa `skills`.
 fn load_skill(harness: &Harness, printer: &Printer, skill: &str) -> Result<bool> {
     if skill.is_empty() {
-        fail("Uso: load-extra-context.sh --skill <nome>");
+        fail("Uso: vostok context load --skill <nome>");
     }
     let skills_config = harness.config_file("skills.yml");
     let exists = ["dirs.default", "dirs.custom"]

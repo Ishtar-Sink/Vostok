@@ -354,3 +354,36 @@ fn closed_output_pipe_ends_without_panic() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!stderr.contains("panicked"), "{stderr}");
 }
+
+#[test]
+fn embedded_naming_convention_is_the_generic_default() {
+    let rules = String::from_utf8(
+        embedded::file("rules/project/naming-convention.md")
+            .unwrap()
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(!rules.contains("Removida em"), "{rules}");
+    assert!(!rules.contains("Rust"), "{rules}");
+}
+
+#[test]
+fn embedded_skills_point_to_the_installed_harness() {
+    for path in embedded::files()
+        .iter()
+        .filter(|path| path.ends_with("SKILL.md"))
+    {
+        let text = String::from_utf8(embedded::file(path).unwrap().to_vec()).unwrap();
+        assert!(
+            !text.contains("packages/harness"),
+            "{path} cita packages/harness"
+        );
+    }
+}
+
+#[test]
+fn messages_name_vostok_subcommands_instead_of_scripts() {
+    let project = Project::new();
+    let stderr = failure_stderr(project.vostok().args(["task", "load"]));
+    assert_eq!(stderr, "Erro: Uso: vostok task load <SPEC_ID> <TASK_ID>\n");
+}

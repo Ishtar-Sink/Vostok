@@ -19,7 +19,7 @@ approve
 @stdout 0
 
 @stderr 78
-Erro: Uso: approve-task.sh --validate|--approve <SPEC_ID> <TASK_ID ...>|--all
+Erro: Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all
 
 @exit 1
 1

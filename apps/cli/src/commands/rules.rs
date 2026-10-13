@@ -17,7 +17,7 @@ use crate::support::{
     utc_date,
 };
 
-const ADJUST_USAGE: &str = "Uso: adjust-rules.sh --next-id <categoria> | --remove <categoria> <NN> | --create-category <categoria> <título> <propósito> | --load <categoria> always|<skill>[,<skill>...] | --unload <categoria> always|<skill>[,<skill>...]";
+const ADJUST_USAGE: &str = "Uso: vostok rules next-id <categoria> | remove <categoria> <NN> | create-category <categoria> <título> <propósito> | load <categoria> always|<skill>[,<skill>...] | unload <categoria> always|<skill>[,<skill>...]";
 
 /// Pasta das regras do projeto, relativa à raiz do harness (a mesma citada em `required`).
 const RULES_DIR: &str = "rules/project";

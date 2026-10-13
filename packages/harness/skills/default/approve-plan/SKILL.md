@@ -15,8 +15,8 @@ Transforma o plano de tarefas aprovado pelo usuário em arquivos de tarefa detal
 
 ## Termos
 
-- **Plano:** o arquivo `packages/harness/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/TASK-NN.md`, criado pelo comando a partir do plano.
+- **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/TASK-NN.md`, criado pelo comando a partir do plano.
 - **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): "Ler", "Mudar", "Passos", "Baseline", "Verificação", "Evidências" e "Concluída quando".
 - **Descrição:** a seção da tarefa para leitura humana: "Resumo executivo", "Detalhes técnicos" e "Card".
 - **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.
@@ -58,7 +58,7 @@ vostok context load --skill approve-plan
 
 ### 2. Identificar o plano
 
-Os planos existentes são os arquivos de `packages/harness/work/plans/`, um por spec, com o ID da spec no nome.
+Os planos existentes são os arquivos de `vostok/work/plans/`, um por spec, com o ID da spec no nome.
 
 Use o plano sem perguntar em qualquer um destes casos:
 
@@ -73,7 +73,7 @@ Nos demais casos:
 
 ### 3. Criar as tarefas
 
-Se a pasta `packages/harness/work/tasks/<SPEC_ID>/` já existe e o plano também, uma aprovação anterior foi interrompida: não execute o `vostok plan approve create-tasks` e vá para o passo 4 com as tarefas existentes.
+Se a pasta `vostok/work/tasks/<SPEC_ID>/` já existe e o plano também, uma aprovação anterior foi interrompida: não execute o `vostok plan approve create-tasks` e vá para o passo 4 com as tarefas existentes.
 
 Senão, execute:
 

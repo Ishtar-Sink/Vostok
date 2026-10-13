@@ -20,9 +20,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 119
+@stderr 129
 Erro: o plano de SPEC-008 tem problemas:
-TASK-03: nível "simples" diferente do calculado "moderada" (execute --score)
+TASK-03: nível "simples" diferente do calculado "moderada" (execute vostok plan score)
 
 @exit 1
 1

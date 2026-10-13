@@ -10,8 +10,8 @@ task
 
 @stdout 0
 
-@stderr 129
-Erro: Uso: finish-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"
+@stderr 128
+Erro: Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> "decisão"
 
 @exit 1
 1

@@ -15,7 +15,7 @@ Leva uma tarefa aprovada de `approved` a `in_progress`, coleta o estado anterior
 
 ## Termos
 
-- **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
 - **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`.
 - **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `evidence/<TASK_ID>/baseline/`. A `finish-task` os executa de novo e compara, para achar regressões.
 - **Registro:** a seção "Registro de execução" da tarefa, com uma linha por etapa, escrita só pelos comandos.
@@ -57,7 +57,7 @@ vostok context load --skill execute-task
 
 ### 2. Identificar a tarefa
 
-As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, e os IDs são numerados dentro de cada spec. Procure a tarefa citada com Glob (`packages/harness/work/tasks/*/TASK-05.md`):
+As tarefas ficam em `vostok/work/tasks/<SPEC_ID>/`, e os IDs são numerados dentro de cada spec. Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-05.md`):
 
 - Tarefa citada que existe numa única spec: use essa.
 - Tarefa citada que existe em mais de uma spec: **PARE** e pergunte de qual, com o template `question`.

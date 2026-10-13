@@ -16,7 +16,7 @@ Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas 
 ## Termos
 
 - **Aprovada:** a spec em `refined/` com status `approved`. É a única que pode ser planejada.
-- **Plano:** o arquivo `packages/harness/work/plans/<SPEC_ID>.md`. É removido quando aprovado pela skill `approve-plan`.
+- **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido quando aprovado pela skill `approve-plan`.
 - **Plano atualizado:** plano com `spec_hash` igual ao `approved_hash` da spec. Com hash diferente, o plano está **desatualizado** e é recriado.
 - **Tarefa:** uma unidade de trabalho entregável sozinha, com ID `TASK-NN` sequencial a partir de `TASK-01`.
 - **Fatos de esforço:** o que o agente sabe sobre a tarefa: arquivos a criar e a alterar e se ela muda um contrato público, depende de inferência ou cobre um risco alto.
@@ -58,7 +58,7 @@ vostok context load --skill plan-tasks
 
 ### 2. Identificar a spec
 
-Liste as specs aprovadas com `vostok spec list approved` e os planos existentes em `packages/harness/work/plans/`. Uma spec aprovada é **candidata** se não tem plano ou se o plano dela está desatualizado.
+Liste as specs aprovadas com `vostok spec list approved` e os planos existentes em `vostok/work/plans/`. Uma spec aprovada é **candidata** se não tem plano ou se o plano dela está desatualizado.
 
 Use a spec sem perguntar em qualquer um destes casos:
 

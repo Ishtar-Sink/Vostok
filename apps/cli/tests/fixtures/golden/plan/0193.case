@@ -10,8 +10,8 @@ plan
 
 @stdout 0
 
-@stderr 102
-Erro: Uso: approve-plan.sh --create-tasks <SPEC_ID> | --validate <SPEC_ID> | --mark-planned <SPEC_ID>
+@stderr 76
+Erro: Uso: vostok plan approve create-tasks|validate|mark-planned <SPEC_ID>
 
 @exit 1
 1

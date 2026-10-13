@@ -20,8 +20,8 @@ SPEC-004
 
 @stdout 0
 
-@stderr 143
-Erro: spec refinada SPEC-004 não encontrada em <ROOT>/packages/harness/work/specs/refined. Crie-a com: create-refined-spec.sh SPEC-004 <tipo>
+@stderr 139
+Erro: spec refinada SPEC-004 não encontrada em <ROOT>/packages/harness/work/specs/refined. Crie-a com: vostok spec refine SPEC-004 <tipo>
 
 @exit 1
 1

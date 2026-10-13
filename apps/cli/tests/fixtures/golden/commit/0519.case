@@ -21,8 +21,8 @@ feat: y
 
 @stdout 0
 
-@stderr 124
-Erro: a referência de commits é inválida; ela só pode ser refeita com --approve:
+@stderr 136
+Erro: a referência de commits é inválida; ela só pode ser refeita com vostok commit approve:
 linha fora do formato 'hash ref': lixo
 
 @exit 1

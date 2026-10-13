@@ -24,9 +24,9 @@ b
 
 @stdout 0
 
-@stderr 110
+@stderr 126
 O título não pode ter quebra de linha
-Erro: título inválido. Uso: add-memory.sh <tipo> "Título" | --init
+Erro: título inválido. Uso: vostok memory add <tipo> "Título" | vostok memory init
 
 @exit 1
 1

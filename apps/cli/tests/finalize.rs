@@ -95,5 +95,7 @@ fn validate_without_content_points_to_create() {
     let stderr = failure_stderr(project.vostok().args(["finalize", "validate", "SPEC-001"]));
     assert!(stderr.starts_with("Erro: o conteúdo de SPEC-001 tem problemas:\n"));
     assert!(stderr.contains("conteúdo não encontrado: "));
-    assert!(stderr.trim_end().ends_with("; crie com --create"));
+    assert!(stderr
+        .trim_end()
+        .ends_with("; crie com vostok finalize create"));
 }

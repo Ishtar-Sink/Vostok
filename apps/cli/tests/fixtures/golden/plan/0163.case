@@ -10,8 +10,8 @@ plan
 
 @stdout 0
 
-@stderr 87
-Erro: Uso: plan-tasks.sh --create <SPEC_ID> | --score <SPEC_ID> | --validate <SPEC_ID>
+@stderr 55
+Erro: Uso: vostok plan create|score|validate <SPEC_ID>
 
 @exit 1
 1

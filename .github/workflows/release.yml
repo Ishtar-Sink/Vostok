@@ -1,0 +1,121 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  MANIFEST_PATH: apps/cli/Cargo.toml
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      # Uma plataforma com falha cancela as demais: a release só sai com as quatro.
+      fail-fast: true
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: aarch64-apple-darwin
+            runner: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          crate_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$MANIFEST_PATH" | head -n 1)"
+          if [ "$tag_version" != "$crate_version" ]; then
+            echo "::error::A tag ${GITHUB_REF_NAME} não corresponde à versão ${crate_version} de ${MANIFEST_PATH}."
+            exit 1
+          fi
+          echo "version=${crate_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --target "${{ matrix.target }}"
+          rustup default stable
+
+      - name: Test
+        shell: bash
+        run: cargo test --locked --manifest-path "$MANIFEST_PATH" --target "${{ matrix.target }}"
+
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked --manifest-path "$MANIFEST_PATH" --target "${{ matrix.target }}"
+
+      - name: Package
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          archive="vostok-${VERSION}-${TARGET}.tar.gz"
+          mkdir -p dist
+          tar -czf "dist/${archive}" -C "apps/cli/target/${TARGET}/release" vostok
+          cd dist
+          if command -v sha256sum > /dev/null 2>&1; then
+            sha256sum "${archive}" > "${archive}.sha256"
+          else
+            shasum -a 256 "${archive}" > "${archive}.sha256"
+          fi
+          cat "${archive}.sha256"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: vostok-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v4.3.0
+        with:
+          pattern: vostok-*
+          path: dist
+          merge-multiple: true
+
+      - name: Check archives
+        shell: bash
+        run: |
+          cd dist
+          ls -l
+          test "$(ls -1 *.tar.gz | wc -l)" -eq 4
+          sha256sum --check *.sha256
+
+      - name: Publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --title "$TAG" --generate-notes --verify-tag

@@ -471,3 +471,95 @@ fn fold_accent(c: char) -> char {
         other => other,
     }
 }
+
+// --- Saída, títulos e datas ---
+
+/// Encerra com código 1 sem o prefixo `Erro:` do `main`, para mensagens que os scripts imprimem
+/// sem ele (ou que já foram impressas).
+pub fn exit_failure() -> ! {
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    std::process::exit(1)
+}
+
+/// Imprime a mensagem na saída de erro, como está, e encerra com código 1.
+pub fn fail(message: impl std::fmt::Display) -> ! {
+    eprintln!("{message}");
+    exit_failure()
+}
+
+/// Linhas como o `awk` as lê: separadas só por `\n` (um `\r` final fica na linha) e sem a vazia
+/// depois do último `\n`.
+pub fn records(content: &str) -> Vec<&str> {
+    let mut lines: Vec<&str> = content.split('\n').collect();
+    if lines.last() == Some(&"") {
+        lines.pop();
+    }
+    lines
+}
+
+/// Junta linhas como o `awk` as imprime: cada uma seguida de `\n`.
+pub fn join_records<S: AsRef<str>>(lines: &[S]) -> String {
+    lines.iter().fold(String::new(), |mut out, line| {
+        out.push_str(line.as_ref());
+        out.push('\n');
+        out
+    })
+}
+
+/// `clean_title` com a mensagem de título vazio dos scripts (`text.sh`).
+pub fn script_title(title: &str) -> Result<String> {
+    if title.trim().is_empty() {
+        bail!("O título está vazio");
+    }
+    clean_title(title)
+}
+
+/// Nome em kebab-case: `^[a-z0-9]+(-[a-z0-9]+)*$`.
+pub fn is_kebab_case(name: &str) -> bool {
+    !name.is_empty()
+        && name.split('-').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        })
+}
+
+/// Data atual em UTC, `AAAA-MM-DD`.
+pub fn utc_date() -> String {
+    utc_datetime()[..10].to_string()
+}
+
+/// Data e hora atuais em UTC, `AAAA-MM-DDTHH:MM:SSZ`.
+pub fn utc_datetime() -> String {
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let (year, month, day) = civil_from_days((seconds / 86_400) as i64);
+    let time = seconds % 86_400;
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        time / 3600,
+        time % 3600 / 60,
+        time % 60
+    )
+}
+
+/// Data do calendário gregoriano a partir dos dias desde 1970-01-01 (algoritmo de Howard Hinnant).
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let shifted = days + 719_468;
+    let era = shifted.div_euclid(146_097);
+    let day_of_era = shifted.rem_euclid(146_097);
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_index = (5 * day_of_year + 2) / 153;
+    let day = (day_of_year - (153 * month_index + 2) / 5 + 1) as u32;
+    let month = if month_index < 10 {
+        month_index + 3
+    } else {
+        month_index - 9
+    } as u32;
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    (year, month, day)
+}

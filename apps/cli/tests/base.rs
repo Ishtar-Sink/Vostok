@@ -101,8 +101,11 @@ fn ct11_harness_is_found_from_a_subfolder() {
     let nested = project.root().join("a/b");
     fs::create_dir_all(&nested).unwrap();
     assert_eq!(Harness::locate(&nested).unwrap().root, project.harness());
-    let stderr = failure_stderr(project.vostok_in("a/b").args(["spec", "list"]));
-    assert!(stderr.contains("ainda não foi implementado"), "{stderr}");
+    project
+        .vostok_in("a/b")
+        .args(["spec", "list"])
+        .assert()
+        .success();
 }
 
 #[test]

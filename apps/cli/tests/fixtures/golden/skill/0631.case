@@ -30,6 +30,7 @@ Skill 'plan-tasks' finalizada.
 0
 @pre 0
 
-@post 203
-W 03818fe8a3302f6219264bc6f02b718fe6b476ebb01af2ada0ea18dfbba809d9 .agents/skills/plan-tasks/SKILL.md
-W 03818fe8a3302f6219264bc6f02b718fe6b476ebb01af2ada0ea18dfbba809d9 .claude/skills/plan-tasks/SKILL.md
+@post 312
+W 5961a9908f28a1945c3e5f484426c47866364a0cb10df99e90c3d7c5a79d5d58 .agents/skills/plan-tasks/SKILL.md
+W 5961a9908f28a1945c3e5f484426c47866364a0cb10df99e90c3d7c5a79d5d58 .claude/skills/plan-tasks/SKILL.md
+W ca8b27adce175072997bff7a8874803e892eeffc9dc1543c21a5aaaa4c9e2ffb packages/harness/context/skill-catalog.md

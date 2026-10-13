@@ -7,13 +7,13 @@ commit
 @arg 9
 --approve
 @arg 12
-cc4c0fff3bb8
+3c082b4d9126
 @vostok 6
 commit
 @vostok 7
 approve
 @vostok 12
-cc4c0fff3bb8
+3c082b4d9126
 @cwd 9
 <OUTSIDE>
 @stdin 0
@@ -21,19 +21,19 @@ cc4c0fff3bb8
 @stdout 0
 
 @stderr 118
-Erro: o repositório mudou desde a verificação (código atual: deecc4d7b3a8); mostre os commits ao usuário de novo
+Erro: o repositório mudou desde a verificação (código atual: 6e0d4730fc24); mostre os commits ao usuário de novo
 
 @exit 1
 1
 @pre 872
 W 7023ba0781f9da4beb9ea74a6172b359fb0a832c085893c4f3de020a2aa8e10f .git/COMMIT_EDITMSG
-W 762dfde8d470f70f86e1337dcee01fae9985e1b3c6007adeca952d5bc3498b92 .git/index.ls
-W d69b66e5b1a6288bf5674cd3732b11a9feee9f65f1f74624872cb9fe7c683b4f .git/logs/HEAD
-W d69b66e5b1a6288bf5674cd3732b11a9feee9f65f1f74624872cb9fe7c683b4f .git/logs/refs/heads/main
-W fa945c2eeab55fbcd914930e4cfaf94a1ba3b9f083b70d9e038d576e80eaf19c .git/objects/8c/8b96ffc7b7c1971e09da9ec27d0c7709218f6d
+W af955bae6d8d837f0519328e3123ea53e9adfa76ae8d03158f0bccd7955b6353 .git/index.ls
+W 58677c965fcfe8594ab540e2f48790d454b0abf784775b8995d80ad3cf3dd359 .git/logs/HEAD
+W 58677c965fcfe8594ab540e2f48790d454b0abf784775b8995d80ad3cf3dd359 .git/logs/refs/heads/main
 W d617ead67777b77d9c0bff864630b24364e9c3e46995b468ecaf8f46e8eba6b4 .git/objects/b7/a29e9d04371c3de73262481b2fd48907faae2e
-W 09db2199d60b82a3b929df33b17d57bb90fb31de568f86f60e33ac239687ab72 .git/objects/e3/dd407d69f557b5f8ffb5d5b8966ea826d05ea4
-W 7cc4b3ca1420a6cb9453fbc2eb4d605246cbfb442ed51cb76d9e3ef4afa503b2 .git/refs/heads/main
+W c3c0d5dd71c71fb1716aa29adbf238f1335350a737f9d7fd7b110fa4c781733a .git/objects/dc/81a281dc1f6cf3c453d330c255a0f39ce455ca
+W 740407175f6401febf19948c7d875e938058cdb72c2b61b78fbf8f4650a5beab .git/objects/e9/9de7139b8f4d44ce62becc01056090197430a4
+W 9b41f551c582f82741016a58395d4920e4f67fbbee28b1e134d17da206a19277 .git/refs/heads/main
 W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 dois.txt
 @post 0
 

@@ -17,20 +17,20 @@ check
 @stderr 316
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 60f3eb4 z por fora (arquivos: y.txt, z.txt)
+- 97e4a57 z por fora (arquivos: y.txt, z.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 901
 W 175a726ebbb688ebf6009d6ab233777e35e19f6e6b11f213e247a51b6d3e5241 .git/COMMIT_EDITMSG
-W 70e795a13e973fde5533419bbf52d0dc72c20ba632cd597c8b144dba8aeba88c .git/index.ls
-W 2bb0972680c9f039f0cb8448703e06bf1432cce509bb890c3c4a380142fff3bc .git/logs/HEAD
-W a237a543b1af0236f5c7c65c21a0adbb74dbd67df6fc8e8a9ad1bfdc7d9c0035 .git/logs/refs/heads/main
-W 1fa601965c8024397baa4b8bd25720c253424c7e7c9c96aedac84ba681fa592a .git/objects/60/f3eb4517cb8ac09888996063e7627d09fc0a72
+W 53b2f583e6106aa2e1507cfec35a27ab1064d35ee85ff50e5d0e7525e095eda6 .git/index.ls
+W 12d3ee14e82852c95b9a84470e5adc3293dc5bc4d3c858308059c6ce0f9898f6 .git/logs/HEAD
+W 6b1018287280641e2a88575a37210e586f99d1c2561da186e51b1f49917ea6b1 .git/logs/refs/heads/main
+W 64d91a4cd1e8f74e153c92af34d0eef9127da189ee9e6928303ffd6079955212 .git/objects/5c/c5034a89cc03cab648476d1cfe9590744ea503
+W a63a28711568dae09e0ca6e4b2e854c553923e691f3e2c1496c622728fbcf065 .git/objects/97/e4a574d8f9b0b442ca21d711b189b97c851e72
 W 3744618c64e79d7c53b352e217e5a54ff2564c4b7099ee1bcfcd2d090b72335b .git/objects/b6/8025345d5301abad4d9ec9166f455243a0d746
-W 4e18c0fb4b71ff7bd328bbd03bcc45bdc3d9d222f38a6f1dde656b2e9b18b3cd .git/objects/df/f8a23d66ed717f3dada474d938d56df8897187
-W 8e2fb68af503c407a208bdca508a64f9a9ade57f0382d17baf63c23e4d9a3758 .git/refs/heads/main
+W 1b3d37212d431cb0eddcc8cd9d80783e3d69d8b0625b149d35591f23d72b25c7 .git/refs/heads/main
 W c865f6c5ab8d1b0bcd383a5e1e3879d22681c96bf462c269b7581d523fbe70ab z.txt
 D .git/hooks/pre-commit
 D y.txt

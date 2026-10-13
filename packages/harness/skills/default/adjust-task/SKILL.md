@@ -1,11 +1,11 @@
 ---
 name: adjust-task
 description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
-allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/adjust-task/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/memory/search-memory.sh scripts/default/tasks/load-task.sh skills/default/adjust-task/scripts/adjust-task.sh"
+  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -19,23 +19,23 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto da tarefa que o ajuste muda: uma subseção ("Passos", "Baseline"), um item ou um critério.
-- **Edição manual:** mudança feita à mão na tarefa, fora desta skill. O script a detecta pelo hash do conteúdo.
-- **Histórico:** a seção "Histórico de ajustes" da tarefa, escrita só pelo script.
+- **Edição manual:** mudança feita à mão na tarefa, fora desta skill. O comando a detecta pelo hash do conteúdo.
+- **Histórico:** a seção "Histórico de ajustes" da tarefa, escrita só pelo comando.
 - **Inferência:** decisão tomada pelo agente sem perguntar ao usuário.
 
 ## Regras
 
 [adjust-task-01]: Não ajuste tarefas `done`. Nunca edite a spec, o plano nem outras tarefas.
 [adjust-task-02]: Nunca edite uma tarefa sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
-[adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os scripts os alteram.
+[adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os comandos os alteram.
 [adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `effort` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
 [adjust-task-05]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-task-06]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-task-07]: Não amplie o pedido. O que não foi pedido e for necessário para a tarefa continuar coerente (um passo que cita o arquivo removido de "Mudar") é inferência e aparece na resposta.
-[adjust-task-08]: Todos os ajustes de um pedido são registrados juntos, com um único `--record`.
+[adjust-task-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok task adjust record`.
 [adjust-task-09]: Não aprove nem execute a tarefa como parte do ajuste. A aprovação é feita pela skill `approve-task`, só a pedido do usuário.
 [adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`.
-[adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o script a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
+[adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 
 ## Checklist
 
@@ -61,7 +61,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-task
+vostok context load --skill adjust-task
 ```
 
 Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-plan](../approve-plan/SKILL.md).
@@ -77,15 +77,15 @@ Use a tarefa sem perguntar em qualquer um destes casos:
 
 Nos demais casos, **PARE** e pergunte qual ajustar, com o template `question`, uma opção por tarefa candidata (spec, ID e título). Não edite nada antes da resposta.
 
-Tarefa citada que não existe: **PARE** e informe as tarefas da spec. Tarefa `done`: o script recusa no passo 3; **PARE** e informe o status.
+Tarefa citada que não existe: **PARE** e informe as tarefas da spec. Tarefa `done`: o comando recusa no passo 3; **PARE** e informe o status.
 
 ### 3. Registrar edições manuais
 
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-task/scripts/adjust-task.sh --record-manual <SPEC_ID> <TASK_ID>
-packages/harness/skills/default/adjust-task/scripts/adjust-task.sh --validate <SPEC_ID> <TASK_ID>
+vostok task adjust record-manual <SPEC_ID> <TASK_ID>
+vostok task adjust validate <SPEC_ID> <TASK_ID>
 ```
 
 Os problemas apontados pela validação são corrigidos no passo 7, junto com os ajustes do pedido.
@@ -114,7 +114,7 @@ Classifique cada ajuste:
 | Ambíguo: mais de uma interpretação válida | Pergunta |
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe | Pergunta |
-| Contradiz uma decisão ativa da memória (`search-memory.sh decision <termos>`) | Pergunta, citando o ID da decisão |
+| Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
 | Muda `covers`, `depends_on`, `effort` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
 | Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec planejada só muda num novo ciclo. |
 
@@ -135,20 +135,20 @@ Aplique os ajustes nas seções "Execução" e "Descrição", nos formatos da `a
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-task/scripts/adjust-task.sh --validate <SPEC_ID> <TASK_ID>
+vostok task adjust validate <SPEC_ID> <TASK_ID>
 ```
 
-O script lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
 Execute, com um item por ajuste no resumo, separados por `; `:
 
 ```bash
-packages/harness/skills/default/adjust-task/scripts/adjust-task.sh --record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGENTS.md removido de Mudar"
+vostok task adjust record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGENTS.md removido de Mudar"
 ```
 
-O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
+O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 

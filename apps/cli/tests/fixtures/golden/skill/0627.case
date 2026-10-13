@@ -30,6 +30,7 @@ Skill 'create-skill' finalizada.
 0
 @pre 0
 
-@post 207
-W aeaabfb588a13fe70aac37c4a0f2dfeaf2870e2704098c7b4068156e07cd56cf .agents/skills/create-skill/SKILL.md
-W aeaabfb588a13fe70aac37c4a0f2dfeaf2870e2704098c7b4068156e07cd56cf .claude/skills/create-skill/SKILL.md
+@post 316
+W fea7c2d41ac7fd294fdc290eec528057eab51a8a06a02776f162462b04189e85 .agents/skills/create-skill/SKILL.md
+W fea7c2d41ac7fd294fdc290eec528057eab51a8a06a02776f162462b04189e85 .claude/skills/create-skill/SKILL.md
+W 8cf657c01658059ed0efe4f7fd8fb7e4e3c60b06547da04ad109400a5d1e8626 packages/harness/context/skill-catalog.md

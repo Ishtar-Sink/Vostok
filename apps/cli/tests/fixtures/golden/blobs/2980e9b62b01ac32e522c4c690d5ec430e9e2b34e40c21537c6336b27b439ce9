@@ -1,0 +1,48 @@
+---
+name: outro
+description: >
+  Revisa código: usa | regras.
+  Use quando pedirem review.
+allowed-tools: x
+metadata:
+  version: "1.0.0"
+  author: "Victor Batalha"
+---
+
+# x
+
+x
+
+## Termos
+
+x
+
+## Regras
+
+x
+
+## Checklist
+
+Copie e marque o progresso:
+
+```
+x
+```
+
+## Passos
+
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+vostok context load --skill review-x
+```
+
+x
+
+## Formatos de resposta
+
+Respostas ao usuário usam os templates de `templates/responses/`. Formatos próprios desta skill:
+
+x

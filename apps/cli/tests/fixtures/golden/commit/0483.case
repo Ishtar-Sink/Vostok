@@ -17,14 +17,14 @@ check
 @stderr 307
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 5e87be4 só numa tag (arquivos: -)
+- e67b4dd só numa tag (arquivos: -)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 328
-W c4434e2ea2a28f2651e0f754f985500f7f204e460f983360e36f39e49b4f764e .git/objects/36/0af8e642b130b824d138e6c842e93787d11832
-W 50e9f8c7e58cbfb50bf8de0cf0215687f1834ef5d483cab2c3c6a60508c46718 .git/objects/5e/87be4b823fa1e9af7ba485084be75f4c2a0eed
-W c5b6f949d9d300524686b1b67d00814709c88570759c9fc092b3bab3e6ea8878 .git/refs/tags/v2
+W 7c113607d6ee939b9c550315da1affef898cd7fc1cbb1643e7a2277dbd9e6d5b .git/objects/d5/1bf4f8f87031d9f8988dfa84dba4b91626e531
+W 19aa9cf74259c1b1b1e56cad271fa853228391e849a46d1a45f9aa8c609776bc .git/objects/e6/7b4dde8686b821c11668fc0c633feb90f23d25
+W fdb67216e66ff4f0eedeea5278bbdcac99a38195599152fbd44b64b5c8de7de9 .git/refs/tags/v2
 @post 0
 

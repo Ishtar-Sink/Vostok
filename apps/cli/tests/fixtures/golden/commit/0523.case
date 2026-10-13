@@ -7,13 +7,13 @@ commit
 @arg 9
 --approve
 @arg 12
-6dee9dae1b3a
+d50bbfc0695f
 @vostok 6
 commit
 @vostok 7
 approve
 @vostok 12
-6dee9dae1b3a
+d50bbfc0695f
 @cwd 9
 <OUTSIDE>
 @stdin 0
@@ -28,4 +28,4 @@ Liberação gravada: 1 commit(s) novo(s) ou removido(s).
 @pre 0
 
 @post 101
-W 6dee9dae1b3af9adeaff60173170bfbabe5f63ea7a109c7bcdcd4957a6aa8faf packages/harness/.state/commit-ack
+W d50bbfc0695f474d51806312c9543fe54decdea46cf4d61f063bb50c813f670e packages/harness/.state/commit-ack

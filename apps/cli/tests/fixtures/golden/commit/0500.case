@@ -17,7 +17,7 @@ check
 @stderr 349
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 4c2832b enviado (arquivos: base.txt, r1.txt, r2.txt) [já enviado ao remoto]
+- 6c46f3a enviado (arquivos: base.txt, r1.txt, r2.txt) [já enviado ao remoto]
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1

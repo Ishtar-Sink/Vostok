@@ -21,8 +21,8 @@ Nenhum commit sem liberação.
 0
 @pre 247
 W 28d25bf82af4c0e2b72f50959b2beb859e3e60b9630a5e8c603dad4ddb2b6e80 .git/HEAD
-W 762dfde8d470f70f86e1337dcee01fae9985e1b3c6007adeca952d5bc3498b92 .git/index.ls
-W 7c465af0a5bed78d3eaf3bdf4e44c0c79e1c3477bf116de76898df31d256bf10 .git/logs/HEAD
+W af955bae6d8d837f0519328e3123ea53e9adfa76ae8d03158f0bccd7955b6353 .git/index.ls
+W 50efb9ec6932eeea3aa13a189540dbbd88b5fd3f3387440a271bcc54e7874fa7 .git/logs/HEAD
 D d.txt
 @post 0
 

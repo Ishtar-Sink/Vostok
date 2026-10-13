@@ -28,7 +28,7 @@ Erro: o commit falhou; nada foi liberado
 1
 @pre 190
 W 275239824e00e61b0a220e61a41791c7e9b4bd726f8b0c27077a338f8131c9dc .git/hooks/pre-commit
-W a14ba8b8cf3b7d1796b18e7325e89c0065781f0e41cc3cb0607ab99f4287540b packages/harness/.state/commit-ack
+W 567fa6cb18118b009961d127f1f9e71c0a96b6949938ea7b00cf4e5a81f4579a packages/harness/.state/commit-ack
 @post 202
-W b14d82ad491cfc2a0efd07ee612edba7d20f9bbc73cc5207f4bd60365e601581 .git/index.ls
-W 62c1500f3bed45c53ffe53ab7d37f6496e3120a4da96e0399030d2c10bf3f6ec .git/objects/11/8cf881a7dd7e8262ee48a3a3e43529f197d6f3
+W 381781dea155131ba92ac56a2fdb28f90408d213f2777d0fb89dcdd6a85f4bcf .git/index.ls
+W bed6e4adcd16e1f2c3f9a0fe53d7f09d695a415e85b7b3cc62e5ed5857f48784 .git/objects/bc/2d266cae1fedb4e13b7f11794aeb6b1859b873

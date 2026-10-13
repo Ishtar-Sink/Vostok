@@ -31,5 +31,5 @@ Skill 'refine-spec' finalizada.
 @pre 0
 
 @post 205
-W 4a829953a409bf4363814fa2171f04bab53dab317b2d850bf26ebb42c5f4e245 .agents/skills/refine-spec/SKILL.md
-W 4a829953a409bf4363814fa2171f04bab53dab317b2d850bf26ebb42c5f4e245 .claude/skills/refine-spec/SKILL.md
+W 9a506db8b139d9501d3802b3bf5b5dddf0e8f575e58d46dc87299294c1caf9ac .agents/skills/refine-spec/SKILL.md
+W 9a506db8b139d9501d3802b3bf5b5dddf0e8f575e58d46dc87299294c1caf9ac .claude/skills/refine-spec/SKILL.md

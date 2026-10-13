@@ -20,7 +20,7 @@ create-skill
 <OUTSIDE>
 @stdin 0
 
-@stdout 1665
+@stdout 1622
 # Contexto adicional
 
 Raiz do harness: `<ROOT>/packages/harness`
@@ -82,7 +82,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill #{SKILL_NAME}
+vostok context load --skill #{SKILL_NAME}
 ```
 
 #{SKILL_STEPS}

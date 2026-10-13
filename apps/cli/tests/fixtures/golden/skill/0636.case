@@ -31,5 +31,5 @@ Skill 'adjust-task' finalizada.
 @pre 0
 
 @post 205
-W 8e355d1448b453ef20d038d116e76ba878e0a9f18025895c6671b7576e491e05 .agents/skills/adjust-task/SKILL.md
-W 8e355d1448b453ef20d038d116e76ba878e0a9f18025895c6671b7576e491e05 .claude/skills/adjust-task/SKILL.md
+W 746b11286bbb0018772ea20c4685d4521de63136c342db73bbb87cf2aebb9353 .agents/skills/adjust-task/SKILL.md
+W 746b11286bbb0018772ea20c4685d4521de63136c342db73bbb87cf2aebb9353 .claude/skills/adjust-task/SKILL.md

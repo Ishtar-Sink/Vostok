@@ -31,5 +31,5 @@ Skill 'adjust-plan' finalizada.
 @pre 0
 
 @post 205
-W b50b98d9b50a3ed1ea520a8911c82bfe19850a1b78c3c4963825dc7648ac0123 .agents/skills/adjust-plan/SKILL.md
-W b50b98d9b50a3ed1ea520a8911c82bfe19850a1b78c3c4963825dc7648ac0123 .claude/skills/adjust-plan/SKILL.md
+W cf56acdd85f3c3daa6a8e005138f905577e9e5c3c519662c517cad45287f4bf9 .agents/skills/adjust-plan/SKILL.md
+W cf56acdd85f3c3daa6a8e005138f905577e9e5c3c519662c517cad45287f4bf9 .claude/skills/adjust-plan/SKILL.md

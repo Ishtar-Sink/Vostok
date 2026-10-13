@@ -17,7 +17,7 @@ check
 @stderr 324
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- 04ecbd9 commit do agente (arquivos: um arquivo.txt)
+- f64179b commit do agente (arquivos: um arquivo.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1

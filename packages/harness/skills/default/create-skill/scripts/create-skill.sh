@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Cria skills do harness no formato padrão: SKILL.md, scripts, redirecionamentos e catálogo.
+# Cria skills do harness no formato padrão: SKILL.md, redirecionamentos e catálogo.
 # Tudo o que é configurável fica em `config/skills.yml`.
 #
 # Uso: create-skill.sh [--default] <nome>
 #        Cria o SKILL.md a partir do template em `dirs.custom` (ou `dirs.default`, com --default).
-#      create-skill.sh --script <nome> <nome-do-script>
-#        Cria `scripts/<nome-do-script>.sh` na pasta da skill a partir do template de script.
 #      create-skill.sh --finalize <nome>
 #        Valida a skill, gera os redirecionamentos para as ferramentas e atualiza o catálogo.
 set -euo pipefail
@@ -21,7 +19,7 @@ MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
 SKILLS_CONFIG="$HARNESS_DIR/config/skills.yml"
 CONTEXT_CONFIG="$HARNESS_DIR/config/context.yml"
 
-USAGE="Uso: create-skill.sh [--default] <nome> | --script <nome> <nome-do-script> | --finalize <nome>"
+USAGE="Uso: create-skill.sh [--default] <nome> | --finalize <nome>"
 
 # Formato de nome exigido pela especificação de Agent Skills (agentskills.io):
 # minúsculas, números e hífens simples, sem hífen no início ou no fim.
@@ -32,7 +30,7 @@ MAX_DESCRIPTION_LENGTH=1024
 # Recomendação da Anthropic para o SKILL.md continuar eficiente no contexto do agente.
 MAX_SKILL_LINES=500
 # Chaves de `metadata` com caminhos (relativos à raiz do harness) que precisam existir.
-METADATA_PATH_KEYS=(scripts templates)
+METADATA_PATH_KEYS=(templates)
 
 die() { echo "Erro: $*" >&2; exit 1; }
 
@@ -115,22 +113,6 @@ add_context_entry() {
   cat "$tmp" > "$CONTEXT_CONFIG"
   rm -f "$tmp"
   echo "Mapa de contexto atualizado: $CONTEXT_CONFIG"
-}
-
-create_script() {
-  local name="$1" script="$2" scope target
-
-  scope="$(find_skill_scope "$name")" || die "skill '$name' não encontrada"
-  [[ "$script" =~ $NAME_PATTERN ]] || die "nome de script inválido '$script': use kebab-case (ex.: list-items)"
-
-  target="$(skill_dir_in "$scope" "$name")/scripts/$script.sh"
-  [ ! -e "$target" ] || die "o script já existe: $target"
-
-  mkdir -p "$(dirname "$target")"
-  TPL_SCRIPT_NAME="$script" render "$templates_dir/$(config_get "$SKILLS_CONFIG" script_template)" > "$target"
-  chmod +x "$target"
-
-  echo "Script criado em $target"
 }
 
 # Imprime um erro por linha para cada problema da skill. Não imprime nada se ela estiver válida.
@@ -251,7 +233,6 @@ finalize_skill() {
 
 case "${1:-}" in
   --default) [ -n "${2:-}" ] || die "$USAGE"; create_skill default "$2" ;;
-  --script) [ -n "${2:-}" ] && [ -n "${3:-}" ] || die "$USAGE"; create_script "$2" "$3" ;;
   --finalize) [ -n "${2:-}" ] || die "$USAGE"; finalize_skill "$2" ;;
   -*|"") die "$USAGE" ;;
   *) create_skill custom "$1" ;;

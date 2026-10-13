@@ -1,11 +1,11 @@
 ---
 name: approve-task
 description: "Aprova tarefas de uma especificação (spec) planejada, em work/tasks/: uma, várias ou todas as pendentes. Confere se cada tarefa está pendente, sem edição manual sem registro e válida, e grava a aprovação em todas ou em nenhuma. Use quando o usuário pedir para aprovar tarefas, citar IDs como TASK-01 para aprovação ou disser que aprova as tarefas."
-allowed-tools: Read Glob Bash(packages/harness/skills/default/approve-task/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/tasks/load-task.sh skills/default/approve-task/scripts/approve-task.sh"
+  scripts: "vostok context load, vostok task load, vostok task approve validate, vostok task approve approve"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -26,7 +26,7 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 [approve-task-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
 [approve-task-02]: Aprove só as tarefas citadas. Sem citação, não aprove nenhuma: pergunte quais (passo 3).
 [approve-task-03]: Use `--all` só quando o usuário pedir explicitamente todas as tarefas ("aprova todas", "aprova todas as tarefas da SPEC-002"). "Aprova as tarefas" não é pedido de todas.
-[approve-task-04]: Nunca edite as tarefas nem o front-matter nesta skill. Quem grava a aprovação é o script.
+[approve-task-04]: Nunca edite as tarefas nem o front-matter nesta skill. Quem grava a aprovação é o comando.
 [approve-task-05]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; mudanças na tarefa são feitas pela skill `adjust-task`.
 
 ## Checklist
@@ -49,7 +49,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill approve-task
+vostok context load --skill approve-task
 ```
 
 ### 2. Identificar a spec
@@ -73,15 +73,15 @@ Sem citação: leia o front-matter das tarefas da spec, liste as que estão com 
 Execute, com os IDs ou `--all`:
 
 ```bash
-packages/harness/skills/default/approve-task/scripts/approve-task.sh --validate <SPEC_ID> <TASK_ID ...>
+vostok task approve validate <SPEC_ID> <TASK_ID ...>
 ```
 
-O script lista os impedimentos de cada tarefa, sem alterar nada. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do script:
+O comando lista os impedimentos de cada tarefa, sem alterar nada. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:
 
 | Impedimento | Como resolver |
 |---|---|
 | Status fora de `pending` | Uma tarefa aprovada que precisa mudar volta a `pending` com um ajuste (skill `adjust-task`). |
-| Edição manual sem registro | Registrar a edição com `adjust-task.sh --record-manual` ou pedir um ajuste (skill `adjust-task`). |
+| Edição manual sem registro | Registrar a edição com `vostok task adjust record-manual` ou pedir um ajuste (skill `adjust-task`). |
 | Problema de validação | Ajustar a tarefa com a skill `adjust-task`. |
 
 ### 5. Aprovar
@@ -89,10 +89,10 @@ O script lista os impedimentos de cada tarefa, sem alterar nada. Se houver algum
 Execute, com os mesmos argumentos do passo 4:
 
 ```bash
-packages/harness/skills/default/approve-task/scripts/approve-task.sh --approve <SPEC_ID> <TASK_ID ...>
+vostok task approve approve <SPEC_ID> <TASK_ID ...>
 ```
 
-O script confere de novo e aprova todas as tarefas pedidas, ou nenhuma. Se ele recusar, volte ao passo 4.
+O comando confere de novo e aprova todas as tarefas pedidas, ou nenhuma. Se ele recusar, volte ao passo 4.
 
 ### 6. Responder ao usuário
 

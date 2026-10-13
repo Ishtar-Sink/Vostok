@@ -20,9 +20,9 @@ Nenhum commit sem liberação.
 @exit 1
 0
 @pre 283
-W 3a0d2879dd82923c3af97cb2f80f150dffcc5e2b9051a38e63dc513dae4ac88d .git/logs/refs/heads/nova
-W 7cc4b3ca1420a6cb9453fbc2eb4d605246cbfb442ed51cb76d9e3ef4afa503b2 .git/refs/heads/nova
-W 7cc4b3ca1420a6cb9453fbc2eb4d605246cbfb442ed51cb76d9e3ef4afa503b2 .git/refs/tags/v1
+W 3e7d09c233a81405de6a7ce45376b7318b1e8c7941bbb3e4a56d856e1a4292bf .git/logs/refs/heads/nova
+W 9b41f551c582f82741016a58395d4920e4f67fbbee28b1e134d17da206a19277 .git/refs/heads/nova
+W 9b41f551c582f82741016a58395d4920e4f67fbbee28b1e134d17da206a19277 .git/refs/tags/v1
 D .git/refs/tags/
 @post 0
 

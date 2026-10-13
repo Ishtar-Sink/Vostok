@@ -20,6 +20,6 @@ Nenhum commit sem liberação.
 @exit 1
 0
 @pre 101
-W 1cbc53c88d7b5cda131f75e61dfdc91630067c3ccb014bfad1061603ed817f2c packages/harness/.state/commit-ack
+W 0353b5efd178bf037d816b49bcc168ee208510a6c27312b46ea2771675115abf packages/harness/.state/commit-ack
 @post 0
 

@@ -16,7 +16,7 @@ commit
 feat: stage
 
 @stdout 45
-Commit feito e liberado: 4d882f5 feat: stage
+Commit feito e liberado: d339dcf feat: stage
 
 @stderr 0
 
@@ -26,8 +26,8 @@ Commit feito e liberado: 4d882f5 feat: stage
 
 @post 573
 W 0747efb30c9aa995471e1faa74d398ec1e1e360e0f9ffd1d5846b4130d8fbbca .git/COMMIT_EDITMSG
-W ded0da017d70d20e4f1fa6cbdfb8b4b95f87f37b90edd724d76274ec5b20103f .git/logs/HEAD
-W b90514d3a343a096619f9229d89bca4bfc5784c80ffb271488aa2a459bfe5cf5 .git/logs/refs/heads/main
-W 66f247180ecf74ef1ea0230b7a4252d477909133b3cb05219cc2f450ca4ec6c5 .git/objects/4d/882f596b7853142b895de82788573a161c7259
-W a11dc2c152e66c46b26f223f257ea845339d6391649d600b59e9e1e883c382b7 .git/refs/heads/main
-W 4e933d9a0e40090f88db5324477b1bbc67fda05eeddfbd17d0947145decbd6fe packages/harness/.state/commit-ack
+W 472980b62aabe989fd51d7cb2b5fd173da467770ab2af3ddc02e6ba73b486c1c .git/logs/HEAD
+W f78f57704a8bea7f5356fe536893b3fedd070f6e08e87c525d02815d01bd7572 .git/logs/refs/heads/main
+W 41b60f7849902e9797ab21ba71094a94a85ffffdc63b862c3e76644700b211f5 .git/objects/d3/39dcffde34fe2d600948130d48d403c3f979d2
+W b7afc558f4202317a7f0a67b7aad7a5d9adc881f8be625340edab2da4aae9ade .git/refs/heads/main
+W 9167b6fc769b8da074a44c6717af27c950025963bf92f562502a52b4721778f6 packages/harness/.state/commit-ack

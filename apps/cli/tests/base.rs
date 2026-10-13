@@ -70,6 +70,77 @@ fn ct02_embedded_content_is_the_distributable_harness() {
     }
 }
 
+/// Posições de `.sh` seguido de fim de palavra, como o `\.sh\b` do grep da verificação.
+fn shell_script_mentions(text: &str) -> Vec<usize> {
+    text.match_indices(".sh")
+        .map(|(index, _)| index)
+        .filter(|index| {
+            text[index + 3..]
+                .chars()
+                .next()
+                .is_none_or(|next| !(next.is_alphanumeric() || next == '_'))
+        })
+        .collect()
+}
+
+#[test]
+fn ct13_skills_and_skill_templates_call_vostok() {
+    let files = embedded::files();
+    let skills: Vec<&String> = files
+        .iter()
+        .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
+        .collect();
+    assert_eq!(skills.len(), 15, "skills padrão embutidas: {skills:?}");
+    let templates: Vec<&String> = files
+        .iter()
+        .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))
+        .collect();
+    assert!(
+        templates.contains(&&"templates/skill/skill.md".to_string())
+            && templates.contains(&&"templates/skill/redirect.md".to_string()),
+        "templates de skill embutidos: {templates:?}"
+    );
+    for file in skills.iter().chain(templates.iter()) {
+        let content = String::from_utf8(embedded::file(file).unwrap().to_vec()).unwrap();
+        for (number, line) in content.lines().enumerate() {
+            assert!(
+                shell_script_mentions(line).is_empty() && !line.contains("scripts/"),
+                "{file}:{}: chamada a script bash: {line}",
+                number + 1
+            );
+        }
+    }
+    for skill in &skills {
+        let name = skill
+            .trim_start_matches("skills/default/")
+            .trim_end_matches("/SKILL.md");
+        let content = String::from_utf8(embedded::file(skill).unwrap().to_vec()).unwrap();
+        assert!(
+            content.contains(&format!("\nvostok context load --skill {name}\n")),
+            "{skill} sem `vostok context load --skill {name}`"
+        );
+        // `Bash` sem restrição (skills que rodam os testes da tarefa) também libera o `vostok`.
+        let tools = content
+            .lines()
+            .find_map(|line| line.strip_prefix("allowed-tools: "))
+            .unwrap_or_default();
+        assert!(
+            tools.contains("Bash(vostok *)") || tools.split_whitespace().any(|tool| tool == "Bash"),
+            "{skill} sem `Bash(vostok *)` no allowed-tools: {tools}"
+        );
+    }
+    let template =
+        String::from_utf8(embedded::file("templates/skill/skill.md").unwrap().to_vec()).unwrap();
+    assert!(template.contains("\nvostok context load --skill #{SKILL_NAME}\n"));
+}
+
+#[test]
+fn ct13_shell_script_mentions_follow_the_word_boundary() {
+    assert_eq!(shell_script_mentions("a.sh"), vec![1]);
+    assert_eq!(shell_script_mentions("`x.sh --y` e z.sh."), vec![2, 14]);
+    assert!(shell_script_mentions("a.shell .show").is_empty());
+}
+
 #[test]
 fn ct02_project_rules_of_this_repository_are_not_embedded() {
     let files = embedded::files();

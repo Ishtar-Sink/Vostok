@@ -16,14 +16,14 @@ show
 
 @stdout 130
 Commits removidos (estavam liberados e saíram do histórico):
-- b2adc43 amend (arquivos: -)
-Código de liberação: deecc4d7b3a8
+- 8a94323 amend (arquivos: -)
+Código de liberação: 6e0d4730fc24
 
 @stderr 0
 
 @exit 1
 0
 @pre 70
-W fe7ec326964053d36e19899e3e772f815e3486b3680ca830eccdeeed09815c0d .cc
+W 03b946b4bd177b2baadb04f84165b2c20623101b2b09fb9ae192bd7f743cad45 .cc
 @post 0
 

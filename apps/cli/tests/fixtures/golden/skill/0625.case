@@ -29,6 +29,6 @@ skills.review-x: 'rules/project/nao-existe.md' não existe
 @pre 293
 W 6344a318ab51cb9678da8aa2307c3447b5e09594eda979a0b30cf8f7d8bb62f2 ctx.tmp
 W 6344a318ab51cb9678da8aa2307c3447b5e09594eda979a0b30cf8f7d8bb62f2 packages/harness/config/context.yml
-W c8858a2137cb99b36e06e10505bc9e7cd96ff38e18d12f0f567f073e121b0d56 packages/harness/skills/custom/review-x/SKILL.md
+W 473384911db9da0732b1a785d87824f3856a7e6009e6f8d246c55eafd5970d1e packages/harness/skills/custom/review-x/SKILL.md
 @post 0
 

@@ -7,13 +7,13 @@ commit
 @arg 8
 --revert
 @arg 12
-7f91a0ecb032
+30fe57d35f9b
 @vostok 6
 commit
 @vostok 6
 revert
 @vostok 12
-7f91a0ecb032
+30fe57d35f9b
 @cwd 9
 <OUTSIDE>
 @stdin 0
@@ -28,8 +28,8 @@ revert
 @pre 0
 
 @post 425
-W a23ddb228bdb3d91268b3f0b81091d4efd0b041f1357fe556b2bca65ea7d8ad7 .git/ORIG_HEAD
-W 70e795a13e973fde5533419bbf52d0dc72c20ba632cd597c8b144dba8aeba88c .git/index.ls
-W c271fa782d986e7cbcefbd0ff020759f59cd425f414fa50cda6de584285f471b .git/logs/HEAD
-W 580d177b761066d0414b3d54261cb60d9973ada581dab89b116c107e9ce5ee6f .git/logs/refs/heads/main
-W 8e2fb68af503c407a208bdca508a64f9a9ade57f0382d17baf63c23e4d9a3758 .git/refs/heads/main
+W c099b318537c0dd5a144fc932c468c1425c5ac4ddddd02e31c5bab774499127a .git/ORIG_HEAD
+W 53b2f583e6106aa2e1507cfec35a27ab1064d35ee85ff50e5d0e7525e095eda6 .git/index.ls
+W 99328217680cd0f396698e67d378a395360b49b1fba91af77556e2f476643256 .git/logs/HEAD
+W fae960d04fb34e1090dcba8cade37bbbbdd0c22faf9949ac91c9bc7ad325cd7f .git/logs/refs/heads/main
+W 1b3d37212d431cb0eddcc8cd9d80783e3d69d8b0625b149d35591f23d72b25c7 .git/refs/heads/main

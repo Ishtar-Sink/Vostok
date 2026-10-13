@@ -31,5 +31,5 @@ Skill 'adjust-spec' finalizada.
 @pre 0
 
 @post 205
-W 02fda9bba40135f89f46de932307651cd876db1d00e66b41f7da3147b5ac9a4b .agents/skills/adjust-spec/SKILL.md
-W 02fda9bba40135f89f46de932307651cd876db1d00e66b41f7da3147b5ac9a4b .claude/skills/adjust-spec/SKILL.md
+W a03e0f5ddd4a3f8dcab7ac782a26dad922e85ac49470641254c4610268b56cba .agents/skills/adjust-spec/SKILL.md
+W a03e0f5ddd4a3f8dcab7ac782a26dad922e85ac49470641254c4610268b56cba .claude/skills/adjust-spec/SKILL.md

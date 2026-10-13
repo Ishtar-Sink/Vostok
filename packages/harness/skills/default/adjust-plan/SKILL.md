@@ -1,11 +1,11 @@
 ---
 name: adjust-plan
 description: "Ajusta o plano de tarefas de uma especificação (spec) aprovada, em work/plans/. Aplica um ou vários ajustes pedidos numa mesma mensagem (dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos de esforço), registra edições feitas à mão, recalcula os níveis e mantém o histórico de ajustes do plano. Use quando o usuário pedir para ajustar, corrigir, mudar, dividir, juntar ou remover algo do plano de tarefas, ou comentar o plano logo depois de ele ser criado ou ajustado."
-allowed-tools: Read Edit Glob Bash(packages/harness/skills/default/adjust-plan/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/memory/search-memory.sh skills/default/adjust-plan/scripts/adjust-plan.sh"
+  scripts: "vostok context load, vostok memory search, vostok plan adjust record-manual, vostok plan adjust validate, vostok plan adjust record"
 ---
 
 # Ajustar plano
@@ -19,19 +19,19 @@ Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto do plano que o ajuste muda: uma tarefa (`TASK-03`), uma coluna, um fato ou a visão geral.
-- **Edição manual:** mudança feita à mão no plano, fora desta skill. O script a detecta pelo hash do conteúdo.
-- **Histórico:** a seção "Histórico de ajustes" do plano, escrita só pelo script.
+- **Edição manual:** mudança feita à mão no plano, fora desta skill. O comando a detecta pelo hash do conteúdo.
+- **Histórico:** a seção "Histórico de ajustes" do plano, escrita só pelo comando.
 - **Inferência:** decisão tomada pelo agente sem perguntar ao usuário.
 
 ## Regras
 
 [adjust-plan-01]: Só ajuste planos existentes e atualizados. Nunca edite a spec nem arquivos de tarefa.
 [adjust-plan-02]: Nunca edite um plano sem ter certeza de que é o correto. Na dúvida, pergunte (passo 2).
-[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Nível", a seção "Níveis de esforço" nem o "Histórico de ajustes". Só os scripts os alteram.
+[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Nível", a seção "Níveis de esforço" nem o "Histórico de ajustes". Só os comandos os alteram.
 [adjust-plan-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-plan-05]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-plan-06]: Não amplie o pedido. O que não foi pedido e for necessário para o plano continuar coerente (renumerar dependências, redistribuir cobertura) é inferência e aparece na resposta.
-[adjust-plan-07]: Todos os ajustes de um pedido são registrados juntos, com um único `--record`.
+[adjust-plan-07]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok plan adjust record`.
 [adjust-plan-08]: Não aprove o plano como parte do ajuste. A aprovação é feita pela skill `approve-plan`, só a pedido do usuário.
 
 ## Checklist
@@ -58,7 +58,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-plan
+vostok context load --skill adjust-plan
 ```
 
 Os formatos das tabelas do plano estão em "Formatos de resposta" da skill [plan-tasks](../plan-tasks/SKILL.md).
@@ -85,8 +85,8 @@ Spec citada sem plano: **PARE** e informe que ela não tem plano; o plano é cri
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-plan/scripts/adjust-plan.sh --record-manual <SPEC_ID>
-packages/harness/skills/default/adjust-plan/scripts/adjust-plan.sh --validate <SPEC_ID>
+vostok plan adjust record-manual <SPEC_ID>
+vostok plan adjust validate <SPEC_ID>
 ```
 
 Se a validação apontar plano desatualizado, **PARE** e responda com o template `blocker`: o plano deve ser recriado com a skill `plan-tasks`. Outros problemas são corrigidos no passo 7, junto com os ajustes do pedido.
@@ -119,7 +119,7 @@ Classifique cada ajuste:
 | Cria dependência em ciclo | Pergunta |
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe (ex.: `TASK-40`) | Pergunta |
-| Contradiz uma decisão ativa da memória (`search-memory.sh decision <termos>`) | Pergunta, citando o ID da decisão |
+| Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
 | Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec é ajustada pela skill `adjust-spec` e o plano, recriado depois. |
 
 Sem perguntas, vá para o passo 7.
@@ -136,7 +136,7 @@ Aplique os ajustes nas seções "Visão geral", "Tarefas" e "Fatos de esforço":
 
 - Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as dependências.
 - Toda tarefa tem uma linha na tabela de fatos, e toda linha de fatos tem uma tarefa.
-- Na coluna "Nível", deixe o valor atual ou `-`: o `--record` recalcula.
+- Na coluna "Nível", deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula.
 - Atualize a visão geral se a divisão ou a ordem do trabalho mudou.
 
 ### 8. Validar
@@ -144,20 +144,20 @@ Aplique os ajustes nas seções "Visão geral", "Tarefas" e "Fatos de esforço":
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-plan/scripts/adjust-plan.sh --validate <SPEC_ID>
+vostok plan adjust validate <SPEC_ID>
 ```
 
-O script lista os problemas sem alterar nada. Diferenças de nível são resolvidas pelo `--record`; corrija os demais e execute de novo. Se falhar pela segunda vez com outros problemas, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Diferenças de nível são resolvidas pelo `vostok plan adjust record`; corrija os demais e execute de novo. Se falhar pela segunda vez com outros problemas, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
 Execute, com um item por ajuste no resumo, separados por `; `:
 
 ```bash
-packages/harness/skills/default/adjust-plan/scripts/adjust-plan.sh --record <SPEC_ID> "TASK-02 dividida em TASK-02 e TASK-03; TASK-05 removida"
+vostok plan adjust record <SPEC_ID> "TASK-02 dividida em TASK-02 e TASK-03; TASK-05 removida"
 ```
 
-O script recalcula os níveis, valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
+O comando recalcula os níveis, valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 

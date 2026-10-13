@@ -1,11 +1,11 @@
 ---
 name: approve-spec
 description: "Aprova uma especificação (spec) refinada, com status refined. Confere se a spec está válida, sem pendências abertas e sem edições manuais sem registro, muda o status para approved, grava a versão aprovada para a granularização e remove o rascunho. Use quando o usuário pedir para aprovar uma spec, disser que aprova ou que a spec está aprovada, ou citar um ID como SPEC-001 para aprovação."
-allowed-tools: Read Bash(packages/harness/skills/default/approve-spec/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh skills/default/approve-spec/scripts/approve-spec.sh"
+  scripts: "vostok context load, vostok spec list, vostok spec approve validate, vostok spec approve approve"
 ---
 
 # Aprovar spec
@@ -16,7 +16,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 
 - **Refinada:** a spec em `refined/`, com status `refined`. É a única que pode ser aprovada.
 - **Aprovada:** a refinada com status `approved`. Continua em `refined/`, com `approved_at` e `approved_hash` no front-matter.
-- **Rascunho:** a spec original, em `draft/`. É removido pelo script depois da aprovação.
+- **Rascunho:** a spec original, em `draft/`. É removido pelo comando depois da aprovação.
 - **Impedimento:** o que impede a aprovação: status errado, problema de validação, pendência aberta ou edição manual sem registro.
 - **Versão aprovada:** o `content_hash` no momento da aprovação, gravado em `approved_hash`. Um ajuste depois dela derruba a aprovação.
 
@@ -24,7 +24,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 
 [approve-spec-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
 [approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 2).
-[approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o script.
+[approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o comando.
 [approve-spec-04]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; correções na spec são feitas pela skill `adjust-spec`.
 
 ## Checklist
@@ -46,12 +46,12 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill approve-spec
+vostok context load --skill approve-spec
 ```
 
 ### 2. Identificar a spec
 
-Para saber quais specs podem ser aprovadas, execute `packages/harness/scripts/default/specs/list-specs.sh refined` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
+Para saber quais specs podem ser aprovadas, execute `vostok spec list refined` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
 
 Use a spec sem perguntar em qualquer um destes casos:
 
@@ -71,26 +71,26 @@ Spec citada com status `draft`: **PARE** e informe que ela precisa ser refinada 
 Execute:
 
 ```bash
-packages/harness/skills/default/approve-spec/scripts/approve-spec.sh --validate <SPEC_ID>
+vostok spec approve validate <SPEC_ID>
 ```
 
-O script lista cada impedimento, sem alterar nada. Com impedimentos, **PARE** e responda com o template `blocker`:
+O comando lista cada impedimento, sem alterar nada. Com impedimentos, **PARE** e responda com o template `blocker`:
 
 | Impedimento | Como resolver |
 |---|---|
 | Problema de validação | Ajustar a spec com a skill `adjust-spec`. |
 | Pendência aberta | Responder à pendência; o ajuste é feito com a skill `adjust-spec`. |
-| Edição manual sem registro (inclusive spec sem `content_hash`) | Executar o comando indicado pelo script (`adjust-spec.sh --record-manual`) ou pedir um ajuste. |
+| Edição manual sem registro (inclusive spec sem `content_hash`) | Executar o comando indicado na saída (`vostok spec adjust record-manual`) ou pedir um ajuste. |
 
 ### 4. Aprovar
 
 Execute:
 
 ```bash
-packages/harness/skills/default/approve-spec/scripts/approve-spec.sh --approve <SPEC_ID>
+vostok spec approve approve <SPEC_ID>
 ```
 
-O script confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do script.
+O comando confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
 
 ### 5. Responder ao usuário
 

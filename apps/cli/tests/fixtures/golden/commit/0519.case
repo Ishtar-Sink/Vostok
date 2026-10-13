@@ -28,8 +28,8 @@ linha fora do formato 'hash ref': lixo
 @exit 1
 1
 @pre 249
-W a14ba8b8cf3b7d1796b18e7325e89c0065781f0e41cc3cb0607ab99f4287540b .ack-ok
-W fcebdc8281ce1a39b0018ddc9858b930e9187b51b8001307c862015c91c1a38f packages/harness/.state/commit-ack
+W 567fa6cb18118b009961d127f1f9e71c0a96b6949938ea7b00cf4e5a81f4579a .ack-ok
+W 46c6bc00e43049c7c3c3fcd466112cfe62f082177611e73038a26746062050ef packages/harness/.state/commit-ack
 W 3bb2abb69ebb27fbfe63c7639624c6ec5e331b841a5bc8c3ebc10b9285e90877 y.txt
 @post 0
 

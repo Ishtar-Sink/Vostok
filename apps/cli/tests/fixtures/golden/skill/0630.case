@@ -31,5 +31,5 @@ Skill 'approve-spec' finalizada.
 @pre 0
 
 @post 207
-W 8ffe62ea2bff8313848e39e91b3823f9d33bfd439a074400da33434bdc1cc664 .agents/skills/approve-spec/SKILL.md
-W 8ffe62ea2bff8313848e39e91b3823f9d33bfd439a074400da33434bdc1cc664 .claude/skills/approve-spec/SKILL.md
+W db009b39b2b00290135d0715332d13ff87522b04ccd4256622b5d1686e5bc4b0 .agents/skills/approve-spec/SKILL.md
+W db009b39b2b00290135d0715332d13ff87522b04ccd4256622b5d1686e5bc4b0 .claude/skills/approve-spec/SKILL.md

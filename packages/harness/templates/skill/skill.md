@@ -36,7 +36,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill #{SKILL_NAME}
+vostok context load --skill #{SKILL_NAME}
 ```
 
 #{SKILL_STEPS}

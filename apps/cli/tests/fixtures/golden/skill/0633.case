@@ -31,5 +31,5 @@ Skill 'approve-plan' finalizada.
 @pre 0
 
 @post 207
-W cd178ddd206197ed20743a798e8b687f65e12d10970cbbe1b022e438390a2a0e .agents/skills/approve-plan/SKILL.md
-W cd178ddd206197ed20743a798e8b687f65e12d10970cbbe1b022e438390a2a0e .claude/skills/approve-plan/SKILL.md
+W 41686daf6c967adb538e023f9a75801d5168b71747cd65341c7d11df2c1b5b25 .agents/skills/approve-plan/SKILL.md
+W 41686daf6c967adb538e023f9a75801d5168b71747cd65341c7d11df2c1b5b25 .claude/skills/approve-plan/SKILL.md

@@ -22,5 +22,5 @@ Referência de commits gravada na primeira verificação: <ROOT>/packages/harnes
 @pre 0
 
 @post 128
-W efc88aa2668ed17f23fe0aadd6285cf038bb743417d2cd1e465a9de881899529 packages/harness/.state/commit-ack
+W 23efde46454b4e27e460844e21553ded65d0ca4c2bb485e075565f97db706447 packages/harness/.state/commit-ack
 D packages/harness/.state/

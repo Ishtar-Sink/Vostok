@@ -1,11 +1,11 @@
 ---
 name: init-harness
 description: "Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init."
-allowed-tools: Read Write Glob Grep Bash(packages/harness/skills/default/init-harness/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Write Glob Grep Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh skills/default/init-harness/scripts/init-harness.sh scripts/default/rules/validate-rules.sh"
+  scripts: "vostok context load, vostok rules detect, vostok rules preview, vostok rules write, vostok rules load, vostok rules validate"
   templates: "templates/rules/category.md templates/responses/question.md templates/responses/completion.md templates/responses/blocker.md"
 ---
 
@@ -18,10 +18,10 @@ Levanta as regras do projeto a partir do que o código mostra, confirma com o us
 - **Categoria:** arquivo `rules/project/<categoria>.md`, com título, frase de propósito e regras `[project/<categoria>-NN]`. O nome é o da categoria, em kebab-case.
 - **Categoria base:** uma das oito que a skill sempre percorre: `architecture`, `stack`, `code-style`, `development-methodology`, `testing`, `security`, `language` e `naming-convention`.
 - **Categoria extra:** categoria que a investigação sugere além das base, por exemplo `api`, `database` ou `frontend`.
-- **Sinal:** arquivo ou pasta do projeto que indica uma categoria, no formato `categoria: arquivo: sinal`, listado pelo `--detect`.
+- **Sinal:** arquivo ou pasta do projeto que indica uma categoria, no formato `categoria: arquivo: sinal`, listado pelo `vostok rules detect`.
 - **Origem:** o arquivo ou sinal que fundamenta uma regra proposta.
 - **Carregamento:** onde a categoria entra no contexto: `required` (sempre) ou a lista de uma skill no mapa `skills` do `config/context.yml`.
-- **Arquivo de regras:** arquivo temporário, fora do projeto, com uma regra por linha, entregue ao `--write`.
+- **Arquivo de regras:** arquivo temporário, fora do projeto, com uma regra por linha, entregue ao `vostok rules write`.
 - **Projeto já inicializado:** projeto que já tem categorias em `rules/project/`.
 
 ## Regras
@@ -31,7 +31,7 @@ Levanta as regras do projeto a partir do que o código mostra, confirma com o us
 [init-harness-03]: Grave só o que o usuário confirmar. Sem confirmação, não grave, não altere e não registre nada.
 [init-harness-04]: Categoria que o usuário disser que não se aplica não ganha arquivo nem entrada no mapa.
 [init-harness-05]: Não crie regra que não veio do código nem de uma resposta do usuário.
-[init-harness-06]: Grave categorias e carregamento só pelo `init-harness.sh`. Não edite `rules/project/*.md` nem o `config/context.yml` à mão.
+[init-harness-06]: Grave categorias e carregamento só pelos comandos `vostok rules write` e `vostok rules load`. Não edite `rules/project/*.md` nem o `config/context.yml` à mão.
 [init-harness-07]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 
 ## Checklist
@@ -56,7 +56,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill init-harness
+vostok context load --skill init-harness
 ```
 
 ### 2. Investigar o projeto
@@ -64,7 +64,7 @@ packages/harness/scripts/default/context/load-extra-context.sh --skill init-harn
 Execute:
 
 ```bash
-packages/harness/skills/default/init-harness/scripts/init-harness.sh --detect
+vostok rules detect
 ```
 
 Cada linha é um sinal (`categoria: arquivo: sinal`). Leia os arquivos citados e complete a investigação com os manifestos (`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`), as configurações de lint e de teste e a estrutura de pastas, usando Glob, Grep e Read. Anote a origem de cada regra que você for propor.
@@ -84,7 +84,7 @@ Acrescente categorias extras pelo que a investigação encontrou (`api`, `databa
 Para uma categoria que já existe, monte o arquivo de regras só com o que mudaria (regras novas e `remover: NN`) e veja o efeito:
 
 ```bash
-packages/harness/skills/default/init-harness/scripts/init-harness.sh --preview <categoria> <arquivo-de-regras>
+vostok rules preview <categoria> <arquivo-de-regras>
 ```
 
 O arquivo de regras é temporário (`mktemp`), fora do projeto, e tem uma regra por linha. Linhas opcionais: `titulo: <título>`, `proposito: <frase>` e `remover: NN`.
@@ -94,7 +94,7 @@ O arquivo de regras é temporário (`mktemp`), fora do projeto, e tem uma regra 
 **PARE.** Envie uma única mensagem com o template `question`, uma pergunta por assunto:
 
 1. Quais categorias **não se aplicam** (as oito base e as extras propostas).
-2. Para cada categoria que se aplica, as regras propostas com a origem, para o usuário aceitar, cortar ou acrescentar. Numa categoria existente, mostre o que mudaria (saída do `--preview`).
+2. Para cada categoria que se aplica, as regras propostas com a origem, para o usuário aceitar, cortar ou acrescentar. Numa categoria existente, mostre o que mudaria (saída do `vostok rules preview`).
 3. Para cada categoria, **onde é carregada**: sempre (`required`) ou em quais skills do mapa (liste as skills existentes do catálogo).
 
 Se uma resposta ficar em aberto, a categoria correspondente não é gravada e a pendência vai na resposta final. Não faça uma segunda rodada. Se o usuário não confirmar nada, **nenhum arquivo é alterado**: pule para o passo 8.
@@ -104,28 +104,28 @@ Se uma resposta ficar em aberto, a categoria correspondente não é gravada e a 
 Para cada categoria confirmada, escreva o arquivo de regras temporário só com as regras aceitas e execute:
 
 ```bash
-packages/harness/skills/default/init-harness/scripts/init-harness.sh --write <categoria> <arquivo-de-regras>
+vostok rules write <categoria> <arquivo-de-regras>
 ```
 
-O script cria o arquivo pelo template, numera os IDs e, numa categoria existente, acrescenta as regras novas, marca as removidas e não repete as que já estão lá. Não grave as categorias que não se aplicam. Se o script recusar, **PARE** e responda com o template `blocker`.
+O comando cria o arquivo pelo template, numera os IDs e, numa categoria existente, acrescenta as regras novas, marca as removidas e não repete as que já estão lá. Não grave as categorias que não se aplicam. Se o comando recusar, **PARE** e responda com o template `blocker`.
 
 ### 6. Registrar o carregamento
 
 Para cada categoria gravada, execute:
 
 ```bash
-packages/harness/skills/default/init-harness/scripts/init-harness.sh --load <categoria> always
-packages/harness/skills/default/init-harness/scripts/init-harness.sh --load <categoria> <skill>[,<skill>...]
+vostok rules load <categoria> always
+vostok rules load <categoria> <skill>[,<skill>...]
 ```
 
-Use `always` para `required` e a lista de skills para o mapa `skills`. Categoria sem resposta de carregamento não é registrada. Se o script recusar (skill inexistente, por exemplo), **PARE** e responda com o template `blocker`.
+Use `always` para `required` e a lista de skills para o mapa `skills`. Categoria sem resposta de carregamento não é registrada. Se o comando recusar (skill inexistente, por exemplo), **PARE** e responda com o template `blocker`.
 
 ### 7. Validar
 
 Execute:
 
 ```bash
-packages/harness/scripts/default/rules/validate-rules.sh
+vostok rules validate
 ```
 
 Se ele apontar problemas, corrija pela mesma via do passo 5 ou 6 e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.

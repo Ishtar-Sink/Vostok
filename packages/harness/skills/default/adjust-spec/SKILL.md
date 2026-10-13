@@ -1,11 +1,11 @@
 ---
 name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
-allowed-tools: Read Edit Bash(packages/harness/skills/default/adjust-spec/scripts/*) Bash(packages/harness/scripts/default/*)
+allowed-tools: Read Edit Bash(vostok *)
 metadata:
   version: "1.2.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/specs/list-specs.sh scripts/default/memory/search-memory.sh skills/default/adjust-spec/scripts/adjust-spec.sh"
+  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record"
   templates: "templates/spec/sections"
 ---
 
@@ -21,20 +21,20 @@ Aplica à spec refinada certa todos os ajustes que o usuário pediu, deixando a 
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
 - **Alvo:** o ponto da refinada que o ajuste muda: uma seção, um ID (`RF-03`, `CB-02`) ou um trecho de texto.
-- **Edição manual:** mudança feita à mão na refinada, fora desta skill. O script a detecta pelo hash do conteúdo.
-- **Histórico:** a seção "Histórico de ajustes" da refinada, escrita só pelo script.
+- **Edição manual:** mudança feita à mão na refinada, fora desta skill. O comando a detecta pelo hash do conteúdo.
+- **Histórico:** a seção "Histórico de ajustes" da refinada, escrita só pelo comando.
 - **Inferência:** decisão tomada pelo agente sem perguntar ao usuário.
 
 ## Regras
 
 [adjust-spec-01]: Só ajuste specs com status `refined` ou `approved`. Nunca edite o rascunho nem uma spec com status `planned`.
 [adjust-spec-02]: Nunca edite uma spec sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
-[adjust-spec-03]: Nunca edite à mão o front-matter nem o "Histórico de ajustes". Só o script os altera.
+[adjust-spec-03]: Nunca edite à mão o front-matter nem o "Histórico de ajustes". Só o comando os altera.
 [adjust-spec-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-spec-05]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-spec-06]: Não amplie o pedido. O que não foi pedido e for necessário para a spec continuar coerente é inferência e entra no "Registro de decisões".
 [adjust-spec-07]: O tipo da spec não muda num ajuste. Se o pedido exige outro tipo, **PARE** e responda com o template `blocker`.
-[adjust-spec-08]: Todos os ajustes de um pedido são registrados juntos, com um único `--record`.
+[adjust-spec-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok spec adjust record`.
 
 ## Checklist
 
@@ -60,7 +60,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill adjust-spec
+vostok context load --skill adjust-spec
 ```
 
 ### 2. Identificar a spec
@@ -71,7 +71,7 @@ Use a spec sem perguntar em qualquer um destes casos:
 - O pedido vem logo depois de a spec ser refinada ou ajustada nesta conversa.
 - Existe uma única spec refinada ou aprovada.
 
-Para saber quais specs podem ser ajustadas, execute `packages/harness/scripts/default/specs/list-specs.sh refined` e `packages/harness/scripts/default/specs/list-specs.sh approved` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
+Para saber quais specs podem ser ajustadas, execute `vostok spec list refined` e `vostok spec list approved` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
 
 Nos demais casos:
 
@@ -88,10 +88,10 @@ Spec citada com status `planned`: **PARE** e informe que as tarefas dela já for
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-spec/scripts/adjust-spec.sh --record-manual <SPEC_ID>
+vostok spec adjust record-manual <SPEC_ID>
 ```
 
-Se o script registrar um ajuste manual e listar problemas de validação, corrija-os no passo 7, junto com os ajustes do pedido.
+Se o comando registrar um ajuste manual e listar problemas de validação, corrija-os no passo 7, junto com os ajustes do pedido.
 
 ### 4. Decompor o pedido em ajustes
 
@@ -120,7 +120,7 @@ Classifique cada ajuste:
 | Contradiz outra parte da spec | Pergunta |
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe (ex.: `RF-40`) | Pergunta |
-| Contradiz uma decisão ativa da memória (`search-memory.sh decision <termos>`) | Pergunta, citando o ID da decisão |
+| Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
 | Exige outro tipo de spec | **PARE**: [adjust-spec-07] |
 
 Sem perguntas, vá para o passo 7.
@@ -146,20 +146,20 @@ Atualize também as seções fixas:
 Execute:
 
 ```bash
-packages/harness/skills/default/adjust-spec/scripts/adjust-spec.sh --validate <SPEC_ID>
+vostok spec adjust validate <SPEC_ID>
 ```
 
-O script lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
 Execute, com um item por ajuste no resumo, separados por `; `:
 
 ```bash
-packages/harness/skills/default/adjust-spec/scripts/adjust-spec.sh --record <SPEC_ID> "RF-03 aceita o título; CB-04 removido; nova RN-05"
+vostok spec adjust record <SPEC_ID> "RF-03 aceita o título; CB-04 removido; nova RN-05"
 ```
 
-O script valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa spec aprovada, ele também derruba a aprovação e avisa na saída. Se ele recusar o ajuste, volte ao passo 8.
+O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa spec aprovada, ele também derruba a aprovação e avisa na saída. Se ele recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 
@@ -167,7 +167,7 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o caminho da refinada, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
-- Se o script avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
+- Se o comando avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
 

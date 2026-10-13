@@ -201,7 +201,7 @@ fn finalize_rejects_long_skill_and_missing_metadata_paths() {
         "my-skill",
         &(VALID_SKILL.replace(
             "  version: \"1.0.0\"\n",
-            "  version: \"1.0.0\"\n  scripts: \"scripts/a.sh config/main.yml\"\n",
+            "  version: \"1.0.0\"\n  templates: \"templates/nao-existe.md config/main.yml\"\n",
         ) + &body),
     );
 
@@ -209,7 +209,8 @@ fn finalize_rejects_long_skill_and_missing_metadata_paths() {
 
     assert!(errors.starts_with("Erro: a skill 'my-skill' tem problemas:\n"));
     assert!(errors.contains("o SKILL.md tem 510 linhas; o máximo é 500"));
-    assert!(errors.contains("metadata.scripts: 'scripts/a.sh' não existe na raiz do harness"));
+    assert!(errors
+        .contains("metadata.templates: 'templates/nao-existe.md' não existe na raiz do harness"));
     assert!(!errors.contains("config/main.yml"));
     assert!(!project.root().join(".claude").exists());
 }
@@ -301,53 +302,35 @@ fn create_fails_without_the_context_map() {
 }
 
 #[test]
-fn script_creation_errors_and_executable_file() {
+fn skill_script_subcommand_no_longer_exists() {
     let project = project();
     custom_skill(&project, "my-skill", VALID_SKILL);
 
-    assert_eq!(
-        failure_stderr(
-            project
-                .vostok()
-                .args(["skill", "script", "nao-existe", "a"])
-        ),
-        "Erro: skill 'nao-existe' não encontrada\n"
-    );
-    assert_eq!(
-        failure_stderr(
-            project
-                .vostok()
-                .args(["skill", "script", "my-skill", "Bad"])
-        ),
-        "Erro: nome de script inválido 'Bad': use kebab-case (ex.: list-items)\n"
-    );
-    stdout(
-        project
-            .vostok()
-            .args(["skill", "script", "my-skill", "list-items"]),
-    );
-    let script = project
+    project
+        .vostok()
+        .args(["skill", "script", "my-skill", "list-items"])
+        .assert()
+        .failure();
+    assert!(!project
         .harness()
-        .join("skills/custom/my-skill/scripts/list-items.sh");
-    assert!(read(&script).contains("list-items.sh"));
-    assert_executable(&script);
-    assert!(failure_stderr(
-        project
-            .vostok()
-            .args(["skill", "script", "my-skill", "list-items"])
-    )
-    .contains("o script já existe:"));
+        .join("skills/custom/my-skill/scripts")
+        .exists());
 }
 
-#[cfg(unix)]
-fn assert_executable(path: &Path) {
-    use std::os::unix::fs::PermissionsExt;
-    assert_ne!(fs::metadata(path).unwrap().permissions().mode() & 0o111, 0);
+#[test]
+fn finalize_accepts_subcommands_in_metadata_scripts() {
+    let project = project();
+    custom_skill(
+        &project,
+        "my-skill",
+        &VALID_SKILL.replace(
+            "  version: \"1.0.0\"\n",
+            "  version: \"1.0.0\"\n  scripts: \"vostok context load, vostok spec list\"\n",
+        ),
+    );
+
+    stdout(project.vostok().args(["skill", "finalize", "my-skill"]));
 }
-
-#[cfg(not(unix))]
-fn assert_executable(_path: &Path) {}
-
 // --- commit ---
 
 fn git(root: &Path, args: &[&str]) {

@@ -5,7 +5,7 @@ allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh scripts/default/tasks/load-task.sh skills/default/execute-task/scripts/execute-task.sh"
+  scripts: "vostok context load, vostok task load, vostok task start, vostok task baseline, vostok commit check"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -18,16 +18,16 @@ Leva uma tarefa aprovada de `approved` a `in_progress`, coleta o estado anterior
 - **Tarefa:** o arquivo `packages/harness/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
 - **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`.
 - **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `evidence/<TASK_ID>/baseline/`. A `finish-task` os executa de novo e compara, para achar regressões.
-- **Registro:** a seção "Registro de execução" da tarefa, com uma linha por etapa, escrita só pelos scripts.
+- **Registro:** a seção "Registro de execução" da tarefa, com uma linha por etapa, escrita só pelos comandos.
 
 ## Regras
 
 [execute-task-01]: Uma tarefa por pedido. Ao terminar, não comece outra sem um novo pedido do usuário.
-[execute-task-02]: Só execute tarefas que o `--start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências.
+[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências.
 [execute-task-03]: Colete o baseline antes de mudar qualquer arquivo do projeto.
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
-[execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os scripts os alteram.
+[execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os comandos os alteram.
 [execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A finalização é um pedido separado do usuário.
 
 ## Checklist
@@ -52,7 +52,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill execute-task
+vostok context load --skill execute-task
 ```
 
 ### 2. Identificar a tarefa
@@ -68,10 +68,10 @@ As tarefas ficam em `packages/harness/work/tasks/<SPEC_ID>/`, e os IDs são nume
 Execute:
 
 ```bash
-packages/harness/skills/default/execute-task/scripts/execute-task.sh --start <SPEC_ID> <TASK_ID>
+vostok task start <SPEC_ID> <TASK_ID>
 ```
 
-O script confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, e muda o status para `in_progress`. Se ele recusar, **PARE** e responda com o template `blocker`, com a mensagem do script:
+O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, e muda o status para `in_progress`. Se ele recusar, **PARE** e responda com o template `blocker`, com a mensagem do comando:
 
 | Recusa | Como resolver |
 |---|---|
@@ -81,17 +81,17 @@ O script confere se a tarefa está aprovada, sem mudança depois da aprovação 
 
 ### 4. Carregar a tarefa
 
-Execute `packages/harness/scripts/default/tasks/load-task.sh <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
+Execute `vostok task load <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
 
 ### 5. Coletar o baseline
 
 Antes de mudar qualquer arquivo, execute:
 
 ```bash
-packages/harness/skills/default/execute-task/scripts/execute-task.sh --baseline <SPEC_ID> <TASK_ID>
+vostok task baseline <SPEC_ID> <TASK_ID>
 ```
 
-O script executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Se o script recusar, **PARE** e responda com o template `blocker`.
+O `vostok task baseline` executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Se o comando recusar, **PARE** e responda com o template `blocker`.
 
 ### 6. Implementar os testes
 
@@ -103,13 +103,13 @@ Siga os "Passos", na ordem, mudando só os arquivos de "Mudar". Se um passo exig
 
 ### 8. Responder ao usuário
 
-Execute `packages/harness/scripts/default/git/check-commits.sh` e responda com o template `completion`:
+Execute `vostok commit check` e responda com o template `completion`:
 
 - **Resumo:** a tarefa foi implementada e segue `in_progress`.
 - **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" da tarefa (início e baseline), e o que não foi verificado: os testes, a regressão e as evidências ficam para a `finish-task`.
-- **Próximos passos:** o pedido em linguagem natural para finalizar a tarefa, por exemplo `- "finaliza a TASK-04" (skill finish-task): executar os testes, comparar com o baseline e concluir a tarefa`. Nunca indique um script.
+- **Próximos passos:** o pedido em linguagem natural para finalizar a tarefa, por exemplo `- "finaliza a TASK-04" (skill finish-task): executar os testes, comparar com o baseline e concluir a tarefa`. Nunca indique um comando.
 
-Esta skill não chama a `finish-task` nem roda `--tests`, `--regression` ou `--evidence` (RN-03): a conclusão só começa quando o usuário pedir.
+Esta skill não chama a `finish-task` nem roda `vostok task tests`, `vostok task regression` ou `vostok task evidence` (RN-03): a conclusão só começa quando o usuário pedir.
 
 ## Formatos de resposta
 

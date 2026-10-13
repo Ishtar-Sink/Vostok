@@ -150,8 +150,10 @@ def vostok_args(script, args):
         table = {f"--{name}": [name] for name in ("tests", "regression", "evidence", "finish", "resume")}
         return flag_map(args, table, ["task"])
     if script == "create-skill.sh":
-        mapped = flag_map(args, {"--script": ["script"], "--finalize": ["finalize"]}, ["skill"])
-        return mapped or (["skill", "create"] + args)
+        mapped = flag_map(args, {"--finalize": ["finalize"]}, ["skill"])
+        if mapped or (args[:1] and args[0].startswith("-") and args[0] != "--default"):
+            return mapped
+        return ["skill", "create"] + args
     if script == "finalize-spec.sh":
         table = {f"--{name}": [name] for name in ("sources", "create", "validate", "build", "archive")}
         return flag_map(args, table, ["finalize"])

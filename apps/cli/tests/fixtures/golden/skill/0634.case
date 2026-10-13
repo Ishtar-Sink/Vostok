@@ -30,6 +30,7 @@ Skill 'approve-commit' finalizada.
 0
 @pre 0
 
-@post 211
-W ecb9b898f74b465b45714b40e71b2fc2969ae1cfc79d21fb17f301e6aa224d61 .agents/skills/approve-commit/SKILL.md
-W ecb9b898f74b465b45714b40e71b2fc2969ae1cfc79d21fb17f301e6aa224d61 .claude/skills/approve-commit/SKILL.md
+@post 320
+W 6108fb48a20626b4cd4f09d560fe76dec195b550bf6d595ff99273507ac8e71a .agents/skills/approve-commit/SKILL.md
+W 6108fb48a20626b4cd4f09d560fe76dec195b550bf6d595ff99273507ac8e71a .claude/skills/approve-commit/SKILL.md
+W dc31cfe7e11cf5fd6ae7b7e692dd7a7a1a71bbacaf7bf221fd2021d78d4f7923 packages/harness/context/skill-catalog.md

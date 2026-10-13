@@ -17,20 +17,20 @@ check
 @stderr 304
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits novos:
-- ac00480 nv (arquivos: base.txt)
+- 746214f nv (arquivos: base.txt)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 872
 W 7db88b97a635fde510bc133e54a838c0cd88a5e86acd4ae7f53b54ace2f40d47 .git/COMMIT_EDITMSG
-W 418924de3624759f86199b660bbf4084463c1e4d33f88e5786a9fe0b4e6fb49d .git/index.ls
-W d8805b052f04863ec84cd99275e01f852e99eea235d7a24d2463c2f561210f1f .git/logs/HEAD
-W d8805b052f04863ec84cd99275e01f852e99eea235d7a24d2463c2f561210f1f .git/logs/refs/heads/main
+W 4f999d05e243936a07906983bab86682e3c540b39217c0d6fc86226d7e8082ca .git/index.ls
+W 75da904c99c5c07fd02b30d67dd85d5e414737662f190374f9488985d557b1b5 .git/logs/HEAD
+W 75da904c99c5c07fd02b30d67dd85d5e414737662f190374f9488985d557b1b5 .git/logs/refs/heads/main
 W c4d8a34d8153a5ba870aafe5d97cdc95157f12444d8264a08fa941c75fd9f0d9 .git/objects/17/6d106f3ca8239f55b11c9b60fa377ec204f4dc
-W f11c476ec02e10b06d245835c65b132f7f2355747472cfa2ce506cde7053c643 .git/objects/37/2dbf589a9090c5ced72e4ee331df95077bd73d
-W ef9613daaea5cd6a4fdcdcb02b9aa742a3acf398d044bbe680d51caaf53d07ef .git/objects/ac/0048047c169c2c6c02ac90706a6ae73de00c2d
-W 0e875d97b572b91a0ea140088715b83a0d06fb9dbc59e0913a294ce8d0a76d7f .git/refs/heads/main
+W ad31382e7a82e99fd4ea26ecbc5020facb72375f33909d7898b60ae0464780a1 .git/objects/74/6214fdb23d3be6060826919f32d218ee28e7ec
+W 95d7632a81c3a04623c53fbc2f7d2add4ad6995204ebfa5ac877be6d8295b506 .git/objects/a8/3c0ff6f2ce53db126b84073c4ab78a0ac83886
+W cce7a8a2ad30f452fc3c6f792a64c5a70ff640048177069955a93990a2470615 .git/refs/heads/main
 W dac49450a3487320b57b50f806b65f7d1c887dec25afba0014279154094cfca8 base.txt
 @post 0
 

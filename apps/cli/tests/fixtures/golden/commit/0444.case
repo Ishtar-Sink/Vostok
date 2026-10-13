@@ -16,14 +16,14 @@ show
 
 @stdout 106
 Commits novos:
-- 04ecbd9 commit do agente (arquivos: um arquivo.txt)
-Código de liberação: cc4c0fff3bb8
+- f64179b commit do agente (arquivos: um arquivo.txt)
+Código de liberação: 3c082b4d9126
 
 @stderr 0
 
 @exit 1
 0
 @pre 70
-W 5ae7bbaa325b8abd8f2eb526e4f3785ee603748a1fb279660d52171145fbe8eb .cc
+W 1a7167dd85c057e17753a59eeb1f8cd7fd0f7b7c0c41f37ce6bc2f550335e9be .cc
 @post 0
 

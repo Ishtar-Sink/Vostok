@@ -1,12 +1,12 @@
 ---
 name: create-skill
-description: "Cria uma nova skill do harness no formato padrão: gera o SKILL.md a partir do template, os scripts da skill, os redirecionamentos para Claude Code, Codex e Cursor e a entrada no catálogo. Use quando o usuário pedir para criar, adicionar ou gerar uma skill ou habilidade, ou transformar um fluxo de trabalho em skill. Use sempre esta skill em vez dos criadores de skill nativos das ferramentas."
-allowed-tools: Read Edit Bash(packages/harness/skills/default/create-skill/scripts/*) Bash(packages/harness/scripts/default/*)
+description: "Cria uma nova skill do harness no formato padrão: gera o SKILL.md a partir do template, os redirecionamentos para Claude Code, Codex e Cursor e a entrada no catálogo, e propõe subcomandos do vostok para as operações determinísticas. Use quando o usuário pedir para criar, adicionar ou gerar uma skill ou habilidade, ou transformar um fluxo de trabalho em skill. Use sempre esta skill em vez dos criadores de skill nativos das ferramentas."
+allowed-tools: Read Edit Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "scripts/default/context/load-extra-context.sh skills/default/create-skill/scripts/create-skill.sh"
-  templates: "templates/skill/skill.md templates/skill/redirect.md templates/skill/script.sh"
+  scripts: "vostok context load, vostok skill create, vostok skill finalize"
+  templates: "templates/skill/skill.md templates/skill/redirect.md"
 ---
 
 # Criar skill
@@ -16,7 +16,7 @@ Cria uma skill no local certo e no formato padrão do harness, pronta para ser i
 ## Termos
 
 - **Skill:** pasta com um `SKILL.md` em `skills/custom/` (do usuário) ou `skills/default/` (do harness).
-- **Script da skill:** arquivo em `scripts/` dentro da pasta da skill, criado a partir do template de script.
+- **Subcomando:** comando do `vostok` (`vostok <grupo> <ação>`) que executa uma operação determinística.
 - **Redirecionamento:** `SKILL.md` curto, criado na pasta de skills de cada ferramenta (`config/skills.yml`), que aponta para a skill.
 - **Catálogo:** `context/skill-catalog.md`, carregado em toda sessão.
 - **Operação determinística:** passo que sempre produz o mesmo resultado para a mesma entrada (ler arquivos, validar, gerar a partir de template).
@@ -25,7 +25,7 @@ Cria uma skill no local certo e no formato padrão do harness, pronta para ser i
 
 [create-skill-01]: Nunca use o criador de skills nativo da ferramenta. Toda skill é criada por esta skill.
 [create-skill-02]: Nunca crie ou edite à mão os redirecionamentos nem a linha do catálogo. Eles são gerados no passo 6.
-[create-skill-03]: Operações determinísticas viram scripts da skill. O SKILL.md só manda executá-los, com o comando exato.
+[create-skill-03]: Operações determinísticas são executadas por subcomandos do `vostok`. O SKILL.md só manda executá-los, com o comando exato. Nunca crie scripts na pasta da skill.
 [create-skill-04]: A `description` fica em terceira pessoa e diz o que a skill faz e quando usar, com os termos que o usuário diria.
 [create-skill-05]: Use um único termo para cada conceito, definido em "Termos".
 [create-skill-06]: Todo ponto em que a skill deve parar e esperar o usuário é marcado com **PARE** e a condição.
@@ -40,7 +40,7 @@ Copie e marque o progresso:
 - [ ] 1. Carregar o contexto
 - [ ] 2. Levantar os requisitos
 - [ ] 3. Criar a skill
-- [ ] 4. Criar e implementar os scripts
+- [ ] 4. Propor os subcomandos
 - [ ] 5. Preencher o SKILL.md
 - [ ] 6. Validar e finalizar
 - [ ] 7. Responder ao usuário
@@ -53,7 +53,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-packages/harness/scripts/default/context/load-extra-context.sh --skill create-skill
+vostok context load --skill create-skill
 ```
 
 ### 2. Levantar os requisitos
@@ -77,26 +77,16 @@ Se faltar algum item que não pode ser inferido, **PARE** e pergunte com o templ
 Execute:
 
 ```bash
-packages/harness/skills/default/create-skill/scripts/create-skill.sh <nome>
+vostok skill create <nome>
 ```
 
-Para uma skill do próprio harness, use `--default <nome>`. Se o script falhar (nome inválido ou skill já existente), **PARE** e responda com o template `blocker`.
+Para uma skill do próprio harness, use `vostok skill create --default <nome>`. Se o comando falhar (nome inválido ou skill já existente), **PARE** e responda com o template `blocker`.
 
-### 4. Criar e implementar os scripts
+### 4. Propor os subcomandos
 
-Para cada operação determinística, execute:
+Para cada operação determinística, procure um subcomando que já a execute com `vostok --help` e `vostok <grupo> --help`. Use os que existem no SKILL.md, com o comando exato.
 
-```bash
-packages/harness/skills/default/create-skill/scripts/create-skill.sh --script <nome> <nome-do-script>
-```
-
-Depois, implemente o script criado:
-
-- Substitua todas as variáveis `#{...}` do template.
-- Leia valores configuráveis de `config/` com `config_get`, `config_list` e `config_block` (`scripts/lib/config.sh`). Não deixe valores fixos no código.
-- Reaproveite os helpers de `scripts/lib/`.
-- Termine com erro e uma mensagem clara quando a entrada for inválida.
-- Execute o script ao menos uma vez com uma entrada válida e uma inválida.
+Para cada operação sem subcomando, proponha ao usuário um subcomando novo do `vostok`, com o template `question`: o grupo, a ação, os argumentos, o que ele lê e grava, as mensagens de erro e os códigos de saída. **PARE** até o usuário decidir. A implementação do subcomando é feita no código do `vostok`, fora desta skill; até ela existir, o passo da skill descreve a operação para o agente executar.
 
 Pule este passo se a skill não tiver operações determinísticas.
 
@@ -107,8 +97,8 @@ Substitua as variáveis do template:
 | Variável | Conteúdo | Opcional |
 |---|---|---|
 | `#{SKILL_DESCRIPTION}` | Até 1024 caracteres, seguindo [create-skill-04]. Escape aspas duplas com `\"`. | Não |
-| `#{SKILL_ALLOWED_TOOLS}` | Ferramentas liberadas, separadas por espaço. Ex.: `Read Edit Bash(packages/harness/skills/custom/<nome>/scripts/*)` | Sim |
-| `#{SKILL_SCRIPTS}` | Scripts executados pela skill, relativos à raiz do harness. | Sim |
+| `#{SKILL_ALLOWED_TOOLS}` | Ferramentas liberadas, separadas por espaço. Ex.: `Read Edit Bash(vostok *)` | Sim |
+| `#{SKILL_SCRIPTS}` | Subcomandos do `vostok` executados pela skill, separados por vírgula. Ex.: `vostok context load, vostok spec list` | Sim |
 | `#{SKILL_TEMPLATES}` | Templates usados pela skill, relativos à raiz do harness. | Sim |
 | `#{SKILL_TITLE}` | Nome da skill em português, como ação. Ex.: `Revisar código`. | Não |
 | `#{SKILL_SUMMARY}` | Uma frase com o resultado da skill. | Não |
@@ -120,17 +110,17 @@ Substitua as variáveis do template:
 
 Para um campo opcional que não se aplica, remova a linha dele do front-matter. Para uma seção opcional que não se aplica, remova a seção inteira.
 
-O passo 1 da skill criada já vem do template e carrega o contexto dela com `load-extra-context.sh --skill <nome>`. As regras e arquivos da skill são ligados no mapa `skills` do `config/context.yml`, pela `adjust-rules` ou à mão (RN-02); a criação da skill só acrescenta a entrada vazia.
+O passo 1 da skill criada já vem do template e carrega o contexto dela com `vostok context load --skill <nome>`. As regras e arquivos da skill são ligados no mapa `skills` do `config/context.yml`, pela `adjust-rules` ou à mão (RN-02); a criação da skill só acrescenta a entrada vazia.
 
 ### 6. Validar e finalizar
 
 Execute:
 
 ```bash
-packages/harness/skills/default/create-skill/scripts/create-skill.sh --finalize <nome>
+vostok skill finalize <nome>
 ```
 
-O script valida a skill e lista todos os problemas encontrados: variáveis sem preencher, `name` diferente do nome da pasta, `description` vazia, longa demais ou com tags XML, SKILL.md com mais de 500 linhas e caminhos de `metadata` e da entrada da skill no mapa que não existem. Sem problemas, ele gera os redirecionamentos e atualiza o catálogo.
+O comando valida a skill e lista todos os problemas encontrados: variáveis sem preencher, `name` diferente do nome da pasta, `description` vazia, longa demais ou com tags XML, SKILL.md com mais de 500 linhas e caminhos de `metadata` e da entrada da skill no mapa que não existem. Sem problemas, ele gera os redirecionamentos e atualiza o catálogo.
 
 Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
@@ -138,5 +128,5 @@ Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e r
 
 Responda com o template `completion`:
 
-- **O que foi feito:** o caminho do SKILL.md, dos scripts criados e dos redirecionamentos gerados.
-- **Pendências:** as decisões tomadas sem perguntar ([create-skill-07]).
+- **O que foi feito:** o caminho do SKILL.md e dos redirecionamentos gerados.
+- **Pendências:** as decisões tomadas sem perguntar ([create-skill-07]) e os subcomandos propostos no passo 4 que ainda não existem no `vostok`.

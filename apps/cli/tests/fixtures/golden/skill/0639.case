@@ -31,5 +31,5 @@ Skill 'finalize-spec' finalizada.
 @pre 0
 
 @post 209
-W 3bdfc7ec703ddac8537e4329500c887606bcdbf499156625ab77f951202cb2f0 .agents/skills/finalize-spec/SKILL.md
-W 3bdfc7ec703ddac8537e4329500c887606bcdbf499156625ab77f951202cb2f0 .claude/skills/finalize-spec/SKILL.md
+W 3db41b3f86b3422b8e9922f83f7f201b0ebeb2eaab16d337687debea742e2532 .agents/skills/finalize-spec/SKILL.md
+W 3db41b3f86b3422b8e9922f83f7f201b0ebeb2eaab16d337687debea742e2532 .claude/skills/finalize-spec/SKILL.md

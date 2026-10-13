@@ -102,7 +102,7 @@ for s in $DEFAULT_SKILLS create-skill; do
 done
 for s in $DEFAULT_SKILLS; do
   check "CT-05 $s sem requires" bash -c "! grep -q 'requires:' '$H/skills/default/$s/SKILL.md'"
-  check "CT-07 $s com load-extra-context.sh --skill $s" grep -q "load-extra-context.sh --skill $s\$" "$H/skills/default/$s/SKILL.md"
+  check "CT-07 $s com vostok context load --skill $s" grep -q "vostok context load --skill $s\$" "$H/skills/default/$s/SKILL.md"
 done
 
 # --- Memória ---
@@ -1641,7 +1641,7 @@ IHR="$R/ih-rules.txt"
 cp "$H/config/context.yml" "$R/context-ih.orig"
 check "init-harness: finalize da skill" "$C" --finalize init-harness
 check "init-harness: entrada no mapa com os arquivos da skill" bash -c "awk '/^  init-harness:/{f=1;next} f&&/^  [^ ]/{exit} f' '$H/config/context.yml' | grep -q 'templates/rules/category.md'"
-check "init-harness: passo 1 com --skill" grep -qF 'load-extra-context.sh --skill init-harness' "$H/skills/default/init-harness/SKILL.md"
+check "init-harness: passo 1 com --skill" grep -qF 'vostok context load --skill init-harness' "$H/skills/default/init-harness/SKILL.md"
 check "init-harness: redirecionamento gerado" test -f "$R/.claude/skills/init-harness/SKILL.md"
 check "init-harness: carrega o contexto" bash -c "'$CX/load-extra-context.sh' --skill init-harness | grep -q 'rules/project/naming-convention.md'"
 fails "init-harness: sem argumentos" "$IH"
@@ -1773,10 +1773,10 @@ fails "nome reservado" "$C" claude-x
 check "cria skill custom" "$C" review-x
 # CT-08: a skill criada ganha a entrada vazia no mapa e o passo 1 com --skill
 check "CT-08: entrada vazia no mapa" grep -qx '  review-x: \[\]' "$H/config/context.yml"
-check "CT-08: passo 1 com --skill <nome>" grep -qF 'load-extra-context.sh --skill review-x' "$H/skills/custom/review-x/SKILL.md"
+check "CT-08: passo 1 com --skill <nome>" grep -qF 'vostok context load --skill review-x' "$H/skills/custom/review-x/SKILL.md"
 check "CT-08: template sem requires" bash -c "! grep -q requires '$H/skills/custom/review-x/SKILL.md'"
 fails "skill duplicada" "$C" review-x
-check "cria script da skill" "$C" --script review-x list-files
+fails "sem --script: skills não têm scripts" "$C" --script review-x list-files
 fails "finalize com template sem preencher" "$C" --finalize review-x
 s="$H/skills/custom/review-x/SKILL.md"
 python3 - "$s" <<'EOF'
@@ -1784,7 +1784,6 @@ import sys,re; p=sys.argv[1]; s=open(p).read()
 s=s.replace('description: "#{SKILL_DESCRIPTION}"','description: >\n  Revisa código: usa | regras.\n  Use quando pedirem review.')
 s=re.sub(r'  (scripts|templates): .*\n','',s); s=re.sub(r'#\{[A-Z_]+\}','x',s); open(p,'w').write(s)
 EOF
-fill "$H/skills/custom/review-x/scripts/list-files.sh"
 check "finalize com description em bloco" "$C" --finalize review-x
 check "catálogo com a description unida" grep -qF '| review-x | Revisa código: usa \| regras. Use quando pedirem review. |' "$H/context/skill-catalog.md"
 check "redirecionamento preserva o bloco" grep -q '^description: >$' "$R/.claude/skills/review-x/SKILL.md"

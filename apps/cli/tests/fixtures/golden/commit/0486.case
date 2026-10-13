@@ -22,8 +22,8 @@ PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuári
 @exit 1
 1
 @pre 217
-W 1cbc53c88d7b5cda131f75e61dfdc91630067c3ccb014bfad1061603ed817f2c .ack-ok
-W f062e6f3c833fc04eda0d1448c8921e910ea764c4a085ff5252a1b98f2f9f417 packages/harness/.state/commit-ack
+W 0353b5efd178bf037d816b49bcc168ee208510a6c27312b46ea2771675115abf .ack-ok
+W 0546378834afae74f3f1c8517f52b703871ce93313dd98cf3656ca1a3feb6834 packages/harness/.state/commit-ack
 D .git/logs/refs/stash
 D .git/refs/stash
 @post 0

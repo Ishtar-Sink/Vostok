@@ -27,6 +27,6 @@ o campo 'name' do front-matter precisa ser 'review-x', igual ao nome da pasta
 @exit 1
 1
 @pre 115
-W 90af0fddbcb4a8cdd2e776b99773d6606dfb3dcbacb640b5cbf93f8f92fecffd packages/harness/skills/custom/review-x/SKILL.md
+W 2980e9b62b01ac32e522c4c690d5ec430e9e2b34e40c21537c6336b27b439ce9 packages/harness/skills/custom/review-x/SKILL.md
 @post 0
 

@@ -31,5 +31,5 @@ Skill 'init-harness' finalizada.
 @pre 82
 W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b context-ih.orig
 @post 207
-W 555f4f95ec5eca67040e47f30d906422106c5b876305bbe27e51ab067bac3436 .agents/skills/init-harness/SKILL.md
-W 555f4f95ec5eca67040e47f30d906422106c5b876305bbe27e51ab067bac3436 .claude/skills/init-harness/SKILL.md
+W ea4ae3eb333485257836a585817d7e9646938ba1d068fac29494c8aee292b1b6 .agents/skills/init-harness/SKILL.md
+W ea4ae3eb333485257836a585817d7e9646938ba1d068fac29494c8aee292b1b6 .claude/skills/init-harness/SKILL.md

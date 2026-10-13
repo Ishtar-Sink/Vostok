@@ -25,7 +25,7 @@ const MAX_DESCRIPTION_LENGTH: usize = 1024;
 const MAX_SKILL_LINES: usize = 500;
 const RESERVED_WORDS: [&str; 2] = ["anthropic", "claude"];
 /// Chaves de `metadata` com caminhos (relativos à raiz do harness) que precisam existir.
-const METADATA_PATH_KEYS: [&str; 2] = ["scripts", "templates"];
+const METADATA_PATH_KEYS: [&str; 1] = ["templates"];
 const SKILL_FILE: &str = "SKILL.md";
 
 #[derive(Debug, Subcommand)]
@@ -37,8 +37,6 @@ pub enum SkillCommand {
         default: bool,
         name: String,
     },
-    /// Cria um script na pasta da skill.
-    Script { name: String, script: String },
     /// Valida a skill e gera redirecionamentos e catálogo.
     Finalize { name: String },
 }
@@ -73,7 +71,6 @@ pub fn run(command: SkillCommand) -> Result<()> {
             };
             create(&harness, scope, &name)
         }
-        SkillCommand::Script { name, script } => create_script(&harness, &name, &script),
         SkillCommand::Finalize { name } => finalize(&harness, &name),
     }
 }
@@ -202,41 +199,6 @@ fn starts_top_level_key(line: &str) -> bool {
 fn is_blank_or_comment(line: &str) -> bool {
     let trimmed = line.trim_start_matches([' ', '\t']);
     trimmed.is_empty() || trimmed.starts_with('#')
-}
-
-fn create_script(harness: &Harness, name: &str, script: &str) -> Result<()> {
-    let scope = require_scope(harness, name)?;
-    if !is_kebab_case(script) {
-        bail!("nome de script inválido '{script}': use kebab-case (ex.: list-items)");
-    }
-    let target = skill_dir(harness, scope, name)?
-        .join("scripts")
-        .join(format!("{script}.sh"));
-    if target.exists() {
-        bail!("o script já existe: {}", target.display());
-    }
-    let values = HashMap::from([("SCRIPT_NAME", script.to_string())]);
-    write_new(
-        &target,
-        &render_template(harness, "script_template", &values)?,
-    )?;
-    make_executable(&target)?;
-    println!("Script criado em {}", target.display());
-    Ok(())
-}
-
-#[cfg(unix)]
-fn make_executable(path: &Path) -> Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let mut permissions = fs::metadata(path)?.permissions();
-    permissions.set_mode(permissions.mode() | 0o111);
-    fs::set_permissions(path, permissions)
-        .with_context(|| format!("não foi possível tornar {} executável", path.display()))
-}
-
-#[cfg(not(unix))]
-fn make_executable(_path: &Path) -> Result<()> {
-    Ok(())
 }
 
 fn finalize(harness: &Harness, name: &str) -> Result<()> {

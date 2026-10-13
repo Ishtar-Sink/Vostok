@@ -17,16 +17,16 @@ check
 @stderr 348
 Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
 Commits removidos (estavam liberados e saíram do histórico):
-- b2adc43 amend (arquivos: -)
+- 8a94323 amend (arquivos: -)
 PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
 
 @exit 1
 1
 @pre 415
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .cc
-W 8b2718ab2e59ea51bea1eee4e2270188e5a610975aa095cc4cb8091298978d8f .git/ORIG_HEAD
-W 85d9dfa24ac7101d7448649436b809762378569672eb6e4092f288c146f37a65 .git/logs/HEAD
-W 85d9dfa24ac7101d7448649436b809762378569672eb6e4092f288c146f37a65 .git/logs/refs/heads/main
-W 7cc4b3ca1420a6cb9453fbc2eb4d605246cbfb442ed51cb76d9e3ef4afa503b2 .git/refs/heads/main
+W c7eb95ab703c138c5a2e1b6790c30e61ad6bc22371f74b2036e95e168bd02e36 .git/ORIG_HEAD
+W 3b3d345d33a5acdbceb12c1ae81f43452c3002a5a6b327ae4768cd93861a6f68 .git/logs/HEAD
+W 3b3d345d33a5acdbceb12c1ae81f43452c3002a5a6b327ae4768cd93861a6f68 .git/logs/refs/heads/main
+W 9b41f551c582f82741016a58395d4920e4f67fbbee28b1e134d17da206a19277 .git/refs/heads/main
 @post 0
 

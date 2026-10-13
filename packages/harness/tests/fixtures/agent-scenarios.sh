@@ -6,7 +6,9 @@
 #   partem de specs aprovadas (ver `approve`), de um plano de tarefas (ver `plan`), da
 #   SPEC-001 já planejada (ver `planned`), das tarefas dela aprovadas (ver `tasks_approved`,
 #   `failing_verify` e `independent`), da TASK-01 em execução (ver `started`, `changing_baseline`,
-#   `env_verify` e `blocked_by_env`) ou da SPEC-001 implementada (ver `implemented` e `implemented_too`).
+#   `env_verify` e `blocked_by_env`), da SPEC-001 implementada (ver `implemented` e `implemented_too`) ou de
+#   um projeto com código, com banco, sem código ou já inicializado (ver `node_project`, `db_project`,
+#   `empty_project` e `initialized_project`).
 #
 # Uso: tests/fixtures/agent-scenarios.sh <pasta de destino>
 #      Cria <destino>/<cenário> para cada cenário e imprime os caminhos.
@@ -270,8 +272,73 @@ implemented_too() {
   sed -i.bak 's/^status: .*/status: implemented/' "$f" && rm -f "$f.bak"
 }
 
+# Projeto Node/TypeScript com código: `package.json` (TypeScript, ESLint e Vitest), `.eslintrc.json`,
+# `vitest.config.ts` e `src/`. Os sinais ficam na raiz do projeto, onde o `init-harness.sh --detect` procura.
+node_project() {
+  local dir="$1"
+  mkdir -p "$dir/src"
+  cat > "$dir/package.json" <<'JSON'
+{
+  "name": "exemplo-node",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "lint": "eslint src", "test": "vitest run" },
+  "devDependencies": { "typescript": "^5.4.0", "eslint": "^9.0.0", "vitest": "^2.0.0" }
+}
+JSON
+  cat > "$dir/.eslintrc.json" <<'JSON'
+{ "root": true, "extends": ["eslint:recommended"], "rules": { "semi": ["error", "always"], "quotes": ["error", "single"] } }
+JSON
+  cat > "$dir/vitest.config.ts" <<'TS'
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({ test: { include: ['tests/**/*.test.ts'] } });
+TS
+  printf "export function slugify(text: string): string {\n  return text.toLowerCase().trim().replace(/\\s+/g, '-');\n}\n" > "$dir/src/slugify.ts"
+}
+
+# Projeto com banco de dados: pasta `migrations/` e um ORM (TypeORM) no `package.json`.
+db_project() {
+  local dir="$1"
+  mkdir -p "$dir/migrations" "$dir/src"
+  cat > "$dir/package.json" <<'JSON'
+{
+  "name": "exemplo-db",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "typeorm": "^0.3.20", "pg": "^8.11.0" },
+  "devDependencies": { "typescript": "^5.4.0" }
+}
+JSON
+  printf 'CREATE TABLE users (\n  id SERIAL PRIMARY KEY,\n  name TEXT NOT NULL\n);\n' > "$dir/migrations/001_create_users.sql"
+}
+
+# Projeto sem código: nenhum manifesto, configuração nem pasta de código (só o harness).
+empty_project() {
+  local dir="$1"
+  rm -rf "$dir/src" "$dir/migrations" "$dir/tests" "$dir/package.json" "$dir/.eslintrc.json" "$dir/vitest.config.ts"
+}
+
+# Projeto já inicializado: `rules/project/testing.md` com três regras, carregada na `execute-task` e na `finish-task`.
+# Grava pelo próprio `init-harness.sh`, como a skill faria.
+initialized_project() {
+  local ih="$1/packages/harness/skills/default/init-harness/scripts/init-harness.sh" rules
+  rules="$(mktemp)"
+  cat > "$rules" <<'TXT'
+titulo: Testes
+proposito: Define como os testes do projeto são escritos e executados.
+Testes unitários com Vitest, em arquivos `*.test.ts` dentro de `tests/`.
+Todo teste novo é determinístico, sem depender de rede nem do horário.
+Cada teste verifica um único comportamento.
+TXT
+  "$ih" --write testing "$rules" > /dev/null
+  "$ih" --load testing execute-task,finish-task > /dev/null
+  rm -f "$rules"
+}
+
 for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02 ap03 ap04 ap13 \
-  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b tk20 tk21 tk22 tk23 fn01 fn02 fn03; do
+  pl01 pl03 pl06 pl06b pl07 pl11 pl13a pl13b pl13c tk01 tk19 tk04 tk09 tk15 tk16 tk17a tk17b tk20 tk21 tk22 tk23 fn01 fn02 fn03 \
+  rl01 rl02 rl03 rl04 rl05 rl06 rl07 rl08 rl09; do
   rm -rf "${DEST:?}/$scenario"
   cp -R "$B" "$DEST/$scenario"
   case "$scenario" in
@@ -294,6 +361,11 @@ for scenario in ct01 ct02 ct03 ct04 ct05 ct06 ct09 ct13 ct14 ct15 ct16 ap01 ap02
     fn01) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario" ;;
     fn02) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario"; tasks_approved "$DEST/$scenario"; implemented "$DEST/$scenario"; implemented_too "$DEST/$scenario" ;;
     fn03) approve "$DEST/$scenario"; plan "$DEST/$scenario"; planned "$DEST/$scenario" ;;
+    rl01|rl03|rl04) node_project "$DEST/$scenario" ;;
+    rl02) db_project "$DEST/$scenario" ;;
+    rl05|rl06) node_project "$DEST/$scenario"; initialized_project "$DEST/$scenario" ;;
+    rl07|rl08) initialized_project "$DEST/$scenario" ;;
+    rl09) empty_project "$DEST/$scenario" ;;
   esac
   echo "$DEST/$scenario"
 done

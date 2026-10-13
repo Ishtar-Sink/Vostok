@@ -27,6 +27,13 @@ for key in specs decisions issues knowledge; do
   sed -i.bak "s/^$key: .*/$key: 1/" "$H/config/sequences.yml"
 done
 rm -f "$H/config/sequences.yml.bak"
+# Regras de projeto neutras: só as categorias que acompanham o harness (idioma e nomeação). As demais são
+# do projeto que usa o harness e saem da cópia, junto com as entradas do mapa que apontam para elas.
+find "$H/rules/project" -name '*.md' ! -name language.md ! -name naming-convention.md -exec rm -f {} +
+awk -v dir="$H/" '
+  /^[ \t]*- rules\/project\// { path = $0; sub(/^[ \t]*- /, "", path); sub(/[ \t]+#.*$/, "", path); if (system("[ -e \"" dir path "\" ]") != 0) next }
+  { print }
+' "$H/config/context.yml" > "$H/config/context.yml.tmp" && mv "$H/config/context.yml.tmp" "$H/config/context.yml"
 
 M="$H/scripts/default/memory"
 SP="$H/scripts/default/specs"
@@ -89,7 +96,8 @@ expected_map() { # nome da skill -> caminhos esperados, separados por espaço
   esac
 }
 for s in $DEFAULT_SKILLS create-skill; do
-  check "CT-06 mapa de $s bate com a lista esperada" bash -c "[ \"\$(source '$H/scripts/lib/context.sh'; context_skill_entries '$H/config/context.yml' $s | tr '\n' ' ' | sed 's/ \$//')\" = '$(expected_map "$s")' ]"
+  # As regras de projeto ficam fora da comparação: o projeto as liga às skills pela init-harness e pela adjust-rules.
+  check "CT-06 mapa de $s bate com a lista esperada" bash -c "[ \"\$(source '$H/scripts/lib/context.sh'; context_skill_entries '$H/config/context.yml' $s | grep -v '^rules/project/' | tr '\n' ' ' | sed 's/ \$//')\" = '$(expected_map "$s" | tr ' ' '\n' | grep -v '^rules/project/' | tr '\n' ' ' | sed 's/ $//')' ]"
   check "--skill $s roda sem erro" "$CX/load-extra-context.sh" --skill "$s"
 done
 for s in $DEFAULT_SKILLS; do

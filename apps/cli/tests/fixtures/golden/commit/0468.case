@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+3f99117f2ee7
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+3f99117f2ee7
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 99
+Erro: há commits removidos; desfazer não os recupera. Peça ao usuário para decidir como seguir
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

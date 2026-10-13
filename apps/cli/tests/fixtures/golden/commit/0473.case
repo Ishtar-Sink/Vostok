@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+daa6c515d4f7
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+daa6c515d4f7
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 85
+Erro: há commits novos fora da branch main; peça ao usuário para desfazer à mão
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

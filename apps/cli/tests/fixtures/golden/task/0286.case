@@ -1,0 +1,35 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--baseline
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 8
+baseline
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 130
+Erro: a tarefa TASK-01 está com status 'approved'; o baseline só é coletado com status 'in_progress' (execute-task.sh --start)
+
+@exit 1
+1
+@pre 114
+W 6870f512d31324e41e937dff661da157848f757ad75a105a221406fb0399cdc7 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 0
+

@@ -1,0 +1,32 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 105
+Erro: o conteúdo de SPEC-008 tem problemas:
+  - entregas sem nenhuma entrega: use um "### " por entrega
+
+@exit 1
+1
+@pre 117
+W 60e582e05d15381568d1a040ae1104058dc1a2363b7cdcbee2f3c736c42724f4 packages/harness/work/finalize/SPEC-008/content.md
+@post 0
+

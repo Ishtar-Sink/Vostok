@@ -1,0 +1,33 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 4
+--id
+@arg 7
+XYZ-001
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 4
+--id
+@vostok 7
+XYZ-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 54
+Nenhum tipo de memória usa o prefixo do ID 'XYZ-001'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

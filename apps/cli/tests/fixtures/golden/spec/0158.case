@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-007
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-007
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 227
+Spec SPEC-007 marcada como refinada: <ROOT>/packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md
+Status do rascunho alterado para 'refined': <ROOT>/packages/harness/work/specs/draft/SPEC-007-rascunho-protegido.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 133
+W d9a0ba5783b40eca8642b5a567f706db80ce734d84bb818c68a7fc50d5ffa86c packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md
+@post 265
+W 3ea902216fc4543828cfa548d0d14415054526b9bc2f72d2738fdaf4bc02bb25 packages/harness/work/specs/draft/SPEC-007-rascunho-protegido.md
+W b1c4f5362abc046ebb20bac9cb8428efcb701e154e1f3122f119175dbdeee1cd packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md

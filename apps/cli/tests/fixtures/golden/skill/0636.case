@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 11
+adjust-task
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 11
+adjust-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 225
+Redirecionamento: <ROOT>/.claude/skills/adjust-task/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/adjust-task/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'adjust-task' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W 8e355d1448b453ef20d038d116e76ba878e0a9f18025895c6671b7576e491e05 .agents/skills/adjust-task/SKILL.md
+W 8e355d1448b453ef20d038d116e76ba878e0a9f18025895c6671b7576e491e05 .claude/skills/adjust-task/SKILL.md

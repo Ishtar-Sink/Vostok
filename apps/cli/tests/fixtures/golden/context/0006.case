@@ -1,0 +1,76 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 7
+--skill
+@arg 12
+approve-task
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@vostok 12
+approve-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1409
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: rules/project/language.md ---
+
+# Idioma
+
+Define as regras de idioma para o agente.
+
+[project/language-01]: Conteúdo de documentações em `pt-br`.
+[project/language-02]: Nome de documentações em `pt-br`.
+[project/language-03]: Nome de arquivos de código em `en`.
+[project/language-04]: Código em `en`.
+[project/language-05]: Comentários em `pt-br`.
+
+
+
+--- arquivo: templates/responses/question.md ---
+
+---
+name: question
+description: Perguntas que exigem uma decisão do usuário entre opções. Use sempre que precisar parar e perguntar.
+usage: |
+  Todas as perguntas abertas vão numa única mensagem. Repita o bloco da pergunta para cada uma,
+  numerando a partir de 1. Identifique as opções por letras, a partir de A.
+  QUESTION_CONTEXT: o trecho ou a situação que gerou a dúvida e por que ela importa, em até 3 frases.
+  As tabelas trazem só texto relevante para a decisão, sem links ou imagens.
+  A linha de fechamento aparece uma única vez, no fim da mensagem.
+---
+
+# #{QUESTION_NUMBER}. #{QUESTION_TITLE}
+
+#{QUESTION_CONTEXT}
+
+| Opção | Descrição |
+|---|---|
+| A | #{OPTION_DESCRIPTION} |
+| B | #{OPTION_DESCRIPTION} |
+
+Responda com o número e a letra (ex.: 1A, 2B). Caso nenhuma se encaixe, descreva como deseja prosseguir.
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 210
+W 730d9ad8237ee8746978527a8314f71219be78f4dbacb3782fbb50d342888fe4 packages/harness/config/context.yml
+W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b packages/harness/config/context.yml.orig
+@post 0
+

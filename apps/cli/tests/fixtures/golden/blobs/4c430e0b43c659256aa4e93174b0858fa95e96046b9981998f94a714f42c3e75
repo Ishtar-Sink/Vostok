@@ -1,0 +1,28 @@
+---
+type: decision
+title: "Decisões"
+description: "Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade."
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Decisões
+
+Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade.
+
+Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não carregue este arquivo inteiro.
+
+
+## DEC-101: Decisão antes da spec
+
+- **Data:** 2026-01-05
+- **Status:** ativa
+
+## DEC-102: Decisão durante a spec
+
+- **Data:** 2026-01-12
+- **Status:** ativa
+
+## DEC-103: Decisão depois de hoje
+
+- **Data:** 2999-01-01
+- **Status:** ativa

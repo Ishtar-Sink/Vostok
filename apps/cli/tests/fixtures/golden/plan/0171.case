@@ -1,0 +1,38 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 325
+Erro: o plano de SPEC-008 tem problemas:
+variável sem preencher: 17:#{PLAN_OVERVIEW}
+variável sem preencher: 23:#{PLAN_TASKS}
+variável sem preencher: 29:#{PLAN_FACTS}
+a tabela de tarefas está vazia
+RF-01 não é coberto por nenhuma tarefa
+RF-02 não é coberto por nenhuma tarefa
+CT-01 não é coberto por nenhuma tarefa
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

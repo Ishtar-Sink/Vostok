@@ -1,0 +1,38 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 81
+Erro: a tarefa TASK-01 tem problemas:
+TASK-01: a subseção 'Passos' está vazia
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,42 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@arg 18
+ajuste em approved
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@vostok 18
+ajuste em approved
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 189
+Ajuste 2 registrado em TASK-02: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-02.md
+Aprovação de TASK-02 derrubada: o status voltou para 'pending'; aprove-a de novo antes de executar.
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W f9ff6b8152208f222b671e77289ae48be99496c2d94347a910e35041e08baba8 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 114
+W 0c7f5f49ed5bfad85fc3bfdaf7d6eb72df0e245afc86dc9b6a1f0eb4ce7c3e1f packages/harness/work/tasks/SPEC-008/TASK-02.md

@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 18
+Rascunho protegido
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 18
+Rascunho protegido
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 91
+SPEC-007 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-007-rascunho-protegido.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 236
+W dfec610d11b03b6b05a2834b6d4449898bf45d6b3349b04fe7f75d6093b5bb66 packages/harness/config/sequences.yml
+W 301440041be42d85c63a3161f4307eda3e699195ed91d1c1829230723a4d3b93 packages/harness/work/specs/draft/SPEC-007-rascunho-protegido.md

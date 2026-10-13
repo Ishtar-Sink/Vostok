@@ -1,0 +1,33 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-009
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 65
+Ajuste manual 1 registrado no plano de SPEC-009: Edição manual
+
+@stderr 0
+
+@exit 1
+0
+@pre 106
+W fe2702ed7ab96a91650b267625735b7d3bcdb01c4c9b653a952a992d95cb4248 packages/harness/work/plans/SPEC-009.md
+@post 106
+W b5b6e452ecfc935c8b25624d097d9578c05e67057dcabfb05f1beedeeb81f2f1 packages/harness/work/plans/SPEC-009.md

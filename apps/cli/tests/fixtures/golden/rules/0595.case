@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--remove
+@arg 3
+api
+@arg 1
+2
+@vostok 5
+rules
+@vostok 6
+remove
+@vostok 3
+api
+@vostok 1
+2
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 60
+Regra [project/api-02] marcada como removida em 2026-09-30.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 104
+W b3eac80223240815fd458458200212cdefd36fa8e39320ed3a271fb5df0544ed packages/harness/rules/project/api.md

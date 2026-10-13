@@ -1,0 +1,34 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 5
+issue
+@arg 21
+a|b & c\d "x" /tmp/á
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 5
+issue
+@vostok 21
+a|b & c\d "x" /tmp/á
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 105
+ISS-001 criada em <ROOT>/packages/harness/memory/issues.md:14. Preencha as variáveis #{...} da entrada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W ab4c85affe2a592087a9da5810b443618cf3226ce0000383c3a0c1b7c1766c97 packages/harness/config/sequences.yml
+W 26d5d4d54084f8326030eb7268c2939e112a57037149df52b6457508d3ad6b38 packages/harness/memory/issues.md

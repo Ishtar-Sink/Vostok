@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 9
+--approve
+@arg 12
+3f99117f2ee7
+@vostok 6
+commit
+@vostok 7
+approve
+@vostok 12
+3f99117f2ee7
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

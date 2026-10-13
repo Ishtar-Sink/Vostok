@@ -1,0 +1,21 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 78
+Erro: Uso: approve-task.sh --validate|--approve <SPEC_ID> <TASK_ID ...>|--all
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

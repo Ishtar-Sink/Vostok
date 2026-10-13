@@ -1,0 +1,87 @@
+---
+id: TASK-03
+spec: SPEC-009
+title: "c"
+effort: simples
+depends_on: [TASK-02]
+covers: []
+type: tarefa
+labels: [SPEC-009, simples]
+status: pending
+content_hash: c12e78b88deeb8074f71ee121cec39758c74fedd010958e022638c7fd4e28c0e
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-03: c
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (remover): substituído.
+
+### Passos
+
+1. Criar o script.
+
+### Baseline
+
+- `true`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok`
+
+### Concluída quando
+
+- [ ] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+## Descrição
+
+### Resumo executivo
+
+Entrega o script que permite exportar dados.
+
+### Detalhes técnicos
+
+Abordagem em bash, com referência a RF-01.
+
+### Card
+
+- **Título:** c
+- **Tipo:** tarefa
+- **Descrição:** Cria o script.
+- **Critérios de aceite:**
+  - [ ] O script existe.
+- **Rótulos:** SPEC-009, simples
+- **Estimativa:** simples
+- **Bloqueada por:** TASK-02
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

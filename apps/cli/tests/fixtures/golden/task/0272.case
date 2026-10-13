@@ -1,0 +1,41 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@arg 1
+x
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@vostok 1
+x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 94
+Erro: a tarefa TASK-02 está com status 'done'; tarefas com status 'done' não são ajustadas
+
+@exit 1
+1
+@pre 114
+W d9b15a69b5d3f2c0f0527cd7adaa0639cbbeb396f371b83803deb6e8d0ecbbf5 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

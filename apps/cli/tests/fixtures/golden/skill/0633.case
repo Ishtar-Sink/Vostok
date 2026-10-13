@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 12
+approve-plan
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 12
+approve-plan
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 228
+Redirecionamento: <ROOT>/.claude/skills/approve-plan/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/approve-plan/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'approve-plan' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 207
+W cd178ddd206197ed20743a798e8b687f65e12d10970cbbe1b022e438390a2a0e .agents/skills/approve-plan/SKILL.md
+W cd178ddd206197ed20743a798e8b687f65e12d10970cbbe1b022e438390a2a0e .claude/skills/approve-plan/SKILL.md

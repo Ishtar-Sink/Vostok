@@ -1,0 +1,35 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--tests
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 5
+tests
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 118
+Testes de TASK-02 passaram. Saída: <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-02/validation/tests.out
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 114
+W 2564028439e663bf99437f1d5cac78bb3f8459069112a0ab7a0a3eb722075e7f packages/harness/work/tasks/SPEC-008/TASK-02.md

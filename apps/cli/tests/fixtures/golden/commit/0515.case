@@ -1,0 +1,40 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@arg 5
+x.txt
+@vostok 6
+commit
+@vostok 6
+commit
+@vostok 5
+x.txt
+@cwd 9
+<OUTSIDE>
+@stdin 9
+feat: c3
+
+@stdout 0
+
+@stderr 106
+Erro: já há commits sem liberação; mostre-os ao usuário e libere ou desfaça antes de um commit novo
+
+@exit 1
+1
+@pre 869
+W c3c0efef93e93fca007191f53aab0ed7f67d57d0406ac14f40c19ca3936c6231 .git/COMMIT_EDITMSG
+W 2f94e8e4b7e2c7a7b298c47cca0de0d03a43a9fc54ab1f078ce4f10bb2dc9764 .git/index.ls
+W 6ec7640b6c9dfa725da2a62a052b6b7e50882c57aa805b3ab76cf9ce2a5c8fd1 .git/logs/HEAD
+W 351e1bc7dfc6b38535229c50031d207db9c5097ba50e687cf084ba620459f08c .git/logs/refs/heads/main
+W 6fb34143374b9b66fcf4ee6b1a594f1859470d19c21f851fb9fcae72e33e149d .git/objects/06/8874d44b80d93342b5985d0780c9a3d528d6e1
+W 80c0e1313b3ea737763856ebb6b6dee4a3a7a1c6b7996bc4a1068201aedf6763 .git/objects/58/7be6b4c3f93f93c489c0111bba5596147a26cb
+W d7abe24c31c5e93fb52c5313df5bc945b8d604bfbb5dfac2d0a3607465f64bc6 .git/objects/b7/241cb63ded08f3d777dbf0c14213527d1b1688
+W 1bd1e167cbfe6c9df4dfbec5e33696fe9ba1bb08b83dac958dce5026bc1bba50 .git/refs/heads/main
+W 73cb3858a687a8494ca3323053016282f3dad39d42cf62ca4e79dda2aac7d9ac x.txt
+@post 0
+

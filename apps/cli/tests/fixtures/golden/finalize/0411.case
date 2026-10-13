@@ -1,0 +1,35 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 7
+--build
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 5
+build
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 131
+Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
+  - executivo.html
+  - tecnico.html
+  - evidencias.html
+
+@stderr 0
+
+@exit 1
+0
+@pre 95
+W f6f6e85673e19f486a97196c2f32d67671242fe8299e415a09d8d7fe5d712943 nao/existe/doc.md
+D .fin-doc
+@post 119
+W 91050c2effc4fe3180e7ec13d306ab8d0e864e110d094621b3340372002a7457 packages/harness/work/finalize/SPEC-008/tecnico.html

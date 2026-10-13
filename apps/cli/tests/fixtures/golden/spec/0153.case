@@ -1,0 +1,38 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-006
+@arg 14
+RF-01 ajustado
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-006
+@vostok 14
+RF-01 ajustado
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 163
+Ajuste 1 registrado em SPEC-006: <ROOT>/packages/harness/work/specs/refined/SPEC-006-aprovar.md
+Aprovação de SPEC-006 derrubada: o status voltou para 'refined'.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 122
+W dbb18546d637568154fe709a43f2941213883f33ea1092882a99db95546ecafd packages/harness/work/specs/refined/SPEC-006-aprovar.md

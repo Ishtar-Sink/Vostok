@@ -1,0 +1,65 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--archive
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+archive
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 147
+Spec SPEC-008 arquivada em packages/harness/work/.archive/SPEC-008, com status 'archived'.
+Executivo e técnico publicados em docs/specs/SPEC-008.
+
+@stderr 0
+
+@exit 1
+0
+@pre 164
+W d4d9ae78b9c62ee49eb5efec28dd658ebf5d2efaeb05238c1574a670b2d88eb5 .arc-exec
+W 77f8d8f8d76c58a61d1dc226e4f432f18304b6bf462771b85c8c8bd0730a05e1 .arc-r8
+D docs/specs
+@post 3134
+W d4d9ae78b9c62ee49eb5efec28dd658ebf5d2efaeb05238c1574a670b2d88eb5 docs/specs/SPEC-008/executivo.html
+W 5081a8114261a66f084702fedee6a79728607a12a7ebdcd0d2a814e4da7305e3 docs/specs/SPEC-008/tecnico.html
+W 17a71a212c8c02ce15d22b4a79483beaca6257caa74127c9679b20c00216ac20 packages/harness/work/.archive/SPEC-008/content.md
+W aec493f5429a48aa9fd398b2def7dea3078e1847fd31d810227c26f7bae3731b packages/harness/work/.archive/SPEC-008/docs/assets/TASK-01/Nome com espaço.zip
+W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 packages/harness/work/.archive/SPEC-008/docs/assets/TASK-01/pacote.zip
+W d22871e35e93c46202a94b5779bb02a494b6854d992edef2e2835c8a80260070 packages/harness/work/.archive/SPEC-008/docs/evidencias.html
+W d4d9ae78b9c62ee49eb5efec28dd658ebf5d2efaeb05238c1574a670b2d88eb5 packages/harness/work/.archive/SPEC-008/docs/executivo.html
+W 5081a8114261a66f084702fedee6a79728607a12a7ebdcd0d2a814e4da7305e3 packages/harness/work/.archive/SPEC-008/docs/tecnico.html
+W fecee2615f95abe2f7cce049adbd328351194ddaca27c8a0ad1f929f61ec2574 packages/harness/work/.archive/SPEC-008/spec.md
+W 0b22309540d692e2716e81448520963e0767c81df6e7e2f7990850a09b0601a3 packages/harness/work/.archive/SPEC-008/tasks/TASK-01.md
+W ff7195ac7d38586fc57ba711719ffcf8e953a435ea65a4760c58aa15dbf11781 packages/harness/work/.archive/SPEC-008/tasks/TASK-02.md
+W aec493f5429a48aa9fd398b2def7dea3078e1847fd31d810227c26f7bae3731b packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/Nome com espaço.zip
+W 0f6a9f6d127b5589550f0eae2400e8190a2aec4e06817072ce03203f02c6dbd1 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/foto.png
+W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/pacote.zip
+W 77a72d578fba569c94579b1ba9f03e22ea4d264f0a29150dcdd50c508c1e1e52 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/saida.log
+W dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22 packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/saida.txt
+W c81ca5eda5947c7826ad046fdbdc2a25a846b835a6c34c237cc8b3afbe9ec6cc packages/harness/work/.archive/SPEC-008/tasks/evidence/TASK-01/video.mp4
+D packages/harness/work/finalize/SPEC-008/assets/TASK-01/Nome com espaço.zip
+D packages/harness/work/finalize/SPEC-008/assets/TASK-01/pacote.zip
+D packages/harness/work/finalize/SPEC-008/content.md
+D packages/harness/work/finalize/SPEC-008/evidencias.html
+D packages/harness/work/finalize/SPEC-008/executivo.html
+D packages/harness/work/finalize/SPEC-008/tecnico.html
+D packages/harness/work/specs/refined/SPEC-008-planejar.md
+D packages/harness/work/tasks/SPEC-008/TASK-01.md
+D packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/Nome com espaço.zip
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/foto.png
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/pacote.zip
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.log
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/video.mp4

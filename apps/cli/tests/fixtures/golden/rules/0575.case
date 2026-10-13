@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 6
+--load
+@arg 7
+testing
+@arg 6
+always
+@vostok 5
+rules
+@vostok 4
+load
+@vostok 7
+testing
+@vostok 6
+always
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 47
+Registrado: rules/project/testing.md (sempre).
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W 5ab120f699cc827b2f549ce097a142fb849c6e95de0441f38964892b77206950 packages/harness/config/context.yml

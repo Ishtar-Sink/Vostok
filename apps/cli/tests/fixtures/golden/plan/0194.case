@@ -1,0 +1,33 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--create-tasks
+@arg 8
+SPEC-006
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+create-tasks
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 79
+Erro: a spec SPEC-006 não tem plano de tarefas. Crie-o com a skill plan-tasks
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,35 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--baseline
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 8
+baseline
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 143
+Erro: o baseline de TASK-01 já foi coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline; ele não é sobrescrito
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

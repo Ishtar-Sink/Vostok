@@ -1,0 +1,40 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 4
+--id
+@arg 7
+KNW-003
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 4
+--id
+@vostok 7
+KNW-003
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 165
+## KNW-003: Comum 1
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

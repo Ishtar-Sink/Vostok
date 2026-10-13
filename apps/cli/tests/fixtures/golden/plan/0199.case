@@ -1,0 +1,69 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--mark-planned
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+mark-planned
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 2537
+Erro: o plano de SPEC-008 não pode ser concluído; nada foi alterado:
+TASK-01: variável sem preencher: 28:#{TASK_READ}
+TASK-01: variável sem preencher: 32:#{TASK_CHANGE}
+TASK-01: variável sem preencher: 36:#{TASK_STEPS}
+TASK-01: variável sem preencher: 40:#{TASK_BASELINE}
+TASK-01: variável sem preencher: 44:#{TASK_VERIFY}
+TASK-01: variável sem preencher: 48:#{TASK_EVIDENCE}
+TASK-01: variável sem preencher: 52:#{TASK_DONE}
+TASK-01: variável sem preencher: 58:#{TASK_EXECUTIVE_SUMMARY}
+TASK-01: variável sem preencher: 62:#{TASK_TECHNICAL_DETAILS}
+TASK-01: variável sem preencher: 68:- **Descrição:** #{TASK_CARD_DESCRIPTION}
+TASK-01: variável sem preencher: 70:#{TASK_CARD_CRITERIA}
+TASK-01: 'Mudar' sem nenhum item no formato: - `caminho` (ação): motivo
+TASK-01: 'Concluída quando' com linha fora do formato: #{TASK_DONE}
+TASK-01: 'Concluída quando' sem nenhum critério no formato de checkbox: - [ ] critério
+TASK-01: 'Baseline' com item fora do formato: #{TASK_BASELINE} (use: - `comando`)
+TASK-01: 'Baseline' sem nenhum item no formato: - `comando`
+TASK-01: 'Evidências' com item fora do formato: #{TASK_EVIDENCE} (use: - `arquivo` (automática): `comando` ou - `arquivo` (manual): descrição)
+TASK-01: 'Evidências' sem nenhum item no formato e sem o texto 'Não se aplica.'
+TASK-02: variável sem preencher: 28:#{TASK_READ}
+TASK-02: variável sem preencher: 32:#{TASK_CHANGE}
+TASK-02: variável sem preencher: 36:#{TASK_STEPS}
+TASK-02: variável sem preencher: 40:#{TASK_BASELINE}
+TASK-02: variável sem preencher: 44:#{TASK_VERIFY}
+TASK-02: variável sem preencher: 48:#{TASK_EVIDENCE}
+TASK-02: variável sem preencher: 52:#{TASK_DONE}
+TASK-02: variável sem preencher: 58:#{TASK_EXECUTIVE_SUMMARY}
+TASK-02: variável sem preencher: 62:#{TASK_TECHNICAL_DETAILS}
+TASK-02: variável sem preencher: 68:- **Descrição:** #{TASK_CARD_DESCRIPTION}
+TASK-02: variável sem preencher: 70:#{TASK_CARD_CRITERIA}
+TASK-02: 'Mudar' sem nenhum item no formato: - `caminho` (ação): motivo
+TASK-02: 'Concluída quando' com linha fora do formato: #{TASK_DONE}
+TASK-02: 'Concluída quando' sem nenhum critério no formato de checkbox: - [ ] critério
+TASK-02: 'Baseline' com item fora do formato: #{TASK_BASELINE} (use: - `comando`)
+TASK-02: 'Baseline' sem nenhum item no formato: - `comando`
+TASK-02: 'Evidências' com item fora do formato: #{TASK_EVIDENCE} (use: - `arquivo` (automática): `comando` ou - `arquivo` (manual): descrição)
+TASK-02: 'Evidências' sem nenhum item no formato e sem o texto 'Não se aplica.'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

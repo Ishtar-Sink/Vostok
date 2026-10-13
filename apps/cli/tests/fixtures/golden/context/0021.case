@@ -1,0 +1,317 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 7
+--skill
+@arg 13
+finalize-spec
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@vostok 13
+finalize-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 8856
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: config/specs.yml ---
+
+# Configurações das especificações (specs).
+# Variáveis de template usam o formato `#{NOME}`. Valores com `#{` precisam de aspas.
+
+# ID no formato <prefixo>-<número com `digits` dígitos>. Ex.: SPEC-001.
+# O número vem de `specs` em `sequences.yml`.
+id:
+  prefix: SPEC
+  digits: 3
+
+# Valores do campo `status` no front-matter, em cada etapa.
+status:
+  draft: draft
+  refined: refined
+  approved: approved
+  planned: planned
+  implemented: implemented   # todas as tarefas da spec concluídas (finish-task.sh --finish)
+  archived: archived         # spec finalizada e arquivada (finalize-spec.sh --archive)
+
+# --- Rascunho (create-new-spec.sh) ---
+
+# Template da nova spec, relativo a `paths.templates` (main.yml).
+template: spec/new.md
+
+# Pasta dentro de `paths.specs` (main.yml) onde a nova spec é criada.
+# A spec fica aqui como rascunho até ser aprovada.
+draft_dir: draft
+
+# Nome do arquivo criado em `draft_dir`.
+# Variáveis: #{SPEC_ID}, #{SPEC_SLUG} (título em minúsculas, sem acentos, separado por hífens).
+file_name: "#{SPEC_ID}-#{SPEC_SLUG}.md"
+
+# Front-matter que substitui `#{FRONT_MATTER}` no template. Os `---` são adicionados pelo script.
+# Variáveis: #{SPEC_ID}, #{SPEC_TITLE}, #{SPEC_STATUS} (status.draft), #{AUTHOR},
+# #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+front_matter: |
+  id: #{SPEC_ID}
+  title: "#{SPEC_TITLE}"
+  status: #{SPEC_STATUS}
+  author: "#{AUTHOR}"
+  created_at: #{DATETIME}
+  updated_at: #{DATETIME}
+  tags: []
+
+# --- Refinada (create-refined-spec.sh) ---
+
+# Template da spec refinada, relativo a `paths.templates` (main.yml). A variável #{SECTIONS}
+# recebe as seções do tipo da spec, lidas de `sections_dir`.
+refined_template: spec/refined.md
+
+# Pasta dos templates de seção da spec, relativa a `paths.templates`. Cada seção é um arquivo
+# `<seção>.md` que começa com o título `## ...` e tem uma variável para o conteúdo.
+sections_dir: spec/sections
+
+# Tipos de spec aceitos no refinamento.
+types:
+  - feature      # recurso novo
+  - improvement  # melhoria de algo que já existe
+  - fix          # correção de defeito
+  - study        # estudo ou investigação, sem entrega de código
+  - analysis     # análise de um problema ou de uma teoria, em tese, antítese e síntese
+
+# Seções da spec refinada de cada tipo, na ordem em que aparecem.
+# Núcleo presente em todos os tipos: objective, scope, assumptions, risks, acceptance-criteria, references.
+sections_feature:
+  - objective
+  - scope
+  - functional-requirements
+  - non-functional-requirements
+  - business-rules
+  - flows
+  - edge-cases
+  - contracts
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_improvement:
+  - objective
+  - current-state
+  - scope
+  - functional-requirements
+  - non-functional-requirements
+  - business-rules
+  - flows
+  - edge-cases
+  - contracts
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_fix:
+  - objective
+  - defect
+  - scope
+  - functional-requirements
+  - edge-cases
+  - affected-components
+  - assumptions
+  - risks
+  - test-cases
+  - acceptance-criteria
+  - references
+
+sections_study:
+  - objective
+  - scope
+  - research-questions
+  - assumptions
+  - risks
+  - acceptance-criteria
+  - references
+
+sections_analysis:
+  - objective
+  - scope
+  - thesis
+  - antithesis
+  - synthesis
+  - assumptions
+  - risks
+  - acceptance-criteria
+  - references
+
+# Pasta dentro de `paths.specs` (main.yml) onde a spec refinada é criada, com o mesmo nome do rascunho.
+refined_dir: refined
+
+# Front-matter da spec refinada: parte do front-matter do rascunho, e as chaves abaixo
+# substituem as de mesmo nome ou são acrescentadas no fim.
+# Variáveis: #{SPEC_STATUS} (status.refined), #{SPEC_TYPE} (um dos `types`),
+# #{SOURCE_PATH} (rascunho, relativo a `paths.specs`), #{DATE} (AAAA-MM-DD), #{DATETIME} (ISO 8601, UTC).
+refined_front_matter: |
+  type: #{SPEC_TYPE}
+  status: #{SPEC_STATUS}
+  source: "#{SOURCE_PATH}"
+  refined_at: #{DATETIME}
+  updated_at: #{DATETIME}
+  adjustments: 0
+  adjusted_at: null
+
+# Campo do front-matter da refinada com o hash do conteúdo que vem depois do front-matter.
+# Gravado ao marcar a spec como refinada e a cada ajuste; um hash diferente indica edição manual.
+content_hash_field: content_hash
+
+# --- Ajuste (adjust-spec.sh) ---
+
+# Seção fixa do histórico de ajustes, em `sections_dir`. Ela fica no fim da refinada e
+# recebe uma linha por ajuste, sempre escrita pelo script.
+adjustment_history_section: adjustment-history
+
+# Origem registrada no histórico: edição feita à mão ou ajuste feito pelo agente.
+adjustment_origins:
+  manual: manual
+  agent: agente
+
+# Resumo de um ajuste manual. Se o arquivo estiver versionado no git, o script acrescenta
+# as seções alteradas desde o último commit. Ex.: "Edição manual: Riscos, Casos de teste".
+manual_adjustment_summary: Edição manual
+
+# Título da seção de pendências da refinada (templates/spec/refined.md), sem `## `.
+# Uma pendência aberta é uma linha de dados cuja primeira coluna é diferente de `-`.
+pending_heading: Pendências
+
+# --- Aprovação (approve-spec.sh) ---
+
+# Campos do front-matter gravados na aprovação: a data e o hash do conteúdo aprovado
+# (igual a `content_hash_field` no momento da aprovação). Um ajuste grava `null` nos dois.
+approved_at_field: approved_at
+approved_hash_field: approved_hash
+
+# --- Finalização (finalize-spec.sh) ---
+
+# Template do arquivo de conteúdo dos documentos, relativo a `paths.templates` (main.yml).
+finalize_content_template: finalize/content.md
+
+# Nomes dos documentos HTML gerados para cada spec.
+finalize_documents:
+  executive: executivo.html
+  technical: tecnico.html
+  evidence: evidencias.html
+
+
+--- arquivo: config/documents.yml ---
+
+# Configurações dos documentos HTML gerados pela finalização de specs (finalize-spec.sh).
+# Os valores seguem o subconjunto de YAML lido por scripts/lib/config.sh: sem níveis além de `grupo.chave`
+# e com listas em itens `- valor`. Cores e fontes são a única fonte da identidade visual dos documentos.
+
+# Limite, em megabytes, para embutir uma evidência (imagem ou vídeo) no HTML em base64.
+# Acima dele, o arquivo vai para `assets/` ao lado do documento e é citado por link.
+embed_max_mb: 10
+
+# Extensões (sem o ponto) de cada tipo de evidência. O texto aparece escapado num bloco de código;
+# imagens e vídeos são embutidos até o limite; qualquer outra extensão vai para `assets/`.
+text_extensions:
+  - out
+  - txt
+  - log
+  - md
+  - json
+
+image_extensions:
+  - png
+  - jpg
+  - jpeg
+  - gif
+  - webp
+  - svg
+
+video_extensions:
+  - mp4
+  - webm
+
+# Tokens de cor. Cada chave vira a variável CSS `--<chave com hífens>` (ex.: color_surface_2 vira
+# `--color-surface-2`). Os documentos abrem no tema escuro (`:root`); o tema claro entra por
+# `data-theme="light"`. Paleta roxa derivada de docs/mapa-vostok.html, com a base do escuro um pouco mais clara.
+# `*_soft` são fundos suaves da mesma cor; `primary_ink` é o texto sobre a cor principal; `head*` são o
+# gradiente, o texto e o texto secundário do cabeçalho em faixa, escuro nos dois temas.
+dark:
+  color_bg: "#1a1528"
+  color_surface: "#231d35"
+  color_surface_2: "#2b2440"
+  color_ink: "#ece8f5"
+  color_muted: "#a39cb8"
+  color_line: "#3a3252"
+  color_primary: "#a78bfa"
+  color_primary_ink: "#150f22"
+  color_primary_soft: "#352a55"
+  color_ok: "#5ccf9f"
+  color_ok_soft: "#173027"
+  color_warn: "#f0a45a"
+  color_warn_soft: "#33251a"
+  color_crit: "#ef7b86"
+  color_crit_soft: "#3a1c22"
+  color_diff_add: "#5ccf9f"
+  color_diff_add_soft: "#173027"
+  color_diff_del: "#ef7b86"
+  color_diff_del_soft: "#3a1c22"
+  color_head: "#17112a"
+  color_head_2: "#34255c"
+  color_head_ink: "#f5f1ff"
+  color_head_muted: "#b9afd6"
+
+light:
+  color_bg: "#f7f5fb"
+  color_surface: "#ffffff"
+  color_surface_2: "#f1edf8"
+  color_ink: "#1d1729"
+  color_muted: "#6a6280"
+  color_line: "#e3ddee"
+  color_primary: "#6d28d9"
+  color_primary_ink: "#ffffff"
+  color_primary_soft: "#ede5fb"
+  color_ok: "#047857"
+  color_ok_soft: "#e3f4ec"
+  color_warn: "#b45309"
+  color_warn_soft: "#fdf1e3"
+  color_crit: "#b91c3c"
+  color_crit_soft: "#fbe5ea"
+  color_diff_add: "#047857"
+  color_diff_add_soft: "#e3f4ec"
+  color_diff_del: "#b91c3c"
+  color_diff_del_soft: "#fbe5ea"
+  color_head: "#1c1430"
+  color_head_2: "#38235f"
+  color_head_ink: "#ffffff"
+  color_head_muted: "#cdc2ee"
+
+# Fontes do sistema, sem requisições externas. Valem nos dois temas e viram `--font-<chave>`.
+font:
+  body: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

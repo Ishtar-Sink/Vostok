@@ -1,0 +1,4 @@
+titulo: Testes
+proposito: Define como o projeto testa.
+- Testes com vitest.
+Cada módulo tem testes.

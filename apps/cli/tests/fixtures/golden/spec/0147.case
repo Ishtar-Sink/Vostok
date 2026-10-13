@@ -1,0 +1,35 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 167
+Spec SPEC-006 aprovada: <ROOT>/packages/harness/work/specs/refined/SPEC-006-aprovar.md
+Rascunho removido: <ROOT>/packages/harness/work/specs/draft/SPEC-006-aprovar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 178
+W 032c50fe8efe5bc0846ef101a796aeadb95b9a641939166a7baff7b43549574a packages/harness/work/specs/refined/SPEC-006-aprovar.md
+D packages/harness/work/specs/draft/SPEC-006-aprovar.md

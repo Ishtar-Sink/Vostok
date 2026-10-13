@@ -1,0 +1,33 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 142
+Erro: o conteúdo de SPEC-008 tem problemas:
+  - TASK-01: evidência ausente: packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+
+@exit 1
+1
+@pre 183
+W 59d3c8d8b6b1e287afa313bd2fca8cffa104c608057da2873e6b7e45f72a83d6 packages/harness/work/finalize/SPEC-008/content.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+@post 0
+

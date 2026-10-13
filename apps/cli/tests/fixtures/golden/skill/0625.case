@@ -1,0 +1,34 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 99
+Erro: a skill 'review-x' tem problemas:
+skills.review-x: 'rules/project/nao-existe.md' não existe
+
+@exit 1
+1
+@pre 293
+W 6344a318ab51cb9678da8aa2307c3447b5e09594eda979a0b30cf8f7d8bb62f2 ctx.tmp
+W 6344a318ab51cb9678da8aa2307c3447b5e09594eda979a0b30cf8f7d8bb62f2 packages/harness/config/context.yml
+W c8858a2137cb99b36e06e10505bc9e7cd96ff38e18d12f0f567f073e121b0d56 packages/harness/skills/custom/review-x/SKILL.md
+@post 0
+

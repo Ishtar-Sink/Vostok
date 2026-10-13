@@ -1,0 +1,36 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 6
+--load
+@arg 7
+testing
+@arg 9
+review-ih
+@vostok 5
+rules
+@vostok 4
+load
+@vostok 7
+testing
+@vostok 9
+review-ih
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 50
+Registrado: rules/project/testing.md (review-ih).
+
+@stderr 0
+
+@exit 1
+0
+@pre 180
+W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b ctx-ih.bak
+W fa8a0312c1efe1a0183713edfde8eb6eb2e0673f0f15ca2554cfe3a00b2d1c79 packages/harness/config/context.yml
+@post 102
+W fb5ef6536db8ca7a7b7484c974d34d3ded2cf131356a94414a02930b63d57801 packages/harness/config/context.yml

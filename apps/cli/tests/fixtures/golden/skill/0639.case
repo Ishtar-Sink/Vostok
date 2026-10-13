@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 13
+finalize-spec
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 13
+finalize-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 231
+Redirecionamento: <ROOT>/.claude/skills/finalize-spec/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/finalize-spec/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'finalize-spec' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 209
+W 3bdfc7ec703ddac8537e4329500c887606bcdbf499156625ab77f951202cb2f0 .agents/skills/finalize-spec/SKILL.md
+W 3bdfc7ec703ddac8537e4329500c887606bcdbf499156625ab77f951202cb2f0 .claude/skills/finalize-spec/SKILL.md

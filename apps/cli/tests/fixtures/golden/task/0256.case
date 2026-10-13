@@ -1,0 +1,37 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 55
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 114
+W c443709609fbdbf49533d6cd63ade23d7a5affdd70b9cefe597b4bee7595eaf3 packages/harness/work/tasks/SPEC-008/TASK-01.md

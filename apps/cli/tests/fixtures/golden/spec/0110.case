@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 12
+Só rascunho
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 12
+Só rascunho
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 84
+SPEC-005 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-005-so-rascunho.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 229
+W 5babf64c541af30f6a25ac0fb7d03757aa0efed1ce819ff633a60a9937e42dec packages/harness/config/sequences.yml
+W 96bef08df65ac07e238c1991eb4db316fbeae8475fd32a9cdc911168cd4462b9 packages/harness/work/specs/draft/SPEC-005-so-rascunho.md

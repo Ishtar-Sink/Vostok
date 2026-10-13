@@ -1,0 +1,26 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 158
+W debeb5cb3796a9e258d1f6fa591f7d5ff44ed1621d5d97627454f151966b4131 .git/HEAD
+W 8f891c11f4926c254fa1fdfea49002a74e3e5efda8e87392e5c208222b688fde .git/logs/HEAD
+@post 0
+

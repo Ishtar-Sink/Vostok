@@ -1,0 +1,32 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 348
+Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
+Commits removidos (estavam liberados e saíram do histórico):
+- 9e4f9b9 amend (arquivos: -)
+PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
+
+@exit 1
+1
+@pre 415
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .cc
+W 9257fabef79fb1ab336034c6c34fbea9ddad24e16283044b75dc443b0c295263 .git/ORIG_HEAD
+W ee3f2bc797202b33fc452bfba429bad849a8f1289ccde0a5d6f8a4bbf9e34240 .git/logs/HEAD
+W ee3f2bc797202b33fc452bfba429bad849a8f1289ccde0a5d6f8a4bbf9e34240 .git/logs/refs/heads/main
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/heads/main
+@post 0
+

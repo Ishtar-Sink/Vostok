@@ -1,0 +1,40 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 14
+RF-01 ajustado
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 14
+RF-01 ajustado
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 164
+Ajuste 1 registrado em SPEC-008: <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+Aprovação de SPEC-008 derrubada: o status voltou para 'refined'.
+
+@stderr 0
+
+@exit 1
+0
+@pre 277
+W d8a442564760507b199a6ce94ef7633443ec48a75f001869dad505233d700df6 packages/harness/work/plans/SPEC-008.md.ok
+W a68c76ebc7ff8188bf3821a10b39e513da049be2cf8e582b8347a1d21d9c403f packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/TASK-02.md.ok
+@post 123
+W 281d98a2e4343ea62575246fd4e94e166426fb349d9c95f76fa862f26b96fa66 packages/harness/work/specs/refined/SPEC-008-planejar.md

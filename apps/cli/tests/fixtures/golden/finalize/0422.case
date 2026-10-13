@@ -1,0 +1,33 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 7
+--build
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 5
+build
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 162
+awk: fatal: cannot open file `<ROOT>/packages/harness/templates/finalize/technical.html' for reading: No such file or directory
+Erro: falha ao gerar tecnico.html
+
+@exit 1
+1
+@pre 133
+W b530e83342e95f1ed8ce4c6f8d254c6fb2435ef69da5a0783a997ff5accf5f3c .technical-ok
+D packages/harness/templates/finalize/technical.html
+@post 0
+

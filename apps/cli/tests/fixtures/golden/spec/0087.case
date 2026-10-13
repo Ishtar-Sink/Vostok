@@ -1,0 +1,34 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 8
+validate
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 241
+Erro: a spec refinada SPEC-001 tem problemas:
+'nao/existe.sh' não existe em <ROOT>; use a ação 'criar' ou corrija o caminho
+'AGENTS.md' já existe; use a ação 'alterar'
+ação inválida para 'x.sh': 'mover' (use: criar alterar remover)
+
+@exit 1
+1
+@pre 125
+W 2c39a8f6719cd368afa851472fe4b4d479318b4cca81ea03b5337c9ea4d5cb12 packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+@post 0
+

@@ -1,0 +1,37 @@
+@script 16
+update-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 7
+ISS-099
+@arg 6
+Status
+@arg 6
+aberto
+@vostok 6
+memory
+@vostok 6
+update
+@vostok 7
+ISS-099
+@vostok 6
+Status
+@vostok 6
+aberto
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 82
+Erro: entrada ISS-099 não encontrada em <ROOT>/packages/harness/memory/issues.md
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

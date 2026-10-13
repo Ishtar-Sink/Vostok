@@ -1,0 +1,39 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 9
+--approve
+@arg 12
+dc2ebb6e6c87
+@vostok 6
+commit
+@vostok 7
+approve
+@vostok 12
+dc2ebb6e6c87
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 118
+Erro: o repositório mudou desde a verificação (código atual: 3f99117f2ee7); mostre os commits ao usuário de novo
+
+@exit 1
+1
+@pre 872
+W 7023ba0781f9da4beb9ea74a6172b359fb0a832c085893c4f3de020a2aa8e10f .git/COMMIT_EDITMSG
+W e1b24edd3aed3aa340cbd2b629e596b072a16e254c14a23fc735d5b1582e71f7 .git/index.ls
+W 582c4199233618be11b841952fa3e583248288b83d4acec34b4bcca5059811e8 .git/logs/HEAD
+W 582c4199233618be11b841952fa3e583248288b83d4acec34b4bcca5059811e8 .git/logs/refs/heads/main
+W eea82d8c3b3bced81a765cf6c1489eff6783ef1986224a001e201ea99bbf1b15 .git/objects/b2/5af8c415aaf8d9055b4e473b7511e5dbd24d51
+W d617ead67777b77d9c0bff864630b24364e9c3e46995b468ecaf8f46e8eba6b4 .git/objects/b7/a29e9d04371c3de73262481b2fd48907faae2e
+W df64c1bfb753139f0e454d7b99b440ee58e1c402af68604b3303683114fca3e3 .git/objects/f3/5d57744f733eef10d4ef679fbd03b5cccebe4b
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/heads/main
+W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 dois.txt
+@post 0
+

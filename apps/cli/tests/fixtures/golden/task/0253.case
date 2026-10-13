@@ -1,0 +1,37 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 79
+Tarefa TASK-01 válida: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-01.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

@@ -1,0 +1,31 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 6
+create
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 155
+Mapa de contexto atualizado: <ROOT>/packages/harness/config/context.yml
+Skill 'review-x' criada em <ROOT>/packages/harness/skills/custom/review-x/SKILL.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 218
+W 791dff9416201e9a486c90f58d43594928418ba1a4793c79bedaf87d966863dd packages/harness/config/context.yml
+W 8f1ce542abf9e97ca89b2d0b98e8fa18a5a4e11b944202bf7fc60a0c9906b346 packages/harness/skills/custom/review-x/SKILL.md

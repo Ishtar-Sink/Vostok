@@ -1,0 +1,6 @@
+Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário
+Comandos com resultado diferente do baseline (saídas em /tmp/vostok-golden-root/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):
+- cat estado.txt
+    < um
+    ---
+    > dois

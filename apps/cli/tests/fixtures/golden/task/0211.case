@@ -1,0 +1,87 @@
+@script 12
+load-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 4
+load
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 798
+---
+id: TASK-02
+spec: SPEC-008
+title: "Documentar"
+effort: complexa
+depends_on: [TASK-01]
+covers: [RF-02]
+type: historia
+labels: [SPEC-008, complexa]
+status: pending
+content_hash: 5f4ac17c4b053119d3348cd7d98f9ec7a2a89bf9b0e4b5298bfa37e3051eb3f3
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (criar): script novo.
+- `AGENTS.md` (alterar): cita o script.
+
+### Passos
+
+1. Criar o script.
+
+### Baseline
+
+- `true`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok`
+
+### Concluída quando
+
+- [ ] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+@stderr 0
+
+@exit 1
+0
+@pre 77
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .task-load
+@post 0
+

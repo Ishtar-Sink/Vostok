@@ -1,0 +1,37 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-001
+@arg 3
+   
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-001
+@vostok 3
+   
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 37
+Erro: o resumo do ajuste está vazio
+
+@exit 1
+1
+@pre 125
+W 7e845cb8ed319ff04adb42ec5e51199dd143e2208613e9ea7c9a361ec1a1e305 packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+@post 0
+

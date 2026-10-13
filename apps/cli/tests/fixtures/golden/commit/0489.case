@@ -1,0 +1,29 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 6
+--show
+@vostok 6
+commit
+@vostok 4
+show
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 110
+Referência de commits inválida:
+linha fora do formato 'hash ref': lixo
+Código de liberação: 53682a12908c
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

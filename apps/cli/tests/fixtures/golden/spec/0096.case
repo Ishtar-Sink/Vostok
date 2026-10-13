@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-002
+@vostok 4
+spec
+@vostok 8
+validate
+@vostok 8
+SPEC-002
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 114
+Erro: a spec refinada SPEC-002 tem problemas:
+T-02 ('Tese') não é considerado em nenhuma conclusão da síntese
+
+@exit 1
+1
+@pre 250
+W 5003364c926f1ed1d38e8220b7b394dcbdc6d10050f31bb3cdcba16e5513795a packages/harness/work/specs/refined/SPEC-002-analise.md
+W f14e3147b5a08f5de678099eae7dc157c44aa9a21922ea2d9c64b76656a77677 packages/harness/work/specs/refined/SPEC-002-analise.md.orig
+@post 0
+

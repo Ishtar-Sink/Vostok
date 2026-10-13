@@ -1,0 +1,35 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 9
+knowledge
+@arg 7
+Comum 3
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 9
+knowledge
+@vostok 7
+Comum 3
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 108
+KNW-005 criada em <ROOT>/packages/harness/memory/knowledge.md:50. Preencha as variáveis #{...} da entrada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 211
+W 7bb2102d48d1b2643a032db49eabc37169f4a8dd85d9ee2a4873c1ccda0489e7 packages/harness/memory/knowledge.md
+W 1b86febfa250341060b91100cc73ec1e1223ec03113395bf1c9090d5ccbf80f7 packages/harness/memory/knowledge.md.bak
+@post 208
+W 58cbbf49188eef685f07600c8a20250bcab4e0def5113cb2ce0b38c9efbf39ce packages/harness/config/sequences.yml
+W d16debf0ed74140af59c3c13bb114377845313680690f1befd9d378d49d2a6f4 packages/harness/memory/knowledge.md

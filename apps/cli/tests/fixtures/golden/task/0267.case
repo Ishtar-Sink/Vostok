@@ -1,0 +1,41 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@arg 17
+ajuste em pending
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@vostok 17
+ajuste em pending
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 87
+Ajuste 1 registrado em TASK-02: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-02.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 114
+W fd4adc0d5114eb563e637b518236315bfd61169db1f17ed1ea8a5fcd136c04ee packages/harness/work/tasks/SPEC-008/TASK-02.md

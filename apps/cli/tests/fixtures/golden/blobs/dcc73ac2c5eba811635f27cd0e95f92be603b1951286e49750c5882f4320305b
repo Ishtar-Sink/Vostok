@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Altera um campo de uma entrada da memória do agente, sem tocar no resto do arquivo.
+# # Os valores de Status e Categoria são validados contra `config/memory.yml`.
+# #
+# # Uso: update-memory.sh <ID> <Campo> "Valor"
+# #        Ex.: update-memory.sh DEC-001 Status substituída
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+# source "$HARNESS_DIR/scripts/lib/memory.sh"
+# 
+# USAGE='Uso: update-memory.sh <ID> <Campo> "Valor"'
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# # Falha se o valor não estiver na lista de valores aceitos.
+# require_allowed() {
+#   local list_key="$1" value="$2" allowed
+#   allowed="$(config_list "$MEMORY_CONFIG" "$list_key")"
+#   grep -qxF "$value" <<< "$allowed" ||
+#     die "valor inválido '$value'. Aceitos: $(tr '\n' ',' <<< "$allowed" | sed 's/,$//; s/,/, /g')"
+# }
+# 
+# [ $# -eq 3 ] || die "$USAGE"
+# entry_id="$1" field="$2" value="$3"
+# 
+# type="$(memory_type_for_id "$entry_id")" || exit 1
+# file="$(memory_file "$type")"
+# [ -f "$file" ] || die "arquivo de memória não encontrado: $file"
+# 
+# case "$field" in
+#   Status) require_allowed "${type}_statuses" "$value" ;;
+#   Categoria) require_allowed "${type}_categories" "$value" ;;
+# esac
+# 
+# tmp="$(mktemp)"
+# status=0
+# FIELD_VALUE="$value" awk -v header="## $entry_id:" -v prefix="- **$field:** " '
+#   index($0, header) == 1 { inside = 1; found_entry = 1; print; next }
+#   /^## / { inside = 0 }
+#   inside && index($0, prefix) == 1 { print prefix ENVIRON["FIELD_VALUE"]; found_field = 1; next }
+#   { print }
+#   END { exit !found_entry ? 2 : !found_field ? 3 : 0 }
+# ' "$file" > "$tmp" || status=$?
+# 
+# case "$status" in
+#   0) cat "$tmp" > "$file"; rm -f "$tmp" ;;
+#   2) rm -f "$tmp"; die "entrada $entry_id não encontrada em $file" ;;
+#   3) rm -f "$tmp"; die "a entrada $entry_id não tem o campo '$field'" ;;
+#   *) rm -f "$tmp"; die "falha ao atualizar $file" ;;
+# esac
+# 
+# frontmatter_set "$file" updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# echo "$entry_id: $field = $value"

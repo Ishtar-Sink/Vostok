@@ -1,0 +1,31 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--next-id
+@arg 3
+api
+@vostok 5
+rules
+@vostok 7
+next-id
+@vostok 3
+api
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 15
+project/api-03
+
+@stderr 0
+
+@exit 1
+0
+@pre 104
+W c7607683b6e501d1817e93beb4a753ff24db8525967eb472177e8c2578d4bb72 packages/harness/rules/project/api.md
+@post 0
+

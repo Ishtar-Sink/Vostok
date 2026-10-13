@@ -1,0 +1,29 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+1
+@arg 7
+--skill
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 42
+Uso: load-extra-context.sh --skill <nome>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

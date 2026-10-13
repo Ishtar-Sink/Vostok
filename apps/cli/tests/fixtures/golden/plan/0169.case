@@ -1,0 +1,31 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+create
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 75
+Plano de SPEC-008 criado em <ROOT>/packages/harness/work/plans/SPEC-008.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 123
+W 846f637050c647f117732d6781ba2719dbe8ed18cdb4218c422c402eaf49938a packages/harness/work/specs/refined/SPEC-008-planejar.md
+@post 106
+W 98efd86bd497fa0de2a24649097f9f5ff03eb6ceb297f7b6cc2b78ff56509ea6 packages/harness/work/plans/SPEC-008.md

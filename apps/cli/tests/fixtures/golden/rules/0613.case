@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--unload
+@arg 3
+api
+@arg 12
+approve-spec
+@vostok 5
+rules
+@vostok 6
+unload
+@vostok 3
+api
+@vostok 12
+approve-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 42
+Categoria 'api' retirada de approve-spec.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W 53036017cf1fe7d7f3856a293c88174cacd55c8aec10b08ab5281358c2c8be35 packages/harness/config/context.yml

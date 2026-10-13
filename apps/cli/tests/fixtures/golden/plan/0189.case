@@ -1,0 +1,35 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 160
+Erro: o plano de SPEC-008 tem problemas:
+TASK-02: nível "moderada" diferente do calculado "simples" (execute --score)
+RF-02 não é coberto por nenhuma tarefa
+
+@exit 1
+1
+@pre 106
+W e6b07445e650a71cf115b0caa4d7af632fbaae28347fd19861a60a81255d38f6 packages/harness/work/plans/SPEC-008.md
+@post 0
+

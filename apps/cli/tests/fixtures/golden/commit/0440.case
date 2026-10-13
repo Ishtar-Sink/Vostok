@@ -1,0 +1,25 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 75
+W 14b33f34490a5d1d31fdda4168aa741748842d1ad549cdf67885de969273f0a9 base.txt
+@post 0
+

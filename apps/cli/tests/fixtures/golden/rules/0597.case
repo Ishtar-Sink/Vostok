@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--remove
+@arg 3
+api
+@arg 2
+02
+@vostok 5
+rules
+@vostok 6
+remove
+@vostok 3
+api
+@vostok 2
+02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 50
+Erro: a regra [project/api-02] já está removida
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

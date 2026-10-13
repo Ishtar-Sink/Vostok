@@ -1,0 +1,30 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@vostok 6
+commit
+@vostok 6
+commit
+@cwd 9
+<OUTSIDE>
+@stdin 12
+feat: vazio
+
+@stdout 53
+On branch main
+nothing to commit, working tree clean
+
+@stderr 41
+Erro: o commit falhou; nada foi liberado
+
+@exit 1
+1
+@pre 0
+
+@post 86
+W deec5e1788516cf7b651f8cf3cc0ba6af4b397e94bb2c3d4a688ae950439981e .git/COMMIT_EDITMSG

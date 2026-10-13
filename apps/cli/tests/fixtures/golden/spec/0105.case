@@ -1,0 +1,31 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-004
+@vostok 4
+spec
+@vostok 8
+validate
+@vostok 8
+SPEC-004
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 143
+Erro: spec refinada SPEC-004 não encontrada em <ROOT>/packages/harness/work/specs/refined. Crie-a com: create-refined-spec.sh SPEC-004 <tipo>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

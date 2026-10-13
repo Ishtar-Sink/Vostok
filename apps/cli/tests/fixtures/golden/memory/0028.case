@@ -1,0 +1,26 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 6
+--init
+@vostok 6
+memory
+@vostok 4
+init
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

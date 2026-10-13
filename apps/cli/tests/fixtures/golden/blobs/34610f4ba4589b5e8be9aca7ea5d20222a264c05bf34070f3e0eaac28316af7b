@@ -1,0 +1,125 @@
+---
+id: SPEC-007
+title: "Rascunho protegido"
+status: refined
+author: "Victor Batalha"
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+tags: []
+type: feature
+source: "draft/SPEC-007-rascunho-protegido.md"
+refined_at: 2026-10-01T00:00:00Z
+adjustments: 0
+adjusted_at: null
+---
+
+# Rascunho protegido - Especificação Refinada
+
+#{SPEC_SUMMARY}
+
+## Objetivo
+
+#{OBJECTIVE}
+
+## Escopo
+
+### Dentro do escopo
+
+#{SCOPE_IN}
+
+### Fora do escopo
+
+#{SCOPE_OUT}
+
+## Requisitos funcionais
+
+| ID | Requisito |
+|---|---|
+#{FUNCTIONAL_REQUIREMENTS}
+
+## Requisitos não funcionais
+
+| ID | Requisito | Como verificar |
+|---|---|---|
+#{NON_FUNCTIONAL_REQUIREMENTS}
+
+## Regras de negócio
+
+| ID | Regra |
+|---|---|
+#{BUSINESS_RULES}
+
+## Fluxos
+
+### Fluxo principal
+
+#{MAIN_FLOW}
+
+### Fluxos alternativos
+
+#{ALTERNATIVE_FLOWS}
+
+## Casos de borda
+
+| ID | Situação | Comportamento esperado | Requisitos |
+|---|---|---|---|
+#{EDGE_CASES}
+
+## Contratos e interfaces
+
+#{CONTRACTS}
+
+## Componentes afetados
+
+| Caminho | Ação | Motivo |
+|---|---|---|
+#{AFFECTED_COMPONENTS}
+
+## Premissas e dependências
+
+#{ASSUMPTIONS}
+
+## Riscos
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+#{RISKS}
+
+## Casos de teste
+
+| ID | Cenário | Passos | Resultado esperado | Requisitos |
+|---|---|---|---|---|
+#{TEST_CASES}
+
+## Critérios de aceite
+
+#{ACCEPTANCE_CRITERIA}
+
+## Referências
+
+| Tipo | Referência | Uso |
+|---|---|---|
+#{REFERENCES}
+
+## O que mudou
+
+| # | Assunto | Estado no Original | Estado Refinado |
+|---|---|---|---|
+#{WHAT_CHANGED}
+
+## Registro de decisões
+
+| # | Decisão | Alternativa descartada | Motivo |
+|---|---|---|---|
+#{DECISIONS}
+
+## Pendências
+
+| # | Pendência | Opções em aberto |
+|---|---|---|
+#{PENDING}
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

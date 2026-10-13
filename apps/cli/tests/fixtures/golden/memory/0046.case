@@ -1,0 +1,42 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 4
+--id
+@arg 7
+ISS-002
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 4
+--id
+@vostok 7
+ISS-002
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 198
+## ISS-002: Porta ocupada
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** rede
+- **Categoria:** -
+- **Assinatura:** `EADDRINUSE :::3000`
+- **Ambiente:** -
+- **Causa:** -
+- **Solução:** -
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

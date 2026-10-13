@@ -1,0 +1,32 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 8
+validate
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 110
+Erro: a spec refinada SPEC-001 tem problemas:
+ID de requisito funcional inválido: 'R1' (use RF-01, RF-02...)
+
+@exit 1
+1
+@pre 125
+W a95b1e88b4fe599e73c2d430171874aa5c915b04f65f70b0cce53228d5708a3f packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+@post 0
+

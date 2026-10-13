@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 6
+--load
+@arg 3
+api
+@arg 6
+always
+@vostok 5
+rules
+@vostok 4
+load
+@vostok 3
+api
+@vostok 6
+always
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 37
+Categoria 'api' carregada em always.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W 11dcb17940d91cefc7bbd9b9dfd9cf2a7ca6e6b8143cc5193b78406bc425c413 packages/harness/config/context.yml

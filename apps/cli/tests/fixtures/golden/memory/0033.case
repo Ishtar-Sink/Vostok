@@ -1,0 +1,36 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 5
+issue
+@arg 3
+a
+b
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 5
+issue
+@vostok 3
+a
+b
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 110
+O título não pode ter quebra de linha
+Erro: título inválido. Uso: add-memory.sh <tipo> "Título" | --init
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,33 @@
+@script 13
+check-done.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 10
+check-done
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 84
+Erro: a tarefa TASK-02 não tem critérios de conclusão em '### Concluída quando'
+
+@exit 1
+1
+@pre 114
+W f8d6a13ec76ebf299a4fae3da82f13c1866fa378172ba551b1ac165b81680746 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

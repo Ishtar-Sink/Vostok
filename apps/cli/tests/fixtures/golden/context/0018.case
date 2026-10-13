@@ -1,0 +1,36 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 7
+--skill
+@arg 12
+approve-spec
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@vostok 12
+approve-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 141
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

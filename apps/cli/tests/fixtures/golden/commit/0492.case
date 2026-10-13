@@ -1,0 +1,27 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 389
+Erro: a referência de commits liberados é inválida (<ROOT>/packages/harness/.state/commit-ack):
+commit liberado não existe mais no repositório: 0123456789012345678901234567890123456789 refs/heads/main
+PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
+
+@exit 1
+1
+@pre 101
+W 4f365e3d54b55a1e32d82b7573ea4625f7620f4ed64d908ea7279bfa33093f86 packages/harness/.state/commit-ack
+@post 0
+

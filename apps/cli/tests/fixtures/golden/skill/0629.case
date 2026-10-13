@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 11
+adjust-spec
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 11
+adjust-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 225
+Redirecionamento: <ROOT>/.claude/skills/adjust-spec/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/adjust-spec/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'adjust-spec' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W 02fda9bba40135f89f46de932307651cd876db1d00e66b41f7da3147b5ac9a4b .agents/skills/adjust-spec/SKILL.md
+W 02fda9bba40135f89f46de932307651cd876db1d00e66b41f7da3147b5ac9a4b .claude/skills/adjust-spec/SKILL.md

@@ -1,0 +1,34 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 186
+Spec SPEC-008 aprovada: <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+Rascunho de SPEC-008 não encontrado em <ROOT>/packages/harness/work/specs/draft; nada a remover.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 123
+W 47fe6f522ffb9063341c14c1db79d112099a9cf447bf8b6393db414a94207788 packages/harness/work/specs/refined/SPEC-008-planejar.md

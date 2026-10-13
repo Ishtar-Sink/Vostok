@@ -1,0 +1,25 @@
+@script 13
+check-done.sh
+@group 4
+task
+@usage 1
+0
+@vostok 4
+task
+@vostok 10
+check-done
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 45
+Erro: Uso: check-done.sh <SPEC_ID> <TASK_ID>
+
+@exit 1
+1
+@pre 77
+W 116452252e1b3009c1712eb9cab5483fb9cc7da5b18e0e842f36f865486ba344 .task-load
+@post 0
+

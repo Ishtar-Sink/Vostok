@@ -1,0 +1,36 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 12
+--regression
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 10
+regression
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 100
+Erro: o baseline de TASK-01 não foi coletado; execute: execute-task.sh --baseline SPEC-008 TASK-01
+
+@exit 1
+1
+@pre 183
+W dd4a3ca5858c3f82c4ae554d6b35dd4890f2d478a04f0d0768a40b3e25aa74c4 .sem-baseline/TASK-01.md
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 .sem-baseline/TASK-02.md
+@post 0
+

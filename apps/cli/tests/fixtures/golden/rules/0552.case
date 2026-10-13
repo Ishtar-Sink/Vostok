@@ -1,0 +1,23 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+1
+@arg 5
+--foo
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 171
+Erro: Uso: init-harness.sh --detect | --write <categoria> <arquivo-de-regras> | --preview <categoria> <arquivo-de-regras> | --load <categoria> always|<skill>[,<skill>...]
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

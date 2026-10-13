@@ -1,0 +1,83 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 7
+--build
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 5
+build
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 131
+Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
+  - executivo.html
+  - tecnico.html
+  - evidencias.html
+
+@stderr 0
+
+@exit 1
+0
+@pre 2073
+W 91050c2effc4fe3180e7ec13d306ab8d0e864e110d094621b3340372002a7457 .fin-docs/tecnico.html
+D .git/COMMIT_EDITMSG
+D .git/HEAD
+D .git/config
+D .git/description
+D .git/hooks/applypatch-msg.sample
+D .git/hooks/commit-msg.sample
+D .git/hooks/fsmonitor-watchman.sample
+D .git/hooks/post-update.sample
+D .git/hooks/pre-applypatch.sample
+D .git/hooks/pre-commit.sample
+D .git/hooks/pre-merge-commit.sample
+D .git/hooks/pre-push.sample
+D .git/hooks/pre-rebase.sample
+D .git/hooks/pre-receive.sample
+D .git/hooks/prepare-commit-msg.sample
+D .git/hooks/push-to-checkout.sample
+D .git/hooks/sendemail-validate.sample
+D .git/hooks/update.sample
+D .git/index.ls
+D .git/info/exclude
+D .git/logs/HEAD
+D .git/logs/refs/heads/main
+D .git/objects/00/040ecbd7f3810cb876e49749bdd0ed35dffb9f
+D .git/objects/07/e4f4ff982d7447d558e6dc29c0fa8503f6e69e
+D .git/objects/0c/faf954cfdd342f7352a56d515c00db6e8949d6
+D .git/objects/19/5dad9cae59961f90b5a2984d310fb80f5bf311
+D .git/objects/1a/23e4be731d2f539deeea324686d000ccdfbfcd
+D .git/objects/22/f55379f698fe4b3e56d64a144b1ad1930b5570
+D .git/objects/36/aa88a18a0af71ff47fb14035d9bc7a8ce88b4a
+D .git/objects/41/b0bb9697f1896611b6865a592f8b4756694a7e
+D .git/objects/5f/33bd93403180f241104440bbd9817897dea5c1
+D .git/objects/61/30505077eb892a30488c853793c680861bd7ca
+D .git/objects/84/b3426f202e10a08d47ace52a3c1ccd720ea918
+D .git/objects/9b/0cfb887032ba59eefca106f3050aa367f23729
+D .git/objects/a2/6bb024d216246fea3b0c7172ee3e013a7467e2
+D .git/objects/bf/ed08a08c5164b563d849904e8d042a56b7dd02
+D .git/objects/c1/f81905f9cabe7c828ae5f5cfcc7c809157349d
+D .git/objects/ce/e61c46a66dbe59a5c9404aa31f97f844b39842
+D .git/objects/cf/9de66bce27590d170e50cdb5426a1a6a5f5515
+D .git/objects/d3/73304078db9869e8e8befef359eee8020bbe33
+D .git/objects/d9/09ddec4f595d681d802585d8a0e0c00136a07f
+D .git/objects/df/4a6051c524cd9d1c759a23247d1556c2ce85f4
+D .git/objects/e0/0675b317b5cd0e6b15f997158d4472a7e04dd0
+D .git/objects/e8/873ca8bad29d9c6515fbcc7b3e9694e81f3603
+D .git/refs/heads/main
+D nao/existe/bin.dat
+D nao/existe/doc.md
+D nao/existe/igual.txt
+D nao/existe/novo.sh
+@post 119
+W c2f7f7219a84ee87b512f4774de73b826399008f3203084f5507fc52fd3ebe1a packages/harness/work/finalize/SPEC-008/tecnico.html

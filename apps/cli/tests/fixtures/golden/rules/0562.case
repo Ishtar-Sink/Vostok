@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 7
+--write
+@arg 7
+testing
+@arg 19
+<ROOT>/ih-vazio.txt
+@vostok 5
+rules
+@vostok 5
+write
+@vostok 7
+testing
+@vostok 19
+<ROOT>/ih-vazio.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 70
+Erro: o arquivo de regras não tem nenhuma regra: <ROOT>/ih-vazio.txt
+
+@exit 1
+1
+@pre 79
+W 863e57d2a201d47d7283385254f033a1fe29485bdc09cdca855742c017af932a ih-vazio.txt
+@post 0
+

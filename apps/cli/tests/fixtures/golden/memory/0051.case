@@ -1,0 +1,37 @@
+@script 16
+update-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 7
+ISS-001
+@arg 9
+Categoria
+@arg 4
+nada
+@vostok 6
+memory
+@vostok 6
+update
+@vostok 7
+ISS-001
+@vostok 9
+Categoria
+@vostok 4
+nada
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 150
+Erro: valor inválido 'nada'. Aceitos: código, build, dependência, ambiente, configuração, rede, permissão, teste, dados, ferramenta, desempenho
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

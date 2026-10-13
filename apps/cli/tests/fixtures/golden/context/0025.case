@@ -1,0 +1,104 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 7
+--skill
+@arg 12
+create-skill
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@vostok 12
+create-skill
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1665
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: rules/project/naming-convention.md ---
+
+# Convenção de Nomeações
+
+Define as regras de nomeação para o agente.
+
+[project/naming-convention-01]: Arquivos em `kebab-case`.
+[project/naming-convention-02]: Diretórios em `kebab-case`.
+[project/naming-convention-03]: Variáveis ambiente em `SCREAMING_SNAKE`.
+[project/naming-convention-04]: Classes em `PascalCase`.
+[project/naming-convention-05]: Removida em 2026-10-13.
+[project/naming-convention-06]: Chaves de objetos em `snake_case`.
+[project/naming-convention-07]: Métodos, funções, variáveis e constantes em `camelCase` no TypeScript e no JavaScript.
+[project/naming-convention-08]: No Rust, funções, métodos, variáveis e módulos em `snake_case`, tipos em `PascalCase` e constantes em `SCREAMING_SNAKE`.
+
+
+--- arquivo: templates/skill/skill.md ---
+
+---
+name: #{SKILL_NAME}
+description: "#{SKILL_DESCRIPTION}"
+allowed-tools: #{SKILL_ALLOWED_TOOLS}
+metadata:
+  version: "1.0.0"
+  author: "#{AUTHOR}"
+  scripts: "#{SKILL_SCRIPTS}"
+  templates: "#{SKILL_TEMPLATES}"
+---
+
+# #{SKILL_TITLE}
+
+#{SKILL_SUMMARY}
+
+## Termos
+
+#{SKILL_TERMS}
+
+## Regras
+
+#{SKILL_RULES}
+
+## Checklist
+
+Copie e marque o progresso:
+
+```
+#{SKILL_CHECKLIST}
+```
+
+## Passos
+
+### 1. Carregar o contexto
+
+Execute:
+
+```bash
+packages/harness/scripts/default/context/load-extra-context.sh --skill #{SKILL_NAME}
+```
+
+#{SKILL_STEPS}
+
+## Formatos de resposta
+
+Respostas ao usuário usam os templates de `templates/responses/`. Formatos próprios desta skill:
+
+#{SKILL_RESPONSE_FORMATS}
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

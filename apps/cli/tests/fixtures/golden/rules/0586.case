@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 17
+--create-category
+@arg 3
+api
+@arg 3
+API
+@vostok 5
+rules
+@vostok 15
+create-category
+@vostok 3
+api
+@vostok 3
+API
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 232
+Erro: Uso: adjust-rules.sh --next-id <categoria> | --remove <categoria> <NN> | --create-category <categoria> <título> <propósito> | --load <categoria> always|<skill>[,<skill>...] | --unload <categoria> always|<skill>[,<skill>...]
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Operações determinísticas da skill adjust-rules sobre as regras do projeto (`rules/project/`)
+# # e sobre o mapa de contexto (`config/context.yml`). Escreve só o que a operação pede;
+# # a decisão de criar, alterar ou remover uma regra é do usuário (feita pela skill).
+# #
+# # Uso: adjust-rules.sh --next-id <categoria>
+# #        Imprime o próximo ID livre da categoria (`project/<categoria>-NN`), contando as removidas.
+# #      adjust-rules.sh --remove <categoria> <NN>
+# #        Marca a regra como `[project/<categoria>-NN]: Removida em AAAA-MM-DD.`. O ID não é reaproveitado.
+# #      adjust-rules.sh --create-category <categoria> <título> <propósito>
+# #        Cria `rules/project/<categoria>.md` a partir do template, sem regras.
+# #      adjust-rules.sh --load <categoria> always|<skill>[,<skill>...]
+# #        Registra a categoria em `required` (always) ou na entrada de cada skill do mapa.
+# #      adjust-rules.sh --unload <categoria> always|<skill>[,<skill>...]
+# #        Retira a categoria de `required` (always) ou da entrada de cada skill do mapa.
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/text.sh"
+# 
+# MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+# SKILLS_CONFIG="$HARNESS_DIR/config/skills.yml"
+# CONTEXT_CONFIG="$HARNESS_DIR/config/context.yml"
+# 
+# USAGE='Uso: adjust-rules.sh --next-id <categoria> | --remove <categoria> <NN> | --create-category <categoria> <título> <propósito> | --load <categoria> always|<skill>[,<skill>...] | --unload <categoria> always|<skill>[,<skill>...]'
+# 
+# # Pasta das regras do projeto, relativa à raiz do harness (a mesma citada em `required`).
+# RULES_REL="rules/project"
+# # Template de categoria, relativo à pasta de templates.
+# CATEGORY_TEMPLATE="rules/category.md"
+# NAME_PATTERN='^[a-z0-9]+(-[a-z0-9]+)*$'
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# # Falha se o nome da categoria não estiver em kebab-case (RN-05).
+# check_category_name() {
+#   [[ "$1" =~ $NAME_PATTERN ]] ||
+#     die "categoria inválida '$1': use kebab-case (ex.: code-style)"
+# }
+# 
+# # Imprime o caminho do arquivo da categoria; falha se ele não existir.
+# category_file() {
+#   local file="$HARNESS_DIR/$RULES_REL/$1.md"
+#   [ -f "$file" ] || die "a categoria '$1' não existe: $RULES_REL/$1.md"
+#   printf '%s' "$file"
+# }
+# 
+# # Imprime o próximo número livre (dois dígitos): maior NN já usado, inclusive das removidas, mais 1.
+# next_number() {
+#   awk -v pre="[project/$2-" '
+#     index($0, pre) == 1 {
+#       n = substr($0, length(pre) + 1, 2)
+#       if (n ~ /^[0-9][0-9]$/ && substr($0, length(pre) + 3, 3) == "]: " && n + 0 > max) max = n + 0
+#     }
+#     END { printf "%02d", max + 1 }
+#   ' "$1"
+# }
+# 
+# cmd_next_id() {
+#   [ $# -eq 1 ] || die "$USAGE"
+#   check_category_name "$1"
+#   category_file "$1" > /dev/null
+#   printf 'project/%s-%s\n' "$1" "$(next_number "$(category_file "$1")" "$1")"
+# }
+# 
+# cmd_remove() {
+#   [ $# -eq 2 ] || die "$USAGE"
+#   local category="$1" number="$2" file id tmp today
+#   check_category_name "$category"
+#   [[ "$number" =~ ^[0-9]{1,2}$ ]] || die "número de regra inválido '$number': use 1 ou 2 dígitos (ex.: 03)"
+#   file="$(category_file "$category")"
+#   id="$(printf 'project/%s-%02d' "$category" "$((10#$number))")"
+#   today="$(date +%Y-%m-%d)"
+# 
+#   grep -qF "[$id]: " "$file" || die "a regra [$id] não existe em $RULES_REL/$category.md"
+#   if grep -qE "^\[$id\]: Removida em [0-9]{4}-[0-9]{2}-[0-9]{2}\.\$" "$file"; then
+#     die "a regra [$id] já está removida"
+#   fi
+# 
+#   tmp="$(mktemp)"
+#   awk -v id="[$id]: " -v new="[$id]: Removida em $today." '
+#     index($0, id) == 1 { print new; next }
+#     { print }
+#   ' "$file" > "$tmp"
+#   cat "$tmp" > "$file"
+#   rm -f "$tmp"
+#   echo "Regra [$id] marcada como removida em $today."
+# }
+# 
+# cmd_create_category() {
+#   [ $# -eq 3 ] || die "$USAGE"
+#   local category="$1" title purpose="$3" file
+#   check_category_name "$category"
+#   title="$(clean_title "$2")" || exit 1
+#   [ -n "${purpose//[[:space:]]/}" ] || die "o propósito está vazio"
+#   [[ "$purpose" != *$'\n'* ]] || die "o propósito deve ter uma linha só"
+#   [[ "$purpose" != *'#{'* ]] || die "o propósito não pode conter '#{', reservado para variáveis de template"
+#   file="$HARNESS_DIR/$RULES_REL/$category.md"
+#   [ ! -e "$file" ] || die "a categoria '$category' já existe: $RULES_REL/$category.md"
+# 
+#   # O comentário de abertura do template é só documentação do formato e não vai para o arquivo.
+#   mkdir -p "$(dirname "$file")"
+#   awk '
+#     !started && /^<!--/ { skipping = 1 }
+#     skipping { if ($0 ~ /-->/) { skipping = 0; started = 1 } ; next }
+#     { started = 1; print }
+#   ' "$(harness_path "$(config_get "$MAIN_CONFIG" paths.templates)")/$CATEGORY_TEMPLATE" |
+#     TPL_CATEGORY_TITLE="$title" TPL_CATEGORY_PURPOSE="$purpose" TPL_CATEGORY_RULES="" render > "$file"
+#   echo "Categoria criada: $RULES_REL/$category.md"
+# }
+# 
+# # Confere se a skill existe em `dirs.default` ou `dirs.custom`.
+# skill_exists() {
+#   local scope
+#   for scope in default custom; do
+#     [ -d "$(harness_path "$(config_get "$SKILLS_CONFIG" "dirs.$scope")")/$1" ] && return 0
+#   done
+#   return 1
+# }
+# 
+# # Altera o `config/context.yml`.
+# #   context_edit add|remove required|<skill> <caminho>
+# # Imprime "added", "removed", "present" ou "absent" conforme o que aconteceu.
+# context_edit() {
+#   local op="$1" target="$2" path="$3" tmp result
+#   tmp="$(mktemp)"
+#   awk -v op="$op" -v target="$target" -v path="$path" '
+#     function item(s) {
+#       sub(/^[ \t]*-[ \t]+/, "", s); sub(/[ \t]+#.*$/, "", s); gsub(/[ \t]+$/, "", s)
+#       if (s ~ /^".*"$/ || s ~ /^\047.*\047$/) s = substr(s, 2, length(s) - 2)
+#       return s
+#     }
+#     { line[NR] = $0 }
+#     END {
+#       # Localiza o bloco e, nele, a entrada alvo e seus itens.
+#       block = ""; skill = ""
+#       for (i = 1; i <= NR; i++) {
+#         l = line[i]
+#         if (l ~ /^[ \t]*(#|$)/) continue
+#         if (l ~ /^[^ \t]/) {
+#           block = (l ~ /^required:/) ? "required" : (l ~ /^skills:/ ? "skills" : "")
+#           skill = ""
+#           if (block == "required" && target == "required") { head = i; last = i }
+#           if (block == "skills") skills_last = i
+#           continue
+#         }
+#         if (block == "skills" && l ~ /^  [^ \t-][^:]*:/) {
+#           skill = l; sub(/^  /, "", skill); sub(/[ \t]*:.*$/, "", skill)
+#           skills_last = i
+#           if (skill == target) { head = i; last = i }
+#           continue
+#         }
+#         if (block == "skills") skills_last = i
+#         if (l ~ /^[ \t]+-[ \t]/ && ((block == "required" && target == "required") || (block == "skills" && skill == target))) {
+#           last = i
+#           if (item(l) == path) found = i
+#         }
+#       }
+#       if (target != "required" && !head) { entry_missing = 1 }
+# 
+#       if (op == "add") {
+#         if (found) { print "present" > "/dev/stderr"; for (i = 1; i <= NR; i++) print line[i]; exit }
+#         if (entry_missing) {
+#           if (!skills_last) { print "Erro: config/context.yml não tem o bloco skills" > "/dev/stderr"; exit 2 }
+#           for (i = 1; i <= NR; i++) {
+#             print line[i]
+#             if (i == skills_last) { print "  " target ":"; print "    - " path }
+#           }
+#         } else {
+#           for (i = 1; i <= NR; i++) {
+#             if (i == head && target != "required" && line[i] ~ /\[\][ \t]*(#.*)?$/) {
+#               sub(/[ \t]*\[\][ \t]*(#.*)?$/, ":", line[i])
+#               print line[i]; print "    - " path; continue
+#             }
+#             print line[i]
+#             if (i == last) print ((target == "required") ? "  - " : "    - ") path
+#           }
+#         }
+#         print "added" > "/dev/stderr"
+#       } else {
+#         if (!found) { print "absent" > "/dev/stderr"; for (i = 1; i <= NR; i++) print line[i]; exit }
+#         # Itens que restam na entrada, para voltar ao formato `nome: []` quando esvaziar.
+#         remaining = 0
+#         if (target != "required") {
+#           for (i = head + 1; i <= last; i++) if (line[i] ~ /^[ \t]+-[ \t]/ && i != found) remaining++
+#         }
+#         for (i = 1; i <= NR; i++) {
+#           if (i == found) continue
+#           if (i == head && target != "required" && remaining == 0) {
+#             sub(/[ \t]*(#.*)?$/, "", line[i]); line[i] = line[i] " []"
+#           }
+#           print line[i]
+#         }
+#         print "removed" > "/dev/stderr"
+#       }
+#     }
+#   ' "$CONTEXT_CONFIG" > "$tmp" 2> "$tmp.status" || { rm -f "$tmp" "$tmp.status"; die "não foi possível alterar o mapa de contexto"; }
+#   result="$(tail -n 1 "$tmp.status")"
+#   if [ "$result" = added ] || [ "$result" = removed ]; then cat "$tmp" > "$CONTEXT_CONFIG"; fi
+#   rm -f "$tmp" "$tmp.status"
+#   printf '%s' "$result"
+# }
+# 
+# # Aplica --load ou --unload à lista de destinos (`always` ou skills separadas por vírgula).
+# cmd_context() {
+#   [ $# -eq 3 ] || die "$USAGE"
+#   local op="$1" category="$2" path item target result list
+#   check_category_name "$2"
+#   path="$RULES_REL/$2.md"
+#   category_file "$2" > /dev/null
+#   IFS=',' read -r -a list <<< "$3"
+#   [ "${#list[@]}" -gt 0 ] || die "informe 'always' ou ao menos uma skill"
+# 
+#   # Valida todos os destinos antes de alterar o mapa: ou aplica tudo, ou nada.
+#   for target in "${list[@]}"; do
+#     [[ "$target" =~ $NAME_PATTERN ]] || die "destino inválido '$target': use 'always' ou o nome de uma skill"
+#     [ "$target" = always ] || skill_exists "$target" || die "a skill '$target' não existe em $(config_get "$SKILLS_CONFIG" dirs.default) nem em $(config_get "$SKILLS_CONFIG" dirs.custom)"
+#   done
+# 
+#   for target in "${list[@]}"; do
+#     item="$target"; [ "$target" = always ] && item=required
+#     if [ "$op" = add ]; then
+#       result="$(context_edit add "$item" "$path")"
+#       case "$result" in
+#         added) echo "Categoria '$category' carregada em $target." ;;
+#         present) echo "A categoria '$category' já era carregada em $target." ;;
+#         *) die "falha ao registrar '$category' em $target" ;;
+#       esac
+#     else
+#       result="$(context_edit remove "$item" "$path")"
+#       case "$result" in
+#         removed) echo "Categoria '$category' retirada de $target." ;;
+#         *) die "a categoria '$category' não está carregada em $target" ;;
+#       esac
+#     fi
+#   done
+# }
+# 
+# case "${1:-}" in
+#   --next-id) shift; cmd_next_id "$@" ;;
+#   --remove) shift; cmd_remove "$@" ;;
+#   --create-category) shift; cmd_create_category "$@" ;;
+#   --load) shift; [ $# -eq 2 ] || die "$USAGE"; cmd_context add "$1" "$2" ;;
+#   --unload) shift; [ $# -eq 2 ] || die "$USAGE"; cmd_context remove "$1" "$2" ;;
+#   *) die "$USAGE" ;;
+# esac

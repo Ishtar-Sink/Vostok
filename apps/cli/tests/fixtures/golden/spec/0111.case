@@ -1,0 +1,33 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-005
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-005
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 82
+Erro: a spec SPEC-005 ainda não foi refinada; só specs refinadas são ajustadas
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Inicia a execução de uma tarefa e coleta o baseline. Cada etapa ganha uma linha no "Registro de execução"
+# # (`record_section`), e o hash do conteúdo é gravado de novo depois dela.
+# #
+# # Uso: execute-task.sh --start <SPEC_ID> <TASK_ID>
+# #        Recusa, sem alterar nada, tarefa fora de `approved`, com conteúdo diferente do aprovado
+# #        (`approved_hash`) ou com dependência fora de `done`. Sem problemas, grava `in_progress`.
+# #      execute-task.sh --baseline <SPEC_ID> <TASK_ID>
+# #        Só em tarefa `in_progress` e sem baseline coletado. Executa cada comando de "Baseline" a partir
+# #        da raiz do projeto e grava o comando, o código de saída e a saída em
+# #        `paths.tasks`/<SPEC_ID>/`evidence_dir`/<TASK_ID>/baseline/NN.out.
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/text.sh"
+# source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+# source "$HARNESS_DIR/scripts/lib/markdown.sh"
+# source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
+# source "$HARNESS_DIR/scripts/lib/adjustments.sh"
+# source "$HARNESS_DIR/scripts/lib/plan.sh"
+# source "$HARNESS_DIR/scripts/lib/task.sh"
+# 
+# MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+# SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
+# TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
+# 
+# USAGE="Uso: execute-task.sh --start <SPEC_ID> <TASK_ID> | --baseline <SPEC_ID> <TASK_ID>"
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# tasks_root="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")"
+# approved_status="$(config_get "$TASKS_CONFIG" status.approved)"
+# in_progress_status="$(config_get "$TASKS_CONFIG" status.in_progress)"
+# done_status="$(config_get "$TASKS_CONFIG" status.done)"
+# task_prefix="$(config_get "$TASKS_CONFIG" id.prefix)"
+# approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
+# 
+# # Caminho da tarefa. Falha se os IDs forem inválidos ou a tarefa não existir.
+# # find_task <SPEC_ID> <TASK_ID>
+# find_task() {
+#   [[ "$1" =~ ^[A-Z]+-[0-9]+$ ]] || die "ID de spec inválido: '$1'"
+#   [[ "$2" =~ ^$task_prefix-[0-9]+$ ]] || die "ID de tarefa inválido: '$2'"
+#   [ -f "$tasks_root/$1/$2.md" ] || die "tarefa $2 não encontrada em $1"
+#   printf '%s' "$tasks_root/$1/$2.md"
+# }
+# 
+# status_of() {
+#   frontmatter_get "$1" status 2>/dev/null || true
+# }
+# 
+# # Impedimentos do início, um por linha.
+# # start_blockers <SPEC_ID> <TASK_ID> <arquivo>
+# start_blockers() {
+#   local spec_id="$1" id="$2" file="$3" status dep dep_status
+#   status="$(status_of "$file")"
+#   if [ "$status" != "$approved_status" ]; then
+#     echo "a tarefa $id está com status '$status'; só tarefas com status '$approved_status' são executadas. Peça a aprovação ao usuário (skill approve-task)"
+#     return
+#   fi
+#   [ "$(frontmatter_get "$file" "$approved_hash_field" 2>/dev/null || true)" = "$(adjustment_content_hash "$file")" ] ||
+#     echo "a tarefa $id mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
+#   while IFS= read -r dep; do
+#     [ -n "$dep" ] || continue
+#     if [ ! -f "$tasks_root/$spec_id/$dep.md" ]; then
+#       echo "a dependência $dep não existe em $spec_id"
+#       continue
+#     fi
+#     dep_status="$(status_of "$tasks_root/$spec_id/$dep.md")"
+#     [ "$dep_status" = "$done_status" ] ||
+#       echo "a dependência $dep está com status '$dep_status'; ela precisa estar '$done_status' antes"
+#   done <<< "$(frontmatter_get "$file" depends_on 2>/dev/null | tr -d '[]' | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+# }
+# 
+# start() {
+#   local file blockers
+#   file="$(find_task "$1" "$2")"
+#   blockers="$(start_blockers "$1" "$2" "$file")"
+#   [ -z "$blockers" ] || die "a tarefa $2 não pode ser iniciada; nada foi alterado:"$'\n'"$blockers"
+#   frontmatter_set "$file" status "$in_progress_status"
+#   task_record_step "$file" início "$in_progress_status" "aprovada em $(frontmatter_get "$file" approved_at 2>/dev/null || echo '?')"
+#   echo "Tarefa $2 iniciada: status '$in_progress_status'. Colete o baseline antes de mudar qualquer arquivo: execute-task.sh --baseline $1 $2"
+# }
+# 
+# baseline() {
+#   local file status dir commands root staging cmd n=0 code codes=""
+#   file="$(find_task "$1" "$2")"
+#   status="$(status_of "$file")"
+#   [ "$status" = "$in_progress_status" ] ||
+#     die "a tarefa $2 está com status '$status'; o baseline só é coletado com status '$in_progress_status' (execute-task.sh --start)"
+#   dir="$(task_evidence_path "$file")/baseline"
+#   [ ! -e "$dir" ] || die "o baseline de $2 já foi coletado em $dir; ele não é sobrescrito"
+#   commands="$(task_baseline_commands "$file")"
+#   [ -n "$commands" ] || die "a tarefa $2 não tem comandos em 'Baseline'"
+# 
+#   root="$(_task_root_dir)"
+#   # Os resultados são montados numa pasta temporária e movidos juntos: ou o baseline existe inteiro, ou não existe.
+#   staging="$(mktemp -d)"
+#   while IFS= read -r cmd; do
+#     n=$((n + 1))
+#     set +e
+#     (cd "$root" && bash -c "$cmd") > "$staging/output" 2>&1 < /dev/null
+#     code=$?
+#     set -e
+#     { printf '$ %s\nexit: %s\n' "$cmd" "$code"; cat "$staging/output"; } > "$staging/$(printf '%02d' "$n").out"
+#     codes="${codes:+$codes, }$code"
+#   done <<< "$commands"
+#   rm -f "$staging/output"
+#   chmod 755 "$staging"
+#   mkdir -p "$(dirname "$dir")"
+#   mv "$staging" "$dir"
+#   task_record_step "$file" baseline coletado "$n comando(s); códigos de saída: $codes"
+#   echo "Baseline de $2 coletado em $dir: $n comando(s); códigos de saída: $codes"
+# }
+# 
+# case "${1:-}" in
+#   --start) [ "$#" -eq 3 ] || die "$USAGE"; start "$2" "$3" ;;
+#   --baseline) [ "$#" -eq 3 ] || die "$USAGE"; baseline "$2" "$3" ;;
+#   *) die "$USAGE" ;;
+# esac

@@ -1,0 +1,133 @@
+---
+id: SPEC-006
+title: "Aprovar"
+status: refined
+author: "Victor Batalha"
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+tags: []
+type: feature
+source: "draft/SPEC-006-aprovar.md"
+refined_at: 2026-10-01T00:00:00Z
+adjustments: 1
+adjusted_at: 2026-10-01T00:00:00Z
+content_hash: a0a8a37fdb597cd0e422d026605d12d2b46ccbaa246f4c6adeb234b9710f3ed0
+approved_at: null
+approved_hash: null
+---
+
+# Aprovar - Especificação Refinada
+
+Resumo.
+
+## Objetivo
+
+Objetivo.
+
+## Escopo
+
+### Dentro do escopo
+
+- Dentro.
+
+### Fora do escopo
+
+- Fora.
+
+## Requisitos funcionais
+
+| ID | Requisito |
+|---|---|
+| RF-01 | O sistema deve A. |
+| RF-02 | O sistema deve B. |
+
+## Requisitos não funcionais
+
+| ID | Requisito | Como verificar |
+|---|---|---|
+| RNF-01 | Rodar em bash 3.2. | Suíte no macOS. |
+
+## Regras de negócio
+
+| ID | Regra |
+|---|---|
+| - | - |
+
+## Fluxos
+
+### Fluxo principal
+
+1. Passo.
+
+### Fluxos alternativos
+
+- Nenhum.
+
+## Casos de borda
+
+| ID | Situação | Comportamento esperado | Requisitos |
+|---|---|---|---|
+| CB-01 | Situação. | Comportamento. | RF-01 |
+
+## Contratos e interfaces
+
+```bash
+cmd <arg>
+```
+
+## Componentes afetados
+
+| Caminho | Ação | Motivo |
+|---|---|---|
+| `AGENTS.md` | alterar | Motivo. |
+| `nao/existe/novo.sh` | criar | Motivo. |
+
+## Premissas e dependências
+
+- Premissa.
+
+## Riscos
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| Risco. | baixo | Mitigação. |
+
+## Casos de teste
+
+| ID | Cenário | Passos | Resultado esperado | Requisitos |
+|---|---|---|---|---|
+| CT-01 | Cenário. | Passos. | Resultado. | RF-01, RF-02 |
+
+## Critérios de aceite
+
+- [ ] CA-01: Critério (RF-01, RF-02, S-01, PQ-01). Cita `#{VAR}` em crases.
+
+## Referências
+
+| Tipo | Referência | Uso |
+|---|---|---|
+| arquivo | `AGENTS.md` | Uso. |
+
+## O que mudou
+
+| # | Assunto | Estado no Original | Estado Refinado |
+|---|---|---|---|
+| 1 | Assunto | Antes | Depois |
+
+## Registro de decisões
+
+| # | Decisão | Alternativa descartada | Motivo |
+|---|---|---|---|
+| 1 | Decisão | Alternativa | inferência A |
+
+## Pendências
+
+| # | Pendência | Opções em aberto |
+|---|---|---|
+| - | Nenhuma | - |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+| 1 | 2026-10-01 | agente | RF-01 ajustado |

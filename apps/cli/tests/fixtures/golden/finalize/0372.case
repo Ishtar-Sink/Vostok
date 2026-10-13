@@ -1,0 +1,95 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1397
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** 2026-10-01T00:00:00Z
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): ausente
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+- `DEC-001` Servidor HTTP é o único escritor do MongoDB (ativa, 2026-10-01)
+- `KNW-001` K (obsoleto, 2026-10-01)
+- `KNW-002` Decisão de Índice (válido, 2026-10-01)
+- `KNW-003` Comum 1 (válido, 2026-10-01)
+- `KNW-004` Comum 2 (válido, 2026-10-01)
+- `KNW-005` Comum 3 (válido, 2026-10-01)
+- `KNW-006` Comum 4 (válido, 2026-10-01)
+- `KNW-007` Comum 5 (válido, 2026-10-01)
+- `KNW-008` Comum 6 (válido, 2026-10-01)
+
+## Commits
+
+- `692f6f4` 2026-10-01 base
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 1c870a730028c4e06233fc4a60ded861680927b17c453f7ba37da1721a6e7aaa packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

@@ -1,0 +1,6 @@
+Erro: o plano de SPEC-008 tem problemas:
+TASK-13: fato "Arquivos a alterar" inválido: "x" (use um número inteiro)
+TASK-13: fato "Contrato público" inválido: "talvez" (use sim ou não)
+TASK-02: dependência inexistente TASK-40
+dependência em ciclo envolvendo TASK-01
+RF-02 não é coberto por nenhuma tarefa

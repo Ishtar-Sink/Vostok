@@ -1,0 +1,38 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--evidence
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 8
+evidence
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 130
+Erro: evidências automáticas de TASK-02 com erro; corrija e execute --evidence de novo:
+- erro.txt: `false` terminou com erro
+
+
+
+@exit 1
+1
+@pre 114
+W e86352e593d4110815c73f8430e58b149bd44fe037c2a94c5f6bc542aee3ad7b packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 114
+W 262a037f8f047fdd43dcf6e998dc44d08c81f585f49d08199a6fa00e56209120 packages/harness/work/tasks/SPEC-008/TASK-02.md

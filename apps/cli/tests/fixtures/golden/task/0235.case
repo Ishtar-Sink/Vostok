@@ -1,0 +1,37 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@arg 7
+TASK-09
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-09
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 49
+Erro: tarefa TASK-09 não encontrada em SPEC-008
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,39 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 17
+--create-category
+@arg 3
+api
+@arg 3
+API
+@arg 36
+Define as regras de APIs do projeto.
+@vostok 5
+rules
+@vostok 15
+create-category
+@vostok 3
+api
+@vostok 3
+API
+@vostok 36
+Define as regras de APIs do projeto.
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 39
+Categoria criada: rules/project/api.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 104
+W f1705f4d11c029df747b1b2ecca859bfd3dc11d87ddf0a2fa83596bb9c6ec596 packages/harness/rules/project/api.md

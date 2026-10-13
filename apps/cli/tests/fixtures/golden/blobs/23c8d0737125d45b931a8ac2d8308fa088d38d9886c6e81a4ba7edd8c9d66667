@@ -1,0 +1,6 @@
+0000000000000000000000000000000000000000 36aa88a18a0af71ff47fb14035d9bc7a8ce88b4a Teste <t@t> 1767614400 +0000	commit (initial): antes da aprovação
+36aa88a18a0af71ff47fb14035d9bc7a8ce88b4a 0e4d28251853d6555e54b66caa1f3a9dccc6dc52 Teste <t@t> 1768478400 +0000	commit: depois da aprovação, caminho da tarefa
+0e4d28251853d6555e54b66caa1f3a9dccc6dc52 248728bc650512b2d9e367fe171707005d7ad20e Teste <t@t> 1768564800 +0000	commit: depois da aprovação, outro caminho
+248728bc650512b2d9e367fe171707005d7ad20e f7ab573b5f8374f17a1f0e811cb48e101bda3edc Teste <t@t> 1768910400 +0000	commit: antes da spec seguinte
+f7ab573b5f8374f17a1f0e811cb48e101bda3edc 5fa655ddac48eefbc1b5cf0e900ecf6a0990d161 Teste <t@t> 1770120000 +0000	commit: entre as specs seguintes
+5fa655ddac48eefbc1b5cf0e900ecf6a0990d161 5fa489d4987e4b71a8cfad7788d8c50ef11d7bbe Teste <t@t> 1770724800 +0000	commit: depois das specs seguintes

@@ -1,0 +1,42 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 153
+Erro: as tarefas de SPEC-008 não podem ser aprovadas; nenhuma foi alterada:
+TASK-01: status 'approved'; só tarefas com status 'pending' são aprovadas
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

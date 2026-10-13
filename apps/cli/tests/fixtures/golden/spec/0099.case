@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-003
+@arg 5
+study
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-003
+@vostok 5
+study
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 103
+Spec refinada SPEC-003 (study) criada em <ROOT>/packages/harness/work/specs/refined/SPEC-003-estudo.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 121
+W 3993bbf2787b6d9b6dc95c671c28b1cf8a8c705b4bbf5ef17ea1420e8ed5e41a packages/harness/work/specs/refined/SPEC-003-estudo.md

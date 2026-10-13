@@ -1,0 +1,34 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 8
+decision
+@arg 8
+Primeira
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 8
+decision
+@vostok 8
+Primeira
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 108
+DEC-001 criada em <ROOT>/packages/harness/memory/decisions.md:14. Preencha as variáveis #{...} da entrada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 208
+W 275b505dee2eaee4637ab8bb8522f3e11e0ed0eb53a7bf9d444fb71d30573a52 packages/harness/config/sequences.yml
+W f0b85413ac200c79dcce945d9afa064363da511d001b6bf0f836c3a1e2e90ccb packages/harness/memory/decisions.md

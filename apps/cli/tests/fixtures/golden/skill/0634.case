@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 14
+approve-commit
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 14
+approve-commit
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 234
+Redirecionamento: <ROOT>/.claude/skills/approve-commit/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/approve-commit/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'approve-commit' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 211
+W ecb9b898f74b465b45714b40e71b2fc2969ae1cfc79d21fb17f301e6aa224d61 .agents/skills/approve-commit/SKILL.md
+W ecb9b898f74b465b45714b40e71b2fc2969ae1cfc79d21fb17f301e6aa224d61 .claude/skills/approve-commit/SKILL.md

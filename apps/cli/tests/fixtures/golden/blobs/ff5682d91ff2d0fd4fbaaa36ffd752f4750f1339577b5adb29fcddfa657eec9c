@@ -1,0 +1,12 @@
+Erro: o plano de SPEC-008 tem problemas:
+TASK-02: tipo inválido "épico" (use: tarefa historia bug )
+ID de tarefa repetido: TASK-02
+linha da tabela de tarefas com 6 colunas (esperado 7): | TASK-1 | c | c | bug | - | - |
+TASK-02: depende de si mesma
+TASK-02: nível "-" diferente do calculado "simples" (execute --score)
+TASK-02: depende de si mesma
+TASK-02: nível "-" diferente do calculado "simples" (execute --score)
+TASK-12: sem fatos de esforço
+fatos de esforço de uma tarefa inexistente: TASK-99
+dependência em ciclo envolvendo TASK-02
+a tarefa cobre RF-09, que não existe na spec

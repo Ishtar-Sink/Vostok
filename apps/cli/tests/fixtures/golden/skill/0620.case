@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 8
+--script
+@arg 8
+review-x
+@arg 10
+list-files
+@vostok 5
+skill
+@vostok 6
+script
+@vostok 8
+review-x
+@vostok 10
+list-files
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 86
+Script criado em <ROOT>/packages/harness/skills/custom/review-x/scripts/list-files.sh
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 128
+W 680600c12b7cd7461953f86d17be01f58b896f420f5cad3ac40430447821600c packages/harness/skills/custom/review-x/scripts/list-files.sh

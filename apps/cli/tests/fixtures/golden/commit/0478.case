@@ -1,0 +1,27 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 265
+W d5977141a6ea1cf7fa00807657f8d96fc1a6ddae09d31e11c4b286ba83c1d347 .git/logs/refs/heads/nova
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/heads/nova
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/tags/v1
+@post 0
+

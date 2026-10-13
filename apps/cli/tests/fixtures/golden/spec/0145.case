@@ -1,0 +1,34 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 88
+Erro: a spec SPEC-006 não pode ser aprovada:
+validação: seção ausente: '## Riscos'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

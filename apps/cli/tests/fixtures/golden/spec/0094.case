@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+Análise
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 8
+Análise
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 80
+SPEC-002 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-002-analise.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 225
+W e450e4327c6f422d053e9b9de1735950d3e18130613b400a2f5103a92dbd3fc0 packages/harness/config/sequences.yml
+W 523e19b356928b3766524ecbe38be713f10050cddd39dca5c124806f82c63022 packages/harness/work/specs/draft/SPEC-002-analise.md

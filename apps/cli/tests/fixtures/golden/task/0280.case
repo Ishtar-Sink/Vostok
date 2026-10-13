@@ -1,0 +1,36 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--start
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 5
+start
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 215
+Erro: a tarefa TASK-01 não pode ser iniciada; nada foi alterado:
+a tarefa TASK-01 está com status 'pending'; só tarefas com status 'approved' são executadas. Peça a aprovação ao usuário (skill approve-task)
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

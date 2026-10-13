@@ -1,0 +1,32 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+53682a12908c
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+53682a12908c
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 124
+Erro: a referência de commits é inválida; ela só pode ser refeita com --approve:
+linha fora do formato 'hash ref': lixo
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

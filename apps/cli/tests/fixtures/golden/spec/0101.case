@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 10
+--finalize
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 101
+Erro: Uso: create-refined-spec.sh <SPEC_ID> <tipo> | --validate <SPEC_ID> | --mark-refined <SPEC_ID>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,7 @@
+Erro: as tarefas de SPEC-008 têm problemas:
+TASK-01: seção ausente: '## Registro de execução'
+TASK-01: a seção '## Histórico de ajustes' está sem a tabela
+TASK-01: subseção ausente: '### Passos'
+TASK-01: 'Mudar' sem nenhum item no formato: - `caminho` (ação): motivo
+TASK-02: arquivo da tarefa ausente em /tmp/vostok-golden-root/packages/harness/work/tasks/SPEC-008
+TASK-03: tarefa que não existe no plano

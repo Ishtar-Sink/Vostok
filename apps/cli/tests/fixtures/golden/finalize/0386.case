@@ -1,0 +1,31 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 6
+create
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 87
+o conteúdo de SPEC-008 já existe: packages/harness/work/finalize/SPEC-008/content.md
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

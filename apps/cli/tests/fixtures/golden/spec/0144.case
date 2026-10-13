@@ -1,0 +1,35 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 111
+Ajuste manual 1 registrado em SPEC-006: Edição manual
+Problemas de validação:
+seção ausente: '## Riscos'
+
+@stderr 0
+
+@exit 1
+0
+@pre 122
+W db27b1f5c68c77473fd9cb427e42ae729c617f97128ae34f8f218ce381cfebe3 packages/harness/work/specs/refined/SPEC-006-aprovar.md
+@post 122
+W d6fc564010025bdc53f3bdd843458908d6581c804a81625f6a160aacb89d1c45 packages/harness/work/specs/refined/SPEC-006-aprovar.md

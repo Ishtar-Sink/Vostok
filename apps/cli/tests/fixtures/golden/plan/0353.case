@@ -1,0 +1,33 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-009
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 128
+Erro: o plano de SPEC-009 tem problemas:
+PQ-01 não é coberto por nenhuma tarefa
+a tarefa cobre RF-01, que não existe na spec
+
+@exit 1
+1
+@pre 106
+W 3f3e8628cb667f6e44bab9b3f0eed8289772cb09c3c8e80f5bdef271194f2807 packages/harness/work/plans/SPEC-009.md
+@post 0
+

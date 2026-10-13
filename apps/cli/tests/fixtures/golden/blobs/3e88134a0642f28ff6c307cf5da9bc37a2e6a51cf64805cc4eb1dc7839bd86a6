@@ -1,0 +1,4 @@
+$ echo "a|b"; echo erro >&2
+exit: 0
+a|b
+erro

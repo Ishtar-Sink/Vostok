@@ -1,0 +1,41 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@arg 5
+--all
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@vostok 5
+--all
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 42
+Erro: use --all ou TASK_IDs, não os dois
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

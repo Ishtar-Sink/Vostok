@@ -1,0 +1,34 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 70
+seção ausente: '## Histórico de ajustes'; nenhum ajuste registrado
+
+@exit 1
+1
+@pre 256
+W af1fc31723ecd08fc782e99182a08cb9ccc801ca04dd4abae52185a9906433d0 packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+W 64c75695d602930c70549a38f8a27df6b0c3249335ae11d375910bb2bed081cb packages/harness/work/specs/refined/SPEC-001-painel-a-b.md.orig
+@post 0
+

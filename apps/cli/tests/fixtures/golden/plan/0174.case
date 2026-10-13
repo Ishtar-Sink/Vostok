@@ -1,0 +1,33 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 25
+Nenhuma edição manual.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

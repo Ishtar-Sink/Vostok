@@ -1,0 +1,35 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 281
+Erro: as tarefas de SPEC-008 têm problemas:
+TASK-01: 'Evidências' com item fora do formato: Não se aplica. Talvez. (use: - `arquivo` (automática): `comando` ou - `arquivo` (manual): descrição)
+TASK-01: 'Evidências' sem nenhum item no formato e sem o texto 'Não se aplica.'
+
+@exit 1
+1
+@pre 114
+W a1755c33412e8eb81e9d01ce81e936fbd92a7a4869bbcfaeb99c0669ba1ccd59 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 0
+

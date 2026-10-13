@@ -1,0 +1,34 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 123
+Ajuste manual 2 registrado em SPEC-006: Edição manual
+Aprovação de SPEC-006 derrubada: o status voltou para 'refined'.
+
+@stderr 0
+
+@exit 1
+0
+@pre 122
+W 7a366936d6eae297a94f63b789650a5d68c720604a3926291b1ea957f3ed29cf packages/harness/work/specs/refined/SPEC-006-aprovar.md
+@post 122
+W df9df4f0cce170543a28e9dc666e2537b58466bc86aa252f7110c5a4c2ccf944 packages/harness/work/specs/refined/SPEC-006-aprovar.md

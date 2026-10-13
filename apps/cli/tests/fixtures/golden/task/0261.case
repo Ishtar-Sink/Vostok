@@ -1,0 +1,41 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 36
+Passo com testes; resumo com | barra
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 36
+Passo com testes; resumo com | barra
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 87
+Ajuste 3 registrado em TASK-01: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-01.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 30129664b07f01fff4f89ea6acb975167fcf718741acc23b80874ac9bc169d2a packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 114
+W 9c98f3a29006b901df11ebb41250a9e3cb9b24b99a182251a3c5b8f46af017af packages/harness/work/tasks/SPEC-008/TASK-01.md

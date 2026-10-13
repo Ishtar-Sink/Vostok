@@ -1,0 +1,35 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 7
+--score
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 5
+score
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 307
+Erro: não foi possível calcular os níveis de SPEC-008; nada foi alterado:
+TASK-13: fato "Arquivos a alterar" inválido: "x" (use um número inteiro)
+TASK-13: fato "Contrato público" inválido: "talvez" (use sim ou não)
+TASK-02: dependência inexistente TASK-40
+dependência em ciclo envolvendo TASK-01
+
+@exit 1
+1
+@pre 79
+W 5736485bc3c9cc070fa414c95f44d0c3a330ac46400eff3d8d5a7f356f0880cd .plan-errors
+@post 0
+

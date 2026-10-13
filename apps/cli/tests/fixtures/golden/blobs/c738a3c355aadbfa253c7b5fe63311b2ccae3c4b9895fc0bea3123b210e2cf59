@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Carrega os arquivos do harness que sempre são obrigatórios, como determinadas regras, contexto, etc.
+# # A lista de fontes fica em `required`, no `config/context.yml`.
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/context.sh"
+# 
+# CONTEXT_CONFIG="$HARNESS_DIR/config/context.yml"
+# 
+# sources="$(config_list "$CONTEXT_CONFIG" required)"
+# 
+# print_context_header "Contexto obrigatório do harness"
+# 
+# while IFS= read -r source; do
+#   [ -n "$source" ] || continue
+#   print_context_path "$HARNESS_DIR/$source" ||
+#     echo "Aviso: '$source' não encontrado em $HARNESS_DIR" >&2
+# done <<< "$sources"

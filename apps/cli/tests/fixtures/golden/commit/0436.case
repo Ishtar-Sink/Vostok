@@ -1,0 +1,25 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 100
+Referência de commits gravada na primeira verificação: <ROOT>/packages/harness/.state/commit-ack
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 101
+W b9ccce58ada98433a85957ef70b4883ff41a527e3c012cfcc7d7618b7c3c5050 packages/harness/.state/commit-ack

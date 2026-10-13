@@ -1,0 +1,48 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 7
+TASK-02
+@arg 7
+TASK-03
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 7
+TASK-02
+@vostok 7
+TASK-03
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 299
+Erro: as tarefas de SPEC-008 não podem ser aprovadas; nenhuma foi alterada:
+TASK-01: status 'approved'; só tarefas com status 'pending' são aprovadas
+TASK-02: edição manual sem registro; registre-a com: adjust-task.sh --record-manual SPEC-008 TASK-02
+TASK-03: a subseção 'Passos' está vazia
+
+@exit 1
+1
+@pre 70
+W 4f8c80631ea6d1ef6bffb4be7b7275d01fa3933e56260503fd9edbc4e8ee4580 .at
+@post 0
+

@@ -1,0 +1,90 @@
+---
+id: TASK-01
+spec: SPEC-008
+title: "Criar script"
+effort: simples
+depends_on: []
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-008, simples]
+status: approved
+content_hash: f0ecf9931b9be27206224dd488e20d293b994e3d54a9368f13a1ed2952463409
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-10-01T00:00:00Z
+approved_hash: f0ecf9931b9be27206224dd488e20d293b994e3d54a9368f13a1ed2952463409
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-01: Criar script
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (criar): script novo.
+- `AGENTS.md` (alterar): cita o script.
+
+### Passos
+
+1. Criar o script à mão.
+
+### Baseline
+
+- `ls AGENTS.md`
+- `echo "a|b"; echo erro >&2`
+- `false`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok`
+
+### Concluída quando
+
+- [ ] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+## Descrição
+
+### Resumo executivo
+
+Entrega o script que permite exportar dados.
+
+### Detalhes técnicos
+
+Abordagem em bash, com referência a RF-01.
+
+### Card
+
+- **Título:** Criar script
+- **Tipo:** tarefa
+- **Descrição:** Cria o script.
+- **Critérios de aceite:**
+  - [ ] O script existe.
+- **Rótulos:** SPEC-008, simples
+- **Estimativa:** simples
+- **Bloqueada por:** -
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

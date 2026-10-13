@@ -1,0 +1,34 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 212
+Erro: o conteúdo de SPEC-008 tem problemas:
+  - impacto inválido em ### Script novo: 'enorme' (use alto, médio ou baixo)
+  - entrega sem "O que mudou": ### Script novo
+  - entrega sem "Valor": ### Script novo
+
+@exit 1
+1
+@pre 117
+W 182cd240dd3e67e29feeba9737afc28d1ea90a01572a399a81861b4bf391a838 packages/harness/work/finalize/SPEC-008/content.md
+@post 0
+

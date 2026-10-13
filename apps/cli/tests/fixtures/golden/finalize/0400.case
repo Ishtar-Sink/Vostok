@@ -1,0 +1,34 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 6
+create
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 110
+Conteúdo de SPEC-008 criado em packages/harness/work/finalize/SPEC-008/content.md: 1 bloco(s) de evidência.
+
+@stderr 0
+
+@exit 1
+0
+@pre 306
+W 2b78f38a84d0f784c429e6b906b596e8bacba11405c10855e01ae6c4b691ee78 packages/harness/work/specs/refined/SPEC-008-planejar.md
+W 9733e65ea30a271f7614ad2a2f201abb60c5ccd3df8b26624042842df5751da3 packages/harness/work/tasks/SPEC-008/TASK-01.md
+D .fin-content
+D packages/harness/work/finalize/SPEC-008/content.md
+@post 117
+W cbc1a40888cf0630e60d2dd94d33698a071aa228440abdcb117a24e41c8626d5 packages/harness/work/finalize/SPEC-008/content.md

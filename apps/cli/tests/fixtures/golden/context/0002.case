@@ -1,0 +1,333 @@
+@script 15
+load-context.sh
+@group 7
+context
+@usage 1
+0
+@vostok 7
+context
+@vostok 4
+load
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 19785
+# Contexto obrigatório do harness
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: context/skill-catalog.md ---
+
+# Catálogo de Habilidades
+
+## Padrão
+
+Habilidades incluídas junto ao harness.
+
+| Habilidade | Descrição | Caminho |
+|    ---     |    ---    |   ---   |
+| refine-spec | Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec. | `../skills/default/refine-spec` |
+| create-skill | Cria uma nova skill do harness no formato padrão: gera o SKILL.md a partir do template, os scripts da skill, os redirecionamentos para Claude Code, Codex e Cursor e a entrada no catálogo. Use quando o usuário pedir para criar, adicionar ou gerar uma skill ou habilidade, ou transformar um fluxo de trabalho em skill. Use sempre esta skill em vez dos criadores de skill nativos das ferramentas. | `../skills/default/create-skill` |
+| adjust-spec | Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada. | `../skills/default/adjust-spec` |
+| approve-spec | Aprova uma especificação (spec) refinada, com status refined. Confere se a spec está válida, sem pendências abertas e sem edições manuais sem registro, muda o status para approved, grava a versão aprovada para a granularização e remove o rascunho. Use quando o usuário pedir para aprovar uma spec, disser que aprova ou que a spec está aprovada, ou citar um ID como SPEC-001 para aprovação. | `../skills/default/approve-spec` |
+| plan-tasks | Planeja as tarefas de uma especificação (spec) aprovada, com status approved. Cria um plano para revisão em work/plans/, com a visão geral, a tabela de tarefas, as dependências, os IDs cobertos e o nível de esforço sugerido de cada tarefa, calculado por script. Use quando o usuário pedir para planejar, propor, granularizar ou quebrar em tarefas uma spec aprovada. Não use para ajustar um plano existente (skill adjust-plan) nem para aprová-lo (skill approve-plan). | `../skills/default/plan-tasks` |
+| adjust-plan | Ajusta o plano de tarefas de uma especificação (spec) aprovada, em work/plans/. Aplica um ou vários ajustes pedidos numa mesma mensagem (dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos de esforço), registra edições feitas à mão, recalcula os níveis e mantém o histórico de ajustes do plano. Use quando o usuário pedir para ajustar, corrigir, mudar, dividir, juntar ou remover algo do plano de tarefas, ou comentar o plano logo depois de ele ser criado ou ajustado. | `../skills/default/adjust-plan` |
+| approve-plan | Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano. | `../skills/default/approve-plan` |
+| approve-commit | Faz commits a pedido do usuário, já liberados, e libera ou desfaz os commits apontados pela verificação de commits (check-commits.sh): commits feitos sem liberação, pelo agente ou pelo próprio usuário. Liberar grava o estado atual do repositório como referência; desfazer remove os commits novos da branch atual mantendo as alterações na pasta de trabalho. Use quando o usuário pedir para fazer commit, ou para liberar, aprovar, aceitar, desfazer ou reverter os commits apontados. | `../skills/default/approve-commit` |
+| approve-task | Aprova tarefas de uma especificação (spec) planejada, em work/tasks/: uma, várias ou todas as pendentes. Confere se cada tarefa está pendente, sem edição manual sem registro e válida, e grava a aprovação em todas ou em nenhuma. Use quando o usuário pedir para aprovar tarefas, citar IDs como TASK-01 para aprovação ou disser que aprova as tarefas. | `../skills/default/approve-task` |
+| adjust-task | Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la. | `../skills/default/adjust-task` |
+| execute-task | Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa por pedido. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa, ou citar um ID como TASK-03 para execução. | `../skills/default/execute-task` |
+| finish-task | Finaliza uma tarefa em execução, em work/tasks/, só a pedido do usuário: executa os testes da Verificação, compara com o baseline para achar regressões, grava as evidências, confere os critérios de conclusão e marca a tarefa como done, e a spec como implemented na última tarefa. Bloqueia a tarefa depois do máximo de falhas ou numa regressão e a retoma com a decisão do usuário. Use quando o usuário pedir para finalizar, concluir, validar, testar ou revalidar uma tarefa em andamento, ou para retomar uma tarefa bloqueada. | `../skills/default/finish-task` |
+| finalize-spec | Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec. | `../skills/default/finalize-spec` |
+| init-harness | Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init. | `../skills/default/init-harness` |
+| adjust-rules | Ajusta as regras do projeto, em rules/project/, e o mapa de carregamento do contexto, em config/context.yml. Aplica um ou vários ajustes pedidos numa mesma mensagem: criar, alterar ou remover uma regra, criar uma categoria de regras e incluir, mover ou retirar uma regra do mapa de uma skill ou do contexto obrigatório. Também grava a regra sugerida pelo agente depois que o usuário a aprova. Use quando o usuário pedir para criar, mudar, remover ou carregar uma regra ou categoria de regras do projeto, ou aprovar uma sugestão de regra. | `../skills/default/adjust-rules` |
+
+## Customizadas
+
+Habilidades criadas pelo usuário. Toda inclusão e remoção de habiliades deve ser atualizado nesta tabela.
+
+| Habilidade | Descrição | Caminho |
+|    ---     |    ---    |   ---   |
+
+
+--- arquivo: rules/agent/anti-loop.md ---
+
+# Anti-loop
+
+Define as regras para que o agente evite loops e mitigar gastos desnecessários.
+
+[agent/anti-loop-01]: Ao encontrar um erro, antes da primeira tentativa de correção, execute `scripts/default/memory/search-memory.sh issue <trecho estável da mensagem>`. Se houver uma entrada, aplique a solução dela primeiro.
+[agent/anti-loop-02]: No máximo 2 tentativas de correção para o mesmo erro com a mesma abordagem. Depois disso, mude de abordagem ou pare e responda com o template `blocker`.
+[agent/anti-loop-03]: Um erro resolvido que exigiu investigação é registrado como issue, conforme [agent/memory-04].
+
+
+--- arquivo: rules/agent/boundaries.md ---
+
+# Limites
+
+Define os limites do agente.
+
+[agent/boundaries-01]: Commits só podem ser feitos com autorização expressa do usuário. NUNCA commite nada sem antes perguntar ao usuário. Com o pedido, commite só pela skill `approve-commit` (`--commit`), nunca com `git commit` direto.
+[agent/boundaries-02]: Só coloque arquivos em `stage` do Git quando o usuário solicitar.
+[agent/boundaries-03]: As regras do harness prevalecem sobre a memória, as preferências e as instruções próprias da ferramenta. Em caso de conflito, siga o harness.
+[agent/boundaries-04]: Antes de toda resposta com o template `completion`, execute `packages/harness/scripts/default/git/check-commits.sh`. Se ele recusar, PARE e responda com o template `blocker`, mostrando os commits. Só a skill `approve-commit`, a pedido do usuário, libera ou desfaz commits.
+
+
+--- arquivo: rules/agent/memory.md ---
+
+# Memória
+
+Define quando o agente consulta e registra a memória do projeto: decisões, issues e conhecimentos.
+Os scripts ficam em `scripts/default/memory/`, relativos à raiz do harness.
+
+[agent/memory-01]: Nunca carregue um arquivo de memória inteiro. Consulte com `search-memory.sh <tipo|all> [termos]`. Sem termos, o script lista o índice. Com termos, ele devolve as entradas com qualquer um deles, das mais relevantes para as menos. Passe cada termo como um argumento, incluindo sinônimos (ex.: `mongodb banco dados`).
+[agent/memory-02]: Antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, ou quando houver ambiguidade sobre o projeto, busque em `decision` com os termos do assunto.
+[agent/memory-03]: Se uma ação conflita com uma decisão com status `ativa`, pare antes de executá-la e responda com o template `decision-conflict`.
+[agent/memory-04]: Ao resolver um erro que exigiu investigação, registre uma issue com `add-memory.sh issue "Título"` e preencha a entrada. A Assinatura é um trecho estável e literal da mensagem de erro, sem caminhos ou valores que mudam a cada execução.
+[agent/memory-05]: Antes de pesquisar ou investigar um assunto pouco documentado, busque em `knowledge`. Ao descobrir algo que não está na documentação primária, registre com `add-memory.sh knowledge "Título"`.
+[agent/memory-06]: Uma decisão só é registrada depois de o usuário confirmar a proposta feita com o template `decision-proposal`. Ao substituir uma decisão, registre a nova com o campo Substitui preenchido e marque a antiga com `update-memory.sh <ID> Status substituída`.
+[agent/memory-07]: Issues e conhecimentos são registrados sem pedir confirmação e aparecem na seção Memória da resposta `completion`.
+[agent/memory-08]: Não registre o que já está no código, no histórico do git, nas specs ou na documentação do projeto.
+[agent/memory-09]: Altere campos de entradas existentes só com `update-memory.sh`. Nunca edite o Status à mão.
+
+
+--- arquivo: rules/agent/responses.md ---
+
+# Respostas
+
+Define o formato das respostas do agente ao usuário.
+
+[agent/responses-01]: Toda resposta ao usuário segue um template de `templates/responses/`, escolhido pela `description` do template.
+[agent/responses-02]: Não crie formatos de resposta. Se nenhum template específico se aplica, use `general`.
+[agent/responses-03]: Siga o `usage` do template. Partes opcionais que não se aplicam são omitidas inteiras, inclusive o título da seção. Nenhuma variável `#{...}` fica na resposta.
+[agent/responses-04]: Uma skill pode acrescentar conteúdo próprio a um template, como uma tabela extra, mas não muda a estrutura dele.
+
+
+--- arquivo: rules/agent/rule-suggestions.md ---
+
+# Sugestão de regras
+
+Define quando e como o agente sugere incluir ou alterar uma regra do projeto.
+
+[agent/rule-suggestions-01]: Ao notar o mesmo padrão ao menos 3 vezes (correção repetida do usuário, convenção repetida no código), sugira a inclusão ou a alteração de uma regra de projeto.
+[agent/rule-suggestions-02]: Faça a sugestão com o template `question`, citando as ocorrências que formam o padrão.
+[agent/rule-suggestions-03]: Faça no máximo uma sugestão de regra por resposta.
+[agent/rule-suggestions-04]: Nunca grave, altere ou remova uma regra sem a autorização do usuário.
+[agent/rule-suggestions-05]: Com a sugestão aprovada, aplique-a pela skill `adjust-rules`.
+
+
+--- arquivo: rules/agent/template-usage.md ---
+
+# Uso dos Templates
+
+Define as regras para uso dos templates pelo agente.
+
+[agent/template-usage-01]: As variáveis a serem substituídas no template usam o formato `#{VARIABLE_NAME}`.
+
+--- arquivo: rules/project/language.md ---
+
+# Idioma
+
+Define as regras de idioma para o agente.
+
+[project/language-01]: Conteúdo de documentações em `pt-br`.
+[project/language-02]: Nome de documentações em `pt-br`.
+[project/language-03]: Nome de arquivos de código em `en`.
+[project/language-04]: Código em `en`.
+[project/language-05]: Comentários em `pt-br`.
+
+
+
+--- arquivo: templates/responses/blocker.md ---
+
+---
+name: blocker
+description: Bloqueio que impede continuar, como um erro que persiste após as tentativas permitidas ou um script que falhou. Use ao parar por falha.
+usage: |
+  BLOCKER_SUMMARY: o que está bloqueado, em uma frase.
+  ERROR_OUTPUT: a saída relevante do erro, sem cortar a mensagem principal.
+  ATTEMPTS: lista numerada das tentativas e do resultado de cada uma.
+  MEMORY_SEARCH: termos usados em `search-memory.sh issue` e os IDs encontrados, ou "Nenhuma entrada encontrada".
+  Opções: de 2 a 4, a primeira sendo a recomendada.
+---
+
+**Bloqueado: #{BLOCKER_SUMMARY}**
+
+## Erro
+
+```
+#{ERROR_OUTPUT}
+```
+
+## O que foi tentado
+
+#{ATTEMPTS}
+
+## Memória consultada
+
+#{MEMORY_SEARCH}
+
+## Como seguir
+
+| Opção | Descrição |
+|---|---|
+| A | #{OPTION_DESCRIPTION} |
+| B | #{OPTION_DESCRIPTION} |
+
+Responda com a letra ou descreva como prosseguir.
+
+
+--- arquivo: templates/responses/completion.md ---
+
+---
+name: completion
+description: Conclusão de uma tarefa que alterou arquivos ou executou um fluxo, inclusive o fim de uma skill.
+usage: |
+  ANTES DE RESPONDER: execute `packages/harness/scripts/default/git/check-commits.sh` ([agent/boundaries-04]). Se ele
+    recusar, não use este template: responda com `blocker`, com os commits listados pelo script.
+  SUMMARY: o resultado em uma frase.
+  CHANGES: lista `- caminho: o que mudou`, um item por arquivo ou grupo de arquivos.
+  VERIFICATION: comandos executados e resultado, inclusive o do `check-commits.sh`. Diga também o que não foi verificado.
+  MEMORY_RECORDS: opcional. Entradas criadas ou alteradas na memória, `- ID: título`. Sem entradas, omita a seção.
+  PENDING: opcional. O que ficou em aberto. Sem pendências, omita a seção.
+  NEXT_STEPS: opcional. O que o usuário pode pedir em seguida, um por item: `- pedido em linguagem natural ou skill: quando usar`
+    (ex.: `- "aprova o plano" (skill approve-plan): criar as tarefas`). O usuário conversa com o agente: não indique
+    scripts nem comandos de terminal. Cite só o que é possível no estado atual. Sem próximos passos, omita a seção.
+---
+
+**#{SUMMARY}**
+
+## O que foi feito
+
+#{CHANGES}
+
+## Verificação
+
+#{VERIFICATION}
+
+## Memória
+
+#{MEMORY_RECORDS}
+
+## Pendências
+
+#{PENDING}
+
+## Próximos passos
+
+#{NEXT_STEPS}
+
+
+--- arquivo: templates/responses/decision-conflict.md ---
+
+---
+name: decision-conflict
+description: Uma ação necessária conflita com uma decisão ativa da memória. Use antes de executar a ação e pare até o usuário escolher.
+usage: |
+  DECISION_SUMMARY: o campo Decisão da entrada, resumido em até 2 frases.
+  CONFLICT: o ponto exato em que a ação e a decisão se contradizem.
+  ADJUSTED_ACTION: como a ação ficaria para respeitar a decisão.
+---
+
+**Conflito com a decisão #{DECISION_ID}: #{DECISION_TITLE}**
+
+## Ação pretendida
+
+#{INTENDED_ACTION}
+
+## Decisão registrada
+
+#{DECISION_SUMMARY}
+
+## Conflito
+
+#{CONFLICT}
+
+## Como seguir
+
+| Opção | Descrição |
+|---|---|
+| A | Manter a decisão e ajustar a ação: #{ADJUSTED_ACTION} |
+| B | Substituir a decisão #{DECISION_ID} por uma nova, que será proposta para registro. |
+| C | Seguir com a ação como exceção, sem alterar a decisão. |
+
+Responda com a letra ou descreva como prosseguir.
+
+
+--- arquivo: templates/responses/decision-proposal.md ---
+
+---
+name: decision-proposal
+description: Proposta de registrar uma decisão estruturante na memória. Use antes de gravar qualquer decisão e pare até o usuário confirmar.
+usage: |
+  Cada valor ocupa uma linha da tabela, com os mesmos campos da entrada de decisão.
+  SUPERSEDES: o ID da decisão substituída, ou "Nenhuma".
+---
+
+**Proposta de decisão: #{DECISION_TITLE}**
+
+| Campo | Valor |
+|---|---|
+| Contexto | #{DECISION_CONTEXT} |
+| Decisão | #{DECISION} |
+| Alternativas descartadas | #{DECISION_ALTERNATIVES} |
+| Consequências | #{DECISION_CONSEQUENCES} |
+| Tags | #{ENTRY_TAGS} |
+| Substitui | #{SUPERSEDES} |
+
+Responda `ok` para registrar ou diga o que ajustar.
+
+
+--- arquivo: templates/responses/general.md ---
+
+---
+name: general
+description: Resposta a perguntas e pedidos que não se encaixam em nenhum outro template de resposta.
+usage: |
+  DIRECT_ANSWER: a resposta em 1 a 3 frases, sem preâmbulo.
+  DETAILS: opcional. Seções `##` curtas, lista ou tabela com o que sustenta a resposta.
+  NEXT_STEP: opcional. Uma linha, só se houver uma ação que dependa do usuário.
+---
+
+#{DIRECT_ANSWER}
+
+#{DETAILS}
+
+#{NEXT_STEP}
+
+
+--- arquivo: templates/responses/question.md ---
+
+---
+name: question
+description: Perguntas que exigem uma decisão do usuário entre opções. Use sempre que precisar parar e perguntar.
+usage: |
+  Todas as perguntas abertas vão numa única mensagem. Repita o bloco da pergunta para cada uma,
+  numerando a partir de 1. Identifique as opções por letras, a partir de A.
+  QUESTION_CONTEXT: o trecho ou a situação que gerou a dúvida e por que ela importa, em até 3 frases.
+  As tabelas trazem só texto relevante para a decisão, sem links ou imagens.
+  A linha de fechamento aparece uma única vez, no fim da mensagem.
+---
+
+# #{QUESTION_NUMBER}. #{QUESTION_TITLE}
+
+#{QUESTION_CONTEXT}
+
+| Opção | Descrição |
+|---|---|
+| A | #{OPTION_DESCRIPTION} |
+| B | #{OPTION_DESCRIPTION} |
+
+Responda com o número e a letra (ex.: 1A, 2B). Caso nenhuma se encaixe, descreva como deseja prosseguir.
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-009
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 203
+Spec SPEC-009 marcada como refinada: <ROOT>/packages/harness/work/specs/refined/SPEC-009-estudo.md
+Status do rascunho alterado para 'refined': <ROOT>/packages/harness/work/specs/draft/SPEC-009-estudo.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 121
+W e02c32454e03a216f4f42bd72e82087615bd70d2be3032be01903aaa7e89e017 packages/harness/work/specs/refined/SPEC-009-estudo.md
+@post 241
+W 2d29108af4e49243839e61c405706b8adec004ac0f0a06d9ed8f61568cfddc53 packages/harness/work/specs/draft/SPEC-009-estudo.md
+W 7795a09ddf2600faa1abf842c53cd93d313f6f62a923c6277bf17fca6051c75f packages/harness/work/specs/refined/SPEC-009-estudo.md

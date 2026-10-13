@@ -1,0 +1,34 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 142
+Erro: o plano de SPEC-008 tem problemas:
+o plano foi feito para outra versão da spec SPEC-008; recrie-o com: plan-tasks.sh --create SPEC-008
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

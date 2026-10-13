@@ -1,0 +1,35 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-009
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 165
+Spec SPEC-009 aprovada: <ROOT>/packages/harness/work/specs/refined/SPEC-009-estudo.md
+Rascunho removido: <ROOT>/packages/harness/work/specs/draft/SPEC-009-estudo.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 176
+W 854ff59766afc7959c33496c8326f28fe10cbc52880dec24b3cc6432d682b99e packages/harness/work/specs/refined/SPEC-009-estudo.md
+D packages/harness/work/specs/draft/SPEC-009-estudo.md

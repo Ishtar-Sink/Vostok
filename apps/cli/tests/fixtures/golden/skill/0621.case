@@ -1,0 +1,47 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 1069
+Erro: a skill 'review-x' tem problemas:
+variável sem preencher: scripts/list-files.sh:2:# #{SCRIPT_DESCRIPTION}
+variável sem preencher: scripts/list-files.sh:4:# Uso: list-files.sh #{SCRIPT_USAGE}
+variável sem preencher: scripts/list-files.sh:13:#{SCRIPT_BODY}
+variável sem preencher: SKILL.md:3:description: "#{SKILL_DESCRIPTION}"
+variável sem preencher: SKILL.md:4:allowed-tools: #{SKILL_ALLOWED_TOOLS}
+variável sem preencher: SKILL.md:8:  scripts: "#{SKILL_SCRIPTS}"
+variável sem preencher: SKILL.md:9:  templates: "#{SKILL_TEMPLATES}"
+variável sem preencher: SKILL.md:12:# #{SKILL_TITLE}
+variável sem preencher: SKILL.md:14:#{SKILL_SUMMARY}
+variável sem preencher: SKILL.md:18:#{SKILL_TERMS}
+variável sem preencher: SKILL.md:22:#{SKILL_RULES}
+variável sem preencher: SKILL.md:29:#{SKILL_CHECKLIST}
+variável sem preencher: SKILL.md:42:#{SKILL_STEPS}
+variável sem preencher: SKILL.md:48:#{SKILL_RESPONSE_FORMATS}
+metadata.scripts: '#{SKILL_SCRIPTS}' não existe na raiz do harness
+metadata.templates: '#{SKILL_TEMPLATES}' não existe na raiz do harness
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

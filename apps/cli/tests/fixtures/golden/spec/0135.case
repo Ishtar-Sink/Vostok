@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 205
+Spec SPEC-006 marcada como refinada: <ROOT>/packages/harness/work/specs/refined/SPEC-006-aprovar.md
+Status do rascunho alterado para 'refined': <ROOT>/packages/harness/work/specs/draft/SPEC-006-aprovar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 122
+W e896832aae72769e7799c12f74a75dc58cc21707e2febd1bca20ed95721dc9ea packages/harness/work/specs/refined/SPEC-006-aprovar.md
+@post 243
+W d02abaa38085a76f1be33ecc1a71463739419a898553ed67227bcd95e75dda87 packages/harness/work/specs/draft/SPEC-006-aprovar.md
+W b1f795e694737d6f60026d527d3549773db8b647cb4e3e9096899a0e0d0d573f packages/harness/work/specs/refined/SPEC-006-aprovar.md

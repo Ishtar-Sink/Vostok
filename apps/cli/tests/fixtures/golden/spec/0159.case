@@ -1,0 +1,34 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-007
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-007
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 98
+Spec SPEC-007 aprovada: <ROOT>/packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md
+
+@stderr 163
+Erro: a aprovação foi gravada, mas o rascunho não pôde ser removido; remova-o à mão: <ROOT>/packages/harness/work/specs/draft/SPEC-007-rascunho-protegido.md
+
+@exit 1
+1
+@pre 0
+
+@post 133
+W 99dc4e8cefd9a480594fe52d9a33e2cae87a98f5d2aaf4553473c0939af87235 packages/harness/work/specs/refined/SPEC-007-rascunho-protegido.md

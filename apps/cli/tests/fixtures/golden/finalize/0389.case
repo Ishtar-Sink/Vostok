@@ -1,0 +1,32 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 82
+Conteúdo de SPEC-008 válido: packages/harness/work/finalize/SPEC-008/content.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 248
+W 59d3c8d8b6b1e287afa313bd2fca8cffa104c608057da2873e6b7e45f72a83d6 packages/harness/work/finalize/SPEC-008/content.md
+W dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+@post 0
+

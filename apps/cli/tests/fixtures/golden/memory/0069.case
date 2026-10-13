@@ -1,0 +1,27 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 6
+--init
+@vostok 6
+memory
+@vostok 4
+init
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 72
+Arquivo de memória criado: <ROOT>/packages/harness/memory/decisions.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 38
+D packages/harness/memory/decisions.md
+@post 103
+W 14e8d4b632f548dc91cf28be5447b9d514b610797c4d8deb7ae4dd6f8b6361ad packages/harness/memory/decisions.md

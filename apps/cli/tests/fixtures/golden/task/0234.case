@@ -1,0 +1,37 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 9
+--approve
+@arg 11
+../SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 11
+../SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 42
+Erro: ID de spec inválido: '../SPEC-008'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

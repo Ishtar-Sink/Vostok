@@ -1,0 +1,83 @@
+---
+id: TASK-02
+spec: SPEC-008
+title: "Documentar"
+effort: complexa
+depends_on: [TASK-01]
+covers: [RF-02]
+type: historia
+labels: [SPEC-008, complexa]
+status: pending
+content_hash: 5f4ac17c4b053119d3348cd7d98f9ec7a2a89bf9b0e4b5298bfa37e3051eb3f3
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-02: Documentar
+
+## Execução
+
+### Ler
+
+#{TASK_READ}
+
+### Mudar
+
+#{TASK_CHANGE}
+
+### Passos
+
+#{TASK_STEPS}
+
+### Baseline
+
+#{TASK_BASELINE}
+
+### Verificação
+
+#{TASK_VERIFY}
+
+### Evidências
+
+#{TASK_EVIDENCE}
+
+### Concluída quando
+
+#{TASK_DONE}
+
+## Descrição
+
+### Resumo executivo
+
+#{TASK_EXECUTIVE_SUMMARY}
+
+### Detalhes técnicos
+
+#{TASK_TECHNICAL_DETAILS}
+
+### Card
+
+- **Título:** Documentar
+- **Tipo:** historia
+- **Descrição:** #{TASK_CARD_DESCRIPTION}
+- **Critérios de aceite:**
+#{TASK_CARD_CRITERIA}
+- **Rótulos:** SPEC-008, complexa
+- **Estimativa:** complexa
+- **Bloqueada por:** TASK-01
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

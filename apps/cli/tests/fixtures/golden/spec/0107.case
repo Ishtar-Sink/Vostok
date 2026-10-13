@@ -1,0 +1,34 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-004
+@arg 3
+fix
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-004
+@vostok 3
+fix
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 103
+Spec refinada SPEC-004 (fix) criada em <ROOT>/packages/harness/work/specs/refined/SPEC-004-rascunho.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 144
+W 72df057af988fbe67f7098176307bf8b0d6c2fa0b207f9d6feaab8fe6f5f2983 packages/harness/templates/spec/sections/risks.md
+D packages/harness/risks.md
+@post 123
+W 2a3e2880c510d5f279061ced61b3f416c24ebd7931ef9600e1d13a1d4c92a29f packages/harness/work/specs/refined/SPEC-004-rascunho.md

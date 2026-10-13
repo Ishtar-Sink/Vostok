@@ -1,0 +1,33 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 3
+all
+@arg 2
+.*
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 3
+all
+@vostok 2
+.*
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 28
+Nenhuma entrada encontrada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+efd63d3f2288
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+efd63d3f2288
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 74
+Erro: HEAD sem branch (detached); peça ao usuário para desfazer à mão
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

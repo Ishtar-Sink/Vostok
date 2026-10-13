@@ -1,0 +1,35 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+8f437b9f1cc6
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+8f437b9f1cc6
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 96
+2 commit(s) desfeito(s) em main; as alterações continuam na pasta de trabalho, fora de stage.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 425
+W 64b87b5985817b0759fdb4faf3aadb594215154fb0965f80271f00074c7f1015 .git/ORIG_HEAD
+W e1b24edd3aed3aa340cbd2b629e596b072a16e254c14a23fc735d5b1582e71f7 .git/index.ls
+W 8372257e729ee4d35832ade5c79bf837f38ab01b39953fbb9c64e592304545a2 .git/logs/HEAD
+W b26cec3c2e1862a996c45c2068457b878a50eb411094225dd48e31f3f2fd2f9f .git/logs/refs/heads/main
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/refs/heads/main

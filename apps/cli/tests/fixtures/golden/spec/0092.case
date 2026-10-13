@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 211
+Spec SPEC-001 marcada como refinada: <ROOT>/packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+Status do rascunho alterado para 'refined': <ROOT>/packages/harness/work/specs/draft/SPEC-001-painel-a-b.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 249
+W b8bb87ff42185619ed1d0c05b0435ce5e34a1359b39529e201b1577f5c64fbfb packages/harness/work/specs/draft/SPEC-001-painel-a-b.md
+W aab95294eda81f32d7b3a8aa2f8f1bb820aa778797e088bb74d326bb12dc0cd1 packages/harness/work/specs/refined/SPEC-001-painel-a-b.md

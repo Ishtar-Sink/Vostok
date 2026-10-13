@@ -1,0 +1,21 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 105
+Erro: Uso: adjust-plan.sh --record-manual <SPEC_ID> | --validate <SPEC_ID> | --record <SPEC_ID> "resumo"
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

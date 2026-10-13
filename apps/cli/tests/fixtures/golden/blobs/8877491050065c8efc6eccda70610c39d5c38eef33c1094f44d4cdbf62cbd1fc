@@ -1,0 +1,96 @@
+---
+id: TASK-01
+spec: SPEC-008
+title: "Criar script"
+effort: simples
+depends_on: []
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-008, simples]
+status: validating
+content_hash: 2b0552137b1240999a68be3ead059b03beac45b146d5f09cf1cbbd85fdd0026b
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-10-01T00:00:00Z
+approved_hash: 2b0552137b1240999a68be3ead059b03beac45b146d5f09cf1cbbd85fdd0026b
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+---
+
+# TASK-01: Criar script
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (criar): script novo.
+- `AGENTS.md` (alterar): cita o script.
+
+### Passos
+
+1. Criar o script.
+
+### Baseline
+
+- `true`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok; ls AGENTS.md`
+- `nota.txt` (manual): anotação do usuário
+
+### Concluída quando
+
+- [x] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+## Descrição
+
+### Resumo executivo
+
+Entrega o script que permite exportar dados.
+
+### Detalhes técnicos
+
+Abordagem em bash, com referência a RF-01.
+
+### Card
+
+- **Título:** Criar script
+- **Tipo:** tarefa
+- **Descrição:** Cria o script.
+- **Critérios de aceite:**
+  - [ ] O script existe.
+- **Rótulos:** SPEC-008, simples
+- **Estimativa:** simples
+- **Bloqueada por:** -
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+| 1 | 2026-10-01 | início | in_progress | aprovada em 2026-10-01T00:00:00Z |
+| 2 | 2026-10-01 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-10-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-01 | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | 2026-10-01 | evidências | pending | evidência manual sem arquivo |
+| 6 | 2026-10-01 | evidências | pending | evidência manual sem arquivo |
+| 7 | 2026-10-01 | evidências | passed | 2 evidência(s) em evidence/TASK-01/ |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 9
+--approve
+@arg 12
+b6610b6e569c
+@vostok 6
+commit
+@vostok 7
+approve
+@vostok 12
+b6610b6e569c
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 57
+Liberação gravada: 1 commit(s) novo(s) ou removido(s).
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 101
+W b6610b6e569c23da3d0422b32a8e2e8e0ac9ce2f91e5aba4cfce9a6e60aeb90d packages/harness/.state/commit-ack

@@ -1,0 +1,33 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 111
+Erro: a spec SPEC-008 está com status 'planned': as tarefas já foram criadas, e mudá-la exige um novo ciclo
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

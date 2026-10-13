@@ -1,0 +1,37 @@
+@script 16
+update-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 7
+ISS-001
+@arg 6
+Status
+@arg 9
+resolvido
+@vostok 6
+memory
+@vostok 6
+update
+@vostok 7
+ISS-001
+@vostok 6
+Status
+@vostok 9
+resolvido
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 28
+ISS-001: Status = resolvido
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 100
+W f6eb2b43be809b921ac483f5a3ea02fda91af3e2f4df5c86334c0062ed1ad344 packages/harness/memory/issues.md

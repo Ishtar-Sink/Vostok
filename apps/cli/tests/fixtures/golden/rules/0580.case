@@ -1,0 +1,31 @@
+@script 17
+validate-rules.sh
+@group 5
+rules
+@usage 1
+0
+@vostok 5
+rules
+@vostok 8
+validate
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 24
+Regras e mapa válidos.
+
+@stderr 0
+
+@exit 1
+0
+@pre 221
+W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b packages/harness/config/context.yml
+D ctx-ih.bak
+D ih-remove.txt
+D ih-rules.txt
+D ih-update.txt
+D ih-vazio.txt
+D packages/harness/rules/project/testing.md
+@post 0
+

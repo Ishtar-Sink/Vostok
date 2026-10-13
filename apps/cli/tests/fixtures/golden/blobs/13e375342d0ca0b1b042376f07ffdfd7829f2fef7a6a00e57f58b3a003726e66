@@ -1,0 +1,76 @@
+---
+id: TASK-02
+spec: SPEC-008
+title: "Documentar"
+effort: complexa
+depends_on: [TASK-01]
+covers: [RF-01]
+type: historia
+labels: [SPEC-008, complexa]
+status: pending
+content_hash: 5f4ac17c4b053119d3348cd7d98f9ec7a2a89bf9b0e4b5298bfa37e3051eb3f3
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-02: Documentar
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (criar): script novo.
+- `AGENTS.md` (alterar): cita o script.
+
+### Passos
+
+1. Criar o script.
+
+### Baseline
+
+- `true`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok`
+
+### Concluída quando
+
+- [ ] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+## Descrição
+
+### Resumo executivo
+
+Linha 1.
+Linha 2.
+Linha 3.
+Linha 4.
+Linha 5.
+Linha 6.
+Linha 7.
+
+### Detalhes técnicos
+
+Abordagem em bash, com referência a RF-01.
+
+### Card
+

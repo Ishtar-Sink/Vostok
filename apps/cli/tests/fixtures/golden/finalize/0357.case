@@ -1,0 +1,21 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 86
+Erro: Uso: finalize-spec.sh --sources|--create|--validate|--build|--archive <SPEC_ID>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

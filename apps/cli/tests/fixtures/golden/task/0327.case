@@ -1,0 +1,36 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--finish
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 6
+finish
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 94
+Tarefa TASK-01 concluída: status 'done'.
+Tarefas de SPEC-008 ainda não concluídas: TASK-02
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 8877491050065c8efc6eccda70610c39d5c38eef33c1094f44d4cdbf62cbd1fc packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 114
+W 49de4cff4f22af1a0d16c22eda1b6249876553acaf07f723b8ce83c299389ac4 packages/harness/work/tasks/SPEC-008/TASK-01.md

@@ -1,0 +1,34 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--create-tasks
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+create-tasks
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 164
+Erro: o plano de SPEC-008 não pode ser aprovado; nada foi alterado:
+edição manual no plano sem registro; registre-a com: adjust-plan.sh --record-manual SPEC-008
+
+@exit 1
+1
+@pre 106
+W 8aad597689360fd54e848341109d2ad3c57d693e0978152e9806e91d195968fd packages/harness/work/plans/SPEC-008.md
+@post 0
+

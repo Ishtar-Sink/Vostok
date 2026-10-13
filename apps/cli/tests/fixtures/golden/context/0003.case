@@ -1,0 +1,21 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 50
+Uso: load-extra-context.sh <caminho> [caminho...]
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

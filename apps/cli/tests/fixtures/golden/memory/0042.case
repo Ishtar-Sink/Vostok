@@ -1,0 +1,48 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 5
+issue
+@arg 6
+eacces
+@arg 14
+inexistentexyz
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 5
+issue
+@vostok 6
+eacces
+@vostok 14
+inexistentexyz
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 256
+> Termos encontrados: 1 de 2
+
+## ISS-001: a|b & c\d "x" /tmp/á
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** wsl, build
+- **Categoria:** ambiente
+- **Assinatura:** `EACCES: permission denied`
+- **Ambiente:** -
+- **Causa:** -
+- **Solução:** -
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

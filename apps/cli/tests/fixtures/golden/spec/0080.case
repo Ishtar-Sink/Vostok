@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-001
+@arg 4
+epic
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-001
+@vostok 4
+epic
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 76
+Erro: tipo inválido 'epic'. Tipos: feature improvement fix study analysis 
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

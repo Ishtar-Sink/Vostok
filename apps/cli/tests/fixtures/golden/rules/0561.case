@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 7
+--write
+@arg 7
+testing
+@arg 21
+<ROOT>/nao-existe.txt
+@vostok 5
+rules
+@vostok 5
+write
+@vostok 7
+testing
+@vostok 21
+<ROOT>/nao-existe.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 63
+Erro: arquivo de regras não encontrado: <ROOT>/nao-existe.txt
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

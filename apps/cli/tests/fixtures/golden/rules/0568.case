@@ -1,0 +1,44 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--preview
+@arg 7
+testing
+@arg 20
+<ROOT>/ih-update.txt
+@vostok 5
+rules
+@vostok 7
+preview
+@vostok 7
+testing
+@vostok 20
+<ROOT>/ih-update.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 325
+--- <ROOT>/packages/harness/rules/project/testing.md	<MTIME>
++++ <TMP>	<MTIME>
+@@ -2,5 +2,6 @@
+ 
+ Define como o projeto testa.
+ 
+-[project/testing-01]: Testes com vitest.
++[project/testing-01]: Removida em 2026-09-30.
+ [project/testing-02]: Cada módulo tem testes.
++[project/testing-03]: Testes de integração rodam no CI.
+
+@stderr 0
+
+@exit 1
+0
+@pre 80
+W 9344b5013a3ad7faa5d644529e1f422ed2dadb839354cb0487a6d97c2d77cf37 ih-update.txt
+@post 0
+

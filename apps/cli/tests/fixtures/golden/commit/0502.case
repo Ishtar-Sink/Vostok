@@ -1,0 +1,31 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--revert
+@arg 12
+6fa81e2f17bb
+@vostok 6
+commit
+@vostok 6
+revert
+@vostok 12
+6fa81e2f17bb
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 131
+Erro: há commits já enviados ao remoto; desfazê-los exige reescrever o histórico compartilhado. Peça ao usuário para decidir
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

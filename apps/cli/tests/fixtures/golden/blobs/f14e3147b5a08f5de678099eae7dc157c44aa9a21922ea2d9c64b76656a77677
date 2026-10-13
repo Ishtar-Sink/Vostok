@@ -1,0 +1,99 @@
+---
+id: SPEC-002
+title: "Análise"
+status: refined
+author: "Victor Batalha"
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+tags: []
+type: analysis
+source: "draft/SPEC-002-analise.md"
+refined_at: 2026-10-01T00:00:00Z
+adjustments: 0
+adjusted_at: null
+---
+
+# Análise - Especificação Refinada
+
+#{SPEC_SUMMARY}
+
+## Objetivo
+
+#{OBJECTIVE}
+
+## Escopo
+
+### Dentro do escopo
+
+#{SCOPE_IN}
+
+### Fora do escopo
+
+#{SCOPE_OUT}
+
+## Tese
+
+#{THESIS}
+
+| ID | Argumento | Evidência |
+|---|---|---|
+#{THESIS_ARGUMENTS}
+
+## Antítese
+
+#{ANTITHESIS}
+
+| ID | Contra-argumento | Evidência | Contesta |
+|---|---|---|---|
+#{ANTITHESIS_ARGUMENTS}
+
+## Síntese
+
+#{SYNTHESIS}
+
+| ID | Conclusão | Baseada em |
+|---|---|---|
+#{SYNTHESIS_CONCLUSIONS}
+
+## Premissas e dependências
+
+#{ASSUMPTIONS}
+
+## Riscos
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+#{RISKS}
+
+## Critérios de aceite
+
+#{ACCEPTANCE_CRITERIA}
+
+## Referências
+
+| Tipo | Referência | Uso |
+|---|---|---|
+#{REFERENCES}
+
+## O que mudou
+
+| # | Assunto | Estado no Original | Estado Refinado |
+|---|---|---|---|
+#{WHAT_CHANGED}
+
+## Registro de decisões
+
+| # | Decisão | Alternativa descartada | Motivo |
+|---|---|---|---|
+#{DECISIONS}
+
+## Pendências
+
+| # | Pendência | Opções em aberto |
+|---|---|---|
+#{PENDING}
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

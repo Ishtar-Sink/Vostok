@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+Painel "A" | B
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 14
+Painel "A" | B
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 83
+SPEC-001 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-001-painel-a-b.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 228
+W d7cdf1e5612f63b361150f7c298c99a0aa73cd379276b861f1af82446df91b06 packages/harness/config/sequences.yml
+W de77286b701f9e49fb04a01457bdb10d27f9c17393146e0e3a66d1d5094e66e7 packages/harness/work/specs/draft/SPEC-001-painel-a-b.md

@@ -1,0 +1,31 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 74
+Plano de SPEC-008 válido: <ROOT>/packages/harness/work/plans/SPEC-008.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

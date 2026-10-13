@@ -1,0 +1,25 @@
+@script 17
+validate-rules.sh
+@group 5
+rules
+@usage 1
+0
+@vostok 5
+rules
+@vostok 8
+validate
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 89
+config/context.yml: skills.fantasma: skill inexistente em skills/default e skills/custom
+
+@stderr 0
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

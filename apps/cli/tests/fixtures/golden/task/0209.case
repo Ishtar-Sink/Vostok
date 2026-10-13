@@ -1,0 +1,28 @@
+@script 12
+load-task.sh
+@group 4
+task
+@usage 1
+0
+@vostok 4
+task
+@vostok 4
+load
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 44
+Erro: Uso: load-task.sh <SPEC_ID> <TASK_ID>
+
+@exit 1
+1
+@pre 335
+W ae412e4723553c69c41f4cf87726bfc2ee66919afdbba4ea585ce88866b6c774 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W a68c76ebc7ff8188bf3821a10b39e513da049be2cf8e582b8347a1d21d9c403f packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/TASK-01.md.ok
+D packages/harness/work/tasks/SPEC-008/TASK-02.md.ok
+@post 0
+

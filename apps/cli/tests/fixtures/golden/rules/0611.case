@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--unload
+@arg 3
+api
+@arg 12
+execute-task
+@vostok 5
+rules
+@vostok 6
+unload
+@vostok 3
+api
+@vostok 12
+execute-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 61
+Erro: a categoria 'api' não está carregada em execute-task
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

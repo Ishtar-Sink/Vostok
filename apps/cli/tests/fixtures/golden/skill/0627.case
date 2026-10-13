@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 12
+create-skill
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 12
+create-skill
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 228
+Redirecionamento: <ROOT>/.claude/skills/create-skill/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/create-skill/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'create-skill' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 207
+W aeaabfb588a13fe70aac37c4a0f2dfeaf2870e2704098c7b4068156e07cd56cf .agents/skills/create-skill/SKILL.md
+W aeaabfb588a13fe70aac37c4a0f2dfeaf2870e2704098c7b4068156e07cd56cf .claude/skills/create-skill/SKILL.md

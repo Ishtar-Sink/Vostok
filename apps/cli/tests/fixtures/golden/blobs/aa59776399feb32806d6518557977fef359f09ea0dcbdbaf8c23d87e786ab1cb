@@ -1,0 +1,43 @@
+---
+spec: SPEC-008
+spec_hash: 4122ca79b0d1676ae531bcab263bc741912580027ed73d70c49e32623f6c2389
+content_hash: 209282e149cd06e0efa1c1e8481adffa6112da69b7288b2157c66dc2954e4cd1
+adjustments: 0
+adjusted_at: null
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Plano de tarefas: SPEC-008 - Planejar
+
+Documento para revisão. É removido quando o plano é aprovado.
+
+## Visão geral
+
+#{PLAN_OVERVIEW}
+
+## Tarefas
+
+| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |
+|---|---|---|---|---|---|---|
+#{PLAN_TASKS}
+
+## Fatos de esforço
+
+| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |
+|---|---|---|---|---|---|
+#{PLAN_FACTS}
+
+## Níveis de esforço
+
+| Nível | Descrição |
+|---|---|
+| simples | Mudança pequena e bem delimitada, com passos diretos. |
+| moderada | Várias mudanças relacionadas, com alguma decisão local. |
+| complexa | Mudança ampla ou com decisões de desenho que exigem raciocínio. |
+| critica | Contrato público, risco alto ou muitas partes interligadas. |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

@@ -1,0 +1,32 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+create
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 155
+Aviso: o plano existente foi feito para outra versão da spec e será recriado.
+Plano de SPEC-008 criado em <ROOT>/packages/harness/work/plans/SPEC-008.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 106
+W aa59776399feb32806d6518557977fef359f09ea0dcbdbaf8c23d87e786ab1cb packages/harness/work/plans/SPEC-008.md

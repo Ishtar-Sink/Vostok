@@ -1,0 +1,28 @@
+@script 17
+validate-rules.sh
+@group 5
+rules
+@usage 1
+0
+@vostok 5
+rules
+@vostok 8
+validate
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 228
+rules/project/CodeStyle.md:1: nome fora de kebab-case: CodeStyle.md
+rules/project/CodeStyle.md:1: primeira linha deve ser o título "# <título>"
+rules/project/CodeStyle.md:3: falta a frase de propósito antes da primeira regra
+
+@stderr 0
+
+@exit 1
+1
+@pre 213
+W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b packages/harness/config/context.yml
+W e40a08bdcdac143351b29a1ca6b79692f1caf006970741cc80869dad35d7a947 packages/harness/rules/project/CodeStyle.md
+@post 0
+

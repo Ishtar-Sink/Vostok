@@ -1,0 +1,29 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 6
+create
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 86
+Erro: a skill 'review-x' já existe em <ROOT>/packages/harness/skills/custom/review-x
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

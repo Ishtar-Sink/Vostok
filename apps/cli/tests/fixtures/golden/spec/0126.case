@@ -1,0 +1,39 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-001
+@arg 3
+a
+b
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-001
+@vostok 3
+a
+b
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 71
+Erro: o resumo não pode ter quebra de linha; separe os itens com '; '
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

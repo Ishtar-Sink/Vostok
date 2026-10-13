@@ -1,0 +1,37 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--finish
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 6
+finish
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 117
+Tarefa TASK-02 concluída: status 'done'.
+Todas as tarefas de SPEC-008 concluídas: spec marcada como 'implemented'.
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W f24144bc5afed8c21f1cf8906779c4be54b6663b1be7280792513f12c0b893e3 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 238
+W af3a1e99ea29f55dceeecb1b62fcdefdc4a21b02bc11eb1e1daff61366cc610d packages/harness/work/specs/refined/SPEC-008-planejar.md
+W 60a847c78ca1230d2c195eb3c1b22bfb8bb90b054b6e920a75c25dfcace10cc9 packages/harness/work/tasks/SPEC-008/TASK-02.md

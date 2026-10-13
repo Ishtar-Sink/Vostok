@@ -1,0 +1,32 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 118
+Erro: a skill 'review-x' tem problemas:
+o campo 'name' do front-matter precisa ser 'review-x', igual ao nome da pasta
+
+@exit 1
+1
+@pre 115
+W 90af0fddbcb4a8cdd2e776b99773d6606dfb3dcbacb640b5cbf93f8f92fecffd packages/harness/skills/custom/review-x/SKILL.md
+@post 0
+

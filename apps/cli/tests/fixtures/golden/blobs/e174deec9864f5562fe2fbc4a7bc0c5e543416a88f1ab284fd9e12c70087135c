@@ -1,0 +1,97 @@
+<!-- Conteúdo dos documentos de SPEC-008, escrito pelo agente. O finalize-spec.sh --build transforma este arquivo em HTML. -->
+<!-- Markdown aceito: parágrafos, listas com "- " ou "1. ", tabelas, `código` e **negrito**. -->
+<!-- Não use outros títulos, blocos de código, imagens nem HTML; "### " só nas entregas do executivo. Comentários como estes não aparecem nos documentos. -->
+<!-- Cada título "## " precisa de texto, e todas as variáveis de template precisam ser substituídas. -->
+
+# Executivo
+
+## Panorama
+
+Entrega o **script** `novo.sh` com <script>alert(1)</script> escapado.
+
+## Indicadores de valor
+
+| Valor | Indicador |
+|---|---|
+| **3x** | mais rápido |
+| 0 | etapas manuais |
+
+## Recorte
+
+Só o script; a documentação fica para depois.
+
+## Entregas
+
+### Script novo
+- **Impacto:** alto
+- **O que mudou:** o script existe.
+- **Valor:** menos <trabalho> manual.
+- **Como perceber:** rodar o script.
+Texto solto da entrega.
+
+### Documentação
+- **Impacto:** médio
+- **O que mudou:** o guia cita o script.
+- **Valor:** quem chega encontra o caminho.
+
+## Antes e depois
+
+| Situação | Antes | Depois |
+|---|---|---|
+| Rodar | à mão | um comando |
+
+## Próximos passos
+
+1. Publicar.
+
+## Riscos e limitações
+
+- Depende do bash.
+
+# Técnico
+
+<!-- Para quem vai manter o que foi entregue: linguagem técnica, objetiva e breve. -->
+
+## Visão geral
+
+<!-- Em um parágrafo: o que foi construído e como as partes se conectam. -->
+Texto da seção.
+
+## Arquitetura e componentes
+
+<!-- Os componentes criados ou alterados e o papel de cada um. -->
+Texto da seção.
+
+## O que foi feito
+
+<!-- Explicação técnica breve do que foi implementado e como, tarefa por tarefa ou por tema. -->
+Texto da seção.
+
+## Decisões
+
+<!-- As decisões tomadas, com a alternativa descartada e o motivo. -->
+Escolheu <bash> & testes.
+
+## Aprendizados
+
+<!-- O que foi aprendido: memória do período, bloqueios, ajustes e retomadas, e o que mudaria numa próxima vez. -->
+Texto da seção.
+
+## Pontos de atenção
+
+<!-- Limitações, riscos que ficaram e cuidados para quem for mexer neste código. -->
+Texto da seção.
+
+## Referências
+
+<!-- Arquivos, entradas de memória, documentação e commits para o leitor se aprofundar, com o motivo de cada um. -->
+- `docs/ref.md`: motivo da leitura.
+
+# Evidências
+
+<!-- Um bloco por evidência, criado pelo --create. Preencha "Como chegar" (o comando ou os passos que geram a evidência) e "Como ler" (o que observar nela). -->
+
+## TASK-01 / saida.txt
+
+- **Como chegar:** Texto da seção.
+- **Como ler:** Texto da seção.

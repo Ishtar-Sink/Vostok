@@ -1,0 +1,57 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-004
+@vostok 4
+spec
+@vostok 8
+validate
+@vostok 8
+SPEC-004
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 1602
+Erro: a spec refinada SPEC-004 tem problemas:
+variável sem preencher: 18:#{SPEC_SUMMARY}
+variável sem preencher: 22:#{OBJECTIVE}
+variável sem preencher: 26:- **Comportamento atual:** #{DEFECT_CURRENT}
+variável sem preencher: 27:- **Comportamento esperado:** #{DEFECT_EXPECTED}
+variável sem preencher: 28:- **Como reproduzir:** #{DEFECT_REPRODUCTION}
+variável sem preencher: 29:- **Causa raiz:** #{DEFECT_ROOT_CAUSE}
+variável sem preencher: 35:#{SCOPE_IN}
+variável sem preencher: 39:#{SCOPE_OUT}
+variável sem preencher: 45:#{FUNCTIONAL_REQUIREMENTS}
+variável sem preencher: 51:#{EDGE_CASES}
+variável sem preencher: 57:#{AFFECTED_COMPONENTS}
+variável sem preencher: 61:#{ASSUMPTIONS}
+variável sem preencher: 67:#{RISKS}
+variável sem preencher: 73:#{TEST_CASES}
+variável sem preencher: 77:#{ACCEPTANCE_CRITERIA}
+variável sem preencher: 83:#{REFERENCES}
+variável sem preencher: 89:#{WHAT_CHANGED}
+variável sem preencher: 95:#{DECISIONS}
+variável sem preencher: 101:#{PENDING}
+a tabela da seção 'Requisitos funcionais' está vazia (use uma linha com '-' se não se aplica)
+a tabela da seção 'Casos de borda' está vazia (use uma linha com '-' se não se aplica)
+a tabela da seção 'Componentes afetados' está vazia (use uma linha com '-' se não se aplica)
+a tabela da seção 'Riscos' está vazia (use uma linha com '-' se não se aplica)
+a tabela da seção 'Casos de teste' está vazia (use uma linha com '-' se não se aplica)
+a tabela da seção 'Referências' está vazia (use uma linha com '-' se não se aplica)
+ID de requisito funcional inválido: '' (use RF-01, RF-02...)
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

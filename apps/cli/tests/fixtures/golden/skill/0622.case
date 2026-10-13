@@ -1,0 +1,37 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 216
+Redirecionamento: <ROOT>/.claude/skills/review-x/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/review-x/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'review-x' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 244
+W c8858a2137cb99b36e06e10505bc9e7cd96ff38e18d12f0f567f073e121b0d56 packages/harness/skills/custom/review-x/SKILL.md
+W b3d7b6520e9c03a9813f972470e62beb824a71dc9c9e687e0bd20c78f0786561 packages/harness/skills/custom/review-x/scripts/list-files.sh
+@post 308
+W e5a78c612767318bc8bf6afd51e692a4d05e7ca05c74ded78fa292a5afd8da0b .agents/skills/review-x/SKILL.md
+W e5a78c612767318bc8bf6afd51e692a4d05e7ca05c74ded78fa292a5afd8da0b .claude/skills/review-x/SKILL.md
+W 39792e06c34d6712ceb42fd206d1df15efc8170235d5c44f3557684e9929bb55 packages/harness/context/skill-catalog.md

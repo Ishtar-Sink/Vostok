@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Cria, pontua e valida o plano de tarefas de uma spec aprovada (`paths.plans`/<SPEC_ID>.md).
+# # O plano é só um documento de revisão: é ajustado pela adjust-plan e removido pela approve-plan.
+# #
+# # Uso: plan-tasks.sh --create <SPEC_ID>
+# #        Cria o plano a partir do template, para specs com status.approved e `approved_hash` igual
+# #        ao hash do conteúdo. Recusa se a spec já tiver plano atualizado; recria um plano
+# #        desatualizado (feito para outra versão da spec), avisando.
+# #      plan-tasks.sh --score <SPEC_ID>
+# #        Calcula o nível de cada tarefa a partir dos fatos de esforço (config/tasks.yml), grava-o
+# #        na coluna "Nível" e atualiza o hash do conteúdo. Com fatos inválidos, não altera nada.
+# #      plan-tasks.sh --validate <SPEC_ID>
+# #        Lista os problemas do plano, sem alterar nada. Termina com erro se houver algum.
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/text.sh"
+# source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+# source "$HARNESS_DIR/scripts/lib/markdown.sh"
+# source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
+# source "$HARNESS_DIR/scripts/lib/adjustments.sh"
+# source "$HARNESS_DIR/scripts/lib/plan.sh"
+# 
+# MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+# SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
+# TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
+# 
+# USAGE="Uso: plan-tasks.sh --create <SPEC_ID> | --score <SPEC_ID> | --validate <SPEC_ID>"
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# approved_status="$(config_get "$SPECS_CONFIG" status.approved)"
+# planned_status="$(config_get "$SPECS_CONFIG" status.planned)"
+# approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
+# hash_field="$(config_get "$SPECS_CONFIG" content_hash_field)"
+# 
+# find_spec() {
+#   plan_spec_file "$1" || die "spec refinada $1 não encontrada"
+# }
+# 
+# find_plan() {
+#   local plan
+#   plan="$(plan_path "$1")"
+#   [ -f "$plan" ] || die "a spec $1 não tem plano de tarefas. Crie-o com: plan-tasks.sh --create $1"
+#   printf '%s' "$plan"
+# }
+# 
+# create() {
+#   local spec_id="$1" spec status approved plan template now
+# 
+#   spec="$(find_spec "$spec_id")"
+#   status="$(frontmatter_get "$spec" status 2>/dev/null || true)"
+#   [ "$status" != "$planned_status" ] ||
+#     die "a spec $spec_id já está com status '$planned_status': as tarefas já foram criadas"
+#   [ "$status" = "$approved_status" ] ||
+#     die "a spec $spec_id está com status '$status'; só specs com status '$approved_status' são planejadas"
+#   approved="$(frontmatter_get "$spec" "$approved_hash_field" 2>/dev/null || true)"
+#   [ "$approved" = "$(frontmatter_get "$spec" "$hash_field" 2>/dev/null || true)" ] &&
+#     [ "$approved" = "$(spec_content_hash "$spec")" ] ||
+#     die "a spec $spec_id mudou depois da aprovação; aprove-a de novo antes de planejar"
+# 
+#   plan="$(plan_path "$spec_id")"
+#   if [ -f "$plan" ]; then
+#     plan_is_outdated "$plan" "$spec" ||
+#       die "a spec $spec_id já tem um plano atualizado: $plan"
+#     echo "Aviso: o plano existente foi feito para outra versão da spec e será recriado."
+#   fi
+# 
+#   template="$(harness_path "$(config_get "$MAIN_CONFIG" paths.templates)")/$(config_get "$TASKS_CONFIG" plan_template)"
+#   [ -f "$template" ] || die "template não encontrado: $template"
+# 
+#   now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+#   mkdir -p "$(plan_dir)"
+#   TPL_SPEC_ID="$spec_id" \
+#   TPL_SPEC_TITLE="$(frontmatter_get "$spec" title)" \
+#   TPL_SPEC_HASH="$approved" \
+#   TPL_DATETIME="$now" \
+#   TPL_EFFORT_LEVELS="$(plan_effort_level_rows)" \
+#   TPL_ADJUSTMENT_HISTORY="$(cat "$(spec_section_template "$(config_get "$SPECS_CONFIG" adjustment_history_section)")")" \
+#     render "$template" > "$plan"
+#   adjustment_store_hash "$plan"
+# 
+#   echo "Plano de $spec_id criado em $plan"
+# }
+# 
+# score() {
+#   local spec_id="$1" plan problems
+# 
+#   plan="$(find_plan "$1")"
+#   problems="$(plan_score "$plan")" || die "não foi possível calcular os níveis de $spec_id; nada foi alterado:"$'\n'"$problems"
+#   frontmatter_put "$plan" updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+#   adjustment_store_hash "$plan"
+#   echo "Níveis de esforço gravados no plano de $spec_id: $plan"
+# }
+# 
+# validate() {
+#   local spec_id="$1" plan spec errors
+# 
+#   plan="$(find_plan "$spec_id")"
+#   spec="$(find_spec "$spec_id")"
+#   errors="$(plan_errors "$plan" "$spec")"
+#   [ -z "$errors" ] || die "o plano de $spec_id tem problemas:"$'\n'"$errors"
+#   echo "Plano de $spec_id válido: $plan"
+# }
+# 
+# case "${1:-}" in
+#   --create) [ -n "${2:-}" ] || die "$USAGE"; create "$2" ;;
+#   --score) [ -n "${2:-}" ] || die "$USAGE"; score "$2" ;;
+#   --validate) [ -n "${2:-}" ] || die "$USAGE"; validate "$2" ;;
+#   *) die "$USAGE" ;;
+# esac

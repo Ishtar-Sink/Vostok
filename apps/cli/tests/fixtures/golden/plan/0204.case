@@ -1,0 +1,38 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 74
+Tarefas de SPEC-008 válidas: <ROOT>/packages/harness/work/tasks/SPEC-008
+
+@stderr 0
+
+@exit 1
+0
+@pre 465
+W f58620588f5ed689cea66fde5716d4b5269f770938ddb83d3b36eec38d956a33 .task-errors
+W ae412e4723553c69c41f4cf87726bfc2ee66919afdbba4ea585ce88866b6c774 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W a68c76ebc7ff8188bf3821a10b39e513da049be2cf8e582b8347a1d21d9c403f packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/TASK-01.md.ok
+D packages/harness/work/tasks/SPEC-008/TASK-02.md.ok
+D packages/harness/work/tasks/SPEC-008/TASK-03.md
+@post 0
+

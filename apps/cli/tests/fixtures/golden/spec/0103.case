@@ -1,0 +1,31 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 108
+Erro: o rascunho de SPEC-001 já está com status 'refined'. Para mudar a refinada, use a skill adjust-spec
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

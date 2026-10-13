@@ -1,0 +1,25 @@
+@script 17
+validate-rules.sh
+@group 5
+rules
+@usage 1
+0
+@vostok 5
+rules
+@vostok 8
+validate
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 79
+config/context.yml: required: caminho inexistente: rules/project/nao-existe.md
+
+@stderr 0
+
+@exit 1
+1
+@pre 102
+W d85df9d7d9e7ce583b2a21e1c0e60f0013dd0b84818c5b35318f56044f476260 packages/harness/config/context.yml
+@post 0
+

@@ -1,0 +1,40 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@arg 7
+c 2.txt
+@vostok 6
+commit
+@vostok 6
+commit
+@vostok 7
+c 2.txt
+@cwd 9
+<OUTSIDE>
+@stdin 18
+chore: remove c 2
+
+@stdout 51
+Commit feito e liberado: beb741c chore: remove c 2
+
+@stderr 0
+
+@exit 1
+0
+@pre 9
+D c 2.txt
+@post 898
+W 32346d4e823d8f75d7c6f5def2a91f5fb1dfe06cf2f758aab661030363583e6a .git/COMMIT_EDITMSG
+W 3b25605b87947248c839068416d1f1f65253c9a5dd9aafc7383007fca3e0aa6b .git/index.ls
+W a8e229f356f3e5f51a51439190aba6b3e3e6fccea84ada2aa0f1620118e786e8 .git/logs/HEAD
+W f6817bf908475f7bf55cd42c6e31595f94c94db9377f7efc87d011512d5a43e0 .git/logs/refs/heads/main
+W 0b3100cc17f430a4279aa6dda64e58ffa0980c6761c81c1987c7b410914b3721 .git/objects/31/a5c14441770a994314cfe6a8131142aa8666c9
+W 548466b8538d85911873fcdb42ff74bdc14138287fe31c83e9e683cdb0abb43c .git/objects/9e/bb48e7581e77b76364b510d99fa1bcb9f6bd15
+W 5bd6c5b9927b6d8650ce657c15928c7b47b70d62db1934d7fb364c20ab24d9ab .git/objects/be/b741cdaa4d280e20e8101673f1dc44f0058c4b
+W eb95b8a8b6730c1b6cd62f2f36e44b370d65433c72c6d2cb068df5b288584ecf .git/refs/heads/main
+W 1c290b120746cebdd3057e4db11680f4e06bf9e98f51ccec0b1ff924bbc04a02 packages/harness/.state/commit-ack

@@ -1,0 +1,34 @@
+@script 13
+check-done.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 10
+check-done
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 144
+Erro: a tarefa TASK-02 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:
+- [ ] O script existe (RF-01).
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

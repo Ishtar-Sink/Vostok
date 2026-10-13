@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 7
+--write
+@arg 7
+testing
+@arg 20
+<ROOT>/ih-update.txt
+@vostok 5
+rules
+@vostok 5
+write
+@vostok 7
+testing
+@vostok 20
+<ROOT>/ih-update.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 44
+Categoria gravada: rules/project/testing.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 108
+W 7f0bbddddad3a512d436bb230647b938991b9ef679edbd31b6b4cc263bfdecb8 packages/harness/rules/project/testing.md

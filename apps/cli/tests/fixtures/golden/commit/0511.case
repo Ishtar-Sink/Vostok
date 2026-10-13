@@ -1,0 +1,33 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@arg 14
+nao-existe.txt
+@vostok 6
+commit
+@vostok 6
+commit
+@vostok 14
+nao-existe.txt
+@cwd 9
+<OUTSIDE>
+@stdin 11
+feat: nada
+
+@stdout 0
+
+@stderr 101
+fatal: pathspec 'nao-existe.txt' did not match any files
+Erro: caminho inválido; nada foi commitado
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

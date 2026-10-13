@@ -1,0 +1,49 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 7
+--build
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 5
+build
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 179
+Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
+  - executivo.html
+  - tecnico.html
+  - evidencias.html
+  - assets/ (3 evidência(s) fora do documento)
+
+@stderr 0
+
+@exit 1
+0
+@pre 1211
+W ef045f583234ce17a9c12b31a7bbfaf7379d134dbc46b3b06d197a4329905e2f .docs-ev
+W 87bf16df1efac4122f01204826f28e417b948048a55215860626b14ef141f558 packages/harness/config/documents.yml
+W 04cbd0e8191ccc7d09544d4f07be701c6ae445cecb40ec41124a5d5f94e691aa packages/harness/work/finalize/SPEC-008/assets/TASK-99/velho.txt
+W 17a71a212c8c02ce15d22b4a79483beaca6257caa74127c9679b20c00216ac20 packages/harness/work/finalize/SPEC-008/content.md
+W 036e4355725799d9119e4ef92b33d2b167cffdbcf258e817fc1c4b032b30a282 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W aec493f5429a48aa9fd398b2def7dea3078e1847fd31d810227c26f7bae3731b packages/harness/work/tasks/SPEC-008/evidence/TASK-01/Nome com espaço.zip
+W 0f6a9f6d127b5589550f0eae2400e8190a2aec4e06817072ce03203f02c6dbd1 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/foto.png
+W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/pacote.zip
+W 77a72d578fba569c94579b1ba9f03e22ea4d264f0a29150dcdd50c508c1e1e52 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.log
+W c81ca5eda5947c7826ad046fdbdc2a25a846b835a6c34c237cc8b3afbe9ec6cc packages/harness/work/tasks/SPEC-008/evidence/TASK-01/video.mp4
+@post 719
+W aec493f5429a48aa9fd398b2def7dea3078e1847fd31d810227c26f7bae3731b packages/harness/work/finalize/SPEC-008/assets/TASK-01/Nome com espaço.zip
+W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 packages/harness/work/finalize/SPEC-008/assets/TASK-01/pacote.zip
+W c81ca5eda5947c7826ad046fdbdc2a25a846b835a6c34c237cc8b3afbe9ec6cc packages/harness/work/finalize/SPEC-008/assets/TASK-01/video.mp4
+W 1697038407dca9ee320d326cca32f30419725345dded5c0783e07af9b8584aa5 packages/harness/work/finalize/SPEC-008/evidencias.html
+W e316bb3c2406cfc11c42c72138b986e76c4f6dd183619f8894d302d644c54788 packages/harness/work/finalize/SPEC-008/executivo.html
+D packages/harness/work/finalize/SPEC-008/assets/TASK-99/velho.txt

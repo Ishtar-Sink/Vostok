@@ -1,0 +1,67 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 7
+--skill
+@arg 12
+init-harness
+@vostok 7
+context
+@vostok 4
+load
+@vostok 7
+--skill
+@vostok 12
+init-harness
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1400
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: rules/project/naming-convention.md ---
+
+# Convenção de Nomeações
+
+Define as regras de nomeação para o agente.
+
+[project/naming-convention-01]: Arquivos em `kebab-case`.
+[project/naming-convention-02]: Diretórios em `kebab-case`.
+[project/naming-convention-03]: Variáveis ambiente em `SCREAMING_SNAKE`.
+[project/naming-convention-04]: Classes em `PascalCase`.
+[project/naming-convention-05]: Removida em 2026-10-13.
+[project/naming-convention-06]: Chaves de objetos em `snake_case`.
+[project/naming-convention-07]: Métodos, funções, variáveis e constantes em `camelCase` no TypeScript e no JavaScript.
+[project/naming-convention-08]: No Rust, funções, métodos, variáveis e módulos em `snake_case`, tipos em `PascalCase` e constantes em `SCREAMING_SNAKE`.
+
+
+--- arquivo: templates/rules/category.md ---
+
+<!--
+Formato do arquivo de categoria de regras de projeto (rules/project/<categoria>.md).
+O nome do arquivo é o nome da categoria em kebab-case.
+Cada regra ocupa uma linha, no formato `[project/<arquivo>-NN]: regra.`, com o ID sequencial de dois dígitos.
+O ID nunca é reaproveitado: uma regra removida vira `[project/<arquivo>-NN]: Removida em AAAA-MM-DD.`.
+-->
+# #{CATEGORY_TITLE}
+
+#{CATEGORY_PURPOSE}
+
+#{CATEGORY_RULES}
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

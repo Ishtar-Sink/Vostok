@@ -1,0 +1,39 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--tests
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 5
+tests
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 231
+Testes de TASK-01 falharam (código de saída 1), tentativa 1 de 2. Últimas linhas da saída (<ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out):
+    comando com falha (código 1): test ! -e .falha
+
+@stderr 71
+Erro: os testes de TASK-01 falharam; corrija e execute --tests de novo
+
+@exit 1
+1
+@pre 144
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .falha
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .vt
+@post 256
+W 56202505dbc165d6af8993cf13b8e85dd8e4cb6077080c5461c0d4a5f05f36e8 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 6a71926d6c6ab59a1fc9d658513f8a228e9447f47db1bac24a51342279ea416e packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out

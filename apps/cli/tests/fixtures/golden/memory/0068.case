@@ -1,0 +1,33 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 8
+decision
+@arg 1
+X
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 8
+decision
+@vostok 1
+X
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 169
+Erro: <ROOT>/packages/harness/memory/decisions.md não tem front-matter com 'updated_at'. Restaure o cabeçalho do arquivo (ver add-memory.sh --init) antes de continuar
+
+@exit 1
+1
+@pre 103
+W e0f20ab15bd2f7cf06e3f6554a0e2cec2308f4d7afc6115a3a867ba1041f1082 packages/harness/memory/decisions.md
+@post 0
+

@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--unload
+@arg 3
+api
+@arg 12
+create-skill
+@vostok 5
+rules
+@vostok 6
+unload
+@vostok 3
+api
+@vostok 12
+create-skill
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 42
+Categoria 'api' retirada de create-skill.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W 02f01d42307af17dec25674b5979b1153da2acdcad1de27d9e9bffae2275951b packages/harness/config/context.yml

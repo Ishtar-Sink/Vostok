@@ -1,0 +1,21 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 135
+Erro: Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID> | --validate <SPEC_ID> <TASK_ID> | --record <SPEC_ID> <TASK_ID> "resumo"
+
+@exit 1
+1
+@pre 114
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

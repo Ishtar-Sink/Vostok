@@ -1,0 +1,83 @@
+---
+id: TASK-01
+spec: SPEC-009
+title: "a"
+effort: simples
+depends_on: []
+covers: [PQ-01]
+type: tarefa
+labels: [SPEC-009, simples]
+status: pending
+content_hash: dfd8447492dea73e60981878047b29080559bd374ce2e41b0e1aee3ff2a3aa3f
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-01: a
+
+## Execução
+
+### Ler
+
+#{TASK_READ}
+
+### Mudar
+
+#{TASK_CHANGE}
+
+### Passos
+
+#{TASK_STEPS}
+
+### Baseline
+
+#{TASK_BASELINE}
+
+### Verificação
+
+#{TASK_VERIFY}
+
+### Evidências
+
+#{TASK_EVIDENCE}
+
+### Concluída quando
+
+#{TASK_DONE}
+
+## Descrição
+
+### Resumo executivo
+
+#{TASK_EXECUTIVE_SUMMARY}
+
+### Detalhes técnicos
+
+#{TASK_TECHNICAL_DETAILS}
+
+### Card
+
+- **Título:** a
+- **Tipo:** tarefa
+- **Descrição:** #{TASK_CARD_DESCRIPTION}
+- **Critérios de aceite:**
+#{TASK_CARD_CRITERIA}
+- **Rótulos:** SPEC-009, simples
+- **Estimativa:** simples
+- **Bloqueada por:** -
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

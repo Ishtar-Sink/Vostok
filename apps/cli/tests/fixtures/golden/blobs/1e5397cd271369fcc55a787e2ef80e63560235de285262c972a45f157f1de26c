@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Carrega uma tarefa para execução: imprime o front-matter e a seção `execution_section`
+# # (config/tasks.yml). A seção para leitura humana (`description_section`) fica de fora.
+# #
+# # Uso: load-task.sh <SPEC_ID> <TASK_ID>
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+# source "$HARNESS_DIR/scripts/lib/markdown.sh"
+# 
+# MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+# TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# [ -n "${1:-}" ] && [ -n "${2:-}" ] || die "Uso: load-task.sh <SPEC_ID> <TASK_ID>"
+# 
+# file="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")/$1/$2.md"
+# [ -f "$file" ] || die "tarefa $2 da spec $1 não encontrada: $file"
+# section="$(config_get "$TASKS_CONFIG" execution_section)"
+# 
+# front_matter="$(frontmatter_print "$file")" || die "a tarefa $2 não tem front-matter: $file"
+# execution="$(markdown_section "$file" "$section")" || die "a tarefa $2 não tem a seção '## $section': $file"
+# 
+# printf -- '---\n%s\n---\n\n## %s\n%s\n' "$front_matter" "$section" "$execution"

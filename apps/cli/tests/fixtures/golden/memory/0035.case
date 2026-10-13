@@ -1,0 +1,39 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 5
+issue
+@arg 5
+Outra
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 5
+issue
+@vostok 5
+Outra
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 330
+Erro: há uma entrada sem preencher em <ROOT>/packages/harness/memory/issues.md. Preencha-a antes de criar outra:
+18:- **Tags:** #{ENTRY_TAGS}
+19:- **Categoria:** #{ISSUE_CATEGORY}
+20:- **Assinatura:** #{ISSUE_SIGNATURE}
+21:- **Ambiente:** #{ISSUE_ENVIRONMENT}
+22:- **Causa:** #{ISSUE_CAUSE}
+23:- **Solução:** #{ISSUE_SOLUTION}
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,34 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 155
+Erro: a spec SPEC-008 não pode ser aprovada; nada foi alterado:
+a spec SPEC-008 está com status 'planned'; só specs com status 'refined' são aprovadas
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

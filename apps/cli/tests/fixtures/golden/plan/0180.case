@@ -1,0 +1,43 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 592
+Erro: o plano de SPEC-008 tem problemas:
+TASK-02: tipo inválido "épico" (use: tarefa historia bug )
+ID de tarefa repetido: TASK-02
+linha da tabela de tarefas com 6 colunas (esperado 7): | TASK-1 | c | c | bug | - | - |
+TASK-02: depende de si mesma
+TASK-02: nível "-" diferente do calculado "simples" (execute --score)
+TASK-02: depende de si mesma
+TASK-02: nível "-" diferente do calculado "simples" (execute --score)
+TASK-12: sem fatos de esforço
+fatos de esforço de uma tarefa inexistente: TASK-99
+dependência em ciclo envolvendo TASK-02
+a tarefa cobre RF-09, que não existe na spec
+
+@exit 1
+1
+@pre 186
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .plan-errors
+W cad8678c803abcb66c09eb5338e0b8fb1f37c412b7adbc80bafbbbb3de72d0fa packages/harness/work/plans/SPEC-008.md
+@post 0
+

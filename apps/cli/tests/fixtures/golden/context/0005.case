@@ -1,0 +1,37 @@
+@script 21
+load-extra-context.sh
+@group 7
+context
+@usage 1
+0
+@arg 9
+ctx teste
+@vostok 7
+context
+@vostok 4
+load
+@vostok 9
+ctx teste
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 185
+# Contexto adicional
+
+Raiz do harness: `<ROOT>/packages/harness`
+Caminhos relativos citados em cada arquivo partem da pasta daquele arquivo.
+
+--- arquivo: ctx teste/sub/a b.md ---
+
+oi
+
+
+@stderr 0
+
+@exit 1
+0
+@pre 104
+W 03aa3f5e2779b625a455651b54866447f995a2970d164581b4073044435359ed packages/harness/ctx teste/sub/a b.md
+@post 0
+

@@ -1,0 +1,42 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 403
+Erro: as tarefas de SPEC-008 têm problemas:
+TASK-01: seção ausente: '## Registro de execução'
+TASK-01: a seção '## Histórico de ajustes' está sem a tabela
+TASK-01: subseção ausente: '### Passos'
+TASK-01: 'Mudar' sem nenhum item no formato: - `caminho` (ação): motivo
+TASK-02: arquivo da tarefa ausente em <ROOT>/packages/harness/work/tasks/SPEC-008
+TASK-03: tarefa que não existe no plano
+
+@exit 1
+1
+@pre 359
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .task-errors
+W ee205ec75ac87f60c5187aa997a4bfd5f16d257867bc551824c9e8339b598bee packages/harness/work/tasks/SPEC-008/TASK-01.md
+W a68c76ebc7ff8188bf3821a10b39e513da049be2cf8e582b8347a1d21d9c403f packages/harness/work/tasks/SPEC-008/TASK-03.md
+D packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

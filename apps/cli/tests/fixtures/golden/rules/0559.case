@@ -1,0 +1,34 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--detect
+@vostok 5
+rules
+@vostok 6
+detect
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 363
+architecture: packages: pasta de código
+code-style: package.json: eslint/prettier/biome nas dependências
+database: migrations: pasta de banco de dados
+database: package.json: ORM ou driver de banco nas dependências
+stack: Cargo.toml: Rust
+stack: package.json: Node.js
+testing: package.json: framework de teste nas dependências
+testing: tests: pasta de testes
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

@@ -1,0 +1,24 @@
+# Contexto carregado para o agente.
+
+# Carregado por `load-context.sh` no início do trabalho, sempre.
+# Pastas (carregadas por inteiro) e arquivos específicos, relativos à raiz do harness,
+# na ordem em que aparecem aqui.
+required:
+  - context
+  - rules/agent
+  - rules/project/language.md
+  - templates/responses
+
+# Carregado sob demanda por `load-extra-context.sh --skill <nome>`, no passo 1 de cada skill.
+# Cada entrada lista os arquivos que a skill carrega além de `required`, na ordem em que aparecem aqui.
+# Skills sem entrada carregam só o contexto obrigatório.
+
+skills:
+  approve-task:   # comentário
+    - "rules/project/language.md"
+    - templates/responses/question.md
+  outra-skill:
+    - x.md
+  approve-plan:
+    - rules/project/nao-existe.md
+    - rules/project/language.md

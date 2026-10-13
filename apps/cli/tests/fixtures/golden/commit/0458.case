@@ -1,0 +1,36 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 304
+Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
+Commits novos:
+- 217a47e nv (arquivos: base.txt)
+PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
+
+@exit 1
+1
+@pre 872
+W 7db88b97a635fde510bc133e54a838c0cd88a5e86acd4ae7f53b54ace2f40d47 .git/COMMIT_EDITMSG
+W bde91e5083692c6ad3b8e17097e42991e11fa04dc149ab026e62c86b1007c74d .git/index.ls
+W dc1b3bcbcd983bd139bd9e762c68965c858cbf5f1e555a5c43c6909a60aea97e .git/logs/HEAD
+W dc1b3bcbcd983bd139bd9e762c68965c858cbf5f1e555a5c43c6909a60aea97e .git/logs/refs/heads/main
+W a8241e3b8a8ee01bc2dd73838ab499c37fb139d6b20e158cb77c6d317326be53 .git/objects/13/e3d6fd3f86875deb531135d03d20c317b7e4cd
+W c4d8a34d8153a5ba870aafe5d97cdc95157f12444d8264a08fa941c75fd9f0d9 .git/objects/17/6d106f3ca8239f55b11c9b60fa377ec204f4dc
+W 06bac4fe2f5aad520c708285a94215ba602391d2d7282ece4742ea55f7bcc887 .git/objects/21/7a47e329646c3a38d77de42ad0ebb5d51f6daf
+W 3e0db83cb548542141e41e8bcffca2914716dd3701772263e68c7ce388f523ae .git/refs/heads/main
+W dac49450a3487320b57b50f806b65f7d1c887dec25afba0014279154094cfca8 base.txt
+@post 0
+

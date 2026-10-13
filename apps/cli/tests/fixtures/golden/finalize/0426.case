@@ -1,0 +1,32 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--archive
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+archive
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 124
+Erro: a spec SPEC-008 não pode ser arquivada:
+  - o destino do arquivo já existe: packages/harness/work/.archive/SPEC-008
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

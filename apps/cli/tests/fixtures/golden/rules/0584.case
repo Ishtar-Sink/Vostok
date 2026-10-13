@@ -1,0 +1,31 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--next-id
+@arg 10
+nao-existe
+@vostok 5
+rules
+@vostok 7
+next-id
+@vostok 10
+nao-existe
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 72
+Erro: a categoria 'nao-existe' não existe: rules/project/nao-existe.md
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

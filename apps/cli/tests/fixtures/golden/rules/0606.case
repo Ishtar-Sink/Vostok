@@ -1,0 +1,36 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 6
+--load
+@arg 3
+api
+@arg 25
+create-skill,approve-spec
+@vostok 5
+rules
+@vostok 4
+load
+@vostok 3
+api
+@vostok 25
+create-skill,approve-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 86
+Categoria 'api' carregada em create-skill.
+Categoria 'api' carregada em approve-spec.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W b82f81d1c748c0b82f91314639bf9dfc1f8367ab4208482fbf1f273298e64e94 packages/harness/config/context.yml

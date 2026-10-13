@@ -1,0 +1,33 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-006
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 61
+Erro: a spec SPEC-006 não tem plano de tarefas para ajustar
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

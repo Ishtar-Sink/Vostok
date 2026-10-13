@@ -1,0 +1,34 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 75
+Erro: a spec refinada SPEC-001 tem problemas:
+seção ausente: '## Riscos'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

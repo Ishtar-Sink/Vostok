@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--remove
+@arg 3
+api
+@arg 1
+x
+@vostok 5
+rules
+@vostok 6
+remove
+@vostok 3
+api
+@vostok 1
+x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 68
+Erro: número de regra inválido 'x': use 1 ou 2 dígitos (ex.: 03)
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

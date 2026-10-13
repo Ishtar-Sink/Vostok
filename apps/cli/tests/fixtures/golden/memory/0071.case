@@ -1,0 +1,34 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 8
+decision
+@arg 8
+Repetida
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 8
+decision
+@vostok 8
+Repetida
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 170
+Erro: DEC-001 já existe em <ROOT>/packages/harness/memory/decisions.md. Ajuste 'decisions' em <ROOT>/packages/harness/config/sequences.yml para o próximo número livre
+
+@exit 1
+1
+@pre 208
+W 117ade84c628d033e1ad2257dbc7c4af073c3959c3fe86f88e63f1c98925686f packages/harness/config/sequences.yml
+W 4ee723e7c6c89a89e41a67b2e70f73313cf0773610f201fba44a0fa069b085d1 packages/harness/memory/decisions.md
+@post 0
+

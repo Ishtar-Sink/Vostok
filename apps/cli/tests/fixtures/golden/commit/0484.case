@@ -1,0 +1,26 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 103
+W 6110899c7adc374885f9552bddfb76fa28a7f7ca3c05fb8b74471a457e1e57c8 .git/packed-refs
+D .git/refs/tags/v2
+@post 0
+

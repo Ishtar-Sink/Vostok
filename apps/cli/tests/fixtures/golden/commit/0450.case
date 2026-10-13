@@ -1,0 +1,28 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 324
+Erro: há commits não liberados pelo usuário ([agent/boundaries-04]):
+Commits novos:
+- e0302be commit do agente (arquivos: um arquivo.txt)
+PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

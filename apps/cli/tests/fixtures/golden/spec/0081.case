@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-001
+@arg 7
+feature
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-001
+@vostok 7
+feature
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 109
+Spec refinada SPEC-001 (feature) criada em <ROOT>/packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 125
+W edbe4867756517f174233eb176997720c50566d3f0f7cef11a95f9f51325d2da packages/harness/work/specs/refined/SPEC-001-painel-a-b.md

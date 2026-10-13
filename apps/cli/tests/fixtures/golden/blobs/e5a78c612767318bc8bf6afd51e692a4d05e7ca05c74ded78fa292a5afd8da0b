@@ -1,0 +1,10 @@
+---
+name: review-x
+description: >
+  Revisa código: usa | regras.
+  Use quando pedirem review.
+allowed-tools: x
+---
+
+> Este é apenas um redirecionamento para a skill.
+> Leia e siga o arquivo `packages/harness/skills/custom/review-x/SKILL.md`.

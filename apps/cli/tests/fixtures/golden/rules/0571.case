@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 7
+--write
+@arg 11
+inexistente
+@arg 20
+<ROOT>/ih-remove.txt
+@vostok 5
+rules
+@vostok 5
+write
+@vostok 11
+inexistente
+@vostok 20
+<ROOT>/ih-remove.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 68
+Erro: a categoria 'inexistente' não existe: não há o que remover
+
+@exit 1
+1
+@pre 80
+W 80b427432f8e757ff52dc201f67537ce62ab478d304c6bf49d80396d098b8bd3 ih-remove.txt
+@post 0
+

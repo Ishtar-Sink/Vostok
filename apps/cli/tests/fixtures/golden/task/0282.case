@@ -1,0 +1,36 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--start
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 5
+start
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 180
+Erro: a tarefa TASK-01 não pode ser iniciada; nada foi alterado:
+a tarefa TASK-01 mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo
+
+@exit 1
+1
+@pre 114
+W 2d7781172bf217439acc74f6cf30ec99ae864e02195b0702d268c2fe437dc63f packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 0
+

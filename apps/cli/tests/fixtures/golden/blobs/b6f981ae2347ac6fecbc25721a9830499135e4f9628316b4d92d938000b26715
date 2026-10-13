@@ -1,0 +1,26 @@
+Erro: as tarefas de SPEC-008 têm problemas:
+TASK-01: a subseção 'Verificação' está vazia
+TASK-01: 'nao/existe.md' não existe nem é criado por uma tarefa de que ela depende; use a ação 'criar' ou corrija o caminho
+TASK-01: 'AGENTS.md' já existe; use a ação 'alterar'
+TASK-01: ação inválida para 'AGENTS.md': 'mover' (use: criar alterar remover)
+TASK-01: 'Concluída quando' com linha fora do formato: - O script existe.
+TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Sem comprovação.
+TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [x] Comprovação vazia.
+TASK-01: 'Concluída quando' com critério sem 'Como comprovar': - [ ] Comprovação na mesma linha. Como comprovar: abrir o arquivo.
+TASK-01: 'Baseline' com item fora do formato: rodar tudo (use: - `comando`)
+TASK-01: 'Baseline' sem nenhum item no formato: - `comando`
+TASK-01: 'Evidências' com item fora do formato: - `saida.txt` (automatica): `echo ok` (use: - `arquivo` (automática): `comando` ou - `arquivo` (manual): descrição)
+TASK-01: 'Evidências' com item fora do formato: - `nota.png` (manual): (use: - `arquivo` (automática): `comando` ou - `arquivo` (manual): descrição)
+TASK-01: 'Evidências' sem nenhum item no formato e sem o texto 'Não se aplica.'
+TASK-02: seção ausente: '## Registro de execução'
+TASK-02: seção ausente: '## Histórico de ajustes'
+TASK-02: a subseção 'Card' está vazia
+TASK-02: o resumo executivo tem 7 linhas (máximo: 5)
+TASK-02: campo do card ausente: 'Título'
+TASK-02: campo do card ausente: 'Tipo'
+TASK-02: campo do card ausente: 'Descrição'
+TASK-02: campo do card ausente: 'Critérios de aceite'
+TASK-02: campo do card ausente: 'Rótulos'
+TASK-02: campo do card ausente: 'Estimativa'
+TASK-02: campo do card ausente: 'Bloqueada por'
+TASK-02: cobertura 'RF-01' diferente da do plano 'RF-02'

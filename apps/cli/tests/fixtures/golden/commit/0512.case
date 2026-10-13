@@ -1,0 +1,33 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@vostok 6
+commit
+@vostok 6
+commit
+@cwd 9
+<OUTSIDE>
+@stdin 12
+feat: stage
+
+@stdout 45
+Commit feito e liberado: 97e47e4 feat: stage
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 573
+W 0747efb30c9aa995471e1faa74d398ec1e1e360e0f9ffd1d5846b4130d8fbbca .git/COMMIT_EDITMSG
+W fe38a0d9d5925c95e5d3969af19584401d6cb54d1fa9db2afaa500e5d7bddefd .git/logs/HEAD
+W 1a3cd6542265e31c488eb6b14480cfcc5de48e21ecb51eb0949ea2384d05af29 .git/logs/refs/heads/main
+W f08c10e58796c227174b69e06524e0517577dcd1eb6b781ebd65f39b9ba729de .git/objects/97/e47e46cf216908669eedbceb23b7d0584d15ef
+W f4ede8c6b2cc4454993acf23d237a18b1454584e2764cadbd3061e2aad11b7b6 .git/refs/heads/main
+W 2609c89822f16d75014eed42e0242527fe1f35edb6823ed8aba587782d953d5d packages/harness/.state/commit-ack

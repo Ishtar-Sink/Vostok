@@ -1,0 +1,83 @@
+---
+id: TASK-02
+spec: SPEC-009
+title: "b"
+effort: simples
+depends_on: [TASK-01]
+covers: []
+type: tarefa
+labels: [SPEC-009, simples]
+status: pending
+content_hash: dbd7322439b0afd0175ed27c22baf981233d93d559cacc66d882204fd5baeeef
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-02: b
+
+## Execução
+
+### Ler
+
+#{TASK_READ}
+
+### Mudar
+
+#{TASK_CHANGE}
+
+### Passos
+
+#{TASK_STEPS}
+
+### Baseline
+
+#{TASK_BASELINE}
+
+### Verificação
+
+#{TASK_VERIFY}
+
+### Evidências
+
+#{TASK_EVIDENCE}
+
+### Concluída quando
+
+#{TASK_DONE}
+
+## Descrição
+
+### Resumo executivo
+
+#{TASK_EXECUTIVE_SUMMARY}
+
+### Detalhes técnicos
+
+#{TASK_TECHNICAL_DETAILS}
+
+### Card
+
+- **Título:** b
+- **Tipo:** tarefa
+- **Descrição:** #{TASK_CARD_DESCRIPTION}
+- **Critérios de aceite:**
+#{TASK_CARD_CRITERIA}
+- **Rótulos:** SPEC-009, simples
+- **Estimativa:** simples
+- **Bloqueada por:** TASK-01
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 11
+adjust-plan
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 11
+adjust-plan
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 225
+Redirecionamento: <ROOT>/.claude/skills/adjust-plan/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/adjust-plan/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'adjust-plan' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W b50b98d9b50a3ed1ea520a8911c82bfe19850a1b78c3c4963825dc7648ac0123 .agents/skills/adjust-plan/SKILL.md
+W b50b98d9b50a3ed1ea520a8911c82bfe19850a1b78c3c4963825dc7648ac0123 .claude/skills/adjust-plan/SKILL.md

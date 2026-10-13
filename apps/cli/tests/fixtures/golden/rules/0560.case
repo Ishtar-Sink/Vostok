@@ -1,0 +1,37 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 7
+--write
+@arg 7
+Bad_Cat
+@arg 19
+<ROOT>/ih-rules.txt
+@vostok 5
+rules
+@vostok 5
+write
+@vostok 7
+Bad_Cat
+@vostok 19
+<ROOT>/ih-rules.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 71
+Erro: categoria inválida: 'Bad_Cat' (use kebab-case, ex.: code-style)
+
+@exit 1
+1
+@pre 107
+W cde3195de6566b529e0e5d2e9f3ae0dc4fac06f05d9304b6e3785897ab4055d6 ih-rules.txt
+D Cargo.toml
+D package.json
+@post 0
+

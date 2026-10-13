@@ -1,0 +1,44 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--mark-planned
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+mark-planned
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 165
+Spec SPEC-008 marcada como 'planned': <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+Plano removido: <ROOT>/packages/harness/work/plans/SPEC-008.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 675
+W d8a442564760507b199a6ce94ef7633443ec48a75f001869dad505233d700df6 packages/harness/work/plans/SPEC-008.md
+W 846f637050c647f117732d6781ba2719dbe8ed18cdb4218c422c402eaf49938a packages/harness/work/specs/refined/SPEC-008-planejar.md
+W ae412e4723553c69c41f4cf87726bfc2ee66919afdbba4ea585ce88866b6c774 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W a68c76ebc7ff8188bf3821a10b39e513da049be2cf8e582b8347a1d21d9c403f packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/plans/SPEC-008.md.ok
+D packages/harness/work/specs/refined/SPEC-008-planejar.md.ok
+D packages/harness/work/tasks/SPEC-008.bak/TASK-01.md
+D packages/harness/work/tasks/SPEC-008.bak/TASK-02.md
+@post 395
+W 87a6ed747680f4ee3cc3611889390b63cd34823405b26a2aa0e9553f396903f5 packages/harness/work/specs/refined/SPEC-008-planejar.md
+W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/plans/SPEC-008.md

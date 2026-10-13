@@ -1,0 +1,31 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 7
+--score
+@arg 8
+SPEC-009
+@vostok 4
+plan
+@vostok 5
+score
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 98
+Níveis de esforço gravados no plano de SPEC-009: <ROOT>/packages/harness/work/plans/SPEC-009.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 106
+W 3bf669993fa18f24a93611cb939ec831ccc9d751a4d813b6f73a65aee3f6db6e packages/harness/work/plans/SPEC-009.md
+@post 106
+W 885351e61b5a278013a7fa9885247b16cbd7a0728163998f12c5ff0dd0e2fd30 packages/harness/work/plans/SPEC-009.md

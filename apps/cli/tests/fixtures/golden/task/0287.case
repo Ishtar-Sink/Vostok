@@ -1,0 +1,35 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--start
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 5
+start
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 142
+Tarefa TASK-01 iniciada: status 'in_progress'. Colete o baseline antes de mudar qualquer arquivo: execute-task.sh --baseline SPEC-008 TASK-01
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 114
+W 4207f3f7ad440f5bbf7e2902c7a7456e126a679be4cf5d8f1c9d891ceac5a9a4 packages/harness/work/tasks/SPEC-008/TASK-01.md

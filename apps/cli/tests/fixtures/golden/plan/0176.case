@@ -1,0 +1,33 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 119
+Erro: o plano de SPEC-008 tem problemas:
+TASK-03: nível "simples" diferente do calculado "moderada" (execute --score)
+
+@exit 1
+1
+@pre 216
+W e01051d3a718c7b2886d8cc1d6d0721fdb35ac884b92582daf0630ec43c3ea88 packages/harness/work/plans/SPEC-008.md
+W 10064a608fb510d61a002a5aa2253906f2e4129f5afa7e722ecd11047a01458a packages/harness/work/plans/SPEC-008.md.ok
+@post 0
+

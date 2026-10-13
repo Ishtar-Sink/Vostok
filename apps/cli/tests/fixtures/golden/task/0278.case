@@ -1,0 +1,35 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--start
+@arg 8
+SPEC-008
+@arg 10
+../TASK-01
+@vostok 4
+task
+@vostok 5
+start
+@vostok 8
+SPEC-008
+@vostok 10
+../TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 43
+Erro: ID de tarefa inválido: '../TASK-01'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

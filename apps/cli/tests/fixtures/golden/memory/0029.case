@@ -1,0 +1,33 @@
+@script 13
+add-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 3
+foo
+@arg 1
+x
+@vostok 6
+memory
+@vostok 3
+add
+@vostok 3
+foo
+@vostok 1
+x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 67
+Tipo de memória inválido 'foo'. Tipos: decision issue knowledge 
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,21 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 102
+Erro: Uso: approve-plan.sh --create-tasks <SPEC_ID> | --validate <SPEC_ID> | --mark-planned <SPEC_ID>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

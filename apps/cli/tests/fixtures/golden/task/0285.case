@@ -1,0 +1,36 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--start
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 5
+start
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 148
+Erro: a tarefa TASK-02 não pode ser iniciada; nada foi alterado:
+a dependência TASK-01 está com status 'blocked'; ela precisa estar 'done' antes
+
+@exit 1
+1
+@pre 114
+W c150bf399a8e9db9e0fb1bed08e7f0e76d6ed349a52f2a8c33d78d3520867f72 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 0
+

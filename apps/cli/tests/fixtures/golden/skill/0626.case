@@ -1,0 +1,32 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 99
+Erro: a skill 'review-x' tem problemas:
+skills.review-x: 'rules/project/nao-existe.md' não existe
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

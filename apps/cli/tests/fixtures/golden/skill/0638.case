@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 11
+finish-task
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 11
+finish-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 225
+Redirecionamento: <ROOT>/.claude/skills/finish-task/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/finish-task/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'finish-task' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W 017eff899b33b2ed6c86d56cd6c702ac2fb103c216cf59c931fba0e5341d44e8 .agents/skills/finish-task/SKILL.md
+W 017eff899b33b2ed6c86d56cd6c702ac2fb103c216cf59c931fba0e5341d44e8 .claude/skills/finish-task/SKILL.md

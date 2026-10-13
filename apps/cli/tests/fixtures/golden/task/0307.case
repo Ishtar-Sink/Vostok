@@ -1,0 +1,39 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--resume
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 28
+remover o arquivo | de falha
+@vostok 4
+task
+@vostok 6
+resume
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 28
+remover o arquivo | de falha
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 140
+Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por --tests.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 114
+W 2cd0539ec72449823694627dad41cae3d374332e783acd2075dcd9719d6e9161 packages/harness/work/tasks/SPEC-008/TASK-01.md

@@ -1,0 +1,38 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--create-tasks
+@arg 8
+SPEC-009
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+create-tasks
+@vostok 8
+SPEC-009
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 115
+Tarefas de SPEC-009 criadas em <ROOT>/packages/harness/work/tasks/SPEC-009:
+- TASK-01.md
+- TASK-02.md
+- TASK-03.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 344
+W 96c582dcf6a43425afab8009ff7fa3b5ef9d21ac2fad28bd9fdb37d1a9e5f122 packages/harness/work/tasks/SPEC-009/TASK-01.md
+W bc84d3b2e41ba3c1317de416b9fc736b2eefecb94a1983198db8f660d673c359 packages/harness/work/tasks/SPEC-009/TASK-02.md
+W 064fea4816b78c43542fbe7c99ded870768cde92772b44f2f8aab7674a3512c5 packages/harness/work/tasks/SPEC-009/TASK-03.md

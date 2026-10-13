@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 11
+refine-spec
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 11
+refine-spec
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 225
+Redirecionamento: <ROOT>/.claude/skills/refine-spec/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/refine-spec/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'refine-spec' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 205
+W 4a829953a409bf4363814fa2171f04bab53dab317b2d850bf26ebb42c5f4e245 .agents/skills/refine-spec/SKILL.md
+W 4a829953a409bf4363814fa2171f04bab53dab317b2d850bf26ebb42c5f4e245 .claude/skills/refine-spec/SKILL.md

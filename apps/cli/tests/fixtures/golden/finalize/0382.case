@@ -1,0 +1,42 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 146
+Erro: o conteúdo de SPEC-008 tem problemas:
+  - conteúdo não encontrado: packages/harness/work/finalize/SPEC-008/content.md; crie com --create
+
+@exit 1
+1
+@pre 719
+W 3f65b2a4171955281879bbe75c80ca748fbfda6040e2d77012afa40bb4031025 packages/harness/memory/decisions.md
+W f6eb2b43be809b921ac483f5a3ea02fda91af3e2f4df5c86334c0062ed1ad344 packages/harness/memory/issues.md
+W 8f3292057e84dd940e2cbff7c566a22ab1601c476b6454e53d8002a4d4e31039 packages/harness/memory/knowledge.md
+W af3a1e99ea29f55dceeecb1b62fcdefdc4a21b02bc11eb1e1daff61366cc610d packages/harness/work/specs/refined/SPEC-008-planejar.md
+W 3ba73b09f5cd5e3dea1ec5615b90215d51e8ee255196ec4edb80c3004ff90785 packages/harness/work/tasks/SPEC-008/TASK-02.md
+D .fin-mem/decisions.md
+D .fin-mem/issues.md
+D .fin-mem/knowledge.md
+D fin-outro.txt
+D nao/existe/novo.sh
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+@post 0
+

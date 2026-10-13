@@ -1,0 +1,36 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--evidence
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 8
+evidence
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 204
+Evidências manuais de TASK-01 sem arquivo; peça ao usuário para anexá-las e execute --evidence de novo:
+- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt: anotação do usuário
+
+@stderr 0
+
+@exit 1
+0
+@pre 129
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
+@post 114
+W e1e907c003de4c70721413e8505d811caff3010ee624c018eea59b29ad21939b packages/harness/work/tasks/SPEC-008/TASK-01.md

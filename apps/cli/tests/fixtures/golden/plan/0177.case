@@ -1,0 +1,36 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 312
+Erro: o plano de SPEC-008 tem problemas:
+TASK-13: fato "Arquivos a alterar" inválido: "x" (use um número inteiro)
+TASK-13: fato "Contrato público" inválido: "talvez" (use sim ou não)
+TASK-02: dependência inexistente TASK-40
+dependência em ciclo envolvendo TASK-01
+RF-02 não é coberto por nenhuma tarefa
+
+@exit 1
+1
+@pre 106
+W 8d0b3df5f6d545325503ac64cd0f24738a92d56c750f2c5f82b3e0e391d7a6ac packages/harness/work/plans/SPEC-008.md
+@post 0
+

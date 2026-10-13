@@ -1,0 +1,35 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--evidence
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 8
+evidence
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 47
+Erro: nome de evidência inválido: 'baseline'
+
+@exit 1
+1
+@pre 114
+W 04e8b8e82dbb7ebcfb92b47591bc1fc5ced52a78510b46cb5ea64ecca0c4d78c packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

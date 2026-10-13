@@ -1,0 +1,23 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+1
+@arg 9
+--liberar
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 114
+Erro: Uso: approve-commit.sh --show | --approve <código> | --commit [caminho...] < mensagem | --revert <código>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

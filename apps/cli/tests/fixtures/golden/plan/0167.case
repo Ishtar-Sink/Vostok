@@ -1,0 +1,32 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 6
+create
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 86
+Erro: a spec SPEC-008 mudou depois da aprovação; aprove-a de novo antes de planejar
+
+@exit 1
+1
+@pre 250
+W b341db53eacde67b347ce9d6a362b624e0afc654690f82641946487936ff0be1 packages/harness/work/specs/refined/SPEC-008-planejar.md
+W 846f637050c647f117732d6781ba2719dbe8ed18cdb4218c422c402eaf49938a packages/harness/work/specs/refined/SPEC-008-planejar.md.ok
+@post 0
+

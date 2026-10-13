@@ -1,0 +1,92 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1232
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** 2026-01-10T00:00:00Z
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): existe
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+- `DEC-102` Decisão durante a spec (ativa, 2026-01-12)
+- `ISS-101` Issue durante a spec (resolvido, 2026-01-20)
+- `KNW-101` Conhecimento durante a spec (válido, 2026-02-01)
+
+## Commits
+
+- `f7ab573` 2026-01-20 antes da spec seguinte
+- `0e4d282` 2026-01-15 depois da aprovação, caminho da tarefa
+
+@stderr 0
+
+@exit 1
+0
+@pre 362
+W 3944c7c45650723ba732bc323df807e1cb74b234d4d08a3b3a6dce782c050d25 packages/harness/work/.archive/SPEC-098/spec.md
+W 7201f7fb32b5ffdb2efb880e24f8ab2d923a984dace19c551a291ab8536ac385 packages/harness/work/specs/refined/SPEC-097-anterior.md
+W 1fc33540610d41254e99827ade0427f0434fe186c4739ec28ad6bef1472e570b packages/harness/work/specs/refined/SPEC-099-seguinte.md
+@post 0
+

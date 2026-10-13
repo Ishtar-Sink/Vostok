@@ -1,0 +1,7 @@
+# Testes
+
+Define como o projeto testa.
+
+[project/testing-01]: Removida em 2026-09-30.
+[project/testing-02]: Cada módulo tem testes.
+[project/testing-03]: Testes de integração rodam no CI.

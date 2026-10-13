@@ -1,0 +1,33 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-006
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-006
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 56
+Ajuste manual 1 registrado em SPEC-006: Edição manual
+
+@stderr 0
+
+@exit 1
+0
+@pre 122
+W cc0c54ea5de9212ecf622855f40b44258de89ae74a56f29b36abb23c19415935 packages/harness/work/specs/refined/SPEC-006-aprovar.md
+@post 122
+W 688c5e2c6f96ba5196d2112847126f1d67dae76a396d541ad01be5f3c96fd6fc packages/harness/work/specs/refined/SPEC-006-aprovar.md

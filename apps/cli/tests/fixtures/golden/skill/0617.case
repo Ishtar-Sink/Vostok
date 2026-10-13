@@ -1,0 +1,29 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 8
+claude-x
+@vostok 5
+skill
+@vostok 6
+create
+@vostok 8
+claude-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 77
+Erro: o nome não pode conter as palavras reservadas 'anthropic' ou 'claude'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

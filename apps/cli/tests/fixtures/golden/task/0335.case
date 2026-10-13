@@ -1,0 +1,36 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 12
+--regression
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 10
+regression
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 60
+Sem regressão em TASK-02: 1 comando(s) iguais ao baseline.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 264
+W 74a9d9d1eca6d89d5d001e647bbc271cb02ccd721493bc82ad289fe3be7b526f packages/harness/work/tasks/SPEC-008/TASK-02.md
+W dd117dfca230e7d6d9a892efbba9f47903a23a0f8966f3796f94a519d3c33e18 packages/harness/work/tasks/SPEC-008/evidence/TASK-02/validation/regression/01.out

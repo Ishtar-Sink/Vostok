@@ -1,0 +1,62 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 3
+all
+@arg 6
+eacces
+@arg 4
+3000
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 3
+all
+@vostok 6
+eacces
+@vostok 4
+3000
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 486
+> Termos encontrados: 1 de 2
+
+## ISS-001: a|b & c\d "x" /tmp/á
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** wsl, build
+- **Categoria:** ambiente
+- **Assinatura:** `EACCES: permission denied`
+- **Ambiente:** -
+- **Causa:** -
+- **Solução:** -
+
+
+> Termos encontrados: 1 de 2
+
+## ISS-002: Porta ocupada
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** rede
+- **Categoria:** -
+- **Assinatura:** `EADDRINUSE :::3000`
+- **Ambiente:** -
+- **Causa:** -
+- **Solução:** -
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

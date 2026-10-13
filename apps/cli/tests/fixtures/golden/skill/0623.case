@@ -1,0 +1,34 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 8
+review-x
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 8
+review-x
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 216
+Redirecionamento: <ROOT>/.claude/skills/review-x/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/review-x/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'review-x' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

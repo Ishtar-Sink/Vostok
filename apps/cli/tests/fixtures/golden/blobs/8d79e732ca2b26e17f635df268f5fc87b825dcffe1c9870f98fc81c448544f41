@@ -1,0 +1,45 @@
+---
+spec: SPEC-008
+spec_hash: 90de537d1d4407b3d60ae086624e2c73718408534dafb4a27e827cdb22affc3b
+content_hash: c6be51bade34f5c8d5f1795e606c1946633cb74766d2b5801dcca528a3c5364e
+adjustments: 0
+adjusted_at: null
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Plano de tarefas: SPEC-008 - Planejar
+
+Documento para revisão. É removido quando o plano é aprovado.
+
+## Visão geral
+
+Visão geral do plano.
+
+## Tarefas
+
+| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |
+|---|---|---|---|---|---|---|
+| TASK-01 | Criar script | Cria o script. | tarefa | simples | - | RF-01, CT-01 |
+| TASK-02 | Documentar | Documenta o uso. | historia | moderada | TASK-01 | RF-02 |
+
+## Fatos de esforço
+
+| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |
+|---|---|---|---|---|---|
+| TASK-01 | 1 | 0 | não | não | não |
+| TASK-02 | 0 | 2 | não | sim | não |
+
+## Níveis de esforço
+
+| Nível | Descrição |
+|---|---|
+| simples | Mudança pequena e bem delimitada, com passos diretos. |
+| moderada | Várias mudanças relacionadas, com alguma decisão local. |
+| complexa | Mudança ampla ou com decisões de desenho que exigem raciocínio. |
+| critica | Contrato público, risco alto ou muitas partes interligadas. |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

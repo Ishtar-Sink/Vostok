@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--unload
+@arg 3
+api
+@arg 6
+always
+@vostok 5
+rules
+@vostok 6
+unload
+@vostok 3
+api
+@vostok 6
+always
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 36
+Categoria 'api' retirada de always.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W f33179f62d30290377091eb6df6e06f2b16b09287ff1e917149c976fb8bcdb91 packages/harness/config/context.yml

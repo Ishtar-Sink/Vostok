@@ -1,0 +1,37 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-001
+@arg 28
+RF-01 | ajustado; CB-01 novo
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-001
+@vostok 28
+RF-01 | ajustado; CB-01 novo
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 99
+Ajuste 3 registrado em SPEC-001: <ROOT>/packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 125
+W 64c75695d602930c70549a38f8a27df6b0c3249335ae11d375910bb2bed081cb packages/harness/work/specs/refined/SPEC-001-painel-a-b.md

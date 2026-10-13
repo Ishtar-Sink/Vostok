@@ -1,0 +1,65 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 8
+decision
+@arg 5
+mongo
+@arg 3
+api
+@arg 3
+web
+@arg 8
+servidor
+@arg 11
+arquitetura
+@arg 12
+preferencias
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 8
+decision
+@vostok 5
+mongo
+@vostok 3
+api
+@vostok 3
+web
+@vostok 8
+servidor
+@vostok 11
+arquitetura
+@vostok 12
+preferencias
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 288
+> Termos encontrados: 2 de 6
+
+## DEC-001: Servidor HTTP é o único escritor do MongoDB
+
+- **Data:** 2026-10-01
+- **Status:** ativa
+- **Tags:** dados, mongodb
+- **Origem:** x
+- **Contexto:** x
+- **Decisão:** x
+- **Alternativas descartadas:** x
+- **Consequências:** x
+- **Substitui:** x
+
+@stderr 0
+
+@exit 1
+0
+@pre 103
+W 3f65b2a4171955281879bbe75c80ca748fbfda6040e2d77012afa40bb4031025 packages/harness/memory/decisions.md
+@post 0
+

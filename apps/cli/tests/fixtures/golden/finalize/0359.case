@@ -1,0 +1,31 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-999
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-999
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 55
+Erro: spec SPEC-999 não encontrada entre as refinadas
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

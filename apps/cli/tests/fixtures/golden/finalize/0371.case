@@ -1,0 +1,37 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--archive
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+archive
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 94
+Erro: a spec SPEC-008 não pode ser finalizada:
+  - TASK-02: status 'validating', não 'done'
+
+@exit 1
+1
+@pre 606
+W 87a6ed747680f4ee3cc3611889390b63cd34823405b26a2aa0e9553f396903f5 .fin-r8
+W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 .fin-tasks/TASK-01.md
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 .fin-tasks/TASK-02.md
+W af3a1e99ea29f55dceeecb1b62fcdefdc4a21b02bc11eb1e1daff61366cc610d packages/harness/work/specs/refined/SPEC-008-planejar.md
+W 2c2e18565a50b1cc53b6e680e4580ba713b672985d839592371a6c9e70b6bbf1 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 1d2834323418ab36769b143e57548263fcbe432b6174c82bab0886097a2a4326 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

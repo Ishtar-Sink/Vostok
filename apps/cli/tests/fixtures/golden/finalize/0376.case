@@ -1,0 +1,112 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1330
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** 2026-01-10T00:00:00Z
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): existe
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+- `DEC-102` Decisão durante a spec (ativa, 2026-01-12)
+- `ISS-101` Issue durante a spec (resolvido, 2026-01-20)
+- `KNW-101` Conhecimento durante a spec (válido, 2026-02-01)
+
+## Commits
+
+- `5fa489d` 2026-02-10 depois das specs seguintes
+- `5fa655d` 2026-02-03 entre as specs seguintes
+- `f7ab573` 2026-01-20 antes da spec seguinte
+- `0e4d282` 2026-01-15 depois da aprovação, caminho da tarefa
+
+@stderr 0
+
+@exit 1
+0
+@pre 2346
+W 3b975300085b1544e4a48f4911b9a463702bc803bfd31804761d256180a96433 .git/COMMIT_EDITMSG
+W 64492d1365ddcc5a4d44ea31e66bf2e7aefec0ed7cb3141fd59567fa3e96e04b .git/index.ls
+W 23c8d0737125d45b931a8ac2d8308fa088d38d9886c6e81a4ba7edd8c9d66667 .git/logs/HEAD
+W 23c8d0737125d45b931a8ac2d8308fa088d38d9886c6e81a4ba7edd8c9d66667 .git/logs/refs/heads/main
+W 3372e6488ecfdff79cff185cdbcac23e1a982739c8b6bfbf6aa238230512b78a .git/objects/01/5533927a58def0ccd5301e8b4a702bd3679884
+W 62de2e7ab22e5e5b93b25b67642dc177b481ab8da58b63505053fb326b018724 .git/objects/16/84acbd92024faae9ea3be1ff75337f78e765e6
+W d1e840c4dcd315a0f3b414490d42189792d3b494f7fa2ea0a634ff590dea4607 .git/objects/35/cf4f69defb0ab58e09653922aea2d79901085a
+W c68e76dc6ce38161422e8fbf3b7f6e1f4bc99a6e86af1a9b73685b2447df4afe .git/objects/48/15702c5ba9aae511f2a71ef5b745474045e546
+W 27e711f1978a05f80df562e136d971b0bbfae69d544229e5ea6f0850152df61b .git/objects/48/577793b6f427885cb446619ef30219fb7efe40
+W d671f8625c5ca69aac2a1dbf0c7bcd430a4d737755f34b7c36457a8cc7aa3952 .git/objects/58/347b18e4b743aee619419aa82c3a0df84ec306
+W d6f2da7ad48105cf669189412be61e4a7c116b4b1ad82922c9cd6e1b5c2a5658 .git/objects/5f/a489d4987e4b71a8cfad7788d8c50ef11d7bbe
+W a8a9fabe7f9a590928c2ba71f7ea34bd4e778668e7ff1cd51f504a2314443868 .git/objects/5f/a655ddac48eefbc1b5cf0e900ecf6a0990d161
+W ebcfa29f3162c0d2edbe74678d594f8596f261703f2c688917062ae540b0c23d .git/objects/72/204b8cfd0086ce87997ff5b1656bf55682f5e0
+W a81d512115a9c22066b632cf43099d44ab4e453fd1c1fd28fd75b143c757fd97 .git/objects/af/8c8a4eb9764a4408d7d389101e874d5a410cd1
+W 8a0d93ed277ed0436755384e408f3dfdd0ce5255db15975263f6f49e46bb1091 .git/objects/bb/50320277c1c562f7a64422a831691f00275d41
+W 07c8f22a8db35b57b668d3bdc31fff92c9b6d1f1cd9739f7bf5e5ccb1988d5ec .git/objects/cd/d9fe79f79cfa521c5a3ad2afab15eb78c89e80
+W 9a5e63155fe6b48873722409c5f09255a0d682307d4758b6007e9826f6a7806e .git/objects/cf/2de5c08bc9add1462eafce51622481e16d1892
+W 227d84f169d4f3dae0377c883edb795a649a44ad285baf301aa589393335632f .git/objects/ef/994d37a4048f8d5b73b8fe94ff0af02fc01a15
+W 0c8134ec4cbfb4a1de4660602b2f42f0fac765e26369a9cc7999ff2d23d9e6e0 .git/objects/f7/ab573b5f8374f17a1f0e811cb48e101bda3edc
+W 105cde649e5c5c5f02aa7f5151050ec7f1297e4198c651b99e08e417b5b74344 .git/refs/heads/main
+W 3b975300085b1544e4a48f4911b9a463702bc803bfd31804761d256180a96433 nao/existe/novo.sh
+@post 0
+

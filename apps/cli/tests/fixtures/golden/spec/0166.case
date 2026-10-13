@@ -1,0 +1,35 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 9
+--approve
+@arg 8
+SPEC-008
+@vostok 4
+spec
+@vostok 7
+approve
+@vostok 7
+approve
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 169
+Spec SPEC-008 aprovada: <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+Rascunho removido: <ROOT>/packages/harness/work/specs/draft/SPEC-008-planejar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 180
+W 846f637050c647f117732d6781ba2719dbe8ed18cdb4218c422c402eaf49938a packages/harness/work/specs/refined/SPEC-008-planejar.md
+D packages/harness/work/specs/draft/SPEC-008-planejar.md

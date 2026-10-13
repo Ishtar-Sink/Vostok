@@ -1,0 +1,39 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--resume
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 2
+  
+@vostok 4
+task
+@vostok 6
+resume
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 2
+  
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 37
+Erro: informe a decisão do usuário
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

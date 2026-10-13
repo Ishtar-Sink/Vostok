@@ -1,0 +1,35 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--evidence
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 8
+evidence
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 128
+Evidências de TASK-01 gravadas em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01: 2 item(ns). Resultado: passed.
+
+@stderr 0
+
+@exit 1
+0
+@pre 129
+W cd7d99c3190c3482a116e43590c7c02643e0a57e89dee108dccd8e0b40b4b711 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
+@post 114
+W 2d8d423354bc15ac90e753738acf35b1dc19643cd69459719affb8711942cf4b packages/harness/work/tasks/SPEC-008/TASK-01.md

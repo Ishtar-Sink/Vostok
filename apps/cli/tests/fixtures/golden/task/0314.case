@@ -1,0 +1,43 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 12
+--regression
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 10
+regression
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 253
+Comandos com resultado diferente do baseline (saídas em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):
+- cat estado.txt
+    < exit: 0
+    < um
+    ---
+    > exit: 1
+    > cat: estado.txt: No such file or directory
+
+@stderr 152
+Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário
+
+@exit 1
+1
+@pre 12
+D estado.txt
+@post 264
+W ea47b5c2dbe0143de271f32ad12e62cb8c3a8968879881095ac571651a0f4526 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 829302bf71955837888396401d4e42f6b371aa6f3007b08c8422baf8cfac8378 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out

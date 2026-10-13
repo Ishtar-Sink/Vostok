@@ -1,0 +1,55 @@
+# Contexto carregado para o agente.
+
+# Carregado por `load-context.sh` no início do trabalho, sempre.
+# Pastas (carregadas por inteiro) e arquivos específicos, relativos à raiz do harness,
+# na ordem em que aparecem aqui.
+required:
+  - context
+  - rules/agent
+  - rules/project/language.md
+  - templates/responses
+  - rules/project/api.md
+
+# Carregado sob demanda por `load-extra-context.sh --skill <nome>`, no passo 1 de cada skill.
+# Cada entrada lista os arquivos que a skill carrega além de `required`, na ordem em que aparecem aqui.
+# Skills sem entrada carregam só o contexto obrigatório.
+skills:
+  adjust-plan:
+    - config/tasks.yml
+    - skills/default/plan-tasks/SKILL.md
+  adjust-spec:
+    - rules/project/naming-convention.md
+    - skills/default/refine-spec/references/sections.md
+  adjust-task:
+    - config/tasks.yml
+    - skills/default/approve-plan/SKILL.md
+  approve-plan:
+    - config/tasks.yml
+    - rules/project/naming-convention.md
+  approve-task:
+    - config/tasks.yml
+  create-skill:
+    - rules/project/naming-convention.md
+    - templates/skill/skill.md
+    - rules/project/api.md
+  execute-task:
+    - config/tasks.yml
+    - rules/project/naming-convention.md
+  finalize-spec:
+    - config/specs.yml
+    - config/documents.yml
+  finish-task:
+    - config/tasks.yml
+  plan-tasks:
+    - config/tasks.yml
+  refine-spec:
+    - rules/project/naming-convention.md
+  init-harness:
+    - rules/project/naming-convention.md
+    - templates/rules/category.md
+  adjust-rules:
+    - rules/project/naming-convention.md
+    - templates/rules/category.md
+  approve-commit:
+  approve-spec:
+    - rules/project/api.md

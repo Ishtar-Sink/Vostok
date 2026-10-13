@@ -1,0 +1,42 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 15
+Docs no passo 1
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 15
+Docs no passo 1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 189
+Ajuste 4 registrado em TASK-01: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-01.md
+Aprovação de TASK-01 derrubada: o status voltou para 'pending'; aprove-a de novo antes de executar.
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 65fe0e98748b381a5ad678e43509af5673678e5aaa59e682daa0af23d40a9fc9 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 114
+W add34f81f792147dfc5b57aec344f17c94160dd62c933b9bd6b8df5aa4ef1c51 packages/harness/work/tasks/SPEC-008/TASK-01.md

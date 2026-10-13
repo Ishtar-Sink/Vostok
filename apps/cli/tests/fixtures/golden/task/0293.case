@@ -1,0 +1,21 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 129
+Erro: Uso: finish-task.sh --tests|--regression|--evidence|--finish <SPEC_ID> <TASK_ID> | --resume <SPEC_ID> <TASK_ID> "decisão"
+
+@exit 1
+1
+@pre 77
+W a40d028e3ae829b8a064a597ab8c33a632f376d74c328d69e78d7549508d893c estado.txt
+@post 0
+

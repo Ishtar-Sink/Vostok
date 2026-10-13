@@ -1,0 +1,29 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 8
+Bad_Name
+@vostok 5
+skill
+@vostok 6
+create
+@vostok 8
+Bad_Name
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 96
+Erro: nome inválido 'Bad_Name': use minúsculas, números e hífens simples (ex.: review-code)
+
+@exit 1
+1
+@pre 86
+W 9ca47be0d778537a716824ecf0425f307d3ad4d1a402fa6cf8037cf8162afd2b context-skills.orig
+@post 0
+

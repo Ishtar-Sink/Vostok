@@ -1,0 +1,87 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1010
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** sem data de aprovação
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): existe
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+Spec sem data de aprovação.
+
+## Commits
+
+Spec sem data de aprovação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 123
+W 1dad9b27a384706a139d631ebb68a1b12c14bf6c1b9bcafa51d6d561b4809fca packages/harness/work/specs/refined/SPEC-008-planejar.md
+@post 0
+

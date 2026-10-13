@@ -1,0 +1,34 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 225
+Erro: a spec SPEC-008 não pode ser finalizada:
+  - a spec está com status 'planned'; só specs com status 'implemented' são finalizadas
+  - TASK-01: status 'pending', não 'done'
+  - TASK-02: status 'pending', não 'done'
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

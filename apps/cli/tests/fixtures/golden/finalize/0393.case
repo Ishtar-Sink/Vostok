@@ -1,0 +1,32 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 111
+Erro: o conteúdo de SPEC-008 tem problemas:
+  - bloco de evidência sem "Como chegar": ## TASK-01 / saida.txt
+
+@exit 1
+1
+@pre 117
+W 689238d71a9823931feae3cba2986d896c76abf10c711d7b308cd1fc83553be5 packages/harness/work/finalize/SPEC-008/content.md
+@post 0
+

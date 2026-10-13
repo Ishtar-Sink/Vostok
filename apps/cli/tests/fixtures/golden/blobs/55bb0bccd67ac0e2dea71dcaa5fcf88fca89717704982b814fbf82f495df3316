@@ -1,0 +1,3 @@
+Erro: os testes de TASK-01 falharam; corrija e execute --tests de novo
+Testes de TASK-01 falharam (código de saída 1), tentativa 1 de 2. Últimas linhas da saída (/tmp/vostok-golden-root/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out):
+    comando com falha (código 1): test ! -e .falha

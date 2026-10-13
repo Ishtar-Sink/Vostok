@@ -1,0 +1,97 @@
+---
+id: TASK-02
+spec: SPEC-008
+title: "Documentar"
+effort: complexa
+depends_on: [TASK-01]
+covers: [RF-02]
+type: historia
+labels: [SPEC-008, complexa]
+status: in_progress
+content_hash: 404d03a41f54d5988b04805b4b1b5c9b3791a40b5f1eace7bb1ffaeae8e4c194
+adjustments: 5
+adjusted_at: 2026-10-01T00:00:00Z
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# TASK-02: Documentar
+
+## Execução
+
+### Ler
+
+- `AGENTS.md`
+
+### Mudar
+
+- `nao/existe/novo.sh` (criar): script novo.
+- `AGENTS.md` (alterar): cita o script.
+
+### Passos
+
+1. Criar o script.
+
+### Baseline
+
+- `true`
+
+### Verificação
+
+```bash
+true
+```
+
+### Evidências
+
+- `saida.txt` (automática): `echo ok`
+
+### Concluída quando
+
+- [ ] O script existe (RF-01).
+
+  > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
+
+## Descrição
+
+### Resumo executivo
+
+Entrega o script que permite exportar dados.
+
+### Detalhes técnicos
+
+Abordagem em bash, com referência a RF-01.
+
+### Card
+
+- **Título:** Documentar
+- **Tipo:** historia
+- **Descrição:** Cria o script.
+- **Critérios de aceite:**
+  - [ ] O script existe.
+- **Rótulos:** SPEC-008, complexa
+- **Estimativa:** complexa
+- **Bloqueada por:** TASK-01
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+| 1 | 2026-10-01 | ajuste | in_progress | ajuste em in_progress |
+| 2 | 2026-10-01 | ajuste | in_progress | ajuste em validating |
+| 3 | 2026-10-01 | ajuste | in_progress | ajuste em blocked |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+| 1 | 2026-10-01 | agente | ajuste em pending |
+| 2 | 2026-10-01 | agente | ajuste em approved |
+| 3 | 2026-10-01 | agente | ajuste em in_progress |
+| 4 | 2026-10-01 | agente | ajuste em validating |
+| 5 | 2026-10-01 | agente | ajuste em blocked |

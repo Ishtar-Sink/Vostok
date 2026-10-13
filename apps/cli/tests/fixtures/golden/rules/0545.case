@@ -1,0 +1,29 @@
+@script 17
+validate-rules.sh
+@group 5
+rules
+@usage 1
+0
+@vostok 5
+rules
+@vostok 8
+validate
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 387
+rules/project/estilo.md:6: ID repetido: project/estilo-01
+rules/project/estilo.md:7: ID fora de sequência: esperado 02, encontrado 04
+rules/project/estilo.md:8: ID fora do formato [project/estilo-NN]: agent/estilo-05
+rules/project/estilo.md:9: ID fora do formato [project/estilo-NN]: project/outro-05
+rules/project/estilo.md:10: ID fora do formato [project/estilo-NN]: project/estilo-5
+
+@stderr 0
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

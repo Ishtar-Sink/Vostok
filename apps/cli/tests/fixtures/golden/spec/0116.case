@@ -1,0 +1,33 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 98
+Spec refinada SPEC-001 válida: <ROOT>/packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

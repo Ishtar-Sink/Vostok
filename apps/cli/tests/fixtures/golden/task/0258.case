@@ -1,0 +1,39 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 15
+--record-manual
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 13
+record-manual
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 124
+Ajuste manual 2 registrado em TASK-01: Edição manual
+Problemas de validação:
+TASK-01: a subseção 'Passos' está vazia
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 99e241e577590ac1e5c4c4e40d38f70de8c9cdaa236ba04a8c07afbcac94ed33 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 114
+W 8b0a087949e9a04d4c07ec1f381b40237d0aa357ff2bf0013de7ca6e1094c47d packages/harness/work/tasks/SPEC-008/TASK-01.md

@@ -1,0 +1,34 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-004
+@arg 3
+fix
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-004
+@vostok 3
+fix
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 100
+Erro: template de seção não encontrado: <ROOT>/packages/harness/templates/spec/sections/risks.md
+
+@exit 1
+1
+@pre 144
+W 72df057af988fbe67f7098176307bf8b0d6c2fa0b207f9d6feaab8fe6f5f2983 packages/harness/risks.md
+D packages/harness/templates/spec/sections/risks.md
+@post 0
+

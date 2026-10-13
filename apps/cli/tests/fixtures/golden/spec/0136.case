@@ -1,0 +1,21 @@
+@script 15
+approve-spec.sh
+@group 4
+spec
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 70
+Erro: Uso: approve-spec.sh --validate <SPEC_ID> | --approve <SPEC_ID>
+
+@exit 1
+1
+@pre 125
+W b1f795e694737d6f60026d527d3549773db8b647cb4e3e9096899a0e0d0d573f packages/harness/work/specs/refined/SPEC-006-aprovar.md.ok
+@post 0
+

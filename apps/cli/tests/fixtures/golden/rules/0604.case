@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 6
+--load
+@arg 3
+api
+@arg 12
+execute-task
+@vostok 5
+rules
+@vostok 4
+load
+@vostok 3
+api
+@vostok 12
+execute-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 43
+Categoria 'api' carregada em execute-task.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W b32f45b7f75e976c161afb5354401b9b96636978dbc650eb2cc2ce9ff7397070 packages/harness/config/context.yml

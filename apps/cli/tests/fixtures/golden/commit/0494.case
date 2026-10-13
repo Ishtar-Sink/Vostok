@@ -1,0 +1,25 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 101
+W daa6c515d4f765906bee91bba821a13906d5b7ca2eef36883e19679b15af52ff packages/harness/.state/commit-ack
+@post 0
+

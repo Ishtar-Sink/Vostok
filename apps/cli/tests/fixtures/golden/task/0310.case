@@ -1,0 +1,42 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 12
+--regression
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 10
+regression
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 187
+Comandos com resultado diferente do baseline (saídas em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):
+- cat estado.txt
+    < um
+    ---
+    > dois
+
+@stderr 152
+Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário
+
+@exit 1
+1
+@pre 148
+W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .vt
+W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 estado.txt
+@post 264
+W fec04c1d1e9c3b98a2caa7a96963874c436be5327faf22ca11f53c15dc74e483 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W e5435149e8f7ef9100c5864f01546969190998906c85a15e173cb0e07e881b81 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out

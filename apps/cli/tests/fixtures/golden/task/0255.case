@@ -1,0 +1,38 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 158
+Erro: as tarefas de SPEC-008 não podem ser aprovadas:
+TASK-01: edição manual sem registro; registre-a com: adjust-task.sh --record-manual SPEC-008 TASK-01
+
+@exit 1
+1
+@pre 114
+W 337e4b3d31ba94241b21ded9f19a32b960b62f093118ecd17992ccfd865f1d57 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 0
+

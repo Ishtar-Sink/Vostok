@@ -1,0 +1,21 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 87
+Erro: Uso: plan-tasks.sh --create <SPEC_ID> | --score <SPEC_ID> | --validate <SPEC_ID>
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

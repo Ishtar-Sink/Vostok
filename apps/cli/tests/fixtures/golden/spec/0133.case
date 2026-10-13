@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 7
+Aprovar
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 7
+Aprovar
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 80
+SPEC-006 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-006-aprovar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 225
+W d09cada78ea3bd8a48acb1ab01c7623a2d038f43decc42c4664c7c100600db3e packages/harness/config/sequences.yml
+W d6dcde3571288167332c219ea49efb21626fa3d9e4b0c1708875c906771be8bc packages/harness/work/specs/draft/SPEC-006-aprovar.md

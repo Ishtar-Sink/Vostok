@@ -1,0 +1,89 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1014
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** 2035-01-01T00:00:00Z
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): existe
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+Nenhuma entrada de memória no período.
+
+## Commits
+
+Nenhum commit encontrado.
+
+@stderr 0
+
+@exit 1
+0
+@pre 232
+W 5b6cbf5e7dafbbebc5960da0310341cc1d88f8669998fa5c629eee28616f8d6d packages/harness/work/specs/refined/SPEC-008-planejar.md
+D packages/harness/work/.archive/SPEC-098/spec.md
+D packages/harness/work/specs/refined/SPEC-097-anterior.md
+@post 0
+

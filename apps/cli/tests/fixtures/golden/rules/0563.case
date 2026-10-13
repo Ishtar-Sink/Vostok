@@ -1,0 +1,41 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--preview
+@arg 7
+testing
+@arg 19
+<ROOT>/ih-rules.txt
+@vostok 5
+rules
+@vostok 7
+preview
+@vostok 7
+testing
+@vostok 19
+<ROOT>/ih-rules.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 169
+Categoria nova: rules/project/testing.md
+# Testes
+
+Define como o projeto testa.
+
+[project/testing-01]: Testes com vitest.
+[project/testing-02]: Cada módulo tem testes.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

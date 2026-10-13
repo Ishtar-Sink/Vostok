@@ -1,0 +1,35 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 12
+--regression
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 10
+regression
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 126
+Erro: a tarefa TASK-01 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: finish-task.sh --resume
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

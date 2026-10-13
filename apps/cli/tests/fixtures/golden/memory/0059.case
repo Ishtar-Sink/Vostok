@@ -1,0 +1,42 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 9
+knowledge
+@arg 8
+DECISÃO
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 9
+knowledge
+@vostok 8
+DECISÃO
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 191
+> Termos encontrados: 1 de 1
+
+## KNW-002: Decisão de Índice
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** k
+- **Conhecimento:** k
+- **Como foi descoberto:** k
+- **Validade:** k
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

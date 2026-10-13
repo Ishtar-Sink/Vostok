@@ -1,0 +1,40 @@
+@script 15
+approve-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 7
+approve
+@vostok 8
+validate
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 55
+Tarefas de SPEC-008 que podem ser aprovadas:
+- TASK-02
+
+@stderr 0
+
+@exit 1
+0
+@pre 279
+W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W caa9b410388a45fe63ad47480a95196e2b601d798d790e637634e9081355fc9c packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/TASK-03.md
+@post 0
+

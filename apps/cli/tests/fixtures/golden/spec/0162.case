@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 14
+--mark-refined
+@arg 8
+SPEC-008
+@vostok 4
+spec
+@vostok 12
+mark-refined
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 207
+Spec SPEC-008 marcada como refinada: <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+Status do rascunho alterado para 'refined': <ROOT>/packages/harness/work/specs/draft/SPEC-008-planejar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 123
+W c9728f1e68e5dc5625208adae05efa544f3648a1c4a3fd68617b292767272a1f packages/harness/work/specs/refined/SPEC-008-planejar.md
+@post 245
+W 3332d1ae8c1e498e4b453220cc230e37d924abbd8ceab1e528702f3060e3a760 packages/harness/work/specs/draft/SPEC-008-planejar.md
+W 3146b8bca8879137f9a3b24f35366cd1423fa89a6aa08c18f5d3ac988c4d0e67 packages/harness/work/specs/refined/SPEC-008-planejar.md

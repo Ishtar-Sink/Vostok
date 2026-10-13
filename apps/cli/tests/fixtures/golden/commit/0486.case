@@ -1,0 +1,30 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 321
+Erro: a referência de commits liberados é inválida (<ROOT>/packages/harness/.state/commit-ack):
+linha fora do formato 'hash ref': lixo
+PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.
+
+@exit 1
+1
+@pre 217
+W daa6c515d4f765906bee91bba821a13906d5b7ca2eef36883e19679b15af52ff .ack-ok
+W ffcc86e7f2037703d245f7a9fa02e916dc873c3ce37fbaf4c3b81aae56f97c5b packages/harness/.state/commit-ack
+D .git/logs/refs/stash
+D .git/refs/stash
+@post 0
+

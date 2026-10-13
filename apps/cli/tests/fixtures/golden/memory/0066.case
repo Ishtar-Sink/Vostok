@@ -1,0 +1,94 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 9
+knowledge
+@arg 5
+comum
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 9
+knowledge
+@vostok 5
+comum
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1058
+> Termos encontrados: 1 de 1
+
+## KNW-003: Comum 1
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+
+> Termos encontrados: 1 de 1
+
+## KNW-004: Comum 2
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+
+> Termos encontrados: 1 de 1
+
+## KNW-005: Comum 3
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+
+> Termos encontrados: 1 de 1
+
+## KNW-006: Comum 4
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+
+> Termos encontrados: 1 de 1
+
+## KNW-007: Comum 5
+
+- **Data:** 2026-10-01
+- **Status:** válido
+- **Tags:** comum
+- **Conhecimento:** comum
+- **Como foi descoberto:** comum
+- **Validade:** comum
+
+
+Entradas omitidas: 1. Use termos mais específicos para refinar a busca.
+
+@stderr 0
+
+@exit 1
+0
+@pre 146
+W 8f3292057e84dd940e2cbff7c566a22ab1601c476b6454e53d8002a4d4e31039 packages/harness/memory/knowledge.md
+D packages/harness/memory/knowledge.md.bak
+@post 0
+

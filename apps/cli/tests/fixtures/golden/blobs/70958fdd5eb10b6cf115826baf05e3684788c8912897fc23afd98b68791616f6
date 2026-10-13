@@ -1,0 +1,83 @@
+---
+id: TASK-01
+spec: SPEC-008
+title: "Criar script"
+effort: simples
+depends_on: []
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-008, simples]
+status: pending
+content_hash: 6e1600e8c934af27b0a6b58fa72fcc848a2a71b8a177ff923db11fefe87854b6
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+---
+
+# TASK-01: Criar script
+
+## Execução
+
+### Ler
+
+#{TASK_READ}
+
+### Mudar
+
+#{TASK_CHANGE}
+
+### Passos
+
+#{TASK_STEPS}
+
+### Baseline
+
+#{TASK_BASELINE}
+
+### Verificação
+
+#{TASK_VERIFY}
+
+### Evidências
+
+#{TASK_EVIDENCE}
+
+### Concluída quando
+
+#{TASK_DONE}
+
+## Descrição
+
+### Resumo executivo
+
+#{TASK_EXECUTIVE_SUMMARY}
+
+### Detalhes técnicos
+
+#{TASK_TECHNICAL_DETAILS}
+
+### Card
+
+- **Título:** Criar script
+- **Tipo:** tarefa
+- **Descrição:** #{TASK_CARD_DESCRIPTION}
+- **Critérios de aceite:**
+#{TASK_CARD_CRITERIA}
+- **Rótulos:** SPEC-008, simples
+- **Estimativa:** simples
+- **Bloqueada por:** -
+
+## Registro de execução
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

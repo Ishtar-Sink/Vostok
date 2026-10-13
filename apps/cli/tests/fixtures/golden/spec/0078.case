@@ -1,0 +1,27 @@
+@script 13
+list-specs.sh
+@group 4
+spec
+@usage 1
+0
+@vostok 4
+spec
+@vostok 4
+list
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 124
+| ID | Título | Status | Arquivo |
+|---|---|---|---|
+| SPEC-001 | Painel "A" \| B | draft | draft/SPEC-001-painel-a-b.md |
+
+@stderr 0
+
+@exit 1
+0
+@pre 109
+W 161e1006a38c10a4dbce4a9fcad7ea508d838b4ab4d594d908e7f005eb6785e0 packages/harness/work/specs/draft/solta.md
+@post 0
+

@@ -1,0 +1,69 @@
+---
+spec: SPEC-008
+spec_hash: 90de537d1d4407b3d60ae086624e2c73718408534dafb4a27e827cdb22affc3b
+content_hash: b38eaf567476dfe89278c927a3f392f323c56535aaf722ffb94d4fc76a422b3b
+adjustments: 0
+adjusted_at: null
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Plano de tarefas: SPEC-008 - Planejar
+
+Documento para revisão. É removido quando o plano é aprovado.
+
+## Visão geral
+
+Visão geral do plano.
+
+## Tarefas
+
+| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |
+|---|---|---|---|---|---|---|
+| TASK-01 | a | a | tarefa | simples | - | RF-01, RF-02, CT-01 |
+| TASK-02 | a | a | tarefa | simples | - | - |
+| TASK-03 | a | a | tarefa | simples | - | - |
+| TASK-04 | a | a | tarefa | moderada | - | - |
+| TASK-05 | a | a | tarefa | complexa | - | - |
+| TASK-06 | a | a | tarefa | complexa | - | - |
+| TASK-07 | a | a | tarefa | critica | - | - |
+| TASK-08 | a | a | tarefa | moderada | - | - |
+| TASK-09 | a | a | tarefa | complexa | - | - |
+| TASK-10 | a | a | tarefa | critica | - | - |
+| TASK-11 | a | a | tarefa | simples | - | - |
+| TASK-12 | a | a | tarefa | simples | - | - |
+| TASK-13 | a | a | tarefa | simples | - | - |
+| TASK-14 | a | a | tarefa | simples | - | - |
+
+## Fatos de esforço
+
+| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |
+|---|---|---|---|---|---|
+| TASK-01 | 0 | 0 | não | não | não |
+| TASK-02 | 0 | 4 | não | não | não |
+| TASK-03 | 0 | 5 | não | não | não |
+| TASK-04 | 0 | 9 | não | não | não |
+| TASK-05 | 0 | 10 | não | não | não |
+| TASK-06 | 0 | 15 | não | não | não |
+| TASK-07 | 0 | 16 | não | não | não |
+| TASK-08 | 1 | 3 | não | sim | não |
+| TASK-09 | 0 | 4 | sim | não | sim |
+| TASK-10 | 4 | 4 | sim | não | sim |
+| TASK-11 | 2 | 0 | não | não | não |
+| TASK-12 | 0 | 2 | não | sim | não |
+| TASK-13 | 0 | 0 | sim | não | não |
+| TASK-14 | 0 | 0 | não | não | sim |
+
+## Níveis de esforço
+
+| Nível | Descrição |
+|---|---|
+| simples | Mudança pequena e bem delimitada, com passos diretos. |
+| moderada | Várias mudanças relacionadas, com alguma decisão local. |
+| complexa | Mudança ampla ou com decisões de desenho que exigem raciocínio. |
+| critica | Contrato público, risco alto ou muitas partes interligadas. |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

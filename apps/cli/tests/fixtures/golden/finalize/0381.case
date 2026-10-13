@@ -1,0 +1,137 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 9
+--sources
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 7
+sources
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 1009
+## Spec
+
+- **ID:** SPEC-008
+- **Título:** Planejar
+- **Arquivo:** `packages/harness/work/specs/refined/SPEC-008-planejar.md`
+- **Aprovada em:** sem data de aprovação
+
+## Tarefas
+
+### TASK-01: Criar script
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt` (automática): existe
+
+### TASK-02: Documentar
+
+- **Status:** done
+
+**Registro de execução**
+
+| # | Data | Etapa | Resultado | Detalhe |
+|---|---|---|---|---|
+
+**Histórico de ajustes**
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|
+
+**Evidências**
+
+- `packages/harness/work/tasks/SPEC-008/evidence/TASK-02/saida.txt` (automática): ausente
+
+## Caminhos alterados
+
+- `nao/existe/novo.sh` (criar)
+- `AGENTS.md` (alterar)
+
+## Memória do período
+
+Spec sem data de aprovação.
+
+## Commits
+
+Fora de um repositório git.
+
+@stderr 0
+
+@exit 1
+0
+@pre 2240
+D .git/COMMIT_EDITMSG
+D .git/HEAD
+D .git/config
+D .git/description
+D .git/hooks/applypatch-msg.sample
+D .git/hooks/commit-msg.sample
+D .git/hooks/fsmonitor-watchman.sample
+D .git/hooks/post-update.sample
+D .git/hooks/pre-applypatch.sample
+D .git/hooks/pre-commit.sample
+D .git/hooks/pre-merge-commit.sample
+D .git/hooks/pre-push.sample
+D .git/hooks/pre-rebase.sample
+D .git/hooks/pre-receive.sample
+D .git/hooks/prepare-commit-msg.sample
+D .git/hooks/push-to-checkout.sample
+D .git/hooks/sendemail-validate.sample
+D .git/hooks/update.sample
+D .git/index.ls
+D .git/info/exclude
+D .git/logs/HEAD
+D .git/logs/refs/heads/main
+D .git/objects/01/5533927a58def0ccd5301e8b4a702bd3679884
+D .git/objects/0e/4d28251853d6555e54b66caa1f3a9dccc6dc52
+D .git/objects/13/8004223f624d03f08bebf725ff490de90ee726
+D .git/objects/16/84acbd92024faae9ea3be1ff75337f78e765e6
+D .git/objects/24/8728bc650512b2d9e367fe171707005d7ad20e
+D .git/objects/35/cf4f69defb0ab58e09653922aea2d79901085a
+D .git/objects/36/aa88a18a0af71ff47fb14035d9bc7a8ce88b4a
+D .git/objects/46/1738531e5ecba8c4202d6e256c29a20afb8c47
+D .git/objects/48/15702c5ba9aae511f2a71ef5b745474045e546
+D .git/objects/48/577793b6f427885cb446619ef30219fb7efe40
+D .git/objects/58/347b18e4b743aee619419aa82c3a0df84ec306
+D .git/objects/5f/33bd93403180f241104440bbd9817897dea5c1
+D .git/objects/5f/a489d4987e4b71a8cfad7788d8c50ef11d7bbe
+D .git/objects/5f/a655ddac48eefbc1b5cf0e900ecf6a0990d161
+D .git/objects/72/204b8cfd0086ce87997ff5b1656bf55682f5e0
+D .git/objects/89/ba6f59bc2589dd61cd20f72f45979e64dd4bc3
+D .git/objects/a2/6bb024d216246fea3b0c7172ee3e013a7467e2
+D .git/objects/af/8c8a4eb9764a4408d7d389101e874d5a410cd1
+D .git/objects/b5/cef5dedf51aa514fd959843018e02974f1a152
+D .git/objects/bb/50320277c1c562f7a64422a831691f00275d41
+D .git/objects/c1/f81905f9cabe7c828ae5f5cfcc7c809157349d
+D .git/objects/cd/d9fe79f79cfa521c5a3ad2afab15eb78c89e80
+D .git/objects/cf/2de5c08bc9add1462eafce51622481e16d1892
+D .git/objects/d6/a35dc7fa0ccc6250f0e645128e74364b77784b
+D .git/objects/e0/0675b317b5cd0e6b15f997158d4472a7e04dd0
+D .git/objects/e1/04c626fd09114998a2ba9e1aaddfec01e58087
+D .git/objects/ef/994d37a4048f8d5b73b8fe94ff0af02fc01a15
+D .git/objects/f7/ab573b5f8374f17a1f0e811cb48e101bda3edc
+D .git/refs/heads/main
+@post 0
+

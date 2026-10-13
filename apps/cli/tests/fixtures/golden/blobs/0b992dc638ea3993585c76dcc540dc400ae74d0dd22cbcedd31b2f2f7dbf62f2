@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Confere se há commits não liberados pelo usuário desde a última liberação ([agent/boundaries-04]).
+# # Na primeira execução, sem referência gravada, grava a foto atual e termina com sucesso.
+# # Fora de um repositório git, não há o que verificar. Não altera o repositório.
+# #
+# # Uso: check-commits.sh
+# #      Termina com erro, listando os commits novos e removidos, se houver algum. A liberação é feita
+# #      pela skill approve-commit, só a pedido do usuário.
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/text.sh"
+# source "$HARNESS_DIR/scripts/lib/commits.sh"
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# STOP="PARE: responda com o template \`blocker\`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria."
+# 
+# [ "$#" -eq 0 ] || die "Uso: check-commits.sh"
+# 
+# if ! commits_has_git; then
+#   echo "Sem repositório git em $(_commits_root); nada a verificar."
+#   exit 0
+# fi
+# 
+# ack="$(commits_ack_file)"
+# if [ ! -f "$ack" ]; then
+#   commits_store
+#   echo "Referência de commits gravada na primeira verificação: $ack"
+#   exit 0
+# fi
+# 
+# errors="$(commits_ack_errors "$ack")"
+# [ -z "$errors" ] || die "a referência de commits liberados é inválida ($ack):"$'\n'"$errors"$'\n'"$STOP"
+# 
+# report="$(commits_report "$ack")"
+# [ -z "$report" ] || die "há commits não liberados pelo usuário ([agent/boundaries-04]):"$'\n'"$report"$'\n'"$STOP"
+# echo "Nenhum commit sem liberação."

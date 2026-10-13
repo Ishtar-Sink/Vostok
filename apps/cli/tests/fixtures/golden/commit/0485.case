@@ -1,0 +1,32 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@vostok 6
+commit
+@vostok 5
+check
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 31
+Nenhum commit sem liberação.
+
+@stderr 0
+
+@exit 1
+0
+@pre 822
+W d62608bbf45556b7a87068d71945f79eb13fe41bbaa7bcda32db83465e236c68 .git/ORIG_HEAD
+W 89648a1cf8e48511cde899ac0bc345b0b4897052edae2943f6924428aa719233 .git/logs/HEAD
+W 084c54d4fa9fabc02ae2c97a6d49efbaed9185771c78bd82113e298f0cc1bbfc .git/logs/refs/stash
+W d06ed315ebc8826c745fa50a0d4f6c93ba075cf341a894b49f6ac44bb1df4a98 .git/objects/0a/46d8af0643ec3d8a7761468b5f8f5227018378
+W 313c74ec64aa4685bd3fb95e355d1d6dc098877a779b47f5b9c0e941765dab06 .git/objects/7e/ca5829376b44414aca22f354f99f14c9845564
+W fa3877401b558ed1adfbd6a6497f7e4247cfc0efbbb10e37cd63337ca43e87e9 .git/objects/bf/9e5167038230c341692ba89d29b27f95b9cd7e
+W d00475b527d0be9ad9210b5151bade1f0806cf5ee4a6f802ee11c86f3385e777 .git/objects/df/d2721e7adc990d96f6da4d38edea185fc4c5a2
+W cfd210c0777f93cb2618bb198cf16942d98ad7dccb0c939ec192b20254589830 .git/refs/stash
+@post 0
+

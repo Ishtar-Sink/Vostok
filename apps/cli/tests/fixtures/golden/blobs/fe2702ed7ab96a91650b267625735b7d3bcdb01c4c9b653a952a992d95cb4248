@@ -1,0 +1,47 @@
+---
+spec: SPEC-009
+spec_hash: 0891cbb3166da5700be7466f930513b452f9777cf95361b2ebb606055d4d9dfb
+content_hash: 51b79025fa9178e40a65eff8c281ee5ac8b339ce926d18fdd3e05b25d32cd4bc
+adjustments: 0
+adjusted_at: null
+created_at: 2026-10-01T00:00:00Z
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Plano de tarefas: SPEC-009 - Estudo
+
+Documento para revisão. É removido quando o plano é aprovado.
+
+## Visão geral
+
+Visão geral do plano.
+
+## Tarefas
+
+| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |
+|---|---|---|---|---|---|---|
+| TASK-01 | a | a | tarefa | simples | - | PQ-01 |
+| TASK-02 | b | b | tarefa | simples | TASK-01 | - |
+| TASK-03 | c | c | tarefa | simples | TASK-02 | - |
+
+## Fatos de esforço
+
+| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |
+|---|---|---|---|---|---|
+| TASK-01 | 0 | 1 | não | não | não |
+| TASK-02 | 0 | 1 | não | não | não |
+| TASK-03 | 0 | 1 | não | não | não |
+
+## Níveis de esforço
+
+| Nível | Descrição |
+|---|---|
+| simples | Mudança pequena e bem delimitada, com passos diretos. |
+| moderada | Várias mudanças relacionadas, com alguma decisão local. |
+| complexa | Mudança ampla ou com decisões de desenho que exigem raciocínio. |
+| critica | Contrato público, risco alto ou muitas partes interligadas. |
+
+## Histórico de ajustes
+
+| # | Data | Origem | Resumo |
+|---|---|---|---|

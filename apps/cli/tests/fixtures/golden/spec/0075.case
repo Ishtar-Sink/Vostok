@@ -1,0 +1,30 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 6
+X #{Y}
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 6
+X #{Y}
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 138
+O título não pode conter '#{', reservado para variáveis de template
+Erro: título inválido. Uso: create-new-spec.sh "Título da spec"
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

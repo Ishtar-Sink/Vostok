@@ -1,0 +1,41 @@
+@script 16
+finalize-spec.sh
+@group 8
+finalize
+@usage 1
+0
+@arg 7
+--build
+@arg 8
+SPEC-008
+@vostok 8
+finalize
+@vostok 5
+build
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 179
+Documentos de SPEC-008 gerados em packages/harness/work/finalize/SPEC-008:
+  - executivo.html
+  - tecnico.html
+  - evidencias.html
+  - assets/ (2 evidência(s) fora do documento)
+
+@stderr 0
+
+@exit 1
+0
+@pre 526
+W aec493f5429a48aa9fd398b2def7dea3078e1847fd31d810227c26f7bae3731b .fin-docs/assets/TASK-01/Nome com espaço.zip
+W 4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2 .fin-docs/assets/TASK-01/pacote.zip
+W c81ca5eda5947c7826ad046fdbdc2a25a846b835a6c34c237cc8b3afbe9ec6cc .fin-docs/assets/TASK-01/video.mp4
+W 1697038407dca9ee320d326cca32f30419725345dded5c0783e07af9b8584aa5 .fin-docs/evidencias.html
+W ef045f583234ce17a9c12b31a7bbfaf7379d134dbc46b3b06d197a4329905e2f packages/harness/config/documents.yml
+D .docs-ev
+@post 189
+W 5396e7c8db2571bb4cc3ad49e0d03d9873801b83f97c8e067dc60b5c0eec422c packages/harness/work/finalize/SPEC-008/evidencias.html
+D packages/harness/work/finalize/SPEC-008/assets/TASK-01/video.mp4

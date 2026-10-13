@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 12
+approve-task
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 12
+approve-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 228
+Redirecionamento: <ROOT>/.claude/skills/approve-task/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/approve-task/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'approve-task' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 207
+W 67469879b3c96bc79ef867f8c4b123b9dab03ca5ba2344792410bb7a95974a70 .agents/skills/approve-task/SKILL.md
+W 67469879b3c96bc79ef867f8c4b123b9dab03ca5ba2344792410bb7a95974a70 .claude/skills/approve-task/SKILL.md

@@ -1,0 +1,31 @@
+@script 13
+list-specs.sh
+@group 4
+spec
+@usage 1
+0
+@arg 5
+draft
+@vostok 4
+spec
+@vostok 4
+list
+@vostok 5
+draft
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 124
+| ID | Título | Status | Arquivo |
+|---|---|---|---|
+| SPEC-001 | Painel "A" \| B | draft | draft/SPEC-001-painel-a-b.md |
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

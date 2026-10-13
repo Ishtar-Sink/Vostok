@@ -1,0 +1,29 @@
+@script 16
+check-commits.sh
+@group 6
+commit
+@usage 1
+0
+@arg 5
+extra
+@vostok 6
+commit
+@vostok 5
+check
+@vostok 5
+extra
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 28
+Erro: Uso: check-commits.sh
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

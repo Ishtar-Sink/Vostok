@@ -1,0 +1,37 @@
+@script 16
+update-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 7
+ISS-002
+@arg 5
+Causa
+@arg 12
+a\b "x" & \1
+@vostok 6
+memory
+@vostok 6
+update
+@vostok 7
+ISS-002
+@vostok 5
+Causa
+@vostok 12
+a\b "x" & \1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 30
+ISS-002: Causa = a\b "x" & \1
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 100
+W b0a6724b2aabd88ddb94d1be669936dc8580585d3c174d63fee02f6eeceee6ef packages/harness/memory/issues.md

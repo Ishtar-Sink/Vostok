@@ -1,0 +1,35 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 8
+--unload
+@arg 3
+api
+@arg 12
+execute-task
+@vostok 5
+rules
+@vostok 6
+unload
+@vostok 3
+api
+@vostok 12
+execute-task
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 42
+Categoria 'api' retirada de execute-task.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 102
+W 31a9519f3c8eb11c2f2e6031d114634e9f2e336d3f4d04c4333a404e2bc42db6 packages/harness/config/context.yml

@@ -1,0 +1,31 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--next-id
+@arg 3
+api
+@vostok 5
+rules
+@vostok 7
+next-id
+@vostok 3
+api
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 15
+project/api-01
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

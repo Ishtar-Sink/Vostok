@@ -1,0 +1,37 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 7
+--tests
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@vostok 4
+task
+@vostok 5
+tests
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 231
+Testes de TASK-01 falharam (código de saída 1), tentativa 2 de 2. Últimas linhas da saída (<ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out):
+    comando com falha (código 1): test ! -e .falha
+
+@stderr 158
+Erro: a tarefa TASK-01 ficou bloqueada depois de 2 tentativas. PARE: responda com o template `blocker`, mostrando as falhas, e aguarde a decisão do usuário
+
+@exit 1
+1
+@pre 70
+W 55bb0bccd67ac0e2dea71dcaa5fcf88fca89717704982b814fbf82f495df3316 .vt
+@post 114
+W 201e02697a21582f8a4269333feb8bec4ab1e7020681ec29e4020a414ee4edd9 packages/harness/work/tasks/SPEC-008/TASK-01.md

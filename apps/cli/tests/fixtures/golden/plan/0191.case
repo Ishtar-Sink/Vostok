@@ -1,0 +1,37 @@
+@script 14
+adjust-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 25
+TASK-02 com mais arquivos
+@vostok 4
+plan
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 25
+TASK-02 com mais arquivos
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 89
+Ajuste 2 registrado no plano de SPEC-008: <ROOT>/packages/harness/work/plans/SPEC-008.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 106
+W 40bd5d5a13cba7bcebfd9ac8449321688b75c9bd1067bd0cd2bdc45d0a9e3834 packages/harness/work/plans/SPEC-008.md
+@post 106
+W d8a442564760507b199a6ce94ef7633443ec48a75f001869dad505233d700df6 packages/harness/work/plans/SPEC-008.md

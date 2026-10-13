@@ -1,0 +1,42 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@arg 20
+ajuste em validating
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@vostok 20
+ajuste em validating
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 202
+Ajuste 4 registrado em TASK-02: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-02.md
+Ajuste em execução: TASK-02 voltou para 'in_progress', com tentativas e resultados zerados e o baseline mantido.
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W 328b8419e4ed5c0ee1821c2ec07a497c7fc302bcb466f37ef548137d7933f62c packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 114
+W e85a66cdfb26c11093667bba6f8690dfdb97f2a568eea13b5b05fc956cd54311 packages/harness/work/tasks/SPEC-008/TASK-02.md

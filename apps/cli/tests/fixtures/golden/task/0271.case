@@ -1,0 +1,42 @@
+@script 14
+adjust-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--record
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@arg 17
+ajuste em blocked
+@vostok 4
+task
+@vostok 6
+adjust
+@vostok 6
+record
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@vostok 17
+ajuste em blocked
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 202
+Ajuste 5 registrado em TASK-02: <ROOT>/packages/harness/work/tasks/SPEC-008/TASK-02.md
+Ajuste em execução: TASK-02 voltou para 'in_progress', com tentativas e resultados zerados e o baseline mantido.
+
+@stderr 0
+
+@exit 1
+0
+@pre 114
+W a94db0ef2acbfae0355fc0bbca2c98278112e927a5a9dadc365768d5f4c094e3 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 114
+W 4ee31bea50aa8527b9229324c19c3e65f8067e999d17352d3ca044cfc7900c0c packages/harness/work/tasks/SPEC-008/TASK-02.md

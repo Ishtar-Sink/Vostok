@@ -1,0 +1,29 @@
+@script 16
+search-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 5
+issue
+@vostok 6
+memory
+@vostok 6
+search
+@vostok 5
+issue
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 29
+ISS-001: Crlf | aberto | win
+
+@stderr 0
+
+@exit 1
+0
+@pre 100
+W a68460326daeec95ce470e132b46b7f9bfbb2b1cc5a0a218c4b996ed0d2aa5c8 packages/harness/memory/issues.md
+@post 0
+

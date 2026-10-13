@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+exec python3 "$GOLDEN_RECORD" "$0" "$@"
+# #!/usr/bin/env bash
+# # Registra os ajustes de uma tarefa em qualquer status menos `done`: edições feitas à mão e ajustes do
+# # agente. Segue o registro da spec e do plano (scripts/lib/adjustments.sh): contagem, datas, hash do
+# # conteúdo e uma linha por ajuste em "Histórico de ajustes". A validação é a da tarefa (scripts/lib/task.sh).
+# # Um ajuste numa tarefa `approved` a devolve para `pending` e limpa os campos da aprovação. Um ajuste numa
+# # tarefa `in_progress`, `validating` ou `blocked` a deixa `in_progress`, com tentativas e resultados zerados,
+# # mantém o baseline e os campos da aprovação, não pede nova aprovação e acrescenta a linha `ajuste` ao
+# # "Registro de execução". Tarefa `done` é recusada.
+# #
+# # Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID>
+# #        Compara o hash gravado com o do conteúdo atual. Se forem diferentes, registra um ajuste de origem
+# #        manual. Tarefa sem hash conta como editada à mão.
+# #      adjust-task.sh --validate <SPEC_ID> <TASK_ID>
+# #        Lista os problemas da tarefa, sem alterar nada. Termina com erro se houver algum.
+# #      adjust-task.sh --record <SPEC_ID> <TASK_ID> "resumo"
+# #        Valida a tarefa e registra o ajuste do agente. Com problemas, termina com erro sem alterar nada.
+# #        Vários ajustes da mesma mensagem vão no mesmo resumo, separados por "; ".
+# set -euo pipefail
+# 
+# # Raiz do harness: primeira pasta acima do script que contém `config/main.yml`.
+# HARNESS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && until [ -f config/main.yml ] || [ "$PWD" = / ]; do cd ..; done && pwd)"
+# source "$HARNESS_DIR/scripts/lib/config.sh"
+# source "$HARNESS_DIR/scripts/lib/text.sh"
+# source "$HARNESS_DIR/scripts/lib/frontmatter.sh"
+# source "$HARNESS_DIR/scripts/lib/markdown.sh"
+# source "$HARNESS_DIR/scripts/lib/spec-validation.sh"
+# source "$HARNESS_DIR/scripts/lib/adjustments.sh"
+# source "$HARNESS_DIR/scripts/lib/plan.sh"
+# source "$HARNESS_DIR/scripts/lib/task.sh"
+# 
+# MAIN_CONFIG="$HARNESS_DIR/config/main.yml"
+# SPECS_CONFIG="$HARNESS_DIR/config/specs.yml"
+# TASKS_CONFIG="$HARNESS_DIR/config/tasks.yml"
+# 
+# USAGE='Uso: adjust-task.sh --record-manual <SPEC_ID> <TASK_ID> | --validate <SPEC_ID> <TASK_ID> | --record <SPEC_ID> <TASK_ID> "resumo"'
+# 
+# die() { echo "Erro: $*" >&2; exit 1; }
+# 
+# tasks_root="$(harness_path "$(config_get "$MAIN_CONFIG" paths.tasks)")"
+# pending_status="$(config_get "$TASKS_CONFIG" status.pending)"
+# approved_status="$(config_get "$TASKS_CONFIG" status.approved)"
+# in_progress_status="$(config_get "$TASKS_CONFIG" status.in_progress)"
+# validating_status="$(config_get "$TASKS_CONFIG" status.validating)"
+# blocked_status="$(config_get "$TASKS_CONFIG" status.blocked)"
+# done_status="$(config_get "$TASKS_CONFIG" status.done)"
+# task_prefix="$(config_get "$TASKS_CONFIG" id.prefix)"
+# approved_at_field="$(config_get "$SPECS_CONFIG" approved_at_field)"
+# approved_hash_field="$(config_get "$SPECS_CONFIG" approved_hash_field)"
+# 
+# # Caminho da tarefa. Falha se ela não existir ou estiver com status done.
+# # find_task <SPEC_ID> <TASK_ID>
+# find_task() {
+#   local file status
+#   [[ "$1" =~ ^[A-Z]+-[0-9]+$ ]] || die "ID de spec inválido: '$1'"
+#   [[ "$2" =~ ^$task_prefix-[0-9]+$ ]] || die "ID de tarefa inválido: '$2'"
+#   file="$tasks_root/$1/$2.md"
+#   [ -f "$file" ] || die "tarefa $2 não encontrada em $1"
+#   status="$(frontmatter_get "$file" status 2>/dev/null || true)"
+#   case "$status" in
+#     "$pending_status" | "$approved_status" | "$in_progress_status" | "$validating_status" | "$blocked_status") ;;
+#     *) die "a tarefa $2 está com status '$status'; tarefas com status '$done_status' não são ajustadas" ;;
+#   esac
+#   printf '%s' "$file"
+# }
+# 
+# # Problemas da tarefa, um por linha. A cobertura é a da própria tarefa, que um ajuste não muda.
+# # errors_of <SPEC_ID> <TASK_ID> <arquivo>
+# errors_of() {
+#   task_errors "$3" "$(frontmatter_get "$3" covers 2>/dev/null | tr -d '[]' || true)" \
+#     "$(task_upstream_paths "$tasks_root/$1" | TASK="$2" awk -F'\t' '$1 == ENVIRON["TASK"] { print $2 }')"
+# }
+# 
+# # Devolve uma tarefa aprovada para pending e avisa. Não faz nada numa tarefa pending.
+# # drop_approval <arquivo> <TASK_ID>
+# drop_approval() {
+#   [ "$(frontmatter_get "$1" status 2>/dev/null || true)" = "$approved_status" ] || return 0
+#   frontmatter_set "$1" status "$pending_status"
+#   frontmatter_put "$1" "$approved_at_field" null
+#   frontmatter_put "$1" "$approved_hash_field" null
+#   echo "Aprovação de $2 derrubada: o status voltou para '$pending_status'; aprove-a de novo antes de executar."
+# }
+# 
+# # Devolve uma tarefa em execução (in_progress, validating ou blocked) para in_progress, com tentativas e
+# # resultados zerados e a linha `ajuste` no registro. Mantém o baseline e os campos da aprovação.
+# # Não faz nada nas demais.
+# # restart_execution <arquivo> <TASK_ID> <resumo>
+# restart_execution() {
+#   local status
+#   status="$(frontmatter_get "$1" status 2>/dev/null || true)"
+#   [ "$status" = "$in_progress_status" ] || [ "$status" = "$validating_status" ] || [ "$status" = "$blocked_status" ] || return 0
+#   frontmatter_set "$1" status "$in_progress_status"
+#   frontmatter_set "$1" attempts 0
+#   frontmatter_set "$1" tests_result null
+#   frontmatter_set "$1" regression_result null
+#   frontmatter_set "$1" evidence_result null
+#   task_record_step "$1" ajuste "$in_progress_status" "$3"
+#   echo "Ajuste em execução: $2 voltou para '$in_progress_status', com tentativas e resultados zerados e o baseline mantido."
+# }
+# 
+# record_manual() {
+#   local file summary count errors
+#   file="$(find_task "$1" "$2")"
+#   if [ "$(adjustment_hash_state "$file")" = same ]; then
+#     echo "Nenhuma edição manual."
+#     return
+#   fi
+#   summary="$(adjustment_manual_summary "$file")"
+#   count="$(adjustment_record "$file" "$(adjustment_origin manual)" "$summary")"
+#   echo "Ajuste manual $count registrado em $2: $summary"
+#   drop_approval "$file" "$2"
+#   restart_execution "$file" "$2" "$summary"
+#   errors="$(errors_of "$1" "$2" "$file")"
+#   [ -z "$errors" ] || printf 'Problemas de validação:\n%s\n' "$errors"
+# }
+# 
+# validate() {
+#   local file errors
+#   file="$(find_task "$1" "$2")"
+#   errors="$(errors_of "$1" "$2" "$file")"
+#   [ -z "$errors" ] || die "a tarefa $2 tem problemas:"$'\n'"$errors"
+#   echo "Tarefa $2 válida: $file"
+# }
+# 
+# record() {
+#   local summary file errors count
+#   summary="$(adjustment_clean_summary "$3" 2>&1)" || die "$summary"
+#   file="$(find_task "$1" "$2")"
+#   errors="$(errors_of "$1" "$2" "$file")"
+#   [ -z "$errors" ] || die "a tarefa $2 tem problemas; nenhum ajuste registrado:"$'\n'"$errors"
+#   count="$(adjustment_record "$file" "$(adjustment_origin agent)" "$summary")"
+#   echo "Ajuste $count registrado em $2: $file"
+#   drop_approval "$file" "$2"
+#   restart_execution "$file" "$2" "$summary"
+# }
+# 
+# case "${1:-}" in
+#   --record-manual) [ "$#" -eq 3 ] || die "$USAGE"; record_manual "$2" "$3" ;;
+#   --validate) [ "$#" -eq 3 ] || die "$USAGE"; validate "$2" "$3" ;;
+#   --record) [ "$#" -eq 4 ] || die "$USAGE"; record "$2" "$3" "$4" ;;
+#   *) die "$USAGE" ;;
+# esac

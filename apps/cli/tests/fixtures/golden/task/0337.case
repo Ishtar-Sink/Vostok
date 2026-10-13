@@ -1,0 +1,35 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 10
+--evidence
+@arg 8
+SPEC-008
+@arg 7
+TASK-02
+@vostok 4
+task
+@vostok 8
+evidence
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-02
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 50
+Erro: nome de evidência inválido: '../fora.txt'
+
+@exit 1
+1
+@pre 114
+W e9eee912a08d8bd8ef2bb6675dd1c5de364d7dcf72e050b0f5573ffdc00c8ebd packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 0
+

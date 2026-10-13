@@ -1,0 +1,31 @@
+@script 13
+plan-tasks.sh
+@group 4
+plan
+@usage 1
+0
+@arg 8
+--create
+@arg 8
+SPEC-099
+@vostok 4
+plan
+@vostok 6
+create
+@vostok 8
+SPEC-099
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 45
+Erro: spec refinada SPEC-099 não encontrada
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

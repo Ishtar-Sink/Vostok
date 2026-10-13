@@ -1,0 +1,34 @@
+@script 14
+adjust-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 10
+--validate
+@arg 8
+SPEC-001
+@vostok 4
+spec
+@vostok 6
+adjust
+@vostok 8
+validate
+@vostok 8
+SPEC-001
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 108
+Erro: a spec SPEC-001 está com status 'draft'; só specs com status 'refined' ou 'approved' são ajustadas
+
+@exit 1
+1
+@pre 191
+W 0f0fc69a718f5a6539965adf121058c9f47b8294e616c78a1ee17ba03a02b35b packages/harness/work/specs/refined/SPEC-001-painel-a-b.md
+D packages/harness/work/specs/refined/SPEC-001-painel-a-b.md.orig
+@post 0
+

@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-008
+@arg 7
+feature
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-008
+@vostok 7
+feature
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 107
+Spec refinada SPEC-008 (feature) criada em <ROOT>/packages/harness/work/specs/refined/SPEC-008-planejar.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 123
+W e88a23dc474209d5a32df353acefbf58faf9f8e0bd2fb5c2c973f8d5dacbbdd7 packages/harness/work/specs/refined/SPEC-008-planejar.md

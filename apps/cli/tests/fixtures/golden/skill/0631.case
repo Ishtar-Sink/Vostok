@@ -1,0 +1,35 @@
+@script 15
+create-skill.sh
+@group 5
+skill
+@usage 1
+0
+@arg 10
+--finalize
+@arg 10
+plan-tasks
+@vostok 5
+skill
+@vostok 8
+finalize
+@vostok 10
+plan-tasks
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 222
+Redirecionamento: <ROOT>/.claude/skills/plan-tasks/SKILL.md
+Redirecionamento: <ROOT>/.agents/skills/plan-tasks/SKILL.md
+Catálogo atualizado: <ROOT>/packages/harness/context/skill-catalog.md
+Skill 'plan-tasks' finalizada.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 203
+W 03818fe8a3302f6219264bc6f02b718fe6b476ebb01af2ada0ea18dfbba809d9 .agents/skills/plan-tasks/SKILL.md
+W 03818fe8a3302f6219264bc6f02b718fe6b476ebb01af2ada0ea18dfbba809d9 .claude/skills/plan-tasks/SKILL.md

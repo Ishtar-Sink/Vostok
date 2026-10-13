@@ -1,0 +1,38 @@
+@script 16
+update-memory.sh
+@group 6
+memory
+@usage 1
+0
+@arg 7
+KNW-001
+@arg 6
+Status
+@arg 8
+obsoleto
+@vostok 6
+memory
+@vostok 6
+update
+@vostok 7
+KNW-001
+@vostok 6
+Status
+@vostok 8
+obsoleto
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 27
+KNW-001: Status = obsoleto
+
+@stderr 0
+
+@exit 1
+0
+@pre 211
+W 9e435eefd61d8eff8e76785290521d463bbaab14d947b491a7311079b04828b6 packages/harness/memory/knowledge.md
+W 1c3283244f99e874a89ba1eb7cb83c1ff66f69f125f4bea3302ea3ce1ed0cf62 packages/harness/memory/knowledge.md.bak
+@post 103
+W 4064cf709385631c73a27beb30f99f0306b6ffbfd719615d0312fade0670c600 packages/harness/memory/knowledge.md

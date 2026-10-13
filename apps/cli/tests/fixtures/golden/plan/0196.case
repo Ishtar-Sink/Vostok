@@ -1,0 +1,33 @@
+@script 15
+approve-plan.sh
+@group 4
+plan
+@usage 1
+0
+@arg 14
+--create-tasks
+@arg 8
+SPEC-008
+@vostok 4
+plan
+@vostok 7
+approve
+@vostok 12
+create-tasks
+@vostok 8
+SPEC-008
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 93
+Erro: a pasta de tarefas de SPEC-008 já existe: <ROOT>/packages/harness/work/tasks/SPEC-008
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

@@ -1,0 +1,35 @@
+@script 15
+init-harness.sh
+@group 5
+rules
+@usage 1
+0
+@arg 9
+--preview
+@arg 7
+testing
+@arg 19
+<ROOT>/ih-rules.txt
+@vostok 5
+rules
+@vostok 7
+preview
+@vostok 7
+testing
+@vostok 19
+<ROOT>/ih-rules.txt
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 18
+Nenhuma mudança.
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

@@ -1,0 +1,23 @@
+@script 15
+execute-task.sh
+@group 4
+task
+@usage 1
+1
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 88
+Erro: Uso: execute-task.sh --start <SPEC_ID> <TASK_ID> | --baseline <SPEC_ID> <TASK_ID>
+
+@exit 1
+1
+@pre 300
+W 33648f2ab4d9764eed8b4d79e5e8a2db1082fd0fada786b890e2a3a63e7e76bb packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-02/baseline/1.out
+@post 0
+

@@ -1,0 +1,31 @@
+@script 13
+list-specs.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+approved
+@vostok 4
+spec
+@vostok 4
+list
+@vostok 8
+approved
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 118
+| ID | Título | Status | Arquivo |
+|---|---|---|---|
+| SPEC-006 | Aprovar | approved | refined/SPEC-006-aprovar.md |
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 0
+

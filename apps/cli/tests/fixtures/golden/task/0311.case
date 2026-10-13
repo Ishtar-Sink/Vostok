@@ -1,0 +1,39 @@
+@script 14
+finish-task.sh
+@group 4
+task
+@usage 1
+0
+@arg 8
+--resume
+@arg 8
+SPEC-008
+@arg 7
+TASK-01
+@arg 17
+corrigir o estado
+@vostok 4
+task
+@vostok 6
+resume
+@vostok 8
+SPEC-008
+@vostok 7
+TASK-01
+@vostok 17
+corrigir o estado
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 140
+Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por --tests.
+
+@stderr 0
+
+@exit 1
+0
+@pre 70
+W 80b86f8acdbe5928b7eb010be717a8c13b403945f13506bdcd375101330a1a20 .vt
+@post 114
+W 9c78b35e1838a77c60fe25d8b968a74df13592d9be2ef267d0b781b2c9d4a102 packages/harness/work/tasks/SPEC-008/TASK-01.md

@@ -1,0 +1,35 @@
+@script 17
+approve-commit.sh
+@group 6
+commit
+@usage 1
+0
+@arg 8
+--commit
+@arg 5
+y.txt
+@vostok 6
+commit
+@vostok 6
+commit
+@vostok 5
+y.txt
+@cwd 9
+<OUTSIDE>
+@stdin 8
+feat: y
+
+@stdout 0
+
+@stderr 124
+Erro: a referência de commits é inválida; ela só pode ser refeita com --approve:
+linha fora do formato 'hash ref': lixo
+
+@exit 1
+1
+@pre 249
+W b6610b6e569c23da3d0422b32a8e2e8e0ac9ce2f91e5aba4cfce9a6e60aeb90d .ack-ok
+W d3cacc2ca4a54d13e78253a123f596dae24a1fb922cd895c62ff4ca6e976a95b packages/harness/.state/commit-ack
+W 3bb2abb69ebb27fbfe63c7639624c6ec5e331b841a5bc8c3ebc10b9285e90877 y.txt
+@post 0
+

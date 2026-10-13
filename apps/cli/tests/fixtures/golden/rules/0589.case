@@ -1,0 +1,39 @@
+@script 15
+adjust-rules.sh
+@group 5
+rules
+@usage 1
+0
+@arg 17
+--create-category
+@arg 3
+api
+@arg 3
+API
+@arg 6
+Outro.
+@vostok 5
+rules
+@vostok 15
+create-category
+@vostok 3
+api
+@vostok 3
+API
+@vostok 6
+Outro.
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 0
+
+@stderr 57
+Erro: a categoria 'api' já existe: rules/project/api.md
+
+@exit 1
+1
+@pre 0
+
+@post 0
+

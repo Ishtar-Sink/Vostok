@@ -1,0 +1,33 @@
+@script 22
+create-refined-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 8
+SPEC-002
+@arg 8
+analysis
+@vostok 4
+spec
+@vostok 6
+refine
+@vostok 8
+SPEC-002
+@vostok 8
+analysis
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 107
+Spec refinada SPEC-002 (analysis) criada em <ROOT>/packages/harness/work/specs/refined/SPEC-002-analise.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 0
+
+@post 122
+W f14e3147b5a08f5de678099eae7dc157c44aa9a21922ea2d9c64b76656a77677 packages/harness/work/specs/refined/SPEC-002-analise.md

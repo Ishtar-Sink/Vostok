@@ -1,0 +1,34 @@
+---
+type: issue
+title: "Problemas"
+description: "Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção."
+updated_at: 2026-10-01T00:00:00Z
+---
+
+# Problemas
+
+Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção.
+
+Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não carregue este arquivo inteiro.
+
+## ISS-001: a|b & c\d "x" /tmp/á
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** wsl, build
+- **Categoria:** ambiente
+- **Assinatura:** `EACCES: permission denied`
+- **Ambiente:** -
+- **Causa:** -
+- **Solução:** -
+
+## ISS-002: Porta ocupada
+
+- **Data:** 2026-10-01
+- **Status:** aberto
+- **Tags:** #{ENTRY_TAGS}
+- **Categoria:** #{ISSUE_CATEGORY}
+- **Assinatura:** #{ISSUE_SIGNATURE}
+- **Ambiente:** #{ISSUE_ENVIRONMENT}
+- **Causa:** #{ISSUE_CAUSE}
+- **Solução:** #{ISSUE_SOLUTION}

@@ -1,0 +1,43 @@
+@script 18
+create-new-spec.sh
+@group 4
+spec
+@usage 1
+0
+@arg 6
+Estudo
+@vostok 4
+spec
+@vostok 3
+new
+@vostok 6
+Estudo
+@cwd 9
+<OUTSIDE>
+@stdin 0
+
+@stdout 79
+SPEC-009 criada em <ROOT>/packages/harness/work/specs/draft/SPEC-009-estudo.md
+
+@stderr 0
+
+@exit 1
+0
+@pre 1007
+W 87a6ed747680f4ee3cc3611889390b63cd34823405b26a2aa0e9553f396903f5 packages/harness/work/specs/refined/SPEC-008-planejar.md
+W f795610daf4cb1c094080221aafd441238968809d631800938860bcff81cb308 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
+D .r8-ok
+D .tasks-ok/TASK-01.md
+D .tasks-ok/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-02/baseline/01.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-02/validation/regression/01.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-02/validation/tests.out
+@post 224
+W ccfe030020d0e2516ad82a2190a44cd019ae2ae24178ab66897b74e1b1b3ae6a packages/harness/config/sequences.yml
+W f18d9ecbc656fa61cb98d9f96171255e38be6f6dc89dc923d75c468a01bbad50 packages/harness/work/specs/draft/SPEC-009-estudo.md

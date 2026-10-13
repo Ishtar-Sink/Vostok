@@ -1,0 +1,42 @@
+## Panorama
+
+Entrega o **script** `novo.sh` com <script>alert(1)</script> escapado.
+
+## Indicadores de valor
+
+| Valor | Indicador |
+|---|---|
+| **3x** | mais rápido |
+| 0 | etapas manuais |
+
+## Recorte
+
+Só o script; a documentação fica para depois.
+
+## Entregas
+
+### Script novo
+- **Impacto:** alto
+- **O que mudou:** o script existe.
+- **Valor:** menos <trabalho> manual.
+- **Como perceber:** rodar o script.
+Texto solto da entrega.
+
+### Documentação
+- **Impacto:** médio
+- **O que mudou:** o guia cita o script.
+- **Valor:** quem chega encontra o caminho.
+
+## Antes e depois
+
+| Situação | Antes | Depois |
+|---|---|---|
+| Rodar | à mão | um comando |
+
+## Próximos passos
+
+1. Publicar.
+
+## Riscos e limitações
+
+- Depende do bash.

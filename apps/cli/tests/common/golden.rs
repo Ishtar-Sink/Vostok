@@ -27,6 +27,10 @@ fn golden_dir() -> PathBuf {
 /// Raiz fixa usada pelo gerador; aparece no conteúdo de alguns arquivos.
 const GOLDEN_ROOT: &str = "/tmp/vostok-golden-root";
 
+/// Nome do autor no `git config` da máquina que gerou as fixtures; os comandos que gravam o autor
+/// (`spec new`, `skill create`) precisam dele em qualquer máquina.
+const GOLDEN_AUTHOR: &str = "Victor Batalha";
+
 #[derive(Debug, Clone)]
 pub enum Change {
     Write { path: String, sha: String },
@@ -537,6 +541,9 @@ fn run_case(case: &Case, root: &Path, temp: &Path) -> std::process::Output {
         .env("GIT_AUTHOR_EMAIL", "t@t")
         .env("GIT_COMMITTER_NAME", "T")
         .env("GIT_COMMITTER_EMAIL", "t@t")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "user.name")
+        .env("GIT_CONFIG_VALUE_0", GOLDEN_AUTHOR)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

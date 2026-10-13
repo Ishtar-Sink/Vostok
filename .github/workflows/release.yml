@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       # Uma plataforma com falha cancela as demais: a release só sai com as quatro.
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu

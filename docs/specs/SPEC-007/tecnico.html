@@ -1,0 +1,1323 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-007 · Documento técnico · Task regression não aceita diferença aprovada pelo usuário</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-007 · aprovada em 2026-10-14 · concluída em 2026-10-14</p>
+    <h1>Task regression não aceita diferença aprovada pelo usuário</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>O <code>vostok task regression</code> comparava cada comando do baseline byte a byte e o <code>vostok task resume</code> só gravava a decisão do usuário como texto, então uma diferença aceita bloqueava a tarefa sem fim. A correção liga os dois por um arquivo de aceite em <code>validation/regression/accepted</code>: o <code>resume --accept-regression &lt;N&gt;</code> grava o SHA-256 da saída que o usuário viu, e o <code>regression</code> conta como aceito o comando cuja saída atual tem esse hash. O <code>finalize build</code> lê o mesmo arquivo para mostrar os aceites no documento de evidências.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code>: opção <code>--accept-regression</code> no <code>resume</code>; no <code>regression</code>, limpeza seletiva da pasta, numeração dos divergentes, <code>NN.diff</code> e conferência do hash; helpers <code>accepted_regressions</code>, <code>regression_acceptances</code> e <code>clear_regression_outputs</code>.</li>
+<li><code>apps/cli/src/commands/finalize.rs</code>: peça de diferença aceita no <code>evidencias.html</code>, com o diff de <code>accepted-NN.diff</code> e a decisão.</li>
+<li><code>apps/cli/tests/task.rs</code> e <code>apps/cli/tests/finalize.rs</code>: cenários do aceite.</li>
+<li><code>apps/cli/tests/fixtures/golden/task</code>: casos congelados 0310, 0313, 0314 e 0319 atualizados.</li>
+<li>Skill <code>finish-task</code>, na fonte e na cópia instalada: passos 2 e 4 e regra <code>[finish-task-03]</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li><strong>TASK-01:</strong> o <code>regression</code> agora apaga só <code>NN.out</code> e <code>NN.diff</code>, preservando <code>accepted</code> e <code>accepted-NN.diff</code>; grava o diff completo de cada divergente e lista <code>- [N] comando</code> com a dica do aceite. O <code>resume</code> confere status, decisão e números antes de gravar qualquer coisa, e recusa número que não divergiu na última regressão. Uma linha do <code>accepted</code> tem número, hash, data, comando e decisão, separados por tabulação; o aceite mais recente de um número vale. O registro passa a dizer <code>N igual(is) ao baseline, M aceito(s) pelo usuário</code> e a retomada cita os aceitos. Foram 12 testes novos, e a suíte fechou com 155 testes passando.</li>
+<li><strong>TASK-02:</strong> a versão foi instalada com <code>cargo install --path apps/cli</code>, o <code>~/rd/app</code> foi atualizado com <code>vostok update</code> e a SPEC-001 TASK-02 de lá foi retomada: uma vez para gerar o <code>01.diff</code> com a versão nova e outra com <code>--accept-regression 1</code>. A regressão passou com <code>1 igual(is) ao baseline, 1 aceito(s) pelo usuário</code> e a tarefa chegou a <code>done</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>O <code>vostok task regression</code>, ao encontrar diferença, deve gravar em <code>evidence/&lt;TASK&gt;/validation/regression/</code> o arquivo <code>NN.diff</code> de cada comando divergente, ao lado da saída atual <code>NN.out</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>O <code>vostok task regression</code>, ao bloquear, deve listar os comandos divergentes numerados (<code>- [n] comando</code>), com o número usado no aceite.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>O <code>vostok task resume</code> deve aceitar a opção <code>--accept-regression &lt;n&gt;[,&lt;n&gt;...]</code> e gravar em <code>validation/regression/accepted</code> uma linha por comando aceito, com número, SHA-256 da saída aceita, data, comando e decisão do usuário.</td><td><span class="chip">TASK-01</span><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-04</td><td>O <code>vostok task resume</code> deve recusar o aceite, sem alterar nada, quando a tarefa não está <code>blocked</code>, quando um número não corresponde a um comando que divergiu na última execução ou quando não há saída gravada para ele.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-05</td><td>O <code>vostok task resume</code> sem <code>--accept-regression</code> deve manter o comportamento atual.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>O <code>vostok task regression</code> deve contar como aceito o comando cuja saída atual tem o mesmo SHA-256 da saída aceita, e como divergente qualquer saída diferente da aceita.</td><td><span class="chip">TASK-01</span><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-07</td><td>O <code>vostok task regression</code> deve recriar só as saídas e os diffs de <code>validation/regression/</code>, preservando o arquivo <code>accepted</code> entre execuções.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-08</td><td>A linha de regressão do Registro de execução deve separar comandos iguais ao baseline e aceitos pelo usuário (ex.: <code>1 igual(is) ao baseline, 1 aceito(s) pelo usuário</code>), e a linha de retomada deve citar os comandos aceitos.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-09</td><td>O <code>vostok task finish</code> deve concluir uma tarefa cuja regressão terminou <code>passed</code> com comandos aceitos.</td><td><span class="chip">TASK-01</span><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-10</td><td>O <code>vostok finalize build</code> deve incluir no documento de evidências uma peça por tarefa com aceite, com o comando, o diff e a decisão do usuário.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-11</td><td>A skill <code>finish-task</code> deve explicar, nos passos 2 e 4 e na regra <code>[finish-task-03]</code>, como aceitar uma diferença com <code>vostok task resume --accept-regression</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-12</td><td>A memória do projeto deve ter uma <code>issue</code> com o caso, encontrável por <code>vostok memory search issue ficou bloqueada por regressão</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Diferença aceita</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Saída numerada no bloqueio</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Mudança depois do aceite</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Diferença nova junto da aceita</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td><code>resume</code> sem a opção</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Aceite inválido</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Aceite preservado</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-08</td><td>Retrocompatibilidade</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-09</td><td>Registro de execução</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-10</td><td>Documento de evidências</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-11</td><td>Skill e memória</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-13</td><td>Fixtures</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-12</td><td>Caso real</td><td><span class="chip">TASK-02</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/finalize.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/finalize.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/fixtures/golden/task</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/finish-task/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/skills/default/finish-task/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/memory/issues.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/work/tasks/SPEC-007/TASK-02.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+183</span><span class="tag remover">−21</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -72,6 +72,9 @@ pub enum TaskCommand {</td></tr>
+<tr><td class="ln">72</td><td class="code">        task_id: Option&lt;String&gt;,</td><td class="ln">72</td><td class="code">        task_id: Option&lt;String&gt;,</td></tr>
+<tr><td class="ln">73</td><td class="code">        #[arg(allow_hyphen_values = true)]</td><td class="ln">73</td><td class="code">        #[arg(allow_hyphen_values = true)]</td></tr>
+<tr><td class="ln">74</td><td class="code">        decision: Option&lt;String&gt;,</td><td class="ln">74</td><td class="code">        decision: Option&lt;String&gt;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">75</td><td class="code add">        /// Números dos comandos da regressão cuja diferença o usuário aceitou (ex.: 1,2).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">76</td><td class="code add">        #[arg(long, value_name = &quot;N[,N...]&quot;)]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">77</td><td class="code add">        accept_regression: Option&lt;String&gt;,</td></tr>
+<tr><td class="ln">75</td><td class="code">    },</td><td class="ln">78</td><td class="code">    },</td></tr>
+<tr><td class="ln">76</td><td class="code">}</td><td class="ln">79</td><td class="code">}</td></tr>
+<tr><td class="ln">77</td><td class="code"></td><td class="ln">80</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -120,7 +123,11 @@ const APPROVE_USAGE: &amp;str =</td></tr>
+<tr><td class="ln">120</td><td class="code">    &quot;Uso: vostok task approve validate|approve &lt;SPEC_ID&gt; &lt;TASK_ID ...&gt;|--all&quot;;</td><td class="ln">123</td><td class="code">    &quot;Uso: vostok task approve validate|approve &lt;SPEC_ID&gt; &lt;TASK_ID ...&gt;|--all&quot;;</td></tr>
+<tr><td class="ln">121</td><td class="code">const ADJUST_USAGE: &amp;str = &quot;Uso: vostok task adjust record-manual &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | validate &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | record &lt;SPEC_ID&gt; &lt;TASK_ID&gt; \&quot;resumo\&quot;&quot;;</td><td class="ln">124</td><td class="code">const ADJUST_USAGE: &amp;str = &quot;Uso: vostok task adjust record-manual &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | validate &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | record &lt;SPEC_ID&gt; &lt;TASK_ID&gt; \&quot;resumo\&quot;&quot;;</td></tr>
+<tr><td class="ln">122</td><td class="code">const EXECUTE_USAGE: &amp;str = &quot;Uso: vostok task start|baseline &lt;SPEC_ID&gt; &lt;TASK_ID&gt;&quot;;</td><td class="ln">125</td><td class="code">const EXECUTE_USAGE: &amp;str = &quot;Uso: vostok task start|baseline &lt;SPEC_ID&gt; &lt;TASK_ID&gt;&quot;;</td></tr>
+<tr><td class="ln">123</td><td class="code del">const FINISH_USAGE: &amp;str = &quot;Uso: vostok task tests|regression|evidence|finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; \&quot;decisão\&quot;&quot;;</td><td class="ln">126</td><td class="code add">const FINISH_USAGE: &amp;str = &quot;Uso: vostok task tests|regression|evidence|finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; [--accept-regression &lt;N[,N...]&gt;] \&quot;decisão\&quot;&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">127</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">128</td><td class="code add">/// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">129</td><td class="code add">/// SHA-256 da saída aceita, data, comando e decisão, separados por tabulação.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">130</td><td class="code add">const ACCEPTED_FILE: &amp;str = &quot;accepted&quot;;</td></tr>
+<tr><td class="ln">124</td><td class="code"></td><td class="ln">131</td><td class="code"></td></tr>
+<tr><td class="ln">125</td><td class="code">/// Ações aceitas em &quot;Mudar&quot;, as mesmas dos componentes afetados da spec.</td><td class="ln">132</td><td class="code">/// Ações aceitas em &quot;Mudar&quot;, as mesmas dos componentes afetados da spec.</td></tr>
+<tr><td class="ln">126</td><td class="code">const COMPONENT_ACTIONS: [&amp;str; 3] = [&quot;criar&quot;, &quot;alterar&quot;, &quot;remover&quot;];</td><td class="ln">133</td><td class="code">const COMPONENT_ACTIONS: [&amp;str; 3] = [&quot;criar&quot;, &quot;alterar&quot;, &quot;remover&quot;];</td></tr>
+<tr class="hunk"><td colspan="4">@@ -173,10 +180,11 @@ pub fn run(command: TaskCommand) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">173</td><td class="code">            spec_id,</td><td class="ln">180</td><td class="code">            spec_id,</td></tr>
+<tr><td class="ln">174</td><td class="code">            task_id,</td><td class="ln">181</td><td class="code">            task_id,</td></tr>
+<tr><td class="ln">175</td><td class="code">            decision,</td><td class="ln">182</td><td class="code">            decision,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">183</td><td class="code add">            accept_regression,</td></tr>
+<tr><td class="ln">176</td><td class="code">        } =&gt; {</td><td class="ln">184</td><td class="code">        } =&gt; {</td></tr>
+<tr><td class="ln">177</td><td class="code">            let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;</td><td class="ln">185</td><td class="code">            let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;</td></tr>
+<tr><td class="ln">178</td><td class="code">            let decision = decision.ok_or_else(|| usage(FINISH_USAGE))?;</td><td class="ln">186</td><td class="code">            let decision = decision.ok_or_else(|| usage(FINISH_USAGE))?;</td></tr>
+<tr><td class="ln">179</td><td class="code del">            tasks.resume(&amp;spec, &amp;task, &amp;decision)</td><td class="ln">187</td><td class="code add">            tasks.resume(&amp;spec, &amp;task, &amp;decision, accept_regression.as_deref())</td></tr>
+<tr><td class="ln">180</td><td class="code">        }</td><td class="ln">188</td><td class="code">        }</td></tr>
+<tr><td class="ln">181</td><td class="code">    }</td><td class="ln">189</td><td class="code">    }</td></tr>
+<tr><td class="ln">182</td><td class="code">}</td><td class="ln">190</td><td class="code">}</td></tr>
+<tr class="hunk"><td colspan="4">@@ -827,26 +835,34 @@ impl Tasks {</td></tr>
+<tr><td class="ln">827</td><td class="code">        }</td><td class="ln">835</td><td class="code">        }</td></tr>
+<tr><td class="ln">828</td><td class="code">        let commands = self.baseline_commands(&amp;read(&amp;file)?)?;</td><td class="ln">836</td><td class="code">        let commands = self.baseline_commands(&amp;read(&amp;file)?)?;</td></tr>
+<tr><td class="ln">829</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td><td class="ln">837</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td></tr>
+<tr><td class="ln">830</td><td class="code del">        if dir.exists() {</td><td class="ln">838</td><td class="code add">        clear_regression_outputs(&amp;dir)?;</td></tr>
+<tr><td class="ln">831</td><td class="code del">            fs::remove_dir_all(&amp;dir)?;</td><td class="ln">839</td><td class="code add">        let accepted = accepted_hashes(&amp;dir)?;</td></tr>
+<tr><td class="ln">832</td><td class="code del">        }</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">833</td><td class="code del">        fs::create_dir_all(&amp;dir)?;</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">834</td><td class="code"></td><td class="ln">840</td><td class="code"></td></tr>
+<tr><td class="ln">835</td><td class="code">        let root = self.project_root()?;</td><td class="ln">841</td><td class="code">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln">836</td><td class="code">        let mut changed = String::new();</td><td class="ln">842</td><td class="code">        let mut changed = String::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">843</td><td class="code add">        let mut equal = 0;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">844</td><td class="code add">        let mut accepted_count = 0;</td></tr>
+<tr><td class="ln">837</td><td class="code">        for (index, command) in commands.iter().enumerate() {</td><td class="ln">845</td><td class="code">        for (index, command) in commands.iter().enumerate() {</td></tr>
+<tr><td class="ln">838</td><td class="code del">            let name = output_name(index + 1);</td><td class="ln">846</td><td class="code add">            let number = index + 1;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">847</td><td class="code add">            let name = output_name(number);</td></tr>
+<tr><td class="ln">839</td><td class="code">            let (_, output) = recorded_run(command, &amp;root)?;</td><td class="ln">848</td><td class="code">            let (_, output) = recorded_run(command, &amp;root)?;</td></tr>
+<tr><td class="ln">840</td><td class="code">            let current = dir.join(&amp;name);</td><td class="ln">849</td><td class="code">            let current = dir.join(&amp;name);</td></tr>
+<tr><td class="ln">841</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td><td class="ln">850</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td></tr>
+<tr><td class="ln">842</td><td class="code">            let previous = base.join(&amp;name);</td><td class="ln">851</td><td class="code">            let previous = base.join(&amp;name);</td></tr>
+<tr><td class="ln">843</td><td class="code">            match fs::read(&amp;previous) {</td><td class="ln">852</td><td class="code">            match fs::read(&amp;previous) {</td></tr>
+<tr><td class="ln">844</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td><td class="ln">853</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td></tr>
+<tr><td class="ln">845</td><td class="code del">                Ok(expected) if expected != output =&gt; changed.push_str(&amp;format!(</td><td class="ln">854</td><td class="code add">                Ok(expected) if expected == output =&gt; equal += 1,</td></tr>
+<tr><td class="ln">846</td><td class="code del">                    &quot;- {command}\n{}\n&quot;,</td><td class="ln">855</td><td class="code add">                Ok(_) if accepted.get(&amp;number) == Some(&amp;sha256_hex(&amp;output)) =&gt; accepted_count += 1,</td></tr>
+<tr><td class="ln">847</td><td class="code del">                    diff_excerpt(&amp;previous, &amp;current)</td><td class="ln">856</td><td class="code add">                Ok(_) =&gt; {</td></tr>
+<tr><td class="ln">848</td><td class="code del">                )),</td><td class="ln">857</td><td class="code add">                    fs::write(</td></tr>
+<tr><td class="ln">849</td><td class="code del">                Ok(_) =&gt; {}</td><td class="ln">858</td><td class="code add">                        dir.join(diff_name(number)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">859</td><td class="code add">                        diff_output(&amp;previous, &amp;current),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">860</td><td class="code add">                    )?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">861</td><td class="code add">                    changed.push_str(&amp;format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">862</td><td class="code add">                        &quot;- [{number}] {command}\n{}\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">863</td><td class="code add">                        diff_excerpt(&amp;previous, &amp;current)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">864</td><td class="code add">                    ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">865</td><td class="code add">                }</td></tr>
+<tr><td class="ln">850</td><td class="code">            }</td><td class="ln">866</td><td class="code">            }</td></tr>
+<tr><td class="ln">851</td><td class="code">        }</td><td class="ln">867</td><td class="code">        }</td></tr>
+<tr><td class="ln">852</td><td class="code">        for previous in files_with_extension(&amp;base, &quot;out&quot;)? {</td><td class="ln">868</td><td class="code">        for previous in files_with_extension(&amp;base, &quot;out&quot;)? {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -863,7 +879,11 @@ impl Tasks {</td></tr>
+<tr><td class="ln">863</td><td class="code">        if changed.is_empty() {</td><td class="ln">879</td><td class="code">        if changed.is_empty() {</td></tr>
+<tr><td class="ln">864</td><td class="code">            frontmatter_set(&amp;file, &quot;status&quot;, &amp;self.status.validating)?;</td><td class="ln">880</td><td class="code">            frontmatter_set(&amp;file, &quot;status&quot;, &amp;self.status.validating)?;</td></tr>
+<tr><td class="ln">865</td><td class="code">            frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;passed&quot;)?;</td><td class="ln">881</td><td class="code">            frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;passed&quot;)?;</td></tr>
+<tr><td class="ln">866</td><td class="code del">            let detail = format!(&quot;{} comando(s) iguais ao baseline&quot;, commands.len());</td><td class="ln">882</td><td class="code add">            let detail = if accepted_count == 0 {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">883</td><td class="code add">                format!(&quot;{equal} comando(s) iguais ao baseline&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">884</td><td class="code add">            } else {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">885</td><td class="code add">                format!(&quot;{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">886</td><td class="code add">            };</td></tr>
+<tr><td class="ln">867</td><td class="code">            self.record_step(&amp;file, &quot;regressão&quot;, &quot;passed&quot;, &amp;detail)?;</td><td class="ln">887</td><td class="code">            self.record_step(&amp;file, &quot;regressão&quot;, &quot;passed&quot;, &amp;detail)?;</td></tr>
+<tr><td class="ln">868</td><td class="code">            println!(&quot;Sem regressão em {task}: {detail}.&quot;);</td><td class="ln">888</td><td class="code">            println!(&quot;Sem regressão em {task}: {detail}.&quot;);</td></tr>
+<tr><td class="ln">869</td><td class="code">            return Ok(());</td><td class="ln">889</td><td class="code">            return Ok(());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -877,7 +897,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">877</td><td class="code">            &quot;comandos diferentes do baseline; bloqueada&quot;,</td><td class="ln">897</td><td class="code">            &quot;comandos diferentes do baseline; bloqueada&quot;,</td></tr>
+<tr><td class="ln">878</td><td class="code">        )?;</td><td class="ln">898</td><td class="code">        )?;</td></tr>
+<tr><td class="ln">879</td><td class="code">        print!(</td><td class="ln">899</td><td class="code">        print!(</td></tr>
+<tr><td class="ln">880</td><td class="code del">            &quot;Comandos com resultado diferente do baseline (saídas em {}):\n{changed}&quot;,</td><td class="ln">900</td><td class="code add">            &quot;Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression &lt;N&gt; \&quot;decisão\&quot;\n&quot;,</td></tr>
+<tr><td class="ln">881</td><td class="code">            dir.display()</td><td class="ln">901</td><td class="code">            dir.display()</td></tr>
+<tr><td class="ln">882</td><td class="code">        );</td><td class="ln">902</td><td class="code">        );</td></tr>
+<tr><td class="ln">883</td><td class="code">        bail!(&quot;a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário&quot;)</td><td class="ln">903</td><td class="code">        bail!(&quot;a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário&quot;)</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1034,7 +1054,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1034</td><td class="code">            .find(|file| frontmatter_get(file, &quot;id&quot;).is_ok_and(|id| id == spec)))</td><td class="ln">1054</td><td class="code">            .find(|file| frontmatter_get(file, &quot;id&quot;).is_ok_and(|id| id == spec)))</td></tr>
+<tr><td class="ln">1035</td><td class="code">    }</td><td class="ln">1055</td><td class="code">    }</td></tr>
+<tr><td class="ln">1036</td><td class="code"></td><td class="ln">1056</td><td class="code"></td></tr>
+<tr><td class="ln">1037</td><td class="code del">    fn resume(&amp;self, spec: &amp;str, task: &amp;str, decision: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">1057</td><td class="code add">    fn resume(&amp;self, spec: &amp;str, task: &amp;str, decision: &amp;str, accept: Option&lt;&amp;str&gt;) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">1038</td><td class="code">        let file = self.find_task(spec, task)?;</td><td class="ln">1058</td><td class="code">        let file = self.find_task(spec, task)?;</td></tr>
+<tr><td class="ln">1039</td><td class="code">        let status = status_of(&amp;file);</td><td class="ln">1059</td><td class="code">        let status = status_of(&amp;file);</td></tr>
+<tr><td class="ln">1040</td><td class="code">        let blocked = &amp;self.status.blocked;</td><td class="ln">1060</td><td class="code">        let blocked = &amp;self.status.blocked;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1048,15 +1068,33 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1048</td><td class="code">        if decision.contains(&#39;\n&#39;) {</td><td class="ln">1068</td><td class="code">        if decision.contains(&#39;\n&#39;) {</td></tr>
+<tr><td class="ln">1049</td><td class="code">            bail!(&quot;a decisão não pode ter quebra de linha&quot;);</td><td class="ln">1069</td><td class="code">            bail!(&quot;a decisão não pode ter quebra de linha&quot;);</td></tr>
+<tr><td class="ln">1050</td><td class="code">        }</td><td class="ln">1070</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1071</td><td class="code add">        let dir = self.evidence_dir(&amp;file)?.join(&quot;validation/regression&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1072</td><td class="code add">        let acceptances = match accept {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1073</td><td class="code add">            Some(list) =&gt; regression_acceptances(&amp;dir, task, list, &amp;decision)?,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1074</td><td class="code add">            None =&gt; Vec::new(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1075</td><td class="code add">        };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1076</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1077</td><td class="code add">        let mut detail = format!(&quot;decisão do usuário: {decision}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1078</td><td class="code add">        if !acceptances.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1079</td><td class="code add">            let mut accepted = fs::read_to_string(dir.join(ACCEPTED_FILE)).unwrap_or_default();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1080</td><td class="code add">            for item in &amp;acceptances {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1081</td><td class="code add">                fs::copy(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1082</td><td class="code add">                    dir.join(diff_name(item.number)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1083</td><td class="code add">                    dir.join(accepted_diff_name(item.number)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1084</td><td class="code add">                )?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1085</td><td class="code add">                accepted.push_str(&amp;item.line);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1086</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1087</td><td class="code add">            fs::write(dir.join(ACCEPTED_FILE), accepted)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1088</td><td class="code add">            let numbers: Vec&lt;String&gt; = acceptances</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1089</td><td class="code add">                .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1090</td><td class="code add">                .map(|item| item.number.to_string())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1091</td><td class="code add">                .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1092</td><td class="code add">            detail.push_str(&amp;format!(&quot;; aceito(s): {}&quot;, numbers.join(&quot;, &quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1093</td><td class="code add">        }</td></tr>
+<tr><td class="ln">1051</td><td class="code">        let validating = &amp;self.status.validating;</td><td class="ln">1094</td><td class="code">        let validating = &amp;self.status.validating;</td></tr>
+<tr><td class="ln">1052</td><td class="code">        frontmatter_set(&amp;file, &quot;status&quot;, validating)?;</td><td class="ln">1095</td><td class="code">        frontmatter_set(&amp;file, &quot;status&quot;, validating)?;</td></tr>
+<tr><td class="ln">1053</td><td class="code">        reset_results(&amp;file)?;</td><td class="ln">1096</td><td class="code">        reset_results(&amp;file)?;</td></tr>
+<tr><td class="ln">1054</td><td class="code del">        self.record_step(</td><td class="ln">1097</td><td class="code add">        self.record_step(&amp;file, &quot;retomada&quot;, validating, &amp;detail)?;</td></tr>
+<tr><td class="ln">1055</td><td class="code del">            &amp;file,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1056</td><td class="code del">            &quot;retomada&quot;,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1057</td><td class="code del">            validating,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1058</td><td class="code del">            &amp;format!(&quot;decisão do usuário: {decision}&quot;),</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1059</td><td class="code del">        )?;</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1060</td><td class="code">        println!(&quot;Tarefa {task} retomada: status &#39;{validating}&#39;, tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.&quot;);</td><td class="ln">1098</td><td class="code">        println!(&quot;Tarefa {task} retomada: status &#39;{validating}&#39;, tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.&quot;);</td></tr>
+<tr><td class="ln">1061</td><td class="code">        Ok(())</td><td class="ln">1099</td><td class="code">        Ok(())</td></tr>
+<tr><td class="ln">1062</td><td class="code">    }</td><td class="ln">1100</td><td class="code">    }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1815,6 +1853,120 @@ fn output_name(number: usize) -&gt; String {</td></tr>
+<tr><td class="ln">1815</td><td class="code">    format!(&quot;{number:02}.out&quot;)</td><td class="ln">1853</td><td class="code">    format!(&quot;{number:02}.out&quot;)</td></tr>
+<tr><td class="ln">1816</td><td class="code">}</td><td class="ln">1854</td><td class="code">}</td></tr>
+<tr><td class="ln">1817</td><td class="code"></td><td class="ln">1855</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1856</td><td class="code add">fn diff_name(number: usize) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1857</td><td class="code add">    format!(&quot;{number:02}.diff&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1858</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1859</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1860</td><td class="code add">/// Cópia do diff aceito, preservada entre execuções da regressão para o documento de evidências.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1861</td><td class="code add">pub fn accepted_diff_name(number: usize) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1862</td><td class="code add">    format!(&quot;accepted-{number:02}.diff&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1863</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1864</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1865</td><td class="code add">/// Remove só as saídas e os diffs da última regressão (`NN.out`, `NN.diff`), preservando os aceites.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1866</td><td class="code add">fn clear_regression_outputs(dir: &amp;Path) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1867</td><td class="code add">    if !dir.is_dir() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1868</td><td class="code add">        fs::create_dir_all(dir)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1869</td><td class="code add">        return Ok(());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1870</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1871</td><td class="code add">    for entry in fs::read_dir(dir)?.flatten() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1872</td><td class="code add">        let path = entry.path();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1873</td><td class="code add">        let numbered = path.file_stem().is_some_and(|stem| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1874</td><td class="code add">            stem.to_string_lossy()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1875</td><td class="code add">                .bytes()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1876</td><td class="code add">                .all(|byte| byte.is_ascii_digit())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1877</td><td class="code add">        });</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1878</td><td class="code add">        let output = path</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1879</td><td class="code add">            .extension()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1880</td><td class="code add">            .is_some_and(|ext| ext == &quot;out&quot; || ext == &quot;diff&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1881</td><td class="code add">        if path.is_file() &amp;&amp; numbered &amp;&amp; output {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1882</td><td class="code add">            fs::remove_file(&amp;path)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1883</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1884</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1885</td><td class="code add">    Ok(())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1886</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1887</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1888</td><td class="code add">/// Um aceite de diferença de regressão, lido do arquivo `accepted`.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1889</td><td class="code add">pub struct AcceptedRegression {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1890</td><td class="code add">    pub number: usize,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1891</td><td class="code add">    pub hash: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1892</td><td class="code add">    pub date: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1893</td><td class="code add">    pub command: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1894</td><td class="code add">    pub decision: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1895</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1896</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1897</td><td class="code add">/// Aceites gravados em `dir/accepted`, na ordem do arquivo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1898</td><td class="code add">pub fn accepted_regressions(dir: &amp;Path) -&gt; Vec&lt;AcceptedRegression&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1899</td><td class="code add">    fs::read_to_string(dir.join(ACCEPTED_FILE))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1900</td><td class="code add">        .unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1901</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1902</td><td class="code add">        .filter_map(|line| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1903</td><td class="code add">            let mut fields = line.splitn(5, &#39;\t&#39;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1904</td><td class="code add">            Some(AcceptedRegression {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1905</td><td class="code add">                number: fields.next()?.parse().ok()?,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1906</td><td class="code add">                hash: fields.next()?.to_string(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1907</td><td class="code add">                date: fields.next()?.to_string(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1908</td><td class="code add">                command: fields.next()?.to_string(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1909</td><td class="code add">                decision: fields.next()?.to_string(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1910</td><td class="code add">            })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1911</td><td class="code add">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1912</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1913</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1914</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1915</td><td class="code add">/// SHA-256 aceito por comando; o aceite mais recente de um número vale.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1916</td><td class="code add">fn accepted_hashes(dir: &amp;Path) -&gt; Result&lt;HashMap&lt;usize, String&gt;&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1917</td><td class="code add">    Ok(accepted_regressions(dir)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1918</td><td class="code add">        .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1919</td><td class="code add">        .map(|item| (item.number, item.hash))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1920</td><td class="code add">        .collect())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1921</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1922</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1923</td><td class="code add">struct Acceptance {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1924</td><td class="code add">    number: usize,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1925</td><td class="code add">    line: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1926</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1927</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1928</td><td class="code add">/// Confere os números de `--accept-regression` contra a última regressão e monta as linhas do</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1929</td><td class="code add">/// arquivo `accepted`, sem gravar nada.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1930</td><td class="code add">fn regression_acceptances(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1931</td><td class="code add">    dir: &amp;Path,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1932</td><td class="code add">    task: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1933</td><td class="code add">    list: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1934</td><td class="code add">    decision: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1935</td><td class="code add">) -&gt; Result&lt;Vec&lt;Acceptance&gt;&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1936</td><td class="code add">    let mut acceptances: Vec&lt;Acceptance&gt; = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1937</td><td class="code add">    for item in list.split(&#39;,&#39;).map(str::trim) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1938</td><td class="code add">        let number: usize = match item.parse() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1939</td><td class="code add">            Ok(number) if number &gt; 0 =&gt; number,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1940</td><td class="code add">            _ =&gt; bail!(&quot;número inválido em --accept-regression: &#39;{item}&#39;&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1941</td><td class="code add">        };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1942</td><td class="code add">        if acceptances.iter().any(|accepted| accepted.number == number) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1943</td><td class="code add">            continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1944</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1945</td><td class="code add">        if !dir.join(diff_name(number)).is_file() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1946</td><td class="code add">            bail!(&quot;o comando {number} não divergiu na última regressão de {task}; não há diferença a aceitar. Nada foi alterado&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1947</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1948</td><td class="code add">        let output = fs::read(dir.join(output_name(number))).map_err(|_| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1949</td><td class="code add">            anyhow!(&quot;não há saída gravada do comando {number} na última regressão de {task}. Nada foi alterado&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1950</td><td class="code add">        })?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1951</td><td class="code add">        let first = String::from_utf8_lossy(&amp;output)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1952</td><td class="code add">            .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1953</td><td class="code add">            .next()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1954</td><td class="code add">            .unwrap_or(&quot;&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1955</td><td class="code add">            .to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1956</td><td class="code add">        let command = first.strip_prefix(&quot;$ &quot;).unwrap_or(&amp;first).to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1957</td><td class="code add">        acceptances.push(Acceptance {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1958</td><td class="code add">            number,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1959</td><td class="code add">            line: format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1960</td><td class="code add">                &quot;{number}\t{}\t{}\t{}\t{decision}\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1961</td><td class="code add">                sha256_hex(&amp;output),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1962</td><td class="code add">                utc_now(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1963</td><td class="code add">                command.replace(&#39;\t&#39;, &quot; &quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1964</td><td class="code add">            ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1965</td><td class="code add">        });</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1966</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1967</td><td class="code add">    Ok(acceptances)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1968</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1969</td><td class="code add"></td></tr>
+<tr><td class="ln">1818</td><td class="code">/// Executa um comando com `bash -c` a partir de `dir` e devolve o código de saída e a saída, com</td><td class="ln">1970</td><td class="code">/// Executa um comando com `bash -c` a partir de `dir` e devolve o código de saída e a saída, com</td></tr>
+<tr><td class="ln">1819</td><td class="code">/// stdout e stderr juntos na ordem em que foram escritos.</td><td class="ln">1971</td><td class="code">/// stdout e stderr juntos na ordem em que foram escritos.</td></tr>
+<tr><td class="ln">1820</td><td class="code">fn shell_output(command: &amp;str, dir: &amp;Path) -&gt; Result&lt;(i32, Vec&lt;u8&gt;)&gt; {</td><td class="ln">1972</td><td class="code">fn shell_output(command: &amp;str, dir: &amp;Path) -&gt; Result&lt;(i32, Vec&lt;u8&gt;)&gt; {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1866,6 +2018,16 @@ fn indented_tail(output: &amp;[u8], count: usize) -&gt; String {</td></tr>
+<tr><td class="ln">1866</td><td class="code">        .collect()</td><td class="ln">2018</td><td class="code">        .collect()</td></tr>
+<tr><td class="ln">1867</td><td class="code">}</td><td class="ln">2019</td><td class="code">}</td></tr>
+<tr><td class="ln">1868</td><td class="code"></td><td class="ln">2020</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2021</td><td class="code add">/// Saída completa do `diff` entre o baseline e a nova saída.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2022</td><td class="code add">fn diff_output(previous: &amp;Path, current: &amp;Path) -&gt; Vec&lt;u8&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2023</td><td class="code add">    Command::new(&quot;diff&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2024</td><td class="code add">        .arg(previous)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2025</td><td class="code add">        .arg(current)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2026</td><td class="code add">        .output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2027</td><td class="code add">        .map(|output| output.stdout)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2028</td><td class="code add">        .unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2029</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2030</td><td class="code add"></td></tr>
+<tr><td class="ln">1869</td><td class="code">/// Linhas 2 a 12 do `diff` entre o baseline e a nova saída, recuadas em quatro espaços.</td><td class="ln">2031</td><td class="code">/// Linhas 2 a 12 do `diff` entre o baseline e a nova saída, recuadas em quatro espaços.</td></tr>
+<tr><td class="ln">1870</td><td class="code">fn diff_excerpt(previous: &amp;Path, current: &amp;Path) -&gt; String {</td><td class="ln">2032</td><td class="code">fn diff_excerpt(previous: &amp;Path, current: &amp;Path) -&gt; String {</td></tr>
+<tr><td class="ln">1871</td><td class="code">    let output = Command::new(&quot;diff&quot;)</td><td class="ln">2033</td><td class="code">    let output = Command::new(&quot;diff&quot;)</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/finalize.rs</b><span class="tag criar">+23</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};</td></tr>
+<tr><td class="ln">12</td><td class="code">use anyhow::{bail, Context, Result};</td><td class="ln">12</td><td class="code">use anyhow::{bail, Context, Result};</td></tr>
+<tr><td class="ln">13</td><td class="code">use clap::Subcommand;</td><td class="ln">13</td><td class="code">use clap::Subcommand;</td></tr>
+<tr><td class="ln">14</td><td class="code"></td><td class="ln">14</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">15</td><td class="code add">use crate::commands::task::{accepted_diff_name, accepted_regressions};</td></tr>
+<tr><td class="ln">15</td><td class="code">use crate::harness::Harness;</td><td class="ln">16</td><td class="code">use crate::harness::Harness;</td></tr>
+<tr><td class="ln">16</td><td class="code">use crate::support::{</td><td class="ln">17</td><td class="code">use crate::support::{</td></tr>
+<tr><td class="ln">17</td><td class="code">    config_get, config_list, frontmatter_get, frontmatter_set, markdown_section,</td><td class="ln">18</td><td class="code">    config_get, config_list, frontmatter_get, frontmatter_set, markdown_section,</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2220,7 +2221,28 @@ impl Finalization {</td></tr>
+<tr><td class="ln">2220</td><td class="code">                    &amp;media,</td><td class="ln">2221</td><td class="code">                    &amp;media,</td></tr>
+<tr><td class="ln">2221</td><td class="code">                ));</td><td class="ln">2222</td><td class="code">                ));</td></tr>
+<tr><td class="ln">2222</td><td class="code">            }</td><td class="ln">2223</td><td class="code">            }</td></tr>
+<tr><td class="ln">2223</td><td class="code del">            if evidences.is_empty() {</td><td class="ln">2224</td><td class="code add">            let accepted = accepted_regressions(&amp;evidence_dir.join(&quot;validation/regression&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2225</td><td class="code add">            for item in &amp;accepted {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2226</td><td class="code add">                let diff = fs::read(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2227</td><td class="code add">                    evidence_dir</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2228</td><td class="code add">                        .join(&quot;validation/regression&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2229</td><td class="code add">                        .join(accepted_diff_name(item.number)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2230</td><td class="code add">                )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2231</td><td class="code add">                .unwrap_or_default();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2232</td><td class="code add">                items.extend(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2233</td><td class="code add">                    &quot;&lt;figure class=\&quot;piece\&quot;&gt;\n  &lt;div class=\&quot;piece-top\&quot;&gt;&lt;span class=\&quot;piece-id\&quot;&gt;{}&lt;/span&gt; — {}&lt;/div&gt;\n  &lt;div class=\&quot;piece-meta\&quot;&gt;&lt;b&gt;Diferença de regressão aceita: {}&lt;/b&gt;&lt;span class=\&quot;tag manual\&quot;&gt;aceita&lt;/span&gt;&lt;/div&gt;\n  &lt;div class=\&quot;piece-media\&quot;&gt;\n&lt;pre&gt;&lt;code&gt;&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2234</td><td class="code add">                    html_escape(&amp;task_id),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2235</td><td class="code add">                    html_escape(&amp;task_title),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2236</td><td class="code add">                    html_escape(&amp;item.command)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2237</td><td class="code add">                ).into_bytes());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2238</td><td class="code add">                items.extend(html_escape_bytes(&amp;diff));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2239</td><td class="code add">                items.extend(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2240</td><td class="code add">                    &quot;&lt;/code&gt;&lt;/pre&gt;\n  &lt;/div&gt;\n  &lt;figcaption class=\&quot;piece-foot\&quot;&gt;\n    &lt;p&gt;&lt;b&gt;Decisão do usuário&lt;/b&gt;{}&lt;/p&gt;\n    &lt;p&gt;&lt;b&gt;Aceita em&lt;/b&gt;{}&lt;/p&gt;\n  &lt;/figcaption&gt;\n&lt;/figure&gt;\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2241</td><td class="code add">                    html_escape(&amp;item.decision),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2242</td><td class="code add">                    html_escape(&amp;item.date)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2243</td><td class="code add">                ).into_bytes());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2244</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2245</td><td class="code add">            if evidences.is_empty() &amp;&amp; accepted.is_empty() {</td></tr>
+<tr><td class="ln">2224</td><td class="code">                items.extend(format!(</td><td class="ln">2246</td><td class="code">                items.extend(format!(</td></tr>
+<tr><td class="ln">2225</td><td class="code">                    &quot;&lt;div class=\&quot;piece none\&quot;&gt;&lt;div class=\&quot;piece-top\&quot;&gt;&lt;span class=\&quot;piece-id\&quot;&gt;{}&lt;/span&gt; — {}&lt;/div&gt;&lt;p class=\&quot;na\&quot;&gt;Não se aplica. Esta tarefa não gera evidência.&lt;/p&gt;&lt;/div&gt;\n&quot;,</td><td class="ln">2247</td><td class="code">                    &quot;&lt;div class=\&quot;piece none\&quot;&gt;&lt;div class=\&quot;piece-top\&quot;&gt;&lt;span class=\&quot;piece-id\&quot;&gt;{}&lt;/span&gt; — {}&lt;/div&gt;&lt;p class=\&quot;na\&quot;&gt;Não se aplica. Esta tarefa não gera evidência.&lt;/p&gt;&lt;/div&gt;\n&quot;,</td></tr>
+<tr><td class="ln">2226</td><td class="code">                    html_escape(&amp;task_id),</td><td class="ln">2248</td><td class="code">                    html_escape(&amp;task_id),</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+279</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -102,3 +102,282 @@ fn task_commands_fail_outside_a_harness() {</td></tr>
+<tr><td class="ln">102</td><td class="code">        failure_stderr(vostok_at(dir.path()).args([&quot;task&quot;, &quot;load&quot;, &quot;SPEC-001&quot;, &quot;TASK-01&quot;]));</td><td class="ln">102</td><td class="code">        failure_stderr(vostok_at(dir.path()).args([&quot;task&quot;, &quot;load&quot;, &quot;SPEC-001&quot;, &quot;TASK-01&quot;]));</td></tr>
+<tr><td class="ln">103</td><td class="code">    assert!(stderr.contains(&quot;nenhum harness encontrado&quot;));</td><td class="ln">103</td><td class="code">    assert!(stderr.contains(&quot;nenhum harness encontrado&quot;));</td></tr>
+<tr><td class="ln">104</td><td class="code">}</td><td class="ln">104</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">105</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">106</td><td class="code add">// --- Aceite de diferença de regressão (SPEC-007) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">107</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">108</td><td class="code add">const TASK_PATH: &amp;str = &quot;vostok/work/tasks/SPEC-001/TASK-01.md&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">109</td><td class="code add">const REGRESSION_DIR: &amp;str = &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/validation/regression&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">110</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">111</td><td class="code add">/// Tarefa em execução com um comando `cat &lt;arquivo&gt;` no baseline para cada arquivo, já coletado.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">112</td><td class="code add">fn running_task(files: &amp;[(&amp;str, &amp;str)]) -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">113</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">114</td><td class="code add">    let baseline: String = files</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">115</td><td class="code add">        .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">116</td><td class="code add">        .map(|(name, _)| format!(&quot;- `cat {name}`\n&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">117</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">118</td><td class="code add">    for (name, content) in files {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">119</td><td class="code add">        write(&amp;project, name, content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">120</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">121</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">122</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">123</td><td class="code add">        TASK_PATH,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">124</td><td class="code add">        &amp;format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">125</td><td class="code add">            &quot;---\nid: TASK-01\nspec: SPEC-001\ntitle: \&quot;Tarefa\&quot;\nstatus: in_progress\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Baseline\n\n{baseline}\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\nNão se aplica.\n\n### Concluída quando\n\n- [x] Pronto.\n\n  &gt; Como comprovar: ver.\n\n## Descrição\n\nTexto.\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">126</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">127</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">128</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">129</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">130</td><td class="code add">        &quot;vostok/work/tasks/SPEC-001/TASK-02.md&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">131</td><td class="code add">        &quot;---\nid: TASK-02\nstatus: pending\n---\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">132</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">133</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">134</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">135</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">136</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">137</td><td class="code add">fn write(project: &amp;Project, relative: &amp;str, content: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">138</td><td class="code add">    let path = project.root().join(relative);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">139</td><td class="code add">    std::fs::create_dir_all(path.parent().unwrap()).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">140</td><td class="code add">    std::fs::write(path, content).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">141</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">142</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">143</td><td class="code add">fn read(project: &amp;Project, relative: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">144</td><td class="code add">    std::fs::read_to_string(project.root().join(relative)).unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">147</td><td class="code add">fn exists(project: &amp;Project, relative: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">148</td><td class="code add">    project.root().join(relative).exists()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">149</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">150</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">151</td><td class="code add">/// `vostok task &lt;args...&gt; SPEC-001 TASK-01 [extra...]`.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">152</td><td class="code add">fn task(project: &amp;Project, args: &amp;[&amp;str]) -&gt; assert_cmd::Command {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">153</td><td class="code add">    let mut command = project.vostok();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">154</td><td class="code add">    command</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">155</td><td class="code add">        .arg(&quot;task&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">156</td><td class="code add">        .arg(args[0])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">157</td><td class="code add">        .args([&quot;SPEC-001&quot;, &quot;TASK-01&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">        .args(&amp;args[1..]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add">    command</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">160</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">161</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">162</td><td class="code add">fn stdout(command: &amp;mut assert_cmd::Command) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">163</td><td class="code add">    String::from_utf8(command.output().unwrap().stdout).unwrap()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">164</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">165</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">166</td><td class="code add">fn status(project: &amp;Project) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">167</td><td class="code add">    read(project, TASK_PATH)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">168</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">169</td><td class="code add">        .find_map(|line| line.strip_prefix(&quot;status: &quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">170</td><td class="code add">        .unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">171</td><td class="code add">        .to_string()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">172</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">173</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">174</td><td class="code add">/// Valida até a regressão bloquear e aceita os comandos informados.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">175</td><td class="code add">fn block_and_accept(project: &amp;Project, numbers: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">176</td><td class="code add">    task(project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">177</td><td class="code add">    task(project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">178</td><td class="code add">    task(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">179</td><td class="code add">        project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">180</td><td class="code add">        &amp;[</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">181</td><td class="code add">            &quot;resume&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">182</td><td class="code add">            &quot;--accept-regression&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">183</td><td class="code add">            numbers,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">184</td><td class="code add">            &quot;diferença esperada&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">185</td><td class="code add">        ],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">186</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">187</td><td class="code add">    .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">188</td><td class="code add">    .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">189</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">190</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">191</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">192</td><td class="code add">fn accepted_difference_lets_the_task_finish() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">193</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">194</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">195</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">196</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">197</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">198</td><td class="code add">    assert!(blocked.contains(&quot;--accept-regression&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">199</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">200</td><td class="code add">    assert!(read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)).contains(&quot;&gt; b&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">201</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">202</td><td class="code add">    task(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">203</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">204</td><td class="code add">        &amp;[&quot;resume&quot;, &quot;--accept-regression&quot;, &quot;1&quot;, &quot;diferença esperada&quot;],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">205</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">206</td><td class="code add">    .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">207</td><td class="code add">    .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">208</td><td class="code add">    let accepted = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">209</td><td class="code add">    let fields: Vec&lt;&amp;str&gt; = accepted.trim_end().split(&#39;\t&#39;).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">210</td><td class="code add">    assert_eq!(fields.len(), 5, &quot;{accepted}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">211</td><td class="code add">    assert_eq!(fields[0], &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">212</td><td class="code add">    assert_eq!(fields[1].len(), 64);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">213</td><td class="code add">    assert_eq!(fields[3], &quot;cat valor.txt&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">214</td><td class="code add">    assert_eq!(fields[4], &quot;diferença esperada&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">215</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">216</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">217</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">218</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">219</td><td class="code add">        passed.contains(&quot;0 igual(is) ao baseline, 1 aceito(s) pelo usuário&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">220</td><td class="code add">        &quot;{passed}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">221</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">222</td><td class="code add">    task(&amp;project, &amp;[&quot;evidence&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">223</td><td class="code add">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">224</td><td class="code add">    assert_eq!(status(&amp;project), &quot;done&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">225</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">226</td><td class="code add">    let record = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">227</td><td class="code add">    assert!(record.contains(&quot;decisão do usuário: diferença esperada; aceito(s): 1 |&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">228</td><td class="code add">    assert!(record.contains(&quot;0 igual(is) ao baseline, 1 aceito(s) pelo usuário&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">229</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">230</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">231</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">232</td><td class="code add">fn blocked_regression_numbers_only_the_divergent_commands() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">233</td><td class="code add">    let project = running_task(&amp;[(&quot;um.txt&quot;, &quot;1\n&quot;), (&quot;dois.txt&quot;, &quot;2\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">234</td><td class="code add">    write(&amp;project, &quot;dois.txt&quot;, &quot;dois\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">235</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">236</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">237</td><td class="code add">    assert!(blocked.contains(&quot;- [2] cat dois.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">238</td><td class="code add">    assert!(!blocked.contains(&quot;[1]&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">239</td><td class="code add">    assert!(exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/02.diff&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">240</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">241</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">242</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">243</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">244</td><td class="code add">fn output_changed_after_the_acceptance_blocks_again() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">245</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">246</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">247</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">248</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;c\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">249</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">250</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">251</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">252</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">253</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">254</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">255</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">256</td><td class="code add">fn new_difference_besides_the_accepted_one_blocks() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">257</td><td class="code add">    let project = running_task(&amp;[(&quot;um.txt&quot;, &quot;1\n&quot;), (&quot;dois.txt&quot;, &quot;2\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">258</td><td class="code add">    write(&amp;project, &quot;um.txt&quot;, &quot;um\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">259</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">260</td><td class="code add">    write(&amp;project, &quot;dois.txt&quot;, &quot;dois\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">261</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">262</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">263</td><td class="code add">    assert!(blocked.contains(&quot;- [2] cat dois.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">264</td><td class="code add">    assert!(!blocked.contains(&quot;[1]&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">265</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">266</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">267</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">268</td><td class="code add">fn resume_without_acceptance_blocks_again_on_the_same_difference() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">269</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">270</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">271</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">272</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">273</td><td class="code add">    task(&amp;project, &amp;[&quot;resume&quot;, &quot;corrigir depois&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">274</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">275</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">276</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">277</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">278</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">279</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">280</td><td class="code add">    assert!(read(&amp;project, TASK_PATH).contains(&quot;decisão do usuário: corrigir depois |&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">281</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">282</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">283</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">284</td><td class="code add">fn invalid_acceptances_change_nothing() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">285</td><td class="code add">    let project = running_task(&amp;[(&quot;um.txt&quot;, &quot;1\n&quot;), (&quot;dois.txt&quot;, &quot;2\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">286</td><td class="code add">    write(&amp;project, &quot;um.txt&quot;, &quot;um\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">287</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">288</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">289</td><td class="code add">    let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">290</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">291</td><td class="code add">    for (numbers, decision, message) in [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">292</td><td class="code add">        (&quot;3&quot;, &quot;aceito&quot;, &quot;o comando 3 não divergiu&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">293</td><td class="code add">        (&quot;2&quot;, &quot;aceito&quot;, &quot;o comando 2 não divergiu&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">294</td><td class="code add">        (&quot;x&quot;, &quot;aceito&quot;, &quot;número inválido em --accept-regression: &#39;x&#39;&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">295</td><td class="code add">        (&quot;0&quot;, &quot;aceito&quot;, &quot;número inválido em --accept-regression: &#39;0&#39;&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">296</td><td class="code add">        (&quot;1&quot;, &quot;  &quot;, &quot;informe a decisão do usuário&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">297</td><td class="code add">    ] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">298</td><td class="code add">        let stderr = failure_stderr(&amp;mut task(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">299</td><td class="code add">            &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">300</td><td class="code add">            &amp;[&quot;resume&quot;, &quot;--accept-regression&quot;, numbers, decision],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">301</td><td class="code add">        ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">302</td><td class="code add">        assert!(stderr.contains(message), &quot;{numbers}: {stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">303</td><td class="code add">        assert_eq!(read(&amp;project, TASK_PATH), before);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">304</td><td class="code add">        assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">305</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">306</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">307</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">308</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">309</td><td class="code add">fn acceptance_of_a_task_that_is_not_blocked_is_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">310</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">311</td><td class="code add">    let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">312</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">313</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">314</td><td class="code add">        &amp;[&quot;resume&quot;, &quot;--accept-regression&quot;, &quot;1&quot;, &quot;aceito&quot;],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">315</td><td class="code add">    ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">316</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">317</td><td class="code add">        stderr.contains(&quot;só tarefas com status &#39;blocked&#39; são retomadas&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">318</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">319</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">320</td><td class="code add">    assert_eq!(read(&amp;project, TASK_PATH), before);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">321</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">322</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">323</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">324</td><td class="code add">fn acceptance_survives_new_regression_runs() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">325</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">326</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">327</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">328</td><td class="code add">    let accepted = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">329</td><td class="code add">    for _ in 0..2 {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">330</td><td class="code add">        task(&amp;project, &amp;[&quot;regression&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">331</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">332</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">333</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">334</td><td class="code add">        accepted</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">335</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">336</td><td class="code add">    assert!(exists(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">337</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">338</td><td class="code add">        &amp;format!(&quot;{REGRESSION_DIR}/accepted-01.diff&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">339</td><td class="code add">    ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">340</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">341</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">342</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">343</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">344</td><td class="code add">fn output_back_to_the_baseline_counts_as_equal() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">345</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">346</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">347</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">348</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;a\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">349</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">350</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">351</td><td class="code add">        passed.contains(&quot;1 comando(s) iguais ao baseline&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">352</td><td class="code add">        &quot;{passed}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">353</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">354</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">355</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">356</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">357</td><td class="code add">fn regression_without_difference_keeps_the_current_behavior() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">358</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">359</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">360</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">361</td><td class="code add">        passed,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">362</td><td class="code add">        &quot;Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.\n&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">363</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">364</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">365</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">366</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">367</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">368</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">369</td><td class="code add">fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">370</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">371</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">372</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">373</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;c\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">374</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">375</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">376</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">377</td><td class="code add">            .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">378</td><td class="code add">            .count(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">379</td><td class="code add">        2</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">380</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">381</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">382</td><td class="code add">    assert!(passed.contains(&quot;1 aceito(s) pelo usuário&quot;), &quot;{passed}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">383</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/finalize.rs</b><span class="tag criar">+75</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -99,3 +99,78 @@ fn validate_without_content_points_to_create() {</td></tr>
+<tr><td class="ln">99</td><td class="code">        .trim_end()</td><td class="ln">99</td><td class="code">        .trim_end()</td></tr>
+<tr><td class="ln">100</td><td class="code">        .ends_with(&quot;; crie com vostok finalize create&quot;));</td><td class="ln">100</td><td class="code">        .ends_with(&quot;; crie com vostok finalize create&quot;));</td></tr>
+<tr><td class="ln">101</td><td class="code">}</td><td class="ln">101</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">102</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">103</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">104</td><td class="code add">fn evidence_document_lists_the_accepted_regression_differences() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">105</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">106</td><td class="code add">    write_spec(&amp;project, &quot;implemented&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">107</td><td class="code add">    let tasks = project.harness().join(&quot;work/tasks/SPEC-001&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">108</td><td class="code add">    fs::create_dir_all(&amp;tasks).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">109</td><td class="code add">    fs::write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">110</td><td class="code add">        tasks.join(&quot;TASK-01.md&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">111</td><td class="code add">        &quot;---\nid: TASK-01\ntitle: Tarefa\nstatus: done\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Evidências\n\nNão se aplica.\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-14 | conclusão | done | ok |\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">112</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">113</td><td class="code add">    .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">114</td><td class="code add">    let regression = tasks.join(&quot;evidence/TASK-01/validation/regression&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">115</td><td class="code add">    fs::create_dir_all(&amp;regression).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">116</td><td class="code add">    fs::write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">117</td><td class="code add">        regression.join(&quot;accepted&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">118</td><td class="code add">        format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">119</td><td class="code add">            &quot;1\t{}\t2026-10-14T10:00:00Z\tgrep -n &#39;\&quot;e2e:cart:&#39; package.json\tvírgula exigida pelo passo 2\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">120</td><td class="code add">            &quot;a&quot;.repeat(64)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">121</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">122</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">123</td><td class="code add">    .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">124</td><td class="code add">    fs::write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">125</td><td class="code add">        regression.join(&quot;accepted-01.diff&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">126</td><td class="code add">        &quot;3c3\n&lt; um\n---\n&gt; um,\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">127</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">128</td><td class="code add">    .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">129</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">130</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">131</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">132</td><td class="code add">        .args([&quot;finalize&quot;, &quot;create&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">133</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">134</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">135</td><td class="code add">    let content_path = project.harness().join(&quot;work/finalize/SPEC-001/content.md&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">136</td><td class="code add">    let content = fs::read_to_string(&amp;content_path).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">137</td><td class="code add">    let filled = fill_variables(&amp;content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">138</td><td class="code add">    fs::write(&amp;content_path, filled).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">139</td><td class="code add">    let output = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">140</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">141</td><td class="code add">        .args([&quot;finalize&quot;, &quot;build&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">142</td><td class="code add">        .output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">143</td><td class="code add">        .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">144</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">        output.status.success(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add">        &quot;{}{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">147</td><td class="code add">        String::from_utf8_lossy(&amp;output.stdout),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">148</td><td class="code add">        String::from_utf8_lossy(&amp;output.stderr)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">149</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">150</td><td class="code add">    let html = fs::read_to_string(content_path.with_file_name(&quot;evidencias.html&quot;)).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">151</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">152</td><td class="code add">        html.contains(&quot;Diferença de regressão aceita: grep -n&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">153</td><td class="code add">        &quot;{html}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">154</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">155</td><td class="code add">    assert!(html.contains(&quot;e2e:cart:&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">156</td><td class="code add">    assert!(html.contains(&quot;&amp;gt; um,&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">157</td><td class="code add">    assert!(html.contains(&quot;vírgula exigida pelo passo 2&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">160</td><td class="code add">/// Troca cada variável `#{...}` por um texto válido para o tipo da seção.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">161</td><td class="code add">fn fill_variables(content: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">162</td><td class="code add">    let mut out = String::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">163</td><td class="code add">    for line in content.lines() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">164</td><td class="code add">        if let Some(start) = line.find(&quot;#{&quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">165</td><td class="code add">            let name = &amp;line[start + 2..line.find(&#39;}&#39;).unwrap()];</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">166</td><td class="code add">            out.push_str(match name {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">167</td><td class="code add">                &quot;EXEC_DELIVERIES&quot; =&gt; &quot;### Aceite\n- **Impacto:** alto\n- **O que mudou:** aceite.\n- **Valor:** conclusão.\n- **Como perceber:** tarefa concluída.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">168</td><td class="code add">                _ =&gt; &quot;Texto.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">169</td><td class="code add">            });</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">170</td><td class="code add">        } else {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">171</td><td class="code add">            out.push_str(line);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">172</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">173</td><td class="code add">        out.push(&#39;\n&#39;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">174</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">175</td><td class="code add">    out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">176</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/fixtures/golden/task</b><span class="tag criar">+5</span><span class="tag remover">−3</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -22,12 +22,13 @@ TASK-01</td></tr>
+<tr><td class="ln">22</td><td class="code">&lt;OUTSIDE&gt;</td><td class="ln">22</td><td class="code">&lt;OUTSIDE&gt;</td></tr>
+<tr><td class="ln">23</td><td class="code">@stdin 0</td><td class="ln">23</td><td class="code">@stdin 0</td></tr>
+<tr><td class="ln">24</td><td class="code"></td><td class="ln">24</td><td class="code"></td></tr>
+<tr><td class="ln">25</td><td class="code del">@stdout 187</td><td class="ln">25</td><td class="code add">@stdout 333</td></tr>
+<tr><td class="ln">26</td><td class="code">Comandos com resultado diferente do baseline (saídas em &lt;ROOT&gt;/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):</td><td class="ln">26</td><td class="code">Comandos com resultado diferente do baseline (saídas em &lt;ROOT&gt;/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):</td></tr>
+<tr><td class="ln">27</td><td class="code del">- cat estado.txt</td><td class="ln">27</td><td class="code add">- [1] cat estado.txt</td></tr>
+<tr><td class="ln">28</td><td class="code">    &lt; um</td><td class="ln">28</td><td class="code">    &lt; um</td></tr>
+<tr><td class="ln">29</td><td class="code">    ---</td><td class="ln">29</td><td class="code">    ---</td></tr>
+<tr><td class="ln">30</td><td class="code">    &gt; dois</td><td class="ln">30</td><td class="code">    &gt; dois</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">31</td><td class="code add">Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume SPEC-008 TASK-01 --accept-regression &lt;N&gt; &quot;decisão&quot;</td></tr>
+<tr><td class="ln">31</td><td class="code"></td><td class="ln">32</td><td class="code"></td></tr>
+<tr><td class="ln">32</td><td class="code">@stderr 152</td><td class="ln">33</td><td class="code">@stderr 152</td></tr>
+<tr><td class="ln">33</td><td class="code">Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário</td><td class="ln">34</td><td class="code">Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário</td></tr>
+<tr class="hunk"><td colspan="4">@@ -37,6 +38,7 @@ Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o temp</td></tr>
+<tr><td class="ln">37</td><td class="code">@pre 148</td><td class="ln">38</td><td class="code">@pre 148</td></tr>
+<tr><td class="ln">38</td><td class="code">W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .vt</td><td class="ln">39</td><td class="code">W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .vt</td></tr>
+<tr><td class="ln">39</td><td class="code">W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 estado.txt</td><td class="ln">40</td><td class="code">W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 estado.txt</td></tr>
+<tr><td class="ln">40</td><td class="code del">@post 264</td><td class="ln">41</td><td class="code add">@post 415</td></tr>
+<tr><td class="ln">41</td><td class="code">W fec04c1d1e9c3b98a2caa7a96963874c436be5327faf22ca11f53c15dc74e483 packages/harness/work/tasks/SPEC-008/TASK-01.md</td><td class="ln">42</td><td class="code">W fec04c1d1e9c3b98a2caa7a96963874c436be5327faf22ca11f53c15dc74e483 packages/harness/work/tasks/SPEC-008/TASK-01.md</td></tr>
+<tr><td class="ln">42</td><td class="code">W e5435149e8f7ef9100c5864f01546969190998906c85a15e173cb0e07e881b81 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td><td class="ln">43</td><td class="code">W e5435149e8f7ef9100c5864f01546969190998906c85a15e173cb0e07e881b81 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">44</td><td class="code add">W c205b49d49116763dd2ae6d43d08a3e303cb22aa713715dbeae0ab6e8cc42f8d packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff</td></tr>
+<tr><td class="ln">43</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0313.case b/apps/cli/tests/fixtures/golden/task/0313.case</td><td class="ln">45</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0313.case b/apps/cli/tests/fixtures/golden/task/0313.case</td></tr>
+<tr><td class="ln">44</td><td class="code">ndex 1c0f0f9..5bf5787 100644</td><td class="ln">46</td><td class="code">ndex 1c0f0f9..5bf5787 100644</td></tr>
+<tr><td class="ln">45</td><td class="code del">-- a/apps/cli/tests/fixtures/golden/task/0313.case</td><td class="ln">47</td><td class="code add">++ b/apps/cli/tests/fixtures/golden/task/0313.case</td></tr>
+<tr class="hunk"><td colspan="4">@@ -31,6 +31,7 @@ Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.</td></tr>
+<tr><td class="ln">31</td><td class="code">0</td><td class="ln">31</td><td class="code">0</td></tr>
+<tr><td class="ln">32</td><td class="code">@pre 0</td><td class="ln">32</td><td class="code">@pre 0</td></tr>
+<tr><td class="ln">33</td><td class="code"></td><td class="ln">33</td><td class="code"></td></tr>
+<tr><td class="ln">34</td><td class="code del">@post 264</td><td class="ln">34</td><td class="code add">@post 350</td></tr>
+<tr><td class="ln">35</td><td class="code">W f1270f6f0538a7a46c1ba4f05a1c6690712be255bd34929cde87009c5ed7c7ad packages/harness/work/tasks/SPEC-008/TASK-01.md</td><td class="ln">35</td><td class="code">W f1270f6f0538a7a46c1ba4f05a1c6690712be255bd34929cde87009c5ed7c7ad packages/harness/work/tasks/SPEC-008/TASK-01.md</td></tr>
+<tr><td class="ln">36</td><td class="code">W dedcd640617a18ad5071e7dd66176265af14613d7c44549ea424ada3aea8ca7e packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td><td class="ln">36</td><td class="code">W dedcd640617a18ad5071e7dd66176265af14613d7c44549ea424ada3aea8ca7e packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">37</td><td class="code add">D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff</td></tr>
+<tr><td class="ln">37</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0314.case b/apps/cli/tests/fixtures/golden/task/0314.case</td><td class="ln">38</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0314.case b/apps/cli/tests/fixtures/golden/task/0314.case</td></tr>
+<tr><td class="ln">38</td><td class="code">ndex e6512db..4da4e2a 100644</td><td class="ln">39</td><td class="code">ndex e6512db..4da4e2a 100644</td></tr>
+<tr><td class="ln">39</td><td class="code del">-- a/apps/cli/tests/fixtures/golden/task/0314.case</td><td class="ln">40</td><td class="code add">++ b/apps/cli/tests/fixtures/golden/task/0314.case</td></tr>
+<tr class="hunk"><td colspan="4">@@ -22,14 +22,15 @@ TASK-01</td></tr>
+<tr><td class="ln">22</td><td class="code">&lt;OUTSIDE&gt;</td><td class="ln">22</td><td class="code">&lt;OUTSIDE&gt;</td></tr>
+<tr><td class="ln">23</td><td class="code">@stdin 0</td><td class="ln">23</td><td class="code">@stdin 0</td></tr>
+<tr><td class="ln">24</td><td class="code"></td><td class="ln">24</td><td class="code"></td></tr>
+<tr><td class="ln">25</td><td class="code del">@stdout 253</td><td class="ln">25</td><td class="code add">@stdout 399</td></tr>
+<tr><td class="ln">26</td><td class="code">Comandos com resultado diferente do baseline (saídas em &lt;ROOT&gt;/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):</td><td class="ln">26</td><td class="code">Comandos com resultado diferente do baseline (saídas em &lt;ROOT&gt;/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):</td></tr>
+<tr><td class="ln">27</td><td class="code del">- cat estado.txt</td><td class="ln">27</td><td class="code add">- [1] cat estado.txt</td></tr>
+<tr><td class="ln">28</td><td class="code">    &lt; exit: 0</td><td class="ln">28</td><td class="code">    &lt; exit: 0</td></tr>
+<tr><td class="ln">29</td><td class="code">    &lt; um</td><td class="ln">29</td><td class="code">    &lt; um</td></tr>
+<tr><td class="ln">30</td><td class="code">    ---</td><td class="ln">30</td><td class="code">    ---</td></tr>
+<tr><td class="ln">31</td><td class="code">    &gt; exit: 1</td><td class="ln">31</td><td class="code">    &gt; exit: 1</td></tr>
+<tr><td class="ln">32</td><td class="code">    &gt; cat: estado.txt: No such file or directory</td><td class="ln">32</td><td class="code">    &gt; cat: estado.txt: No such file or directory</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">33</td><td class="code add">Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume SPEC-008 TASK-01 --accept-regression &lt;N&gt; &quot;decisão&quot;</td></tr>
+<tr><td class="ln">33</td><td class="code"></td><td class="ln">34</td><td class="code"></td></tr>
+<tr><td class="ln">34</td><td class="code">@stderr 152</td><td class="ln">35</td><td class="code">@stderr 152</td></tr>
+<tr><td class="ln">35</td><td class="code">Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário</td><td class="ln">36</td><td class="code">Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário</td></tr>
+<tr class="hunk"><td colspan="4">@@ -38,6 +39,7 @@ Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o temp</td></tr>
+<tr><td class="ln">38</td><td class="code">1</td><td class="ln">39</td><td class="code">1</td></tr>
+<tr><td class="ln">39</td><td class="code">@pre 12</td><td class="ln">40</td><td class="code">@pre 12</td></tr>
+<tr><td class="ln">40</td><td class="code">D estado.txt</td><td class="ln">41</td><td class="code">D estado.txt</td></tr>
+<tr><td class="ln">41</td><td class="code del">@post 264</td><td class="ln">42</td><td class="code add">@post 415</td></tr>
+<tr><td class="ln">42</td><td class="code">W ea47b5c2dbe0143de271f32ad12e62cb8c3a8968879881095ac571651a0f4526 packages/harness/work/tasks/SPEC-008/TASK-01.md</td><td class="ln">43</td><td class="code">W ea47b5c2dbe0143de271f32ad12e62cb8c3a8968879881095ac571651a0f4526 packages/harness/work/tasks/SPEC-008/TASK-01.md</td></tr>
+<tr><td class="ln">43</td><td class="code">W 829302bf71955837888396401d4e42f6b371aa6f3007b08c8422baf8cfac8378 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td><td class="ln">44</td><td class="code">W 829302bf71955837888396401d4e42f6b371aa6f3007b08c8422baf8cfac8378 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">45</td><td class="code add">W 9c1d8abb6fc800262693c6c8986db1377e1a4b78bcd50dac5d081b2952e290ef packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff</td></tr>
+<tr><td class="ln">44</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0319.case b/apps/cli/tests/fixtures/golden/task/0319.case</td><td class="ln">46</td><td class="code">iff --git a/apps/cli/tests/fixtures/golden/task/0319.case b/apps/cli/tests/fixtures/golden/task/0319.case</td></tr>
+<tr><td class="ln">45</td><td class="code">ndex 8b3c4ba..2e54fd7 100644</td><td class="ln">47</td><td class="code">ndex 8b3c4ba..2e54fd7 100644</td></tr>
+<tr><td class="ln">46</td><td class="code del">-- a/apps/cli/tests/fixtures/golden/task/0319.case</td><td class="ln">48</td><td class="code add">++ b/apps/cli/tests/fixtures/golden/task/0319.case</td></tr>
+<tr class="hunk"><td colspan="4">@@ -31,6 +31,7 @@ Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.</td></tr>
+<tr><td class="ln">31</td><td class="code">0</td><td class="ln">31</td><td class="code">0</td></tr>
+<tr><td class="ln">32</td><td class="code">@pre 0</td><td class="ln">32</td><td class="code">@pre 0</td></tr>
+<tr><td class="ln">33</td><td class="code"></td><td class="ln">33</td><td class="code"></td></tr>
+<tr><td class="ln">34</td><td class="code del">@post 264</td><td class="ln">34</td><td class="code add">@post 350</td></tr>
+<tr><td class="ln">35</td><td class="code">W 56b79137a19f0529509df86952f845c4e2d0191241351579306690a62fd25d4f packages/harness/work/tasks/SPEC-008/TASK-01.md</td><td class="ln">35</td><td class="code">W 56b79137a19f0529509df86952f845c4e2d0191241351579306690a62fd25d4f packages/harness/work/tasks/SPEC-008/TASK-01.md</td></tr>
+<tr><td class="ln">36</td><td class="code">W dd117dfca230e7d6d9a892efbba9f47903a23a0f8966f3796f94a519d3c33e18 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td><td class="ln">36</td><td class="code">W dd117dfca230e7d6d9a892efbba9f47903a23a0f8966f3796f94a519d3c33e18 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">37</td><td class="code add">D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/finish-task/SKILL.md</b><span class="tag criar">+10</span><span class="tag remover">−2</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -27,7 +27,7 @@ Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da</td></tr>
+<tr><td class="ln">27</td><td class="code"></td><td class="ln">27</td><td class="code"></td></tr>
+<tr><td class="ln">28</td><td class="code">[finish-task-01]: Só os comandos gravam status, resultados, tentativas e o registro. Nunca os edite à mão.</td><td class="ln">28</td><td class="code">[finish-task-01]: Só os comandos gravam status, resultados, tentativas e o registro. Nunca os edite à mão.</td></tr>
+<tr><td class="ln">29</td><td class="code">[finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.</td><td class="ln">29</td><td class="code">[finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.</td></tr>
+<tr><td class="ln">30</td><td class="code del">[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando.</td><td class="ln">30</td><td class="code add">[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando. Aceite uma diferença de regressão (`--accept-regression`) só para os comandos que o usuário aceitou explicitamente, pelo número mostrado no bloqueio.</td></tr>
+<tr><td class="ln">31</td><td class="code">[finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na &quot;Verificação&quot;, no &quot;Baseline&quot; ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.</td><td class="ln">31</td><td class="code">[finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na &quot;Verificação&quot;, no &quot;Baseline&quot; ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.</td></tr>
+<tr><td class="ln">32</td><td class="code">[finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).</td><td class="ln">32</td><td class="code">[finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).</td></tr>
+<tr><td class="ln">33</td><td class="code">[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.</td><td class="ln">33</td><td class="code">[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -69,6 +69,14 @@ Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele defi</td></tr>
+<tr><td class="ln">69</td><td class="code">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; &quot;decisão do usuário, em uma linha&quot;</td><td class="ln">69</td><td class="code">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; &quot;decisão do usuário, em uma linha&quot;</td></tr>
+<tr><td class="ln">70</td><td class="code">```</td><td class="ln">70</td><td class="code">```</td></tr>
+<tr><td class="ln">71</td><td class="code"></td><td class="ln">71</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">72</td><td class="code add">Se o usuário aceitou uma diferença de regressão como esperada, informe os números dos comandos aceitos, os mesmos do bloqueio (`- [1] comando`):</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">73</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">74</td><td class="code add">```bash</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">75</td><td class="code add">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; --accept-regression &lt;N[,N...]&gt; &quot;decisão do usuário, em uma linha&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">76</td><td class="code add">```</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">77</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">78</td><td class="code add">O aceite vale só para a saída exata que o usuário viu: se ela mudar, ou se outro comando divergir, a regressão bloqueia de novo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">79</td><td class="code add"></td></tr>
+<tr><td class="ln">72</td><td class="code">Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/&lt;TASK_ID&gt;/validation/`.</td><td class="ln">80</td><td class="code">Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/&lt;TASK_ID&gt;/validation/`.</td></tr>
+<tr><td class="ln">73</td><td class="code"></td><td class="ln">81</td><td class="code"></td></tr>
+<tr><td class="ln">74</td><td class="code">### 3. Executar os testes</td><td class="ln">82</td><td class="code">### 3. Executar os testes</td></tr>
+<tr class="hunk"><td colspan="4">@@ -94,7 +102,7 @@ Execute:</td></tr>
+<tr><td class="ln">94</td><td class="code">vostok task regression &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td><td class="ln">102</td><td class="code">vostok task regression &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td></tr>
+<tr><td class="ln">95</td><td class="code">```</td><td class="ln">103</td><td class="code">```</td></tr>
+<tr><td class="ln">96</td><td class="code"></td><td class="ln">104</td><td class="code"></td></tr>
+<tr><td class="ln">97</td><td class="code del">O `vostok task regression` executa de novo os comandos de &quot;Baseline&quot; e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos e as diferenças. As opções incluem corrigir a regressão e aceitar a diferença como esperada.</td><td class="ln">105</td><td class="code add">O `vostok task regression` executa de novo os comandos de &quot;Baseline&quot; e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos numerados e as diferenças (o diff completo fica em `evidence/&lt;TASK_ID&gt;/validation/regression/NN.diff`). As opções incluem corrigir a regressão e aceitar a diferença como esperada, citando os números dos comandos aceitos (passo 2).</td></tr>
+<tr><td class="ln">98</td><td class="code"></td><td class="ln">106</td><td class="code"></td></tr>
+<tr><td class="ln">99</td><td class="code">### 5. Gravar as evidências</td><td class="ln">107</td><td class="code">### 5. Gravar as evidências</td></tr>
+<tr><td class="ln">100</td><td class="code"></td><td class="ln">108</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/skills/default/finish-task/SKILL.md</b><span class="tag criar">+10</span><span class="tag remover">−2</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -27,7 +27,7 @@ Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da</td></tr>
+<tr><td class="ln">27</td><td class="code"></td><td class="ln">27</td><td class="code"></td></tr>
+<tr><td class="ln">28</td><td class="code">[finish-task-01]: Só os comandos gravam status, resultados, tentativas e o registro. Nunca os edite à mão.</td><td class="ln">28</td><td class="code">[finish-task-01]: Só os comandos gravam status, resultados, tentativas e o registro. Nunca os edite à mão.</td></tr>
+<tr><td class="ln">29</td><td class="code">[finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.</td><td class="ln">29</td><td class="code">[finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.</td></tr>
+<tr><td class="ln">30</td><td class="code del">[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando.</td><td class="ln">30</td><td class="code add">[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando. Aceite uma diferença de regressão (`--accept-regression`) só para os comandos que o usuário aceitou explicitamente, pelo número mostrado no bloqueio.</td></tr>
+<tr><td class="ln">31</td><td class="code">[finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na &quot;Verificação&quot;, no &quot;Baseline&quot; ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.</td><td class="ln">31</td><td class="code">[finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na &quot;Verificação&quot;, no &quot;Baseline&quot; ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.</td></tr>
+<tr><td class="ln">32</td><td class="code">[finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).</td><td class="ln">32</td><td class="code">[finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).</td></tr>
+<tr><td class="ln">33</td><td class="code">[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.</td><td class="ln">33</td><td class="code">[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -69,6 +69,14 @@ Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele defi</td></tr>
+<tr><td class="ln">69</td><td class="code">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; &quot;decisão do usuário, em uma linha&quot;</td><td class="ln">69</td><td class="code">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; &quot;decisão do usuário, em uma linha&quot;</td></tr>
+<tr><td class="ln">70</td><td class="code">```</td><td class="ln">70</td><td class="code">```</td></tr>
+<tr><td class="ln">71</td><td class="code"></td><td class="ln">71</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">72</td><td class="code add">Se o usuário aceitou uma diferença de regressão como esperada, informe os números dos comandos aceitos, os mesmos do bloqueio (`- [1] comando`):</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">73</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">74</td><td class="code add">```bash</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">75</td><td class="code add">vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; --accept-regression &lt;N[,N...]&gt; &quot;decisão do usuário, em uma linha&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">76</td><td class="code add">```</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">77</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">78</td><td class="code add">O aceite vale só para a saída exata que o usuário viu: se ela mudar, ou se outro comando divergir, a regressão bloqueia de novo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">79</td><td class="code add"></td></tr>
+<tr><td class="ln">72</td><td class="code">Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/&lt;TASK_ID&gt;/validation/`.</td><td class="ln">80</td><td class="code">Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/&lt;TASK_ID&gt;/validation/`.</td></tr>
+<tr><td class="ln">73</td><td class="code"></td><td class="ln">81</td><td class="code"></td></tr>
+<tr><td class="ln">74</td><td class="code">### 3. Executar os testes</td><td class="ln">82</td><td class="code">### 3. Executar os testes</td></tr>
+<tr class="hunk"><td colspan="4">@@ -94,7 +102,7 @@ Execute:</td></tr>
+<tr><td class="ln">94</td><td class="code">vostok task regression &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td><td class="ln">102</td><td class="code">vostok task regression &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td></tr>
+<tr><td class="ln">95</td><td class="code">```</td><td class="ln">103</td><td class="code">```</td></tr>
+<tr><td class="ln">96</td><td class="code"></td><td class="ln">104</td><td class="code"></td></tr>
+<tr><td class="ln">97</td><td class="code del">O `vostok task regression` executa de novo os comandos de &quot;Baseline&quot; e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos e as diferenças. As opções incluem corrigir a regressão e aceitar a diferença como esperada.</td><td class="ln">105</td><td class="code add">O `vostok task regression` executa de novo os comandos de &quot;Baseline&quot; e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos numerados e as diferenças (o diff completo fica em `evidence/&lt;TASK_ID&gt;/validation/regression/NN.diff`). As opções incluem corrigir a regressão e aceitar a diferença como esperada, citando os números dos comandos aceitos (passo 2).</td></tr>
+<tr><td class="ln">98</td><td class="code"></td><td class="ln">106</td><td class="code"></td></tr>
+<tr><td class="ln">99</td><td class="code">### 5. Gravar as evidências</td><td class="ln">107</td><td class="code">### 5. Gravar as evidências</td></tr>
+<tr><td class="ln">100</td><td class="code"></td><td class="ln">108</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/memory/issues.md</b><span class="tag criar">+12</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -2,7 +2,7 @@</td></tr>
+<tr><td class="ln">2</td><td class="code">type: issue</td><td class="ln">2</td><td class="code">type: issue</td></tr>
+<tr><td class="ln">3</td><td class="code">title: &quot;Problemas&quot;</td><td class="ln">3</td><td class="code">title: &quot;Problemas&quot;</td></tr>
+<tr><td class="ln">4</td><td class="code">description: &quot;Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção.&quot;</td><td class="ln">4</td><td class="code">description: &quot;Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção.&quot;</td></tr>
+<tr><td class="ln">5</td><td class="code del">updated_at: 2026-09-27T02:38:43Z</td><td class="ln">5</td><td class="code add">updated_at: 2026-10-14T20:44:14Z</td></tr>
+<tr><td class="ln">6</td><td class="code">---</td><td class="ln">6</td><td class="code">---</td></tr>
+<tr><td class="ln">7</td><td class="code"></td><td class="ln">7</td><td class="code"></td></tr>
+<tr><td class="ln">8</td><td class="code"># Problemas</td><td class="ln">8</td><td class="code"># Problemas</td></tr>
+<tr class="hunk"><td colspan="4">@@ -10,3 +10,14 @@ updated_at: 2026-09-27T02:38:43Z</td></tr>
+<tr><td class="ln">10</td><td class="code">Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção.</td><td class="ln">10</td><td class="code">Problemas já encontrados no projeto, com causa e solução. Consulte ao encontrar um erro, antes da primeira tentativa de correção.</td></tr>
+<tr><td class="ln">11</td><td class="code"></td><td class="ln">11</td><td class="code"></td></tr>
+<tr><td class="ln">12</td><td class="code">Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não carregue este arquivo inteiro.</td><td class="ln">12</td><td class="code">Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não carregue este arquivo inteiro.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">13</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">14</td><td class="code add">## ISS-001: Tarefa ficou bloqueada por regressão mesmo com a diferença aceita pelo usuário</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">15</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">16</td><td class="code add">- **Data:** 2026-10-14</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">17</td><td class="code add">- **Status:** resolvido</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">18</td><td class="code add">- **Tags:** vostok, task, regressão, baseline, resume, aceite</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">19</td><td class="code add">- **Categoria:** ferramenta</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">20</td><td class="code add">- **Assinatura:** a tarefa TASK-NN ficou bloqueada por regressão. PARE: responda com o template `blocker`</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">21</td><td class="code add">- **Ambiente:** `vostok` 0.1.0; caso real na SPEC-001 TASK-02 de `~/rd/app` (vírgula na linha 52 do `package.json` muda a saída de `grep -n &#39;&quot;e2e:cart:&#39; package.json`).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">22</td><td class="code add">- **Causa:** o `vostok task resume` só gravava a decisão do usuário como texto, e o `vostok task regression` sempre comparava com o baseline: uma diferença aceita como esperada bloqueava a tarefa de novo, sem fim (SPEC-007).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">23</td><td class="code add">- **Solução:** a partir da SPEC-007, aceitar a diferença com `vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; --accept-regression &lt;N&gt; &quot;decisão&quot;`, usando o número mostrado no bloqueio (`- [N] comando`). O aceite vale só para a saída exata; se ela mudar, a regressão bloqueia de novo. Não edite baseline nem front-matter.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/work/tasks/SPEC-007/TASK-02.md</b><span class="tag">sem mudanças</span></summary>
+<div class="dbody"><p>Sem mudanças desde a base de comparação.</p></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">203ed7a</td><td class="mono">2026-10-14</td><td>fix(task): let the user accept an expected regression difference</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Decisão</th><th>Alternativa descartada</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td>Aceite como opção do <code>resume</code></td><td>Subcomando separado</td><td>O aceite é uma forma de decisão do usuário, que já entra pelo <code>resume</code></td></tr>
+<tr><td>Hash do arquivo de saída inteiro (comando, código e saída)</td><td>Hash só da saída</td><td>Mesmo formato do baseline; uma mudança no código de saída também bloqueia</td></tr>
+<tr><td>Sem campo novo no front-matter</td><td><code>regression_accepted</code></td><td>O arquivo de aceite junto das saídas basta e não muda o contrato da tarefa</td></tr>
+<tr><td>Cópia do diff aceito em <code>accepted-NN.diff</code></td><td>Ler o <code>NN.diff</code> na finalização</td><td>O <code>NN.diff</code> é apagado na regressão seguinte, que passa</td></tr>
+<tr><td>Fixtures congeladas atualizadas</td><td>Manter e aceitar falhas</td><td>A saída numerada é a mudança pedida; justificativa no commit</td></tr>
+<tr><td>Validação local, sem release</td><td>Publicar a v0.1.1</td><td>Resposta 1B do usuário</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>Uma tarefa bloqueada na versão antiga não tinha o <code>NN.diff</code> exigido pelo aceite, e precisou de uma retomada a mais para gerar o diff com a versão nova.</li>
+<li>O validador de tarefas só aceita caminhos dentro do projeto em &quot;Mudar&quot;. A TASK-02, que muda outro repositório, listou só o próprio arquivo de tarefa e descreveu o resto nos passos.</li>
+<li>A issue ISS-001 registra o defeito, com a assinatura do bloqueio e a solução.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>O <code>vostok update</code> em <code>~/rd/app</code> substituiu três templates de <code>finalize</code> que estavam diferentes da versão instalada; as versões anteriores ficaram em <code>*.html.local</code>.</li>
+<li>Um comando sem resultado no baseline continua sem número e não pode ser aceito.</li>
+<li>A correção está só no binário local até a publicação de uma versão nova.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Referência</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td><code>apps/cli/src/commands/task.rs</code></td><td>Funções <code>regression</code>, <code>resume</code> e os helpers do aceite</td></tr>
+<tr><td><code>apps/cli/src/commands/finalize.rs</code></td><td>Peça de diferença aceita no <code>evidence_html</code></td></tr>
+<tr><td><code>apps/cli/tests/task.rs</code></td><td>Cenários do aceite, um teste por caso</td></tr>
+<tr><td><code>vostok/skills/default/finish-task/SKILL.md</code></td><td>Como o agente aceita uma diferença</td></tr>
+<tr><td>ISS-001</td><td>Defeito, assinatura e solução</td></tr>
+<tr><td>Commit <code>203ed7a</code></td><td>Mudança completa, com a justificativa das fixtures</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-007, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

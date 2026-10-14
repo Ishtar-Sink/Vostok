@@ -27,7 +27,7 @@ Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da 
 
 [finish-task-01]: Só os comandos gravam status, resultados, tentativas e o registro. Nunca os edite à mão.
 [finish-task-02]: Tarefa bloqueada: **PARE** e responda com o template `blocker`. Não corrija, não retome e não valide de novo sem a decisão do usuário.
-[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando.
+[finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando. Aceite uma diferença de regressão (`--accept-regression`) só para os comandos que o usuário aceitou explicitamente, pelo número mostrado no bloqueio.
 [finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na "Verificação", no "Baseline" ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.
 [finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
@@ -69,6 +69,14 @@ Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele defi
 vostok task resume <SPEC_ID> <TASK_ID> "decisão do usuário, em uma linha"
 ```
 
+Se o usuário aceitou uma diferença de regressão como esperada, informe os números dos comandos aceitos, os mesmos do bloqueio (`- [1] comando`):
+
+```bash
+vostok task resume <SPEC_ID> <TASK_ID> --accept-regression <N[,N...]> "decisão do usuário, em uma linha"
+```
+
+O aceite vale só para a saída exata que o usuário viu: se ela mudar, ou se outro comando divergir, a regressão bloqueia de novo.
+
 Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/<TASK_ID>/validation/`.
 
 ### 3. Executar os testes
@@ -94,7 +102,7 @@ Execute:
 vostok task regression <SPEC_ID> <TASK_ID>
 ```
 
-O `vostok task regression` executa de novo os comandos de "Baseline" e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos e as diferenças. As opções incluem corrigir a regressão e aceitar a diferença como esperada.
+O `vostok task regression` executa de novo os comandos de "Baseline" e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos numerados e as diferenças (o diff completo fica em `evidence/<TASK_ID>/validation/regression/NN.diff`). As opções incluem corrigir a regressão e aceitar a diferença como esperada, citando os números dos comandos aceitos (passo 2).
 
 ### 5. Gravar as evidências
 

@@ -31,6 +31,7 @@ Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.
 0
 @pre 0
 
-@post 264
+@post 350
 W f1270f6f0538a7a46c1ba4f05a1c6690712be255bd34929cde87009c5ed7c7ad packages/harness/work/tasks/SPEC-008/TASK-01.md
 W dedcd640617a18ad5071e7dd66176265af14613d7c44549ea424ada3aea8ca7e packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff

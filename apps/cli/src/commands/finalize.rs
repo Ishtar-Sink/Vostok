@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
+use crate::commands::task::{accepted_diff_name, accepted_regressions};
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, frontmatter_get, frontmatter_set, markdown_section,
@@ -2220,7 +2221,28 @@ impl Finalization {
                     &media,
                 ));
             }
-            if evidences.is_empty() {
+            let accepted = accepted_regressions(&evidence_dir.join("validation/regression"));
+            for item in &accepted {
+                let diff = fs::read(
+                    evidence_dir
+                        .join("validation/regression")
+                        .join(accepted_diff_name(item.number)),
+                )
+                .unwrap_or_default();
+                items.extend(format!(
+                    "<figure class=\"piece\">\n  <div class=\"piece-top\"><span class=\"piece-id\">{}</span> — {}</div>\n  <div class=\"piece-meta\"><b>Diferença de regressão aceita: {}</b><span class=\"tag manual\">aceita</span></div>\n  <div class=\"piece-media\">\n<pre><code>",
+                    html_escape(&task_id),
+                    html_escape(&task_title),
+                    html_escape(&item.command)
+                ).into_bytes());
+                items.extend(html_escape_bytes(&diff));
+                items.extend(format!(
+                    "</code></pre>\n  </div>\n  <figcaption class=\"piece-foot\">\n    <p><b>Decisão do usuário</b>{}</p>\n    <p><b>Aceita em</b>{}</p>\n  </figcaption>\n</figure>\n",
+                    html_escape(&item.decision),
+                    html_escape(&item.date)
+                ).into_bytes());
+            }
+            if evidences.is_empty() && accepted.is_empty() {
                 items.extend(format!(
                     "<div class=\"piece none\"><div class=\"piece-top\"><span class=\"piece-id\">{}</span> — {}</div><p class=\"na\">Não se aplica. Esta tarefa não gera evidência.</p></div>\n",
                     html_escape(&task_id),

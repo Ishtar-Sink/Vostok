@@ -1,0 +1,6 @@
+2,3c2,3
+< exit: 0
+< um
+---
+> exit: 1
+> cat: estado.txt: No such file or directory

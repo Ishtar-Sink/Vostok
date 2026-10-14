@@ -72,6 +72,9 @@ pub enum TaskCommand {
         task_id: Option<String>,
         #[arg(allow_hyphen_values = true)]
         decision: Option<String>,
+        /// Números dos comandos da regressão cuja diferença o usuário aceitou (ex.: 1,2).
+        #[arg(long, value_name = "N[,N...]")]
+        accept_regression: Option<String>,
     },
 }
 
@@ -120,7 +123,11 @@ const APPROVE_USAGE: &str =
     "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
-const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> \"decisão\"";
+const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
+
+/// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,
+/// SHA-256 da saída aceita, data, comando e decisão, separados por tabulação.
+const ACCEPTED_FILE: &str = "accepted";
 
 /// Ações aceitas em "Mudar", as mesmas dos componentes afetados da spec.
 const COMPONENT_ACTIONS: [&str; 3] = ["criar", "alterar", "remover"];
@@ -173,10 +180,11 @@ pub fn run(command: TaskCommand) -> Result<()> {
             spec_id,
             task_id,
             decision,
+            accept_regression,
         } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
             let decision = decision.ok_or_else(|| usage(FINISH_USAGE))?;
-            tasks.resume(&spec, &task, &decision)
+            tasks.resume(&spec, &task, &decision, accept_regression.as_deref())
         }
     }
 }
@@ -827,26 +835,34 @@ impl Tasks {
         }
         let commands = self.baseline_commands(&read(&file)?)?;
         let dir = evidence.join("validation/regression");
-        if dir.exists() {
-            fs::remove_dir_all(&dir)?;
-        }
-        fs::create_dir_all(&dir)?;
+        clear_regression_outputs(&dir)?;
+        let accepted = accepted_hashes(&dir)?;
 
         let root = self.project_root()?;
         let mut changed = String::new();
+        let mut equal = 0;
+        let mut accepted_count = 0;
         for (index, command) in commands.iter().enumerate() {
-            let name = output_name(index + 1);
+            let number = index + 1;
+            let name = output_name(number);
             let (_, output) = recorded_run(command, &root)?;
             let current = dir.join(&name);
             fs::write(&current, &output)?;
             let previous = base.join(&name);
             match fs::read(&previous) {
                 Err(_) => changed.push_str(&format!("- {command}: sem resultado no baseline\n")),
-                Ok(expected) if expected != output => changed.push_str(&format!(
-                    "- {command}\n{}\n",
-                    diff_excerpt(&previous, &current)
-                )),
-                Ok(_) => {}
+                Ok(expected) if expected == output => equal += 1,
+                Ok(_) if accepted.get(&number) == Some(&sha256_hex(&output)) => accepted_count += 1,
+                Ok(_) => {
+                    fs::write(
+                        dir.join(diff_name(number)),
+                        diff_output(&previous, &current),
+                    )?;
+                    changed.push_str(&format!(
+                        "- [{number}] {command}\n{}\n",
+                        diff_excerpt(&previous, &current)
+                    ));
+                }
             }
         }
         for previous in files_with_extension(&base, "out")? {
@@ -863,7 +879,11 @@ impl Tasks {
         if changed.is_empty() {
             frontmatter_set(&file, "status", &self.status.validating)?;
             frontmatter_set(&file, "regression_result", "passed")?;
-            let detail = format!("{} comando(s) iguais ao baseline", commands.len());
+            let detail = if accepted_count == 0 {
+                format!("{equal} comando(s) iguais ao baseline")
+            } else {
+                format!("{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário")
+            };
             self.record_step(&file, "regressão", "passed", &detail)?;
             println!("Sem regressão em {task}: {detail}.");
             return Ok(());
@@ -877,7 +897,7 @@ impl Tasks {
             "comandos diferentes do baseline; bloqueada",
         )?;
         print!(
-            "Comandos com resultado diferente do baseline (saídas em {}):\n{changed}",
+            "Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression <N> \"decisão\"\n",
             dir.display()
         );
         bail!("a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário")
@@ -1034,7 +1054,7 @@ impl Tasks {
             .find(|file| frontmatter_get(file, "id").is_ok_and(|id| id == spec)))
     }
 
-    fn resume(&self, spec: &str, task: &str, decision: &str) -> Result<()> {
+    fn resume(&self, spec: &str, task: &str, decision: &str, accept: Option<&str>) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
         let blocked = &self.status.blocked;
@@ -1048,15 +1068,33 @@ impl Tasks {
         if decision.contains('\n') {
             bail!("a decisão não pode ter quebra de linha");
         }
+        let dir = self.evidence_dir(&file)?.join("validation/regression");
+        let acceptances = match accept {
+            Some(list) => regression_acceptances(&dir, task, list, &decision)?,
+            None => Vec::new(),
+        };
+
+        let mut detail = format!("decisão do usuário: {decision}");
+        if !acceptances.is_empty() {
+            let mut accepted = fs::read_to_string(dir.join(ACCEPTED_FILE)).unwrap_or_default();
+            for item in &acceptances {
+                fs::copy(
+                    dir.join(diff_name(item.number)),
+                    dir.join(accepted_diff_name(item.number)),
+                )?;
+                accepted.push_str(&item.line);
+            }
+            fs::write(dir.join(ACCEPTED_FILE), accepted)?;
+            let numbers: Vec<String> = acceptances
+                .iter()
+                .map(|item| item.number.to_string())
+                .collect();
+            detail.push_str(&format!("; aceito(s): {}", numbers.join(", ")));
+        }
         let validating = &self.status.validating;
         frontmatter_set(&file, "status", validating)?;
         reset_results(&file)?;
-        self.record_step(
-            &file,
-            "retomada",
-            validating,
-            &format!("decisão do usuário: {decision}"),
-        )?;
+        self.record_step(&file, "retomada", validating, &detail)?;
         println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.");
         Ok(())
     }
@@ -1815,6 +1853,120 @@ fn output_name(number: usize) -> String {
     format!("{number:02}.out")
 }
 
+fn diff_name(number: usize) -> String {
+    format!("{number:02}.diff")
+}
+
+/// Cópia do diff aceito, preservada entre execuções da regressão para o documento de evidências.
+pub fn accepted_diff_name(number: usize) -> String {
+    format!("accepted-{number:02}.diff")
+}
+
+/// Remove só as saídas e os diffs da última regressão (`NN.out`, `NN.diff`), preservando os aceites.
+fn clear_regression_outputs(dir: &Path) -> Result<()> {
+    if !dir.is_dir() {
+        fs::create_dir_all(dir)?;
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)?.flatten() {
+        let path = entry.path();
+        let numbered = path.file_stem().is_some_and(|stem| {
+            stem.to_string_lossy()
+                .bytes()
+                .all(|byte| byte.is_ascii_digit())
+        });
+        let output = path
+            .extension()
+            .is_some_and(|ext| ext == "out" || ext == "diff");
+        if path.is_file() && numbered && output {
+            fs::remove_file(&path)?;
+        }
+    }
+    Ok(())
+}
+
+/// Um aceite de diferença de regressão, lido do arquivo `accepted`.
+pub struct AcceptedRegression {
+    pub number: usize,
+    pub hash: String,
+    pub date: String,
+    pub command: String,
+    pub decision: String,
+}
+
+/// Aceites gravados em `dir/accepted`, na ordem do arquivo.
+pub fn accepted_regressions(dir: &Path) -> Vec<AcceptedRegression> {
+    fs::read_to_string(dir.join(ACCEPTED_FILE))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| {
+            let mut fields = line.splitn(5, '\t');
+            Some(AcceptedRegression {
+                number: fields.next()?.parse().ok()?,
+                hash: fields.next()?.to_string(),
+                date: fields.next()?.to_string(),
+                command: fields.next()?.to_string(),
+                decision: fields.next()?.to_string(),
+            })
+        })
+        .collect()
+}
+
+/// SHA-256 aceito por comando; o aceite mais recente de um número vale.
+fn accepted_hashes(dir: &Path) -> Result<HashMap<usize, String>> {
+    Ok(accepted_regressions(dir)
+        .into_iter()
+        .map(|item| (item.number, item.hash))
+        .collect())
+}
+
+struct Acceptance {
+    number: usize,
+    line: String,
+}
+
+/// Confere os números de `--accept-regression` contra a última regressão e monta as linhas do
+/// arquivo `accepted`, sem gravar nada.
+fn regression_acceptances(
+    dir: &Path,
+    task: &str,
+    list: &str,
+    decision: &str,
+) -> Result<Vec<Acceptance>> {
+    let mut acceptances: Vec<Acceptance> = Vec::new();
+    for item in list.split(',').map(str::trim) {
+        let number: usize = match item.parse() {
+            Ok(number) if number > 0 => number,
+            _ => bail!("número inválido em --accept-regression: '{item}'"),
+        };
+        if acceptances.iter().any(|accepted| accepted.number == number) {
+            continue;
+        }
+        if !dir.join(diff_name(number)).is_file() {
+            bail!("o comando {number} não divergiu na última regressão de {task}; não há diferença a aceitar. Nada foi alterado");
+        }
+        let output = fs::read(dir.join(output_name(number))).map_err(|_| {
+            anyhow!("não há saída gravada do comando {number} na última regressão de {task}. Nada foi alterado")
+        })?;
+        let first = String::from_utf8_lossy(&output)
+            .lines()
+            .next()
+            .unwrap_or("")
+            .to_string();
+        let command = first.strip_prefix("$ ").unwrap_or(&first).to_string();
+        acceptances.push(Acceptance {
+            number,
+            line: format!(
+                "{number}\t{}\t{}\t{}\t{decision}\n",
+                sha256_hex(&output),
+                utc_now(),
+                command.replace('\t', " ")
+            ),
+        });
+    }
+    Ok(acceptances)
+}
+
 /// Executa um comando com `bash -c` a partir de `dir` e devolve o código de saída e a saída, com
 /// stdout e stderr juntos na ordem em que foram escritos.
 fn shell_output(command: &str, dir: &Path) -> Result<(i32, Vec<u8>)> {
@@ -1864,6 +2016,16 @@ fn indented_tail(output: &[u8], count: usize) -> String {
         .iter()
         .map(|line| format!("    {line}"))
         .collect()
+}
+
+/// Saída completa do `diff` entre o baseline e a nova saída.
+fn diff_output(previous: &Path, current: &Path) -> Vec<u8> {
+    Command::new("diff")
+        .arg(previous)
+        .arg(current)
+        .output()
+        .map(|output| output.stdout)
+        .unwrap_or_default()
 }
 
 /// Linhas 2 a 12 do `diff` entre o baseline e a nova saída, recuadas em quatro espaços.

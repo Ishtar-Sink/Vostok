@@ -22,12 +22,13 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 187
+@stdout 333
 Comandos com resultado diferente do baseline (saídas em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression):
-- cat estado.txt
+- [1] cat estado.txt
     < um
     ---
     > dois
+Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume SPEC-008 TASK-01 --accept-regression <N> "decisão"
 
 @stderr 152
 Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário
@@ -37,6 +38,7 @@ Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o temp
 @pre 148
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 .vt
 W 8a8fe0ed9b2af044369245fd3d9454cdb867f2f74374762cfb1ac44fbc63a0b1 estado.txt
-@post 264
+@post 415
 W fec04c1d1e9c3b98a2caa7a96963874c436be5327faf22ca11f53c15dc74e483 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W e5435149e8f7ef9100c5864f01546969190998906c85a15e173cb0e07e881b81 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out
+W c205b49d49116763dd2ae6d43d08a3e303cb22aa713715dbeae0ab6e8cc42f8d packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff

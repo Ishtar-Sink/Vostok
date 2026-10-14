@@ -99,3 +99,78 @@ fn validate_without_content_points_to_create() {
         .trim_end()
         .ends_with("; crie com vostok finalize create"));
 }
+
+#[test]
+fn evidence_document_lists_the_accepted_regression_differences() {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    let tasks = project.harness().join("work/tasks/SPEC-001");
+    fs::create_dir_all(&tasks).unwrap();
+    fs::write(
+        tasks.join("TASK-01.md"),
+        "---\nid: TASK-01\ntitle: Tarefa\nstatus: done\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Evidências\n\nNão se aplica.\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-14 | conclusão | done | ok |\n",
+    )
+    .unwrap();
+    let regression = tasks.join("evidence/TASK-01/validation/regression");
+    fs::create_dir_all(&regression).unwrap();
+    fs::write(
+        regression.join("accepted"),
+        format!(
+            "1\t{}\t2026-10-14T10:00:00Z\tgrep -n '\"e2e:cart:' package.json\tvírgula exigida pelo passo 2\n",
+            "a".repeat(64)
+        ),
+    )
+    .unwrap();
+    fs::write(
+        regression.join("accepted-01.diff"),
+        "3c3\n< um\n---\n> um,\n",
+    )
+    .unwrap();
+
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let content_path = project.harness().join("work/finalize/SPEC-001/content.md");
+    let content = fs::read_to_string(&content_path).unwrap();
+    let filled = fill_variables(&content);
+    fs::write(&content_path, filled).unwrap();
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let html = fs::read_to_string(content_path.with_file_name("evidencias.html")).unwrap();
+    assert!(
+        html.contains("Diferença de regressão aceita: grep -n"),
+        "{html}"
+    );
+    assert!(html.contains("e2e:cart:"));
+    assert!(html.contains("&gt; um,"));
+    assert!(html.contains("vírgula exigida pelo passo 2"));
+}
+
+/// Troca cada variável `#{...}` por um texto válido para o tipo da seção.
+fn fill_variables(content: &str) -> String {
+    let mut out = String::new();
+    for line in content.lines() {
+        if let Some(start) = line.find("#{") {
+            let name = &line[start + 2..line.find('}').unwrap()];
+            out.push_str(match name {
+                "EXEC_DELIVERIES" => "### Aceite\n- **Impacto:** alto\n- **O que mudou:** aceite.\n- **Valor:** conclusão.\n- **Como perceber:** tarefa concluída.",
+                _ => "Texto.",
+            });
+        } else {
+            out.push_str(line);
+        }
+        out.push('\n');
+    }
+    out
+}

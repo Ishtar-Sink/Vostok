@@ -456,3 +456,16 @@ fn revert_refuses_a_branch_missing_from_the_reference() {
         "Erro: a branch main não existia na liberação; peça ao usuário para desfazer à mão\n"
     );
 }
+
+#[test]
+fn golden_normalization_hides_letter_only_commit_hashes() {
+    let root = std::path::Path::new("/raiz");
+    assert_eq!(
+        common::golden::normalize("Commit feito e liberado: ffcbacc feat: stage\n", root),
+        "Commit feito e liberado: <HEX> feat: stage\n"
+    );
+    assert_eq!(
+        common::golden::normalize("sem hash: abcdef ou decade\n", root),
+        "sem hash: abcdef ou decade\n"
+    );
+}

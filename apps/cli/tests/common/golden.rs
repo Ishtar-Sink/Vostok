@@ -509,8 +509,11 @@ fn replace_volatile(text: &str) -> String {
             let ends = !bytes
                 .get(index + len)
                 .is_some_and(u8::is_ascii_alphanumeric);
+            // Sem dígito, só os tamanhos de hash do git (curto e completo): um hash curto pode sair só
+            // com letras, e uma palavra comum de 7 ou 40 letras entre `a` e `f` não aparece nas saídas.
             let has_digit = bytes[index..index + len].iter().any(u8::is_ascii_digit);
-            if (7..=64).contains(&len) && ends && has_digit {
+            let git_hash = len == 7 || len == 40;
+            if (7..=64).contains(&len) && ends && (has_digit || git_hash) {
                 out.push_str("<HEX>");
                 index += len;
                 continue;

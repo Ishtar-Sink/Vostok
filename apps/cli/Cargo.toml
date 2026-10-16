@@ -1,6 +1,6 @@
 [package]
 name = "vostok"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "CLI do Vostok: instala o harness nos projetos e executa os comandos dele."
 license = "MIT"

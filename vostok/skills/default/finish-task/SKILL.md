@@ -5,7 +5,7 @@ allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task load, vostok memory search, vostok task resume, vostok task tests, vostok task regression, vostok task evidence, vostok task finish"
+  scripts: "vostok context load, vostok task load, vostok memory search, vostok task resume, vostok task tests, vostok task regression, vostok task evidence, vostok task persist, vostok task finish"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -44,9 +44,10 @@ Copie e marque o progresso:
 - [ ] 3. Executar os testes
 - [ ] 4. Verificar regressões
 - [ ] 5. Gravar as evidências
-- [ ] 6. Conferir os critérios de conclusão
-- [ ] 7. Concluir
-- [ ] 8. Responder ao usuário
+- [ ] 6. Persistir as evidências
+- [ ] 7. Conferir os critérios de conclusão
+- [ ] 8. Concluir
+- [ ] 9. Responder ao usuário
 ```
 
 ## Passos
@@ -117,11 +118,27 @@ O comando grava a saída de cada evidência automática e confere as manuais:
 - Evidência automática com erro: corrija a causa no código da tarefa e execute `vostok task evidence` de novo. Se o erro estiver no próprio comando da evidência, **PARE** e responda com o template `blocker`: mudar a evidência é um ajuste (skill `adjust-task`).
 - Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo comando. Com os arquivos, execute `vostok task evidence` de novo.
 
-### 6. Conferir os critérios de conclusão
+### 6. Persistir as evidências
+
+Só quando `persist_dir` estiver preenchido em `vostok/config/tasks.yml`; vazio, pule para o passo 7. Execute:
+
+```bash
+vostok task persist <SPEC_ID> <TASK_ID>
+```
+
+O comando copia as evidências, `baseline/` e `validation/` para a pasta do projeto, troca caminhos pessoais por `~` e gera o guia (`persist_readme`, por padrão `README.md`). Os arquivos em `vostok/work/` não mudam.
+
+- **Dado sensível** (segredo, IP, e-mail ou CPF): o comando recusa e lista arquivo, linha e tipo, sem copiar nada. **PARE** e mostre os achados ao usuário, sem repetir os valores encontrados, com o template `question`: para cada arquivo, redigir, excluir ou aceitar. Com a decisão, execute de novo com `--redact <arquivo>`, `--exclude <arquivo>` ou `--accept <arquivo>`. Nunca decida por ele.
+- **Binários sem revisão:** abra cada imagem e confira se há dado sensível; para vídeos e outros binários que não consegue abrir, peça ao usuário que confira. Execute de novo com `--reviewed <arquivo>=agente` ou `--reviewed <arquivo>=usuário`, repetindo as decisões sobre dado sensível. Achou dado sensível numa imagem: **PARE** e pergunte, como acima.
+- **Campos a preencher no guia:** em cada entrada, troque a variável de "Trecho que prova" pelo trecho real do arquivo que comprova o resultado, e preencha os campos que a tarefa não trazia (`Prova`, `O que procurar`, `Sinal de falha`). Não edite os demais campos: rode o comando de novo se algo mudar; ele mantém os trechos já preenchidos.
+
+O `vostok task finish` recusa a conclusão enquanto faltar o guia, uma entrada ou um campo.
+
+### 7. Conferir os critérios de conclusão
 
 Para cada critério de "Concluída quando", faça a comprovação descrita em "Como comprovar". Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.
 
-### 7. Concluir
+### 8. Concluir
 
 Execute:
 
@@ -131,7 +148,7 @@ vostok task finish <SPEC_ID> <TASK_ID>
 
 O comando exige testes, regressão e evidências `passed` e todos os critérios marcados, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. Se ele recusar, volte à etapa que falta.
 
-### 8. Responder ao usuário
+### 9. Responder ao usuário
 
 Responda com o template `completion`:
 

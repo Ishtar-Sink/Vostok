@@ -49,6 +49,22 @@ pedido → draft → refined → approved → plano → tarefas → execução
 
 Há também a skill `create-skill`, que cria skills no formato padrão e gera os redirecionamentos para cada ferramenta (`.claude/skills/`, `.agents/skills/`).
 
+### Evidências no projeto
+
+As saídas de cada tarefa (baseline, testes, regressão e evidências) ficam em `vostok/work/`, na máquina de quem executou. Para que o time, revisores e auditoria possam conferir a prova, ligue a persistência em `vostok/config/tasks.yml`:
+
+```yaml
+persist_dir: docs/evidencias/<SPEC>/<TASK>
+persist_readme: README.md
+persist_max_mb: 10
+```
+
+Na conclusão, a `finish-task` roda `vostok task persist`, que copia os arquivos para essa pasta e gera um guia por tarefa: o que cada evidência prova, o comando que a gera, o trecho que comprova e o que indicaria falha. Caminhos pessoais viram `~`; segredos, IPs, e-mails e CPFs bloqueiam a cópia até o usuário decidir, arquivo por arquivo, entre redigir, excluir ou aceitar. Imagens são revisadas pelo agente, e vídeos e outros binários, pelo usuário. Com a persistência ligada, o `vostok task finish` só conclui a tarefa com o guia completo. O mesmo comando persiste tarefas já concluídas.
+
+### O que o `vostok update` preserva
+
+O `update` regrava só os arquivos que vêm do binário (skills padrão, templates, regras do agente), guardando uma cópia `.local` dos que foram alterados no projeto. As pastas `config/`, `rules/project/`, `skills/custom/` e `memory/` são do projeto e nunca são regravadas; nas configurações, inclusive no `context.yml`, só entram as chaves novas. Regras próprias do projeto e ajustes no mapa de contexto sobrevivem à atualização.
+
 ## Estrutura
 
 ```

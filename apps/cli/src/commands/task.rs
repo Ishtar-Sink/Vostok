@@ -14,9 +14,9 @@ use clap::Subcommand;
 
 use crate::harness::Harness;
 use crate::support::{
-    config_get, config_list, evidence_subitem_errors, frontmatter_get, frontmatter_lines,
-    frontmatter_set, is_indented, markdown_section, markdown_subsection, sha256_hex,
-    template_leftovers, EvidenceFields,
+    config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
+    frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection,
+    sha256_hex, template_leftovers, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -77,6 +77,23 @@ pub enum TaskCommand {
         #[arg(long, value_name = "N[,N...]")]
         accept_regression: Option<String>,
     },
+    /// Persiste as evidências no projeto, sanitizadas, com o guia de interpretação.
+    Persist {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        /// Arquivo com dado sensível a redigir na cópia, relativo à pasta de evidências da tarefa.
+        #[arg(long, value_name = "ARQUIVO")]
+        redact: Vec<String>,
+        /// Arquivo que não é copiado, por decisão do usuário.
+        #[arg(long, value_name = "ARQUIVO")]
+        exclude: Vec<String>,
+        /// Arquivo com dado sensível copiado como está, por decisão do usuário.
+        #[arg(long, value_name = "ARQUIVO")]
+        accept: Vec<String>,
+        /// Binário revisado, com quem revisou: agente ou usuário.
+        #[arg(long, value_name = "ARQUIVO=QUEM")]
+        reviewed: Vec<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -129,6 +146,13 @@ const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <S
 /// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,
 /// SHA-256 da saída aceita, data, comando e decisão, separados por tabulação.
 const ACCEPTED_FILE: &str = "accepted";
+
+const PERSIST_USAGE: &str = "Uso: vostok task persist <SPEC_ID> <TASK_ID> [--redact|--exclude|--accept <ARQUIVO>]... [--reviewed <ARQUIVO>=<agente|usuário>]...";
+const PERSIST_TEMPLATE: &str = "task/persist-readme.md";
+const PERSIST_ENTRY_MARKER: &str = "<!-- entrada -->\n";
+const PERSIST_TRECHO_LABEL: &str = "- **Trecho que prova:** ";
+const PERSIST_REVIEW_LABEL: &str = "- **Revisão:** ";
+const REVIEWERS: [&str; 2] = ["agente", "usuário"];
 
 /// Ações aceitas em "Mudar", as mesmas dos componentes afetados da spec.
 const COMPONENT_ACTIONS: [&str; 3] = ["criar", "alterar", "remover"];
@@ -186,6 +210,23 @@ pub fn run(command: TaskCommand) -> Result<()> {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
             let decision = decision.ok_or_else(|| usage(FINISH_USAGE))?;
             tasks.resume(&spec, &task, &decision, accept_regression.as_deref())
+        }
+        TaskCommand::Persist {
+            spec_id,
+            task_id,
+            redact,
+            exclude,
+            accept,
+            reviewed,
+        } => {
+            let (spec, task) = given(spec_id, task_id, PERSIST_USAGE)?;
+            let options = PersistOptions {
+                redact,
+                exclude,
+                accept,
+                reviewed,
+            };
+            tasks.persist(&spec, &task, &options)
         }
     }
 }
@@ -1020,6 +1061,9 @@ impl Tasks {
         if let Err(error) = self.check_done(spec, task) {
             problems.push_str(&format!("- {error}\n"));
         }
+        for problem in self.persist_problems(spec, task, &file)? {
+            problems.push_str(&format!("- {problem}\n"));
+        }
         if !problems.is_empty() {
             bail!("a tarefa {task} não pode ser concluída; nada foi alterado:\n{problems}");
         }
@@ -1111,6 +1155,383 @@ impl Tasks {
         self.record_step(&file, "retomada", validating, &detail)?;
         println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.");
         Ok(())
+    }
+
+    // --- Persistência das evidências no projeto ---
+
+    fn persist_settings(&self) -> Option<PersistSettings> {
+        let dir = self.cfg("persist_dir").ok().filter(|dir| !dir.is_empty())?;
+        let readme = self
+            .cfg("persist_readme")
+            .ok()
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "README.md".to_string());
+        let max_mb = self
+            .cfg("persist_max_mb")
+            .ok()
+            .and_then(|value| value.parse::<f64>().ok())
+            .unwrap_or(10.0);
+        Some(PersistSettings {
+            dir,
+            readme,
+            max_mb,
+        })
+    }
+
+    /// Evidências de "Evidências" com os subitens de cada uma.
+    fn evidence_entries(&self, content: &str) -> Result<Vec<EvidenceEntry>> {
+        let text = self.subsection(content, "evidence_subsection")?;
+        let mut entries: Vec<EvidenceEntry> = Vec::new();
+        for line in text.lines().filter(|line| has_text(line)) {
+            if let Some((field, value)) = evidence_subitem(line) {
+                if let Some(entry) = entries.last_mut() {
+                    entry.fields.insert(field.to_string(), value.to_string());
+                }
+            } else if let Some((name, kind, rest)) = evidence_item(line) {
+                entries.push(EvidenceEntry {
+                    name: name.to_string(),
+                    kind: kind.to_string(),
+                    rest: rest.to_string(),
+                    fields: HashMap::new(),
+                });
+            }
+        }
+        Ok(entries)
+    }
+
+    fn persist(&self, spec: &str, task: &str, options: &PersistOptions) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        let (validating, done) = (&self.status.validating, &self.status.done);
+        if status != *validating && status != *done {
+            bail!("a tarefa {task} está com status '{status}'; só tarefas com status '{validating}' ou '{done}' têm as evidências persistidas");
+        }
+        let Some(settings) = self.persist_settings() else {
+            bail!("a persistência está desligada: defina persist_dir em config/tasks.yml (ex.: docs/evidencias/<SPEC>/<TASK>)");
+        };
+        let root = self.project_root()?;
+        let target = settings.target(&root, spec, task);
+        let source = self.evidence_dir(&file)?;
+        let content = read(&file)?;
+        let evidences = self.evidence_entries(&content)?;
+
+        let mut files: Vec<String> = Vec::new();
+        for evidence in &evidences {
+            if !source.join(&evidence.name).is_file() {
+                bail!(
+                    "evidência {} não encontrada em {}; execute vostok task evidence {spec} {task}",
+                    evidence.name,
+                    source.display()
+                );
+            }
+            files.push(evidence.name.clone());
+        }
+        for dir in ["baseline", "validation"] {
+            files.extend(relative_files(&source, &source.join(dir))?);
+        }
+        let decisions = persist_decisions(options, &files)?;
+        let reviews = persist_reviews(&options.reviewed, &files)?;
+
+        let limit = (settings.max_mb * 1_048_576.0) as u64;
+        let mut copies: Vec<(String, PersistCopy)> = Vec::new();
+        let mut findings = String::new();
+        for name in &files {
+            let path = source.join(name);
+            let bytes = fs::read(&path)
+                .with_context(|| format!("não foi possível ler {}", path.display()))?;
+            let decision = decisions.get(name.as_str()).copied();
+            let copy = if bytes.len() as u64 > limit {
+                PersistCopy::Large {
+                    size: bytes.len() as u64,
+                    hash: sha256_hex(&bytes),
+                    origin: relative_to(&path, &root),
+                }
+            } else if decision == Some(PersistDecision::Exclude) {
+                PersistCopy::Excluded
+            } else if let Some(text) = text_content(&bytes) {
+                let text = home_to_tilde(text);
+                let found = sensitive_spans(&text);
+                match decision {
+                    Some(PersistDecision::Redact) => PersistCopy::Text {
+                        content: redact_spans(&text, &found),
+                        note: Some("dado sensível redigido por decisão do usuário"),
+                    },
+                    Some(PersistDecision::Accept) => PersistCopy::Text {
+                        content: text,
+                        note: Some("dado sensível mantido por decisão do usuário"),
+                    },
+                    _ => {
+                        for span in &found {
+                            findings.push_str(&format!(
+                                "- {name}:{}: {}\n",
+                                span.line,
+                                span.kind.label()
+                            ));
+                        }
+                        PersistCopy::Text {
+                            content: text,
+                            note: None,
+                        }
+                    }
+                }
+            } else {
+                PersistCopy::Binary(bytes)
+            };
+            copies.push((name.clone(), copy));
+        }
+        if !findings.is_empty() {
+            bail!("dado sensível nas evidências de {task}; nada foi copiado. PARE: mostre os achados ao usuário e, com a decisão dele, execute de novo com --redact, --exclude ou --accept para cada arquivo:\n{findings}");
+        }
+
+        let readme_path = target.join(&settings.readme);
+        let previous = fs::read_to_string(&readme_path).unwrap_or_default();
+        if target.exists() {
+            let mut allowed: HashSet<String> = files.iter().cloned().collect();
+            allowed.insert(settings.readme.clone());
+            let foreign: Vec<String> = relative_files(&target, &target)?
+                .into_iter()
+                .filter(|name| !allowed.contains(name))
+                .collect();
+            if !foreign.is_empty() {
+                bail!(
+                    "a pasta {} tem arquivos que não vieram do vostok task persist; nada foi alterado:\n- {}",
+                    target.display(),
+                    foreign.join("\n- ")
+                );
+            }
+            fs::remove_dir_all(&target)?;
+        }
+        fs::create_dir_all(&target)?;
+        let mut copied = 0;
+        for (name, copy) in &copies {
+            let destination = target.join(name);
+            let bytes: &[u8] = match copy {
+                PersistCopy::Text { content, .. } => content.as_bytes(),
+                PersistCopy::Binary(bytes) => bytes,
+                PersistCopy::Excluded | PersistCopy::Large { .. } => continue,
+            };
+            if let Some(parent) = destination.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&destination, bytes)?;
+            copied += 1;
+        }
+
+        let guide =
+            self.persist_guide(spec, task, &file, &evidences, &copies, &reviews, &previous)?;
+        fs::write(&readme_path, &guide)?;
+
+        let skipped = copies.len() - copied;
+        println!(
+            "Evidências de {task} persistidas em {}: {copied} arquivo(s) copiado(s){}.",
+            relative_to(&target, &root),
+            if skipped > 0 {
+                format!(
+                    ", {skipped} não copiado(s) (excluídos ou acima de {} MB)",
+                    settings.max_mb
+                )
+            } else {
+                String::new()
+            }
+        );
+        let pending: Vec<&str> = copies
+            .iter()
+            .filter(|(name, copy)| {
+                matches!(copy, PersistCopy::Binary(_))
+                    && !reviews.contains_key(name.as_str())
+                    && !previous_review_done(&previous, name)
+            })
+            .map(|(name, _)| name.as_str())
+            .collect();
+        if !pending.is_empty() {
+            println!("Binários sem revisão: revise cada um e execute de novo com --reviewed <arquivo>=<agente|usuário>:\n- {}", pending.join("\n- "));
+        }
+        let leftovers = template_leftovers(&guide).len();
+        if leftovers > 0 {
+            println!(
+                "Complete o guia {}: {leftovers} campo(s) a preencher (trechos que provam e campos que faltam na tarefa).",
+                relative_to(&readme_path, &root)
+            );
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn persist_guide(
+        &self,
+        spec: &str,
+        task: &str,
+        file: &Path,
+        evidences: &[EvidenceEntry],
+        copies: &[(String, PersistCopy)],
+        reviews: &HashMap<&str, &str>,
+        previous: &str,
+    ) -> Result<String> {
+        let template_path = self.harness.path("templates")?.join(PERSIST_TEMPLATE);
+        let template = read(&template_path)?;
+        let template = strip_leading_comment(&template);
+        let (top, entry) = template.split_once(PERSIST_ENTRY_MARKER).ok_or_else(|| {
+            anyhow!(
+                "template sem o marcador de entrada: {}",
+                template_path.display()
+            )
+        })?;
+        let today = &utc_now()[..10];
+        let note_of = |name: &str| -> String {
+            match copies
+                .iter()
+                .find(|(copied, _)| copied == name)
+                .map(|(_, copy)| copy)
+            {
+                Some(PersistCopy::Text {
+                    note: Some(note), ..
+                }) => format!(" ({note})"),
+                Some(PersistCopy::Excluded) => {
+                    " (não copiado: excluído por decisão do usuário)".to_string()
+                }
+                Some(PersistCopy::Large { size, hash, origin }) => format!(
+                    " (não copiado: {}, SHA-256 `{hash}`, original em `{origin}`)",
+                    human_size(*size)
+                ),
+                _ => String::new(),
+            }
+        };
+
+        let regression = self.evidence_dir(file)?.join("validation/regression");
+        let accepted = accepted_regressions(&regression);
+        let accepted_text = if accepted.is_empty() {
+            "nenhuma.".to_string()
+        } else {
+            accepted
+                .iter()
+                .map(|item| {
+                    format!(
+                        "\n  - `{}`: {} ([diff](validation/regression/{}))",
+                        item.command,
+                        item.decision,
+                        accepted_diff_name(item.number)
+                    )
+                })
+                .collect()
+        };
+        let evidence_names: HashSet<&str> = evidences.iter().map(|e| e.name.as_str()).collect();
+        let support: Vec<String> = copies
+            .iter()
+            .filter(|(name, _)| !evidence_names.contains(name.as_str()))
+            .map(|(name, copy)| match copy {
+                PersistCopy::Text { .. } | PersistCopy::Binary(_) => {
+                    format!("- [{name}]({name}){}", note_of(name))
+                }
+                _ => format!("- {name}{}", note_of(name)),
+            })
+            .collect();
+        let title = frontmatter_get(file, "title").unwrap_or_default();
+        let mut values: HashMap<&str, String> = HashMap::from([
+            ("TASK_ID", task.to_string()),
+            ("TASK_TITLE", title),
+            ("SPEC_ID", spec.to_string()),
+            ("DATE", today.to_string()),
+            (
+                "TESTS_RESULT",
+                frontmatter_get(file, "tests_result").unwrap_or_default(),
+            ),
+            (
+                "REGRESSION_RESULT",
+                frontmatter_get(file, "regression_result").unwrap_or_default(),
+            ),
+            ("ACCEPTED", accepted_text),
+            ("SUPPORT_FILES", support.join("\n")),
+        ]);
+        let mut guide = render_known(top, &values);
+
+        let automatic = self.cfg("evidence_automatic")?;
+        for evidence in evidences {
+            let field = |name: &str, missing: &str| {
+                evidence
+                    .fields
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| missing.to_string())
+            };
+            let copy = copies
+                .iter()
+                .find(|(name, _)| *name == evidence.name)
+                .map(|(_, copy)| copy);
+            let file_text = match copy {
+                Some(PersistCopy::Text { .. } | PersistCopy::Binary(_)) => {
+                    format!("[{0}]({0}){1}", evidence.name, note_of(&evidence.name))
+                }
+                _ => format!("{}{}", evidence.name, note_of(&evidence.name)),
+            };
+            let command = if evidence.kind == automatic {
+                evidence.rest.clone()
+            } else {
+                format!("evidência manual: {}", evidence.rest)
+            };
+            let review = match copy {
+                Some(PersistCopy::Binary(_)) => match reviews.get(evidence.name.as_str()) {
+                    Some(who) => format!("revisado pelo {who} em {today}, sem dado sensível."),
+                    None => previous_value(previous, &evidence.name, PERSIST_REVIEW_LABEL)
+                        .unwrap_or_else(|| "#{REVISAO}".to_string()),
+                },
+                Some(PersistCopy::Text { .. }) => {
+                    "texto conferido automaticamente; caminhos pessoais trocados por `~`."
+                        .to_string()
+                }
+                _ => "não copiado.".to_string(),
+            };
+            values = HashMap::from([
+                ("NAME", evidence.name.clone()),
+                ("PROVA", field("Prova", "#{PROVA}")),
+                ("COMMAND", command),
+                ("FILE", file_text),
+                ("TRECHO_ESPERADO", field("Trecho", "#{TRECHO_ESPERADO}")),
+                (
+                    "TRECHO",
+                    previous_value(previous, &evidence.name, PERSIST_TRECHO_LABEL)
+                        .unwrap_or_else(|| "#{TRECHO}".to_string()),
+                ),
+                ("FALHA", field("Falha", "#{FALHA}")),
+                ("ARTEFATO", field("Artefato", "não se aplica.")),
+                ("REVISAO", review),
+            ]);
+            guide.push_str(&render_known(entry, &values));
+        }
+        Ok(guide)
+    }
+
+    /// Problemas da persistência que impedem a conclusão; vazio com a persistência desligada.
+    fn persist_problems(&self, spec: &str, task: &str, file: &Path) -> Result<Vec<String>> {
+        let Some(settings) = self.persist_settings() else {
+            return Ok(Vec::new());
+        };
+        let target = settings.target(&self.project_root()?, spec, task);
+        let readme = target.join(&settings.readme);
+        let Ok(guide) = fs::read_to_string(&readme) else {
+            return Ok(vec![format!(
+                "evidências não persistidas: falta {}; execute vostok task persist {spec} {task}",
+                readme.display()
+            )]);
+        };
+        let mut problems = Vec::new();
+        for evidence in self.evidence_entries(&read(file)?)? {
+            if !guide
+                .lines()
+                .any(|line| line == format!("## {}", evidence.name))
+            {
+                problems.push(format!(
+                    "o guia {} não tem a entrada da evidência {}",
+                    settings.readme, evidence.name
+                ));
+            }
+        }
+        for (line, text) in template_leftovers(&guide) {
+            problems.push(format!(
+                "o guia {} tem campo a preencher: linha {line}: {text}",
+                settings.readme
+            ));
+        }
+        Ok(problems)
     }
 
     // --- Hash, registro de execução e histórico de ajustes ---
@@ -2035,6 +2456,400 @@ fn indented_tail(output: &[u8], count: usize) -> String {
         .iter()
         .map(|line| format!("    {line}"))
         .collect()
+}
+
+struct PersistSettings {
+    dir: String,
+    readme: String,
+    max_mb: f64,
+}
+
+impl PersistSettings {
+    fn target(&self, root: &Path, spec: &str, task: &str) -> PathBuf {
+        root.join(self.dir.replace("<SPEC>", spec).replace("<TASK>", task))
+    }
+}
+
+struct PersistOptions {
+    redact: Vec<String>,
+    exclude: Vec<String>,
+    accept: Vec<String>,
+    reviewed: Vec<String>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PersistDecision {
+    Redact,
+    Exclude,
+    Accept,
+}
+
+enum PersistCopy {
+    Text {
+        content: String,
+        note: Option<&'static str>,
+    },
+    Binary(Vec<u8>),
+    Excluded,
+    Large {
+        size: u64,
+        hash: String,
+        origin: String,
+    },
+}
+
+struct EvidenceEntry {
+    name: String,
+    kind: String,
+    rest: String,
+    fields: HashMap<String, String>,
+}
+
+/// Decisões do usuário por arquivo; um arquivo desconhecido ou com duas decisões é recusado.
+fn persist_decisions<'a>(
+    options: &'a PersistOptions,
+    files: &[String],
+) -> Result<HashMap<&'a str, PersistDecision>> {
+    let mut decisions = HashMap::new();
+    for (names, decision) in [
+        (&options.redact, PersistDecision::Redact),
+        (&options.exclude, PersistDecision::Exclude),
+        (&options.accept, PersistDecision::Accept),
+    ] {
+        for name in names {
+            if !files.contains(name) {
+                bail!("arquivo '{name}' não está entre as evidências da tarefa");
+            }
+            if decisions.insert(name.as_str(), decision).is_some() {
+                bail!("o arquivo '{name}' tem mais de uma decisão");
+            }
+        }
+    }
+    Ok(decisions)
+}
+
+/// Revisões de binários (`arquivo=agente` ou `arquivo=usuário`).
+fn persist_reviews<'a>(
+    reviewed: &'a [String],
+    files: &[String],
+) -> Result<HashMap<&'a str, &'a str>> {
+    let mut reviews = HashMap::new();
+    for item in reviewed {
+        let Some((name, who)) = item.split_once('=') else {
+            bail!("revisão fora do formato: '{item}' (use <arquivo>=<agente|usuário>)");
+        };
+        if !REVIEWERS.contains(&who) {
+            bail!("revisão com revisor inválido: '{who}' (use agente ou usuário)");
+        }
+        if !files.iter().any(|file| file == name) {
+            bail!("arquivo '{name}' não está entre as evidências da tarefa");
+        }
+        reviews.insert(name, who);
+    }
+    Ok(reviews)
+}
+
+/// Arquivos de `dir`, recursivamente, com o caminho relativo a `base`, em ordem.
+fn relative_files(base: &Path, dir: &Path) -> Result<Vec<String>> {
+    let mut found = Vec::new();
+    if !dir.is_dir() {
+        return Ok(found);
+    }
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(current) = pending.pop() {
+        for entry in fs::read_dir(&current)?.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if let Ok(relative) = path.strip_prefix(base) {
+                found.push(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    found.sort();
+    Ok(found)
+}
+
+fn relative_to(path: &Path, root: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// Conteúdo de texto: UTF-8 sem byte nulo.
+fn text_content(bytes: &[u8]) -> Option<&str> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    (!text.contains('\0')).then_some(text)
+}
+
+/// Troca `/Users/<usuário>` e `/home/<usuário>` por `~`.
+fn home_to_tilde(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    'scan: while !rest.is_empty() {
+        for prefix in ["/Users/", "/home/"] {
+            if let Some(after) = rest.strip_prefix(prefix) {
+                let boundary = out
+                    .chars()
+                    .last()
+                    .is_none_or(|c| !(c.is_alphanumeric() || "_.-/~".contains(c)));
+                let user_len = after
+                    .find(|c: char| c == '/' || c.is_whitespace() || "\"'`:),;".contains(c))
+                    .unwrap_or(after.len());
+                if boundary && user_len > 0 {
+                    out.push('~');
+                    rest = &after[user_len..];
+                    continue 'scan;
+                }
+            }
+        }
+        let ch = rest.chars().next().unwrap_or_default();
+        out.push(ch);
+        rest = &rest[ch.len_utf8()..];
+    }
+    out
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum SensitiveKind {
+    Secret,
+    Ip,
+    Email,
+    Cpf,
+}
+
+impl SensitiveKind {
+    fn label(self) -> &'static str {
+        match self {
+            SensitiveKind::Secret => "segredo",
+            SensitiveKind::Ip => "IP",
+            SensitiveKind::Email => "e-mail",
+            SensitiveKind::Cpf => "CPF",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct SensitiveSpan {
+    line: usize,
+    /// Posição em bytes no texto inteiro.
+    start: usize,
+    end: usize,
+    kind: SensitiveKind,
+}
+
+const SECRET_PREFIXES: [&str; 11] = [
+    "sk-",
+    "sk_live_",
+    "ghp_",
+    "gho_",
+    "ghs_",
+    "github_pat_",
+    "glpat-",
+    "xoxb-",
+    "xoxp-",
+    "AKIA",
+    "AIza",
+];
+const SECRET_KEYS: [&str; 8] = [
+    "password", "passwd", "senha", "secret", "api_key", "apikey", "api-key", "token",
+];
+
+/// Trechos com segredo, IP (exceto loopback e 0.0.0.0), e-mail ou CPF.
+fn sensitive_spans(text: &str) -> Vec<SensitiveSpan> {
+    let mut spans = Vec::new();
+    let mut offset = 0;
+    for (index, line) in text.split_inclusive('\n').enumerate() {
+        let words = words_of(line);
+        for (position, &(start, word)) in words.iter().enumerate() {
+            let previous = position
+                .checked_sub(1)
+                .map(|p| words[p].1.to_ascii_lowercase());
+            let key_value = word
+                .split_once(['=', ':'])
+                .filter(|(key, value)| is_secret_key(key) && value.len() >= 6);
+            let kind = if is_secret_token(word)
+                || previous.as_deref() == Some("bearer") && word.len() >= 8
+                || previous
+                    .as_deref()
+                    .is_some_and(|key| key.strip_suffix([':', '=']).is_some_and(is_secret_key))
+                    && word.len() >= 6
+            {
+                Some((start, word.len(), SensitiveKind::Secret))
+            } else if let Some((key, value)) = key_value {
+                Some((start + key.len() + 1, value.len(), SensitiveKind::Secret))
+            } else if is_email(word) {
+                Some((start, word.len(), SensitiveKind::Email))
+            } else if is_cpf(word) {
+                Some((start, word.len(), SensitiveKind::Cpf))
+            } else {
+                ip_in(word).map(|(at, len)| (start + at, len, SensitiveKind::Ip))
+            };
+            if let Some((start, len, kind)) = kind {
+                spans.push(SensitiveSpan {
+                    line: index + 1,
+                    start: offset + start,
+                    end: offset + start + len,
+                    kind,
+                });
+            }
+        }
+        offset += line.len();
+    }
+    spans
+}
+
+/// Palavras da linha, sem pontuação nas pontas, com a posição em bytes.
+fn words_of(line: &str) -> Vec<(usize, &str)> {
+    let mut words = Vec::new();
+    let mut start = None;
+    for (index, ch) in line.char_indices().chain([(line.len(), ' ')]) {
+        if ch.is_whitespace() {
+            if let Some(begin) = start.take() {
+                let raw: &str = &line[begin..index];
+                let trimmed = raw.trim_start_matches(['"', '\'', '`', '(', '[', '<']);
+                let lead = raw.len() - trimmed.len();
+                let trimmed =
+                    trimmed.trim_end_matches(['"', '\'', '`', ')', ']', '>', ',', ';', '.']);
+                if !trimmed.is_empty() {
+                    words.push((begin + lead, trimmed));
+                }
+            }
+        } else if start.is_none() {
+            start = Some(index);
+        }
+    }
+    words
+}
+
+fn is_secret_key(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    SECRET_KEYS.iter().any(|name| key.ends_with(name))
+}
+
+fn is_secret_token(word: &str) -> bool {
+    SECRET_PREFIXES.iter().any(|prefix| {
+        word.strip_prefix(prefix).is_some_and(|rest| {
+            rest.len() >= 16
+                && rest
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        })
+    })
+}
+
+fn is_email(word: &str) -> bool {
+    let Some((local, domain)) = word.split_once('@') else {
+        return false;
+    };
+    let valid = |c: char| c.is_ascii_alphanumeric() || "._%+-".contains(c);
+    !local.is_empty()
+        && local.chars().all(valid)
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && domain
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+}
+
+fn is_cpf(word: &str) -> bool {
+    let bytes = word.as_bytes();
+    bytes.len() == 14
+        && bytes.iter().enumerate().all(|(index, byte)| match index {
+            3 | 7 => *byte == b'.',
+            11 => *byte == b'-',
+            _ => byte.is_ascii_digit(),
+        })
+}
+
+/// IPv4 na palavra (aceita porta e máscara depois), exceto loopback e 0.0.0.0.
+fn ip_in(word: &str) -> Option<(usize, usize)> {
+    let candidate = word.split([':', '/']).next()?;
+    let octets: Vec<&str> = candidate.split('.').collect();
+    let valid = octets.len() == 4
+        && octets.iter().all(|octet| {
+            !octet.is_empty()
+                && octet.len() <= 3
+                && octet.chars().all(|c| c.is_ascii_digit())
+                && octet.parse::<u16>().is_ok_and(|value| value <= 255)
+        });
+    let excluded = candidate.starts_with("127.") || candidate == "0.0.0.0";
+    (valid && !excluded).then_some((0, candidate.len()))
+}
+
+fn redact_spans(text: &str, spans: &[SensitiveSpan]) -> String {
+    let mut sorted: Vec<&SensitiveSpan> = spans.iter().collect();
+    sorted.sort_by_key(|span| span.start);
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0;
+    for span in sorted {
+        if span.start < cursor {
+            continue;
+        }
+        out.push_str(&text[cursor..span.start]);
+        out.push_str("[REDIGIDO]");
+        cursor = span.end;
+    }
+    out.push_str(&text[cursor..]);
+    out
+}
+
+fn strip_leading_comment(template: &str) -> &str {
+    if let Some(rest) = template.strip_prefix("<!--") {
+        if let Some(end) = rest.find("-->") {
+            return rest[end + 3..].trim_start_matches('\n');
+        }
+    }
+    template
+}
+
+/// Substitui as variáveis conhecidas numa passada só; as desconhecidas ficam no texto.
+fn render_known(template: &str, values: &HashMap<&str, String>) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(start) = rest.find("#{") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        match after.find('}') {
+            Some(end) if values.contains_key(&after[..end]) => {
+                out.push_str(&values[&after[..end]]);
+                rest = &after[end + 1..];
+            }
+            _ => {
+                out.push_str("#{");
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Valor já preenchido de um campo da entrada `## <nome>` do guia anterior.
+fn previous_value(guide: &str, name: &str, label: &str) -> Option<String> {
+    let heading = format!("## {name}");
+    let mut inside = false;
+    for line in guide.lines() {
+        if line.starts_with("## ") {
+            inside = line == heading;
+        } else if inside {
+            if let Some(value) = line.strip_prefix(label) {
+                let filled = !value.trim().is_empty() && template_leftovers(value).is_empty();
+                return filled.then(|| value.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn previous_review_done(guide: &str, name: &str) -> bool {
+    previous_value(guide, name, PERSIST_REVIEW_LABEL).is_some()
+}
+
+fn human_size(bytes: u64) -> String {
+    format!("{:.1} MB", bytes as f64 / 1_048_576.0)
 }
 
 /// Saída completa do `diff` entre o baseline e a nova saída.

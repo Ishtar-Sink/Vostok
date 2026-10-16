@@ -145,3 +145,11 @@ card_fields:
   - Rótulos
   - Estimativa
   - Bloqueada por
+
+# Persistência das evidências no projeto (`vostok task persist`). Com `persist_dir` vazio, ela fica
+# desligada e a conclusão funciona como antes. O caminho parte da raiz do projeto, com <SPEC> e <TASK>
+# (ex.: docs/evidencias/<SPEC>/<TASK>). Arquivos acima de `persist_max_mb` não são copiados: o guia
+# registra o tamanho, o SHA-256 e onde fica o original.
+persist_dir: ""
+persist_readme: README.md
+persist_max_mb: 10

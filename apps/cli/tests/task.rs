@@ -403,3 +403,298 @@ fn evidence_subitems_are_ignored_when_recording() {
     );
     assert_eq!(evidence, "a\n");
 }
+
+// --- Persistência das evidências no projeto (SPEC-009) ---
+
+const PERSIST_DIR: &str = "docs/evidencias/SPEC-001/TASK-01";
+const EVIDENCE_DIR: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01";
+const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
+
+fn set_config(project: &Project, key: &str, value: &str) {
+    let path = "vostok/config/tasks.yml";
+    let content: String = read(project, path)
+        .lines()
+        .map(|line| {
+            if line.starts_with(&format!("{key}:")) {
+                format!("{key}: {value}\n")
+            } else {
+                format!("{line}\n")
+            }
+        })
+        .collect();
+    write(project, path, &content);
+}
+
+/// Tarefa validada, com uma evidência automática (`saida.txt`, de `cat valor.txt`) e uma manual
+/// (`tela.png`), com a persistência ligada.
+fn validated_task(value: &str) -> Project {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    set_config(&project, "persist_dir", "docs/evidencias/<SPEC>/<TASK>");
+    let content = read(&project, TASK_PATH).replace(
+        "### Evidências\n\nNão se aplica.\n",
+        "### Evidências\n\n- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha com o valor.\n  - Falha: arquivo ausente.\n- `tela.png` (manual): print da tela\n  - Prova: a tela abre.\n  - Trecho: o título.\n  - Falha: tela em branco.\n",
+    );
+    write(&project, TASK_PATH, &content);
+    write(&project, "valor.txt", value);
+    write(&project, &format!("{EVIDENCE_DIR}/tela.png"), "");
+    std::fs::write(project.root().join(format!("{EVIDENCE_DIR}/tela.png")), PNG).unwrap();
+    task(&project, &["tests"]).assert().success();
+    let _ = task(&project, &["regression"]).output();
+    if status(&project) == "blocked" {
+        task(
+            &project,
+            &["resume", "--accept-regression", "1", "valor novo esperado"],
+        )
+        .assert()
+        .success();
+        task(&project, &["tests"]).assert().success();
+        task(&project, &["regression"]).assert().success();
+    }
+    task(&project, &["evidence"]).assert().success();
+    project
+}
+
+fn guide(project: &Project) -> String {
+    read(project, &format!("{PERSIST_DIR}/README.md"))
+}
+
+fn fill_trechos(project: &Project) {
+    let filled = guide(project).replace("#{TRECHO}", "a linha `a`.");
+    write(project, &format!("{PERSIST_DIR}/README.md"), &filled);
+}
+
+#[test]
+fn persisted_evidence_has_files_and_a_complete_guide() {
+    let project = validated_task("a\n");
+    let output = stdout(&mut task(&project, &["persist"]));
+    assert!(output.contains("Binários sem revisão"), "{output}");
+    assert!(output.contains("- tela.png"));
+    for file in [
+        "saida.txt",
+        "tela.png",
+        "baseline/01.out",
+        "validation/tests.out",
+        "README.md",
+    ] {
+        assert!(exists(&project, &format!("{PERSIST_DIR}/{file}")), "{file}");
+    }
+    let text = guide(&project);
+    assert!(text.starts_with("# TASK-01: Tarefa\n"), "{text}");
+    assert!(text.contains("## saida.txt\n"));
+    assert!(text.contains("- **Prova:** o valor é lido."));
+    assert!(text.contains("- **Como gerar:** `cat valor.txt`"));
+    assert!(text.contains("- **Arquivo:** [saida.txt](saida.txt)"));
+    assert!(text.contains("- **O que procurar:** a linha com o valor."));
+    assert!(text.contains("- **Sinal de falha:** arquivo ausente."));
+    assert!(text.contains("- **Revisão:** #{REVISAO}"));
+    assert!(text.contains("[baseline/01.out](baseline/01.out)"));
+
+    let refused = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(refused.contains("campo a preencher"), "{refused}");
+
+    task(&project, &["persist", "--reviewed", "tela.png=agente"])
+        .assert()
+        .success();
+    fill_trechos(&project);
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+    assert!(guide(&project).contains("revisado pelo agente em"));
+}
+
+#[test]
+fn filled_fields_survive_a_new_persist() {
+    let project = validated_task("a\n");
+    task(&project, &["persist", "--reviewed", "tela.png=usuário"])
+        .assert()
+        .success();
+    fill_trechos(&project);
+    task(&project, &["persist"]).assert().success();
+    let text = guide(&project);
+    assert!(
+        text.contains("- **Trecho que prova:** a linha `a`."),
+        "{text}"
+    );
+    assert!(text.contains("revisado pelo usuário em"));
+}
+
+#[test]
+fn personal_paths_become_a_tilde_only_in_the_copy() {
+    let project = validated_task("/Users/fulano/x e /home/beltrano/y\n");
+    task(&project, &["persist"]).assert().success();
+    assert_eq!(
+        read(&project, &format!("{PERSIST_DIR}/saida.txt")),
+        "~/x e ~/y\n"
+    );
+    assert_eq!(
+        read(&project, &format!("{EVIDENCE_DIR}/saida.txt")),
+        "/Users/fulano/x e /home/beltrano/y\n"
+    );
+}
+
+#[test]
+fn sensitive_data_blocks_the_copy_until_the_user_decides() {
+    let project = validated_task("token: sk-abcdefghijklmnopqrstuvwx\n");
+    let refused = failure_stderr(&mut task(&project, &["persist"]));
+    assert!(refused.contains("- saida.txt:1: segredo"), "{refused}");
+    assert!(
+        refused.contains("- validation/regression/01.out:3: segredo"),
+        "{refused}"
+    );
+    assert!(!exists(&project, PERSIST_DIR));
+
+    let diff = "validation/regression/accepted-01.diff";
+    assert!(
+        refused.contains(&format!("- {diff}:4: segredo")),
+        "{refused}"
+    );
+    let files = ["saida.txt", "validation/regression/01.out"];
+    task(
+        &project,
+        &[
+            "persist", "--redact", files[0], "--redact", files[1], "--redact", diff,
+        ],
+    )
+    .assert()
+    .success();
+    assert_eq!(
+        read(&project, &format!("{PERSIST_DIR}/saida.txt")),
+        "token: [REDIGIDO]\n"
+    );
+    assert!(guide(&project).contains("redigido por decisão do usuário"));
+
+    task(
+        &project,
+        &[
+            "persist",
+            "--exclude",
+            files[0],
+            "--accept",
+            files[1],
+            "--accept",
+            diff,
+        ],
+    )
+    .assert()
+    .success();
+    assert!(!exists(&project, &format!("{PERSIST_DIR}/saida.txt")));
+    assert!(guide(&project).contains("excluído por decisão do usuário"));
+    assert!(read(&project, &format!("{PERSIST_DIR}/{}", files[1])).contains("sk-abcdefghij"));
+}
+
+#[test]
+fn ips_emails_and_cpfs_block_but_loopback_does_not() {
+    for (value, kind) in [
+        ("servidor 10.1.2.3:8080\n", "IP"),
+        ("contato fulano@exemplo.com\n", "e-mail"),
+        ("cpf 123.456.789-09\n", "CPF"),
+        ("Authorization: Bearer abcdefgh12345678\n", "segredo"),
+    ] {
+        let project = validated_task(value);
+        let refused = failure_stderr(&mut task(&project, &["persist"]));
+        assert!(
+            refused.contains(&format!("saida.txt:1: {kind}")),
+            "{value}: {refused}"
+        );
+    }
+    let project = validated_task("ouvindo em 127.0.0.1:8080 e 0.0.0.0\n");
+    task(&project, &["persist"]).assert().success();
+}
+
+#[test]
+fn finish_refuses_without_the_guide() {
+    let project = validated_task("a\n");
+    task(&project, &["persist", "--reviewed", "tela.png=agente"])
+        .assert()
+        .success();
+    fill_trechos(&project);
+    std::fs::remove_file(project.root().join(format!("{PERSIST_DIR}/README.md"))).unwrap();
+    let refused = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(refused.contains("evidências não persistidas"), "{refused}");
+    assert_eq!(status(&project), "validating");
+}
+
+#[test]
+fn finish_without_persist_dir_works_as_before() {
+    let project = validated_task("a\n");
+    set_config(&project, "persist_dir", "\"\"");
+    task(&project, &["finish"]).assert().success();
+    assert!(!exists(&project, "docs"));
+}
+
+#[test]
+fn done_tasks_can_be_persisted() {
+    let project = validated_task("a\n");
+    set_config(&project, "persist_dir", "\"\"");
+    task(&project, &["finish"]).assert().success();
+    set_config(&project, "persist_dir", "docs/evidencias/<SPEC>/<TASK>");
+    task(&project, &["persist"]).assert().success();
+    assert!(exists(&project, &format!("{PERSIST_DIR}/README.md")));
+}
+
+#[test]
+fn guide_lists_the_accepted_regressions() {
+    let project = validated_task("b\n");
+    task(&project, &["persist"]).assert().success();
+    let text = guide(&project);
+    assert!(
+        text.contains(
+            "`cat valor.txt`: valor novo esperado ([diff](validation/regression/accepted-01.diff))"
+        ),
+        "{text}"
+    );
+    assert!(exists(
+        &project,
+        &format!("{PERSIST_DIR}/validation/regression/accepted-01.diff")
+    ));
+}
+
+#[test]
+fn files_above_the_limit_are_registered_but_not_copied() {
+    let project = validated_task("a\n");
+    set_config(&project, "persist_max_mb", "0.000005");
+    task(&project, &["persist"]).assert().success();
+    assert!(!exists(&project, &format!("{PERSIST_DIR}/tela.png")));
+    let text = guide(&project);
+    assert!(text.contains("tela.png (não copiado:"), "{text}");
+    assert!(text.contains("SHA-256 `"));
+    assert!(text.contains(&format!("original em `{EVIDENCE_DIR}/tela.png`")));
+}
+
+#[test]
+fn guide_name_comes_from_the_configuration() {
+    let project = validated_task("a\n");
+    set_config(&project, "persist_readme", "LEIA-ME.md");
+    task(&project, &["persist", "--reviewed", "tela.png=agente"])
+        .assert()
+        .success();
+    let path = format!("{PERSIST_DIR}/LEIA-ME.md");
+    let filled = read(&project, &path).replace("#{TRECHO}", "ok.");
+    write(&project, &path, &filled);
+    assert!(!exists(&project, &format!("{PERSIST_DIR}/README.md")));
+    task(&project, &["finish"]).assert().success();
+}
+
+#[test]
+fn persist_refuses_foreign_files_and_unfinished_tasks() {
+    let project = validated_task("a\n");
+    write(&project, &format!("{PERSIST_DIR}/outro.txt"), "do time\n");
+    let refused = failure_stderr(&mut task(&project, &["persist"]));
+    assert!(refused.contains("- outro.txt"), "{refused}");
+    assert!(exists(&project, &format!("{PERSIST_DIR}/outro.txt")));
+
+    let running = running_task(&[("valor.txt", "a\n")]);
+    set_config(&running, "persist_dir", "docs/evidencias/<SPEC>/<TASK>");
+    let refused = failure_stderr(&mut task(&running, &["persist"]));
+    assert!(refused.contains("status 'in_progress'"), "{refused}");
+}
+
+#[test]
+fn persist_is_refused_when_disabled() {
+    let project = validated_task("a\n");
+    set_config(&project, "persist_dir", "\"\"");
+    let refused = failure_stderr(&mut task(&project, &["persist"]));
+    assert!(
+        refused.contains("a persistência está desligada"),
+        "{refused}"
+    );
+}

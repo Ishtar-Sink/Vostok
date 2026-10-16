@@ -18,7 +18,7 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/execute-task/SKILL.md: 7c4b86c0e1b3fe9eb7e597843daaf0e196fcde974bd9805f770b6cce74914029
   skills/default/finalize-spec/SKILL.md: 3973462a7b840f582be5e1f08c8e6140c36d9de2e575f011b57dde3a6b37f37d
-  skills/default/finish-task/SKILL.md: 96723d70592f39e58a19c78e1014b1617e0b2b3f8c4b51388c6f8fbbcb2eb101
+  skills/default/finish-task/SKILL.md: 23422d2117476345de4732bbe3d1b707038bcb5472160929b7b1945eee59ce9b
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: a4824876621c32eea3ec697fb2b5b3c68fab26be6d9ad4c5e4c3e4c83cc705e6
   skills/default/refine-spec/SKILL.md: 4ed6eb057fb51e33cb922ef20d8ced2ff117624f4f441e97b10c33fad254f9e4
@@ -65,4 +65,5 @@ files:
   templates/spec/sections/synthesis.md: 99f632efeb57e73659c4e4a3492c8433fac8e9fade4df4b3a6d367aea55df1d1
   templates/spec/sections/test-cases.md: a53796f4826f6fca95f6b93a50cd378cce09a1d901221b1cbeb7c60a2da66fbb
   templates/spec/sections/thesis.md: 2c8b9a23037ec37dff3b9f7dfcd7c382ea591c4d2663d5503881abec534de47b
+  templates/task/persist-readme.md: f328a65a1feae0310ac295474f075e6612d57f01006dc49acc79356490988fba
   templates/task/task.md: 20c1c38b19ae9f4b4fb7411db79b9898d32a8fb6fe0a42394d1942eed317b9d8

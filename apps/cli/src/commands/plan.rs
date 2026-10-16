@@ -12,8 +12,9 @@ use clap::Subcommand;
 
 use crate::harness::Harness;
 use crate::support::{
-    config_get, config_list, frontmatter_get, markdown_cell, markdown_section, markdown_subsection,
-    markdown_table_rows, render, sha256_hex, template_leftovers, yaml_escape,
+    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
+    markdown_section, markdown_subsection, markdown_table_rows, render, sha256_hex,
+    template_leftovers, yaml_escape, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -139,6 +140,16 @@ impl Workspace {
 
     fn task_list(&self, key: &str) -> Result<Vec<String>> {
         config_list(&self.harness.config_file("tasks.yml"), key)
+    }
+
+    /// Subitens das evidências; sem `evidence_fields` na configuração, eles não são exigidos.
+    fn evidence_fields(&self) -> Option<EvidenceFields> {
+        Some(EvidenceFields {
+            required: self.task_list("evidence_fields").ok()?,
+            optional: self
+                .task_list("evidence_optional_fields")
+                .unwrap_or_default(),
+        })
     }
 
     fn plan_path(&self, spec_id: &str) -> Result<PathBuf> {
@@ -1022,7 +1033,10 @@ impl Workspace {
         }
         let mut errors = Vec::new();
         let mut count = 0;
-        for item in text.split('\n').filter(|item| !item.trim().is_empty()) {
+        for item in text
+            .split('\n')
+            .filter(|item| !item.trim().is_empty() && !is_indented(item))
+        {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
             } else {
@@ -1036,6 +1050,8 @@ impl Workspace {
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
             ));
         }
+        let fields = self.evidence_fields();
+        errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));
         Ok(errors)
     }
 }

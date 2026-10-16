@@ -381,3 +381,25 @@ fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {
     let passed = stdout(&mut task(&project, &["regression"]));
     assert!(passed.contains("1 aceito(s) pelo usuário"), "{passed}");
 }
+
+#[test]
+fn evidence_subitems_are_ignored_when_recording() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let content = read(&project, TASK_PATH).replace(
+        "### Evidências\n\nNão se aplica.\n",
+        "### Evidências\n\n- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha `a`.\n  - Falha: arquivo ausente.\n",
+    );
+    write(&project, TASK_PATH, &content);
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        output.contains("1 item(ns). Resultado: passed."),
+        "{output}"
+    );
+    let evidence = read(
+        &project,
+        "vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt",
+    );
+    assert_eq!(evidence, "a\n");
+}

@@ -135,3 +135,14 @@ card_fields:
   - Rótulos
   - Estimativa
   - Bloqueada por
+
+# Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a
+# evidência prova e o critério coberto, o que procurar na saída, o que indicaria falha e, quando houver,
+# o artefato medido. A aprovação do plano exige os obrigatórios; os leitores das evidências os ignoram.
+evidence_fields:
+  - Prova
+  - Trecho
+  - Falha
+
+evidence_optional_fields:
+  - Artefato

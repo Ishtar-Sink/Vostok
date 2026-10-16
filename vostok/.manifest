@@ -12,7 +12,7 @@ files:
   skills/default/adjust-spec/SKILL.md: 6a137364ce59ac8c6d7cafddccd16002d71854c8fa859712d2f25ff3766a0642
   skills/default/adjust-task/SKILL.md: fa41b7f3d284d5ba824bf217ad29211457d344c28a7fe328b77665abe9b8fbf3
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: 64e1d0af18c267419da9fe76ce0de9749f8280ecba426be0a871f8509980e80b
+  skills/default/approve-plan/SKILL.md: 5b28d5b820edada6b3c14e21cbedacf8d170c19621ee192eb6de9c744f53f217
   skills/default/approve-spec/SKILL.md: ffdbd013691a23bc934692ae96a6fee5bbd7804b402c14706b8863791f141c2e
   skills/default/approve-task/SKILL.md: 914da3dc41374b955c1b9db5ea3ca800752d75f4dadf976c35bc9f8744c36d27
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501

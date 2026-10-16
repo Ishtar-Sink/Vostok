@@ -14,8 +14,9 @@ use clap::Subcommand;
 
 use crate::harness::Harness;
 use crate::support::{
-    config_get, config_list, frontmatter_get, frontmatter_lines, frontmatter_set, markdown_section,
-    markdown_subsection, sha256_hex, template_leftovers,
+    config_get, config_list, evidence_subitem_errors, frontmatter_get, frontmatter_lines,
+    frontmatter_set, is_indented, markdown_section, markdown_subsection, sha256_hex,
+    template_leftovers, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -255,6 +256,16 @@ impl Tasks {
 
     fn cfg_list(&self, key: &str) -> Result<Vec<String>> {
         config_list(&self.harness.config_file("tasks.yml"), key)
+    }
+
+    /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.
+    fn evidence_fields(&self) -> Option<EvidenceFields> {
+        Some(EvidenceFields {
+            required: self.cfg_list("evidence_fields").ok()?,
+            optional: self
+                .cfg_list("evidence_optional_fields")
+                .unwrap_or_default(),
+        })
     }
 
     fn spec_cfg(&self, key: &str) -> Result<String> {
@@ -908,7 +919,10 @@ impl Tasks {
         self.require_running(&file, task)?;
         let dir = self.evidence_dir(&file)?;
         let text = self.subsection(&read(&file)?, "evidence_subsection")?;
-        let items: Vec<&str> = text.lines().filter(|line| has_text(line)).collect();
+        let items: Vec<&str> = text
+            .lines()
+            .filter(|line| has_text(line) && !is_indented(line))
+            .collect();
         let none = self.cfg("evidence_none")?;
         let automatic = self.cfg("evidence_automatic")?;
         let manual = self.cfg("evidence_manual")?;
@@ -1391,7 +1405,10 @@ impl Tasks {
         }
         let mut errors = Vec::new();
         let mut count = 0;
-        for item in text.lines().filter(|line| has_text(line)) {
+        for item in text
+            .lines()
+            .filter(|line| has_text(line) && !is_indented(line))
+        {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
             } else {
@@ -1403,6 +1420,8 @@ impl Tasks {
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
             ));
         }
+        let fields = self.evidence_fields();
+        errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), false));
         Ok(errors)
     }
 

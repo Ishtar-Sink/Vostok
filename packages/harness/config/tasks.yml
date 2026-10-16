@@ -108,6 +108,16 @@ evidence_automatic: automática
 evidence_manual: manual
 evidence_none: Não se aplica.
 
+# Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a
+# evidência prova e o critério coberto, o que procurar na saída, o que indicaria falha e, quando houver,
+# o artefato medido. A aprovação do plano exige os obrigatórios; os leitores das evidências os ignoram.
+evidence_fields:
+  - Prova
+  - Trecho
+  - Falha
+evidence_optional_fields:
+  - Artefato
+
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples
 # ("  > Como comprovar: o que conferir e o resultado esperado").

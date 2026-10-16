@@ -101,7 +101,18 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 - **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.
 - **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.
 - **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.
-- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.`
+- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:
+  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.
+  - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova).
+  - `Falha:` o que apareceria se a tarefa tivesse falhado.
+  - `Artefato:` opcional, o artefato medido (versão, build type, SHA-256).
+
+  ```markdown
+  - `cargo-test.txt` (automática): `cargo test`
+    - Prova: os testes do aceite passam (RF-01, CT-01).
+    - Trecho: as linhas `test accepted_... ok` e `test result: ok`.
+    - Falha: `FAILED` ou `test result: FAILED`.
+  ```
 - **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.
 
 **Descrição** (para pessoas):

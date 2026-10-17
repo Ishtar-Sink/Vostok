@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-008 · Documento técnico · Reportar bug no harness</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-008 · aprovada em 2026-10-17 · concluída em 2026-10-17</p>
+    <h1>Reportar bug no harness</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>O ciclo tem três skills e um subcomando. O <code>vostok bug check</code> valida a forma do relato (front-matter, prefixo <code>[harness-bug]</code>, seções preenchidas, sem sobras de template) e o <code>vostok bug link</code> monta o link de nova issue para quem não tem <code>gh</code>. A skill padrão <code>report-harness-bug</code> monta o relato em <code>work/bugs/</code> e cria a issue em <code>harness.repository</code>; a skill local <code>fix-harness-bug</code> transforma a issue numa spec e, depois da release, responde com o marcador <code>&lt;!-- vostok:fix --&gt;</code>; a skill padrão <code>validate-harness-bug</code> encontra a resposta, aplica os passos e comenta e fecha a issue. Toda escrita no GitHub exige autorização do usuário.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/bug.rs</code>: subcomandos <code>check</code> e <code>link</code>; o link usa codificação percentual própria e cai para só o título acima de 8000 caracteres.</li>
+<li><code>packages/harness/templates/bug/report.md</code>: template do relato.</li>
+<li><code>packages/harness/config/main.yml</code>: chaves <code>paths.bugs</code> e <code>harness.repository</code>.</li>
+<li><code>packages/harness/skills/default/report-harness-bug/</code> e <code>validate-harness-bug/</code>: skills distribuídas.</li>
+<li><code>vostok/skills/custom/fix-harness-bug/</code>: skill local, não distribuída.</li>
+<li><code>vostok/rules/project/development-methodology.md</code>: regra 04, do mínimo de tarefas para specs vindas de issue.</li>
+<li><code>.github/ISSUE_TEMPLATE/harness-bug.yml</code>: formulário de issue com as seções do relato.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li><strong>TASK-01:</strong> subcomando <code>vostok bug</code>, template do relato e configuração, com 7 testes de integração.</li>
+<li><strong>TASK-02:</strong> skill <code>report-harness-bug</code> (8 regras, 8 passos), com neutralização, <code>vostok bug check</code>, autorização, <code>gh issue create</code> ou <code>vostok bug link</code>, e o número gravado no relato; modelo de issue do repositório.</li>
+<li><strong>TASK-03:</strong> skill <code>validate-harness-bug</code> (9 regras, 9 passos): listagem pelo marcador, conferência da release, reinstalação, <code>vostok update</code>, retomada, conferência e comentário com fechamento.</li>
+<li><strong>TASK-04:</strong> skill local <code>fix-harness-bug</code> em dois modos (issue para spec; resposta depois da release), a regra do mínimo de tarefas e a seção do ciclo no <code>README.md</code>.</li>
+<li>As TASK-02 a 04 rodaram em paralelo, por subagentes; o teste de ponta a ponta usou o repositório privado <code>Ishtar-Sink/harness-tests</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-04</td><td>O <code>vostok bug check &lt;arquivo&gt;</code> deve validar que o relato tem todas as seções do template preenchidas, sem variáveis de template sem preencher, e listar os problemas sem alterar nada.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>O <code>vostok bug link &lt;arquivo&gt;</code> deve imprimir o link de nova issue do repositório de <code>harness.repository</code>, com título e corpo do relato codificados na URL.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Relato completo</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Relato incompleto</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Envio sem <code>gh</code></td><td><span class="chip">TASK-01</span><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Link longo</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-01</td><td>A skill <code>report-harness-bug</code> deve montar o relato a partir do template, com versão do <code>vostok</code>, sistema operacional, comando, comportamento atual, comportamento esperado, passos para reproduzir, causa provável e o que já foi tentado.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-02</td><td>A skill <code>report-harness-bug</code> deve trocar dados do projeto do usuário (caminhos, nomes, trechos de código, saídas) por exemplos neutros e mascarar segredos antes de mostrar o relato.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-03</td><td>A skill <code>report-harness-bug</code> deve mostrar o relato inteiro ao usuário e só seguir para o envio com a autorização explícita dele.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-05</td><td>A skill <code>report-harness-bug</code> deve criar a issue com <code>gh issue create</code> no repositório de <code>harness.repository</code>, com o título prefixado por <code>[harness-bug]</code>, quando o <code>gh</code> estiver instalado e autenticado.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-07</td><td>A skill <code>report-harness-bug</code> deve, sem <code>gh</code>, mostrar o link do <code>vostok bug link</code> para o usuário abrir no navegador e pedir o número da issue criada.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-08</td><td>A skill <code>report-harness-bug</code> deve guardar o relato em <code>vostok/work/bugs/</code>, com o número da issue quando conhecido.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-16</td><td>As skills <code>report-harness-bug</code> e <code>validate-harness-bug</code> devem ler issues sem <code>gh</code> pela API pública do GitHub com <code>curl</code>, e, sem <code>gh</code>, entregar ao usuário o texto e o link para comentar à mão.</td><td><span class="chip">TASK-02</span><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">RF-17</td><td>O repositório deve ter o modelo de issue <code>.github/ISSUE_TEMPLATE/harness-bug.yml</code> com as mesmas seções do relato.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-18</td><td>As descrições das três skills devem dizer que tratam de defeitos do próprio harness Vostok, não do projeto do usuário.</td><td><span class="chip">TASK-02</span><span class="chip">TASK-03</span><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Neutralização</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Envio com <code>gh</code></td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-11</td><td>Modelo de issue</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-12</td><td>Gatilho</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-13</td><td>A skill <code>validate-harness-bug</code> deve listar as issues abertas do usuário com uma resposta marcada com <code>&lt;!-- vostok:fix --&gt;</code>, ou ler a issue informada.</td><td><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">RF-14</td><td>A skill <code>validate-harness-bug</code> deve seguir os passos da resposta no projeto do usuário e conferir se o defeito relatado deixou de acontecer.</td><td><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">RF-15</td><td>A skill <code>validate-harness-bug</code> deve, com autorização do usuário, comentar o resultado na issue e fechá-la quando o defeito sumiu, ou deixá-la aberta com o relato da falha.</td><td><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">CT-10</td><td>Validação</td><td><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">RF-09</td><td>A skill <code>fix-harness-bug</code> deve listar as issues abertas com <code>[harness-bug]</code> no título, ou ler a issue informada, com o corpo e os comentários.</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">RF-10</td><td>A skill <code>fix-harness-bug</code> deve criar o rascunho da spec com <code>vostok spec new</code>, citando o número e o link da issue, e seguir para a skill <code>refine-spec</code>.</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">RF-11</td><td>A skill <code>fix-harness-bug</code> deve, depois de publicada a release com a correção, montar a resposta com a versão e os passos (reinstalar, <code>vostok update</code>, retomar o que travou), mostrar ao usuário e, com autorização, comentar na issue com o marcador <code>&lt;!-- vostok:fix --&gt;</code>.</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">RF-12</td><td>A regra do projeto deste repositório deve pedir à skill <code>plan-tasks</code> o mínimo de tarefas para specs criadas a partir de uma issue.</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Spec a partir da issue</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">CT-08</td><td>Plano mínimo</td><td><span class="chip">TASK-04</span></td></tr>
+<tr><td class="mono">CT-09</td><td>Resposta da correção</td><td><span class="chip">TASK-04</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/config/main.yml</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">packages/harness/templates/bug/report.md</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">apps/cli/src/commands/bug.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/mod.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/cli.rs</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">apps/cli/tests/bug.rs</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">packages/harness/skills/default/report-harness-bug/SKILL.md</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">.github/ISSUE_TEMPLATE/harness-bug.yml</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/context/skill-catalog.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/config/context.yml</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">packages/harness/skills/default/validate-harness-bug/SKILL.md</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">vostok/skills/custom/fix-harness-bug/SKILL.md</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">.claude/skills/fix-harness-bug/SKILL.md</td></tr>
+<tr><td><span class="tag criar">criar</span></td><td class="path">.agents/skills/fix-harness-bug/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/context/skill-catalog.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/rules/project/development-methodology.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/config/context.yml</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">README.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">packages/harness/config/main.yml</b><span class="tag criar">+6</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -13,3 +13,9 @@ paths:</td></tr>
+<tr><td class="ln">13</td><td class="code">  archive: ./work/.archive    # specs finalizadas, com tarefas e evidências, fora do git</td><td class="ln">13</td><td class="code">  archive: ./work/.archive    # specs finalizadas, com tarefas e evidências, fora do git</td></tr>
+<tr><td class="ln">14</td><td class="code">  finalize: ./work/finalize    # conteúdo e documentos de uma spec antes do arquivamento</td><td class="ln">14</td><td class="code">  finalize: ./work/finalize    # conteúdo e documentos de uma spec antes do arquivamento</td></tr>
+<tr><td class="ln">15</td><td class="code">  spec_docs: ../docs/specs  # documentos publicados de cada spec finalizada (executivo e técnico)</td><td class="ln">15</td><td class="code">  spec_docs: ../docs/specs  # documentos publicados de cada spec finalizada (executivo e técnico)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">16</td><td class="code add">  bugs: ./work/bugs          # relatos de defeitos do próprio harness (skill report-harness-bug)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">17</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">18</td><td class="code add"># Repositório das issues de defeitos do próprio harness (skills report-harness-bug e</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">19</td><td class="code add"># validate-harness-bug e subcomando `vostok bug link`).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">20</td><td class="code add">harness:</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">21</td><td class="code add">  repository: Ishtar-Sink/Vostok</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/mod.rs</b><span class="tag criar">+1</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1,5 +1,6 @@</td></tr>
+<tr><td class="ln">1</td><td class="code">//! Um módulo por grupo de comandos.</td><td class="ln">1</td><td class="code">//! Um módulo por grupo de comandos.</td></tr>
+<tr><td class="ln">2</td><td class="code"></td><td class="ln">2</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3</td><td class="code add">pub mod bug;</td></tr>
+<tr><td class="ln">3</td><td class="code">pub mod commit;</td><td class="ln">4</td><td class="code">pub mod commit;</td></tr>
+<tr><td class="ln">4</td><td class="code">pub mod context;</td><td class="ln">5</td><td class="code">pub mod context;</td></tr>
+<tr><td class="ln">5</td><td class="code">pub mod finalize;</td><td class="ln">6</td><td class="code">pub mod finalize;</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/cli.rs</b><span class="tag criar">+5</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -4,7 +4,7 @@ use anyhow::Result;</td></tr>
+<tr><td class="ln">4</td><td class="code">use clap::{Parser, Subcommand};</td><td class="ln">4</td><td class="code">use clap::{Parser, Subcommand};</td></tr>
+<tr><td class="ln">5</td><td class="code"></td><td class="ln">5</td><td class="code"></td></tr>
+<tr><td class="ln">6</td><td class="code">use crate::commands::{</td><td class="ln">6</td><td class="code">use crate::commands::{</td></tr>
+<tr><td class="ln">7</td><td class="code del">    commit, context, finalize, init, memory, plan, rules, skill, spec, task, update,</td><td class="ln">7</td><td class="code add">    bug, commit, context, finalize, init, memory, plan, rules, skill, spec, task, update,</td></tr>
+<tr><td class="ln">8</td><td class="code">};</td><td class="ln">8</td><td class="code">};</td></tr>
+<tr><td class="ln">9</td><td class="code"></td><td class="ln">9</td><td class="code"></td></tr>
+<tr><td class="ln">10</td><td class="code">#[derive(Debug, Parser)]</td><td class="ln">10</td><td class="code">#[derive(Debug, Parser)]</td></tr>
+<tr class="hunk"><td colspan="4">@@ -47,6 +47,9 @@ pub enum Command {</td></tr>
+<tr><td class="ln">47</td><td class="code">    /// Finalização de specs.</td><td class="ln">47</td><td class="code">    /// Finalização de specs.</td></tr>
+<tr><td class="ln">48</td><td class="code">    #[command(subcommand)]</td><td class="ln">48</td><td class="code">    #[command(subcommand)]</td></tr>
+<tr><td class="ln">49</td><td class="code">    Finalize(finalize::FinalizeCommand),</td><td class="ln">49</td><td class="code">    Finalize(finalize::FinalizeCommand),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">50</td><td class="code add">    /// Relato de defeitos do próprio harness.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">51</td><td class="code add">    #[command(subcommand)]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">52</td><td class="code add">    Bug(bug::BugCommand),</td></tr>
+<tr><td class="ln">50</td><td class="code">    /// Instala o harness no projeto.</td><td class="ln">53</td><td class="code">    /// Instala o harness no projeto.</td></tr>
+<tr><td class="ln">51</td><td class="code">    Init(init::InitArgs),</td><td class="ln">54</td><td class="code">    Init(init::InitArgs),</td></tr>
+<tr><td class="ln">52</td><td class="code">    /// Atualiza o harness instalado.</td><td class="ln">55</td><td class="code">    /// Atualiza o harness instalado.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -64,6 +67,7 @@ pub fn run(cli: Cli) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">64</td><td class="code">        Command::Commit(command) =&gt; commit::run(command),</td><td class="ln">67</td><td class="code">        Command::Commit(command) =&gt; commit::run(command),</td></tr>
+<tr><td class="ln">65</td><td class="code">        Command::Skill(command) =&gt; skill::run(command),</td><td class="ln">68</td><td class="code">        Command::Skill(command) =&gt; skill::run(command),</td></tr>
+<tr><td class="ln">66</td><td class="code">        Command::Finalize(command) =&gt; finalize::run(command),</td><td class="ln">69</td><td class="code">        Command::Finalize(command) =&gt; finalize::run(command),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">70</td><td class="code add">        Command::Bug(command) =&gt; bug::run(command),</td></tr>
+<tr><td class="ln">67</td><td class="code">        Command::Init(args) =&gt; init::run(args),</td><td class="ln">71</td><td class="code">        Command::Init(args) =&gt; init::run(args),</td></tr>
+<tr><td class="ln">68</td><td class="code">        Command::Update =&gt; update::run(),</td><td class="ln">72</td><td class="code">        Command::Update =&gt; update::run(),</td></tr>
+<tr><td class="ln">69</td><td class="code">    }</td><td class="ln">73</td><td class="code">    }</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/context/skill-catalog.md</b><span class="tag criar">+2</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -21,6 +21,8 @@ Habilidades incluídas junto ao harness.</td></tr>
+<tr><td class="ln">21</td><td class="code">| finalize-spec | Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec. | `../skills/default/finalize-spec` |</td><td class="ln">21</td><td class="code">| finalize-spec | Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec. | `../skills/default/finalize-spec` |</td></tr>
+<tr><td class="ln">22</td><td class="code">| init-harness | Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init. | `../skills/default/init-harness` |</td><td class="ln">22</td><td class="code">| init-harness | Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init. | `../skills/default/init-harness` |</td></tr>
+<tr><td class="ln">23</td><td class="code">| adjust-rules | Ajusta as regras do projeto, em rules/project/, e o mapa de carregamento do contexto, em config/context.yml. Aplica um ou vários ajustes pedidos numa mesma mensagem: criar, alterar ou remover uma regra, criar uma categoria de regras e incluir, mover ou retirar uma regra do mapa de uma skill ou do contexto obrigatório. Também grava a regra sugerida pelo agente depois que o usuário a aprova. Use quando o usuário pedir para criar, mudar, remover ou carregar uma regra ou categoria de regras do projeto, ou aprovar uma sugestão de regra. | `../skills/default/adjust-rules` |</td><td class="ln">23</td><td class="code">| adjust-rules | Ajusta as regras do projeto, em rules/project/, e o mapa de carregamento do contexto, em config/context.yml. Aplica um ou vários ajustes pedidos numa mesma mensagem: criar, alterar ou remover uma regra, criar uma categoria de regras e incluir, mover ou retirar uma regra do mapa de uma skill ou do contexto obrigatório. Também grava a regra sugerida pelo agente depois que o usuário a aprova. Use quando o usuário pedir para criar, mudar, remover ou carregar uma regra ou categoria de regras do projeto, ou aprovar uma sugestão de regra. | `../skills/default/adjust-rules` |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">24</td><td class="code add">| report-harness-bug | Relata um defeito do próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos), nunca do projeto do usuário: monta o relato a partir do template em work/bugs/, troca dados do projeto por exemplos neutros, mascara segredos, valida com vostok bug check, mostra o relato inteiro e, só com a autorização do usuário, cria a issue no repositório do harness com gh ou entrega o link preenchido para abrir no navegador. Use quando o usuário pedir para reportar, relatar ou abrir uma issue de um bug do harness ou do vostok, como &#39;reporta esse bug do harness&#39; ou /report-harness-bug. Não use para defeitos do código, das regras ou das skills customizadas do projeto do usuário. | `../skills/default/report-harness-bug` |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">25</td><td class="code add">| validate-harness-bug | Valida a correção de um defeito do próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos), não do projeto do usuário: encontra as issues [harness-bug] do usuário respondidas com a correção, reinstala a versão citada, roda vostok update, segue os passos de retomada da resposta, confere se o defeito relatado deixou de acontecer e, com autorização, comenta o resultado e fecha a issue. Use quando o usuário pedir /validate-harness-bug, &quot;valida a correção do bug do harness&quot;, ou disser que a issue #N foi respondida. Não use para defeitos do projeto do usuário. | `../skills/default/validate-harness-bug` |</td></tr>
+<tr><td class="ln">24</td><td class="code"></td><td class="ln">26</td><td class="code"></td></tr>
+<tr><td class="ln">25</td><td class="code">## Customizadas</td><td class="ln">27</td><td class="code">## Customizadas</td></tr>
+<tr><td class="ln">26</td><td class="code"></td><td class="ln">28</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/config/context.yml</b><span class="tag criar">+5</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -48,3 +48,8 @@ skills:</td></tr>
+<tr><td class="ln">48</td><td class="code">  adjust-rules:</td><td class="ln">48</td><td class="code">  adjust-rules:</td></tr>
+<tr><td class="ln">49</td><td class="code">    - rules/project/naming-convention.md</td><td class="ln">49</td><td class="code">    - rules/project/naming-convention.md</td></tr>
+<tr><td class="ln">50</td><td class="code">    - templates/rules/category.md</td><td class="ln">50</td><td class="code">    - templates/rules/category.md</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">51</td><td class="code add">  report-harness-bug:</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">52</td><td class="code add">    - config/main.yml</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">53</td><td class="code add">    - templates/bug/report.md</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">54</td><td class="code add">  validate-harness-bug:</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">55</td><td class="code add">    - config/main.yml</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/context/skill-catalog.md</b><span class="tag criar">+3</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -21,6 +21,8 @@ Habilidades incluídas junto ao harness.</td></tr>
+<tr><td class="ln">21</td><td class="code">| finalize-spec | Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec. | `../skills/default/finalize-spec` |</td><td class="ln">21</td><td class="code">| finalize-spec | Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec. | `../skills/default/finalize-spec` |</td></tr>
+<tr><td class="ln">22</td><td class="code">| init-harness | Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init. | `../skills/default/init-harness` |</td><td class="ln">22</td><td class="code">| init-harness | Inicializa o harness num projeto: investiga o código (manifestos, configurações de lint e de teste, estrutura de pastas), propõe regras por categoria citando a origem de cada uma, pergunta numa única rodada o que não se aplica, quais regras valem e onde cada categoria é carregada, e grava só o confirmado em rules/project/ e no mapa de contexto. Numa reexecução, mostra o que mudaria e altera só o que o usuário confirmar. Use quando o usuário pedir para inicializar o harness, levantar as regras do projeto, configurar as regras ou rodar o init. | `../skills/default/init-harness` |</td></tr>
+<tr><td class="ln">23</td><td class="code">| adjust-rules | Ajusta as regras do projeto, em rules/project/, e o mapa de carregamento do contexto, em config/context.yml. Aplica um ou vários ajustes pedidos numa mesma mensagem: criar, alterar ou remover uma regra, criar uma categoria de regras e incluir, mover ou retirar uma regra do mapa de uma skill ou do contexto obrigatório. Também grava a regra sugerida pelo agente depois que o usuário a aprova. Use quando o usuário pedir para criar, mudar, remover ou carregar uma regra ou categoria de regras do projeto, ou aprovar uma sugestão de regra. | `../skills/default/adjust-rules` |</td><td class="ln">23</td><td class="code">| adjust-rules | Ajusta as regras do projeto, em rules/project/, e o mapa de carregamento do contexto, em config/context.yml. Aplica um ou vários ajustes pedidos numa mesma mensagem: criar, alterar ou remover uma regra, criar uma categoria de regras e incluir, mover ou retirar uma regra do mapa de uma skill ou do contexto obrigatório. Também grava a regra sugerida pelo agente depois que o usuário a aprova. Use quando o usuário pedir para criar, mudar, remover ou carregar uma regra ou categoria de regras do projeto, ou aprovar uma sugestão de regra. | `../skills/default/adjust-rules` |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">24</td><td class="code add">| report-harness-bug | Relata um defeito do próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos), nunca do projeto do usuário: monta o relato a partir do template em work/bugs/, troca dados do projeto por exemplos neutros, mascara segredos, valida com vostok bug check, mostra o relato inteiro e, só com a autorização do usuário, cria a issue no repositório do harness com gh ou entrega o link preenchido para abrir no navegador. Use quando o usuário pedir para reportar, relatar ou abrir uma issue de um bug do harness ou do vostok, como &#39;reporta esse bug do harness&#39; ou /report-harness-bug. Não use para defeitos do código, das regras ou das skills customizadas do projeto do usuário. | `../skills/default/report-harness-bug` |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">25</td><td class="code add">| validate-harness-bug | Valida a correção de um defeito do próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos), não do projeto do usuário: encontra as issues [harness-bug] do usuário respondidas com a correção, reinstala a versão citada, roda vostok update, segue os passos de retomada da resposta, confere se o defeito relatado deixou de acontecer e, com autorização, comenta o resultado e fecha a issue. Use quando o usuário pedir /validate-harness-bug, &quot;valida a correção do bug do harness&quot;, ou disser que a issue #N foi respondida. Não use para defeitos do projeto do usuário. | `../skills/default/validate-harness-bug` |</td></tr>
+<tr><td class="ln">24</td><td class="code"></td><td class="ln">26</td><td class="code"></td></tr>
+<tr><td class="ln">25</td><td class="code">## Customizadas</td><td class="ln">27</td><td class="code">## Customizadas</td></tr>
+<tr><td class="ln">26</td><td class="code"></td><td class="ln">28</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -28,3 +30,4 @@ Habilidades criadas pelo usuário. Toda inclusão e remoção de habiliades deve</td></tr>
+<tr><td class="ln">28</td><td class="code"></td><td class="ln">30</td><td class="code"></td></tr>
+<tr><td class="ln">29</td><td class="code">| Habilidade | Descrição | Caminho |</td><td class="ln">31</td><td class="code">| Habilidade | Descrição | Caminho |</td></tr>
+<tr><td class="ln">30</td><td class="code">|    ---     |    ---    |   ---   |</td><td class="ln">32</td><td class="code">|    ---     |    ---    |   ---   |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">33</td><td class="code add">| fix-harness-bug | Corrige defeitos do próprio harness Vostok (CLI, skills, regras, templates e configuração distribuídos) relatados como issues no repositório de `harness.repository` (Ishtar-Sink/Vostok), só neste repositório: lista as issues abertas com `[harness-bug]` ou lê a informada, cria o rascunho da spec citando a issue e segue para o refinamento; depois de publicada a release com a correção, monta a resposta com a versão e os passos e, com autorização, comenta na issue. Não trata defeitos do projeto do usuário. Use quando o usuário pedir &quot;/fix-harness-bug&quot;, &quot;corrige a issue #N do harness&quot;, &quot;lista os bugs reportados&quot; ou &quot;responde a issue #N&quot;. | `../skills/custom/fix-harness-bug` |</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/rules/project/development-methodology.md</b><span class="tag criar">+1</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -5,3 +5,4 @@ Define o fluxo de trabalho e de versionamento do projeto.</td></tr>
+<tr><td class="ln">5</td><td class="code">[project/development-methodology-01]: Toda mudança passa pelo ciclo spec, plano e tarefa do harness.</td><td class="ln">5</td><td class="code">[project/development-methodology-01]: Toda mudança passa pelo ciclo spec, plano e tarefa do harness.</td></tr>
+<tr><td class="ln">6</td><td class="code">[project/development-methodology-02]: Commits em Conventional Commits, em inglês, um assunto por commit.</td><td class="ln">6</td><td class="code">[project/development-methodology-02]: Commits em Conventional Commits, em inglês, um assunto por commit.</td></tr>
+<tr><td class="ln">7</td><td class="code">[project/development-methodology-03]: Os testes da tarefa são escritos antes do código.</td><td class="ln">7</td><td class="code">[project/development-methodology-03]: Os testes da tarefa são escritos antes do código.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">8</td><td class="code add">[project/development-methodology-04]: Spec criada a partir de uma issue de defeito do harness (`[harness-bug]`, citada no rascunho) é planejada com o mínimo de tarefas; quando a correção mexe num único componente, prefira uma tarefa só.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/config/context.yml</b><span class="tag criar">+3</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -69,3 +69,6 @@ skills:</td></tr>
+<tr><td class="ln">69</td><td class="code">    - templates/rules/category.md</td><td class="ln">69</td><td class="code">    - templates/rules/category.md</td></tr>
+<tr><td class="ln">70</td><td class="code">  approve-commit:</td><td class="ln">70</td><td class="code">  approve-commit:</td></tr>
+<tr><td class="ln">71</td><td class="code">    - rules/project/development-methodology.md</td><td class="ln">71</td><td class="code">    - rules/project/development-methodology.md</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">72</td><td class="code add">  report-harness-bug: []</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">73</td><td class="code add">  validate-harness-bug: []</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">74</td><td class="code add">  fix-harness-bug: []</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">README.md</b><span class="tag criar">+17</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -65,6 +65,23 @@ Na conclusão, a `finish-task` roda `vostok task persist`, que copia os arquivos</td></tr>
+<tr><td class="ln">65</td><td class="code"></td><td class="ln">65</td><td class="code"></td></tr>
+<tr><td class="ln">66</td><td class="code">O `update` regrava só os arquivos que vêm do binário (skills padrão, templates, regras do agente), guardando uma cópia `.local` dos que foram alterados no projeto. As pastas `config/`, `rules/project/`, `skills/custom/` e `memory/` são do projeto e nunca são regravadas; nas configurações, inclusive no `context.yml`, só entram as chaves novas. Regras próprias do projeto e ajustes no mapa de contexto sobrevivem à atualização.</td><td class="ln">66</td><td class="code">O `update` regrava só os arquivos que vêm do binário (skills padrão, templates, regras do agente), guardando uma cópia `.local` dos que foram alterados no projeto. As pastas `config/`, `rules/project/`, `skills/custom/` e `memory/` são do projeto e nunca são regravadas; nas configurações, inclusive no `context.yml`, só entram as chaves novas. Regras próprias do projeto e ajustes no mapa de contexto sobrevivem à atualização.</td></tr>
+<tr><td class="ln">67</td><td class="code"></td><td class="ln">67</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">68</td><td class="code add">### Defeitos do harness</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">69</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">70</td><td class="code add">Um defeito do próprio harness (CLI, skills, regras, templates ou configuração distribuídos) encontrado num projeto volta para cá por issue, em três skills:</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">71</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">72</td><td class="code add">```</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">73</td><td class="code add">projeto do usuário            este repositório                           projeto do usuário</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">74</td><td class="code add">report-harness-bug → issue → fix-harness-bug → spec → release → resposta → validate-harness-bug</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">75</td><td class="code add">```</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">76</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">77</td><td class="code add">| Etapa | Onde roda | Skill | O que faz |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">78</td><td class="code add">|---|---|---|---|</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">79</td><td class="code add">| Relato | Projeto do usuário | `report-harness-bug` | Monta o relato com dados do projeto neutralizados, valida com `vostok bug check` e, com autorização, abre a issue `[harness-bug]` no repositório de `harness.repository` (sem `gh`, pelo link do `vostok bug link`). |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">80</td><td class="code add">| Correção | Este repositório | `fix-harness-bug` | Lê a issue, cria a spec citando-a e segue o ciclo normal, com o mínimo de tarefas no plano. Depois da release, comenta na issue, com autorização, a versão e os passos (reinstalar, `vostok update`, retomar o que travou), marcados com `&lt;!-- vostok:fix --&gt;`. |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">81</td><td class="code add">| Validação | Projeto do usuário | `validate-harness-bug` | Encontra a resposta marcada, aplica os passos, confere se o defeito sumiu e, com autorização, comenta o resultado e fecha a issue. |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">82</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">83</td><td class="code add">A `fix-harness-bug` é uma skill customizada deste repositório e não é distribuída; as outras duas chegam aos projetos pelo `vostok update`. Nenhuma das três escreve no GitHub sem a autorização do usuário depois de ver o texto.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">84</td><td class="code add"></td></tr>
+<tr><td class="ln">68</td><td class="code">## Estrutura</td><td class="ln">85</td><td class="code">## Estrutura</td></tr>
+<tr><td class="ln">69</td><td class="code"></td><td class="ln">86</td><td class="code"></td></tr>
+<tr><td class="ln">70</td><td class="code">```</td><td class="ln">87</td><td class="code">```</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">3670311</td><td class="mono">2026-10-17</td><td>feat(bug): add the harness bug report check and issue link</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<ul>
+<li><code>gh</code> quando houver, link preenchido sem ele, em vez de exigir o <code>gh</code>: o relato não pode depender de uma ferramenta instalada.</li>
+<li>A correção é uma skill local, não distribuída: só este repositório corrige o harness.</li>
+<li>A resposta usa um marcador HTML invisível em vez de rótulos: rótulos exigem permissão no repositório, e o marcador funciona em qualquer comentário.</li>
+<li>A resposta só sai depois da release, não depois do commit: quem relatou precisa de uma versão instalável.</li>
+<li>A <code>validate-harness-bug</code> não cita o nome do instalador, porque o teste de skills padrão recusa citações a scripts de shell; ela prefere o comando de reinstalação da resposta.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>Fora de um terminal, <code>gh issue view --comments</code> imprime só os comentários e sai vazio numa issue sem comentários. As skills passaram a ler a issue com <code>--json</code>.</li>
+<li>O <code>vostok update</code> restaura as skills padrão a partir do binário: depois de mudar uma skill na fonte, é preciso reinstalar o binário antes do <code>update</code>, ou a mudança é sobrescrita e guardada em <code>.local</code>.</li>
+<li><code>vostok skill create --default</code> grava na cópia instalada; as skills padrão precisam ser movidas para <code>packages/harness/skills/default/</code>.</li>
+<li>O GitHub não cria release num repositório vazio; o repositório de teste precisou de um primeiro commit.</li>
+<li>O modo automático do agente bloqueia escritas no GitHub mesmo com autorização na conversa; foi preciso liberar <code>gh issue</code> nas permissões locais.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>A leitura sem <code>gh</code> pela API pública não funciona em repositórios privados e tem limite de 60 requisições por hora.</li>
+<li><code>vostok bug check</code> confere a forma, não o conteúdo: a neutralização depende da skill e da revisão do usuário.</li>
+<li>O teste <code>ct13</code> em <code>apps/cli/tests/base.rs</code> conta as skills padrão (17) e recusa citações a <code>.sh</code> nelas.</li>
+<li>Ao mudar uma skill padrão, rode <code>cargo install --path apps/cli</code> antes do <code>vostok update</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/bug.rs</code>: validação do relato e montagem do link.</li>
+<li><code>apps/cli/tests/bug.rs</code>: os casos cobertos pelo <code>vostok bug</code>.</li>
+<li><code>packages/harness/skills/default/report-harness-bug/SKILL.md</code>: fluxo do relato e regras de neutralização e autorização.</li>
+<li><code>packages/harness/skills/default/validate-harness-bug/SKILL.md</code>: fluxo da validação e critérios de resultado.</li>
+<li><code>vostok/skills/custom/fix-harness-bug/SKILL.md</code>: os dois modos da correção.</li>
+<li><code>README.md</code>, seção &quot;Defeitos do harness&quot;: o ciclo para quem usa.</li>
+<li>Commit <code>3670311</code>: subcomando <code>vostok bug</code>.</li>
+<li>Issue <code>Ishtar-Sink/harness-tests#1</code>: o teste de ponta a ponta, com relato, resposta e validação.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-008, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

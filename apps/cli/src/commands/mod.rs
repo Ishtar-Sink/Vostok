@@ -1,5 +1,6 @@
 //! Um módulo por grupo de comandos.
 
+pub mod bug;
 pub mod commit;
 pub mod context;
 pub mod finalize;

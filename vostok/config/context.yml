@@ -69,3 +69,6 @@ skills:
     - templates/rules/category.md
   approve-commit:
     - rules/project/development-methodology.md
+  report-harness-bug: []
+  validate-harness-bug: []
+  fix-harness-bug: []

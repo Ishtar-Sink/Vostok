@@ -65,6 +65,23 @@ Na conclusão, a `finish-task` roda `vostok task persist`, que copia os arquivos
 
 O `update` regrava só os arquivos que vêm do binário (skills padrão, templates, regras do agente), guardando uma cópia `.local` dos que foram alterados no projeto. As pastas `config/`, `rules/project/`, `skills/custom/` e `memory/` são do projeto e nunca são regravadas; nas configurações, inclusive no `context.yml`, só entram as chaves novas. Regras próprias do projeto e ajustes no mapa de contexto sobrevivem à atualização.
 
+### Defeitos do harness
+
+Um defeito do próprio harness (CLI, skills, regras, templates ou configuração distribuídos) encontrado num projeto volta para cá por issue, em três skills:
+
+```
+projeto do usuário            este repositório                           projeto do usuário
+report-harness-bug → issue → fix-harness-bug → spec → release → resposta → validate-harness-bug
+```
+
+| Etapa | Onde roda | Skill | O que faz |
+|---|---|---|---|
+| Relato | Projeto do usuário | `report-harness-bug` | Monta o relato com dados do projeto neutralizados, valida com `vostok bug check` e, com autorização, abre a issue `[harness-bug]` no repositório de `harness.repository` (sem `gh`, pelo link do `vostok bug link`). |
+| Correção | Este repositório | `fix-harness-bug` | Lê a issue, cria a spec citando-a e segue o ciclo normal, com o mínimo de tarefas no plano. Depois da release, comenta na issue, com autorização, a versão e os passos (reinstalar, `vostok update`, retomar o que travou), marcados com `<!-- vostok:fix -->`. |
+| Validação | Projeto do usuário | `validate-harness-bug` | Encontra a resposta marcada, aplica os passos, confere se o defeito sumiu e, com autorização, comenta o resultado e fecha a issue. |
+
+A `fix-harness-bug` é uma skill customizada deste repositório e não é distribuída; as outras duas chegam aos projetos pelo `vostok update`. Nenhuma das três escreve no GitHub sem a autorização do usuário depois de ver o texto.
+
 ## Estrutura
 
 ```

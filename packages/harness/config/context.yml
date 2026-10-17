@@ -48,3 +48,8 @@ skills:
   adjust-rules:
     - rules/project/naming-convention.md
     - templates/rules/category.md
+  report-harness-bug:
+    - config/main.yml
+    - templates/bug/report.md
+  validate-harness-bug:
+    - config/main.yml

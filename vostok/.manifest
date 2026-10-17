@@ -23,6 +23,8 @@ files:
   skills/default/plan-tasks/SKILL.md: a4824876621c32eea3ec697fb2b5b3c68fab26be6d9ad4c5e4c3e4c83cc705e6
   skills/default/refine-spec/SKILL.md: 4ed6eb057fb51e33cb922ef20d8ced2ff117624f4f441e97b10c33fad254f9e4
   skills/default/refine-spec/references/sections.md: 396087e3f4706de15d00c8a8dbd0e3b55f6142a265150925cc58a6a7acb21b44
+  skills/default/report-harness-bug/SKILL.md: b0a06a1f08087f6be22a9e22a4106dfc65db5d94042a22c8f798ad25dd988534
+  skills/default/validate-harness-bug/SKILL.md: bffd1944a82360087ee40c1590566b18d180852ee8315fa92c9068619b8db676
   templates/bug/report.md: ffb178247760a7d7995ccc37293737eeb6f23f915f4c0b479f7a2e58fb4c8bb0
   templates/finalize/content.md: 51619b1d7d495c7a3f21963f36c56b38c4c81db8a7c4701c8b0735ff27d8c991
   templates/finalize/evidence-item.html: 42b06c8c07c17e07d49ae5bdfb1ba345766b304e9db156b3ebb56596ba38f41a

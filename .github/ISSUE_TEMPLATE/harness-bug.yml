@@ -1,0 +1,58 @@
+name: Defeito do harness
+description: Relata um defeito do próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos).
+title: "[harness-bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use este modelo só para defeitos do próprio harness Vostok: a CLI `vostok`, as skills padrão, as regras do agente, os templates e a configuração distribuídos. Defeitos do código, das regras ou das skills customizadas do seu projeto não entram aqui.
+
+        A issue é pública: não cole dados privados. Troque caminhos, nomes, trechos de código e saídas do seu projeto por exemplos neutros e mascare segredos com `***`. No projeto, a skill `report-harness-bug` monta este relato por você.
+  - type: textarea
+    id: version
+    attributes:
+      label: Versão
+      description: Saída de `vostok --version` e o sistema operacional (`uname -sr`).
+      placeholder: |
+        vostok 0.1.2
+        Linux 6.8.0
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Comportamento atual
+      description: O comando ou a skill usada e o que aconteceu, com a mensagem de erro do harness.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+      description: O que deveria acontecer.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      description: Passos numerados, num projeto de exemplo, do zero até o defeito.
+      placeholder: |
+        1. vostok init
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: cause
+    attributes:
+      label: Causa provável
+      description: Onde o defeito parece nascer no harness (comando, skill, regra ou template), ou "Não identificada".
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: O que já foi tentado
+      description: Contornos e tentativas, com o resultado de cada um, ou "Nada".
+    validations:
+      required: true

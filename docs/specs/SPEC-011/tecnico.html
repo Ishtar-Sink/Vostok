@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-011 · Documento técnico · Normalizar nome de evidência com caminho no planejamento</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-011 · aprovada em 2026-10-20 · concluída em 2026-10-20</p>
+    <h1>Normalizar nome de evidência com caminho no planejamento</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p><code>normalized_evidence_name</code> (em <code>task.rs</code>) devolve o nome depois da última <code>/</code> quando ele é válido pelo critério da SPEC-010. No planejamento, <code>plan approve validate</code> só avisa e <code>mark-planned</code> reescreve o nome antes do <code>store_hash</code>. No ajuste, <code>task adjust validate</code> só avisa e <code>task adjust record</code> reescreve antes de registrar o ajuste. O enum <code>EvidenceNames</code> (<code>Strict</code>/<code>Normalizable</code>) mantém <code>task approve</code> recusando o caminho; <code>task start</code> segue com <code>evidence_name_problem</code>. A <code>approve-plan</code> explica que a cópia para <code>persist_dir</code> é do <code>vostok task persist</code>.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code>: <code>normalized_evidence_name</code>, <code>EvidenceNames</code>, <code>repeated_evidence_names</code>, <code>renamed_evidence</code>, <code>print_renames</code>; <code>evidence_errors</code>, <code>validate</code> e <code>record</code> do ajuste.</li>
+<li><code>apps/cli/src/commands/plan.rs</code>: <code>evidence_errors</code>, <code>evidence_renames</code>, <code>print_renames</code>, <code>approve_validate</code> e <code>mark_planned</code>.</li>
+<li><code>packages/harness/skills/default/approve-plan/SKILL.md</code>: frase sobre <code>persist_dir</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li><strong>TASK-01:</strong> função de normalização e troca no planejamento, com 4 testes em <code>tests/plan.rs</code> (aviso sem alterar, troca no <code>mark-planned</code>, subitens preservados, casos ambíguos); a fixture monta spec aprovada com hash válido.</li>
+<li><strong>TASK-02:</strong> troca no ajuste, com o enum <code>EvidenceNames</code> separando aprovação (estrita) de ajuste (normalizável); 4 testes novos e 3 adaptados em <code>tests/task.rs</code>.</li>
+<li><strong>TASK-03:</strong> frase na <code>approve-plan</code> sobre a cópia para <code>persist_dir</code>.</li>
+<li>TASK-01 e TASK-03 em paralelo, por subagente e pelo coordenador; TASK-02 depois da TASK-01.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>Uma função deve calcular o nome normalizado de um item de evidência: o texto depois da última <code>/</code>, válido pelo critério da SPEC-010.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>O <code>vostok plan approve validate</code> deve aceitar um item normalizável e imprimir o aviso <code>TASK-NN: antigo → novo</code>, sem alterar arquivos.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>O <code>vostok plan approve mark-planned</code> deve trocar os nomes normalizáveis antes de gravar os hashes e imprimir o aviso de cada troca.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>Continuam recusados: dois itens da mesma tarefa com o mesmo nome normalizado, nome normalizado reservado (<code>baseline</code>, <code>validation</code>, começando por <code>.</code>) e caminho terminado em <code>/</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Planejamento normaliza</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Casos ambíguos</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Subitens preservados</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>O <code>vostok task adjust validate</code> deve aceitar um item normalizável e imprimir o aviso, sem alterar arquivos.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-05</td><td>O <code>vostok task adjust record</code> deve trocar os nomes normalizáveis antes de registrar o ajuste e imprimir o aviso.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Ajuste normaliza</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-07</td><td>A <code>approve-plan</code> deve dizer que a cópia para <code>persist_dir</code> é feita pelo <code>vostok task persist</code> e que o item leva só o nome.</td><td><span class="chip">TASK-03</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Formato da approve-plan</td><td><span class="chip">TASK-03</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/approve-plan/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/skills/default/approve-plan/SKILL.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+145</span><span class="tag remover">−14</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -254,6 +254,15 @@ fn filled(</td></tr>
+<tr><td class="ln">254</td><td class="code">    given(non_empty(spec), non_empty(task), text)</td><td class="ln">254</td><td class="code">    given(non_empty(spec), non_empty(task), text)</td></tr>
+<tr><td class="ln">255</td><td class="code">}</td><td class="ln">255</td><td class="code">}</td></tr>
+<tr><td class="ln">256</td><td class="code"></td><td class="ln">256</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">257</td><td class="code add">/// Como a validação trata o nome de evidência com caminho.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">258</td><td class="code add">#[derive(Clone, Copy, PartialEq)]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">259</td><td class="code add">enum EvidenceNames {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">260</td><td class="code add">    /// Recusa: a tarefa aprovada não é reescrita fora do ajuste (aprovação).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">261</td><td class="code add">    Strict,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">262</td><td class="code add">    /// Aceita o nome normalizável, que o `vostok task adjust record` troca pelo nome do arquivo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">263</td><td class="code add">    Normalizable,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">264</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">265</td><td class="code add"></td></tr>
+<tr><td class="ln">257</td><td class="code">/// Status configurados em `config/tasks.yml`.</td><td class="ln">266</td><td class="code">/// Status configurados em `config/tasks.yml`.</td></tr>
+<tr><td class="ln">258</td><td class="code">struct Statuses {</td><td class="ln">267</td><td class="code">struct Statuses {</td></tr>
+<tr><td class="ln">259</td><td class="code">    pending: String,</td><td class="ln">268</td><td class="code">    pending: String,</td></tr>
+<tr class="hunk"><td colspan="4">@@ -541,7 +550,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">541</td><td class="code">                    &quot;{id}: edição manual sem registro; registre-a com: vostok task adjust record-manual {spec} {id}&quot;</td><td class="ln">550</td><td class="code">                    &quot;{id}: edição manual sem registro; registre-a com: vostok task adjust record-manual {spec} {id}&quot;</td></tr>
+<tr><td class="ln">542</td><td class="code">                ));</td><td class="ln">551</td><td class="code">                ));</td></tr>
+<tr><td class="ln">543</td><td class="code">            }</td><td class="ln">552</td><td class="code">            }</td></tr>
+<tr><td class="ln">544</td><td class="code del">            problems.extend(self.errors_of(spec, file)?);</td><td class="ln">553</td><td class="code add">            problems.extend(self.errors_of(spec, file, EvidenceNames::Strict)?);</td></tr>
+<tr><td class="ln">545</td><td class="code">        }</td><td class="ln">554</td><td class="code">        }</td></tr>
+<tr><td class="ln">546</td><td class="code">        Ok(problems)</td><td class="ln">555</td><td class="code">        Ok(problems)</td></tr>
+<tr><td class="ln">547</td><td class="code">    }</td><td class="ln">556</td><td class="code">    }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -615,7 +624,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">615</td><td class="code">        println!(&quot;Ajuste manual {count} registrado em {task}: {summary}&quot;);</td><td class="ln">624</td><td class="code">        println!(&quot;Ajuste manual {count} registrado em {task}: {summary}&quot;);</td></tr>
+<tr><td class="ln">616</td><td class="code">        self.drop_approval(&amp;file, task)?;</td><td class="ln">625</td><td class="code">        self.drop_approval(&amp;file, task)?;</td></tr>
+<tr><td class="ln">617</td><td class="code">        self.restart_execution(&amp;file, task, &amp;summary)?;</td><td class="ln">626</td><td class="code">        self.restart_execution(&amp;file, task, &amp;summary)?;</td></tr>
+<tr><td class="ln">618</td><td class="code del">        let errors = self.errors_of(spec, &amp;file)?;</td><td class="ln">627</td><td class="code add">        let errors = self.errors_of(spec, &amp;file, EvidenceNames::Normalizable)?;</td></tr>
+<tr><td class="ln">619</td><td class="code">        if !errors.is_empty() {</td><td class="ln">628</td><td class="code">        if !errors.is_empty() {</td></tr>
+<tr><td class="ln">620</td><td class="code">            println!(&quot;Problemas de validação:\n{}&quot;, errors.join(&quot;\n&quot;));</td><td class="ln">629</td><td class="code">            println!(&quot;Problemas de validação:\n{}&quot;, errors.join(&quot;\n&quot;));</td></tr>
+<tr><td class="ln">621</td><td class="code">        }</td><td class="ln">630</td><td class="code">        }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -624,10 +633,14 @@ impl Tasks {</td></tr>
+<tr><td class="ln">624</td><td class="code"></td><td class="ln">633</td><td class="code"></td></tr>
+<tr><td class="ln">625</td><td class="code">    fn validate(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">634</td><td class="code">    fn validate(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">626</td><td class="code">        let file = self.adjustable_task(spec, task)?;</td><td class="ln">635</td><td class="code">        let file = self.adjustable_task(spec, task)?;</td></tr>
+<tr><td class="ln">627</td><td class="code del">        let errors = self.errors_of(spec, &amp;file)?;</td><td class="ln">636</td><td class="code add">        let errors = self.errors_of(spec, &amp;file, EvidenceNames::Normalizable)?;</td></tr>
+<tr><td class="ln">628</td><td class="code">        if !errors.is_empty() {</td><td class="ln">637</td><td class="code">        if !errors.is_empty() {</td></tr>
+<tr><td class="ln">629</td><td class="code">            bail!(&quot;a tarefa {task} tem problemas:\n{}&quot;, errors.join(&quot;\n&quot;));</td><td class="ln">638</td><td class="code">            bail!(&quot;a tarefa {task} tem problemas:\n{}&quot;, errors.join(&quot;\n&quot;));</td></tr>
+<tr><td class="ln">630</td><td class="code">        }</td><td class="ln">639</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">640</td><td class="code add">        print_renames(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">641</td><td class="code add">            &quot;Nomes de evidência com caminho, trocados pelo nome do arquivo no vostok task adjust record (nada foi alterado):&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">642</td><td class="code add">            &amp;self.evidence_renames(&amp;file)?.1,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">643</td><td class="code add">        );</td></tr>
+<tr><td class="ln">631</td><td class="code">        println!(&quot;Tarefa {task} válida: {}&quot;, file.display());</td><td class="ln">644</td><td class="code">        println!(&quot;Tarefa {task} válida: {}&quot;, file.display());</td></tr>
+<tr><td class="ln">632</td><td class="code">        Ok(())</td><td class="ln">645</td><td class="code">        Ok(())</td></tr>
+<tr><td class="ln">633</td><td class="code">    }</td><td class="ln">646</td><td class="code">    }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -635,13 +648,22 @@ impl Tasks {</td></tr>
+<tr><td class="ln">635</td><td class="code">    fn record(&amp;self, spec: &amp;str, task: &amp;str, summary: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">648</td><td class="code">    fn record(&amp;self, spec: &amp;str, task: &amp;str, summary: &amp;str) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">636</td><td class="code">        let summary = clean_summary(summary)?;</td><td class="ln">649</td><td class="code">        let summary = clean_summary(summary)?;</td></tr>
+<tr><td class="ln">637</td><td class="code">        let file = self.adjustable_task(spec, task)?;</td><td class="ln">650</td><td class="code">        let file = self.adjustable_task(spec, task)?;</td></tr>
+<tr><td class="ln">638</td><td class="code del">        let errors = self.errors_of(spec, &amp;file)?;</td><td class="ln">651</td><td class="code add">        let errors = self.errors_of(spec, &amp;file, EvidenceNames::Normalizable)?;</td></tr>
+<tr><td class="ln">639</td><td class="code">        if !errors.is_empty() {</td><td class="ln">652</td><td class="code">        if !errors.is_empty() {</td></tr>
+<tr><td class="ln">640</td><td class="code">            bail!(</td><td class="ln">653</td><td class="code">            bail!(</td></tr>
+<tr><td class="ln">641</td><td class="code">                &quot;a tarefa {task} tem problemas; nenhum ajuste registrado:\n{}&quot;,</td><td class="ln">654</td><td class="code">                &quot;a tarefa {task} tem problemas; nenhum ajuste registrado:\n{}&quot;,</td></tr>
+<tr><td class="ln">642</td><td class="code">                errors.join(&quot;\n&quot;)</td><td class="ln">655</td><td class="code">                errors.join(&quot;\n&quot;)</td></tr>
+<tr><td class="ln">643</td><td class="code">            );</td><td class="ln">656</td><td class="code">            );</td></tr>
+<tr><td class="ln">644</td><td class="code">        }</td><td class="ln">657</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">658</td><td class="code add">        // O nome com caminho vira o nome do arquivo antes do registro, que grava o hash.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">659</td><td class="code add">        let (content, renames) = self.evidence_renames(&amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">660</td><td class="code add">        if !renames.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">661</td><td class="code add">            write(&amp;file, &amp;content)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">662</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">663</td><td class="code add">        print_renames(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">664</td><td class="code add">            &quot;Nomes de evidência com caminho trocados pelo nome do arquivo:&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">665</td><td class="code add">            &amp;renames,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">666</td><td class="code add">        );</td></tr>
+<tr><td class="ln">645</td><td class="code">        let origin = self.spec_cfg(&quot;adjustment_origins.agent&quot;)?;</td><td class="ln">667</td><td class="code">        let origin = self.spec_cfg(&quot;adjustment_origins.agent&quot;)?;</td></tr>
+<tr><td class="ln">646</td><td class="code">        let count = self.record_adjustment(&amp;file, &amp;origin, &amp;summary)?;</td><td class="ln">668</td><td class="code">        let count = self.record_adjustment(&amp;file, &amp;origin, &amp;summary)?;</td></tr>
+<tr><td class="ln">647</td><td class="code">        println!(&quot;Ajuste {count} registrado em {task}: {}&quot;, file.display());</td><td class="ln">669</td><td class="code">        println!(&quot;Ajuste {count} registrado em {task}: {}&quot;, file.display());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1635,14 +1657,19 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1635</td><td class="code">    // --- Validação da tarefa ---</td><td class="ln">1657</td><td class="code">    // --- Validação da tarefa ---</td></tr>
+<tr><td class="ln">1636</td><td class="code"></td><td class="ln">1658</td><td class="code"></td></tr>
+<tr><td class="ln">1637</td><td class="code">    /// Problemas da tarefa, prefixados pelo ID. A cobertura é a da própria tarefa, que não muda aqui.</td><td class="ln">1659</td><td class="code">    /// Problemas da tarefa, prefixados pelo ID. A cobertura é a da própria tarefa, que não muda aqui.</td></tr>
+<tr><td class="ln">1638</td><td class="code del">    fn errors_of(&amp;self, spec: &amp;str, file: &amp;Path) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1660</td><td class="code add">    fn errors_of(&amp;self, spec: &amp;str, file: &amp;Path, names: EvidenceNames) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1639</td><td class="code">        let upstream = upstream_paths(&amp;self.tasks_root.join(spec), &amp;task_id_of(file), |file| {</td><td class="ln">1661</td><td class="code">        let upstream = upstream_paths(&amp;self.tasks_root.join(spec), &amp;task_id_of(file), |file| {</td></tr>
+<tr><td class="ln">1640</td><td class="code">            self.created_paths(file)</td><td class="ln">1662</td><td class="code">            self.created_paths(file)</td></tr>
+<tr><td class="ln">1641</td><td class="code">        })?;</td><td class="ln">1663</td><td class="code">        })?;</td></tr>
+<tr><td class="ln">1642</td><td class="code del">        self.task_errors(file, &amp;upstream)</td><td class="ln">1664</td><td class="code add">        self.task_errors(file, &amp;upstream, names)</td></tr>
+<tr><td class="ln">1643</td><td class="code">    }</td><td class="ln">1665</td><td class="code">    }</td></tr>
+<tr><td class="ln">1644</td><td class="code"></td><td class="ln">1666</td><td class="code"></td></tr>
+<tr><td class="ln">1645</td><td class="code del">    fn task_errors(&amp;self, file: &amp;Path, upstream: &amp;HashSet&lt;String&gt;) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1667</td><td class="code add">    fn task_errors(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1668</td><td class="code add">        &amp;self,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1669</td><td class="code add">        file: &amp;Path,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1670</td><td class="code add">        upstream: &amp;HashSet&lt;String&gt;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1671</td><td class="code add">        names: EvidenceNames,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1672</td><td class="code add">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1646</td><td class="code">        let id = task_id_of(file);</td><td class="ln">1673</td><td class="code">        let id = task_id_of(file);</td></tr>
+<tr><td class="ln">1647</td><td class="code">        let content = read(file)?;</td><td class="ln">1674</td><td class="code">        let content = read(file)?;</td></tr>
+<tr><td class="ln">1648</td><td class="code">        let mut errors: Vec&lt;String&gt; = template_leftovers(&amp;content)</td><td class="ln">1675</td><td class="code">        let mut errors: Vec&lt;String&gt; = template_leftovers(&amp;content)</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1655,7 +1682,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1655</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream)?);</td><td class="ln">1682</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream)?);</td></tr>
+<tr><td class="ln">1656</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td><td class="ln">1683</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1657</td><td class="code">        errors.extend(self.baseline_errors(&amp;content)?);</td><td class="ln">1684</td><td class="code">        errors.extend(self.baseline_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1658</td><td class="code del">        errors.extend(self.evidence_errors(&amp;content)?);</td><td class="ln">1685</td><td class="code add">        errors.extend(self.evidence_errors(&amp;content, names)?);</td></tr>
+<tr><td class="ln">1659</td><td class="code">        Ok(errors</td><td class="ln">1686</td><td class="code">        Ok(errors</td></tr>
+<tr><td class="ln">1660</td><td class="code">            .into_iter()</td><td class="ln">1687</td><td class="code">            .into_iter()</td></tr>
+<tr><td class="ln">1661</td><td class="code">            .map(|error| format!(&quot;{id}: {error}&quot;))</td><td class="ln">1688</td><td class="code">            .map(|error| format!(&quot;{id}: {error}&quot;))</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1812,8 +1839,8 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1812</td><td class="code">    }</td><td class="ln">1839</td><td class="code">    }</td></tr>
+<tr><td class="ln">1813</td><td class="code"></td><td class="ln">1840</td><td class="code"></td></tr>
+<tr><td class="ln">1814</td><td class="code">    /// Itens de &quot;Evidências&quot;: &quot;- `arquivo` (automática): `comando`&quot;, &quot;- `arquivo` (manual): descrição&quot;</td><td class="ln">1841</td><td class="code">    /// Itens de &quot;Evidências&quot;: &quot;- `arquivo` (automática): `comando`&quot;, &quot;- `arquivo` (manual): descrição&quot;</td></tr>
+<tr><td class="ln">1815</td><td class="code del">    /// ou o texto único de `evidence_none`.</td><td class="ln">1842</td><td class="code add">    /// ou o texto único de `evidence_none`. No ajuste, o nome com caminho normalizável é aceito.</td></tr>
+<tr><td class="ln">1816</td><td class="code del">    fn evidence_errors(&amp;self, content: &amp;str) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1843</td><td class="code add">    fn evidence_errors(&amp;self, content: &amp;str, names: EvidenceNames) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1817</td><td class="code">        let text = self.subsection(content, &quot;evidence_subsection&quot;)?;</td><td class="ln">1844</td><td class="code">        let text = self.subsection(content, &quot;evidence_subsection&quot;)?;</td></tr>
+<tr><td class="ln">1818</td><td class="code">        if text.is_empty() {</td><td class="ln">1845</td><td class="code">        if text.is_empty() {</td></tr>
+<tr><td class="ln">1819</td><td class="code">            return Ok(Vec::new());</td><td class="ln">1846</td><td class="code">            return Ok(Vec::new());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1832,15 +1859,27 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1832</td><td class="code">        }</td><td class="ln">1859</td><td class="code">        }</td></tr>
+<tr><td class="ln">1833</td><td class="code">        let mut errors = Vec::new();</td><td class="ln">1860</td><td class="code">        let mut errors = Vec::new();</td></tr>
+<tr><td class="ln">1834</td><td class="code">        let mut count = 0;</td><td class="ln">1861</td><td class="code">        let mut count = 0;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1862</td><td class="code add">        // Nome final de cada item, com o nome escrito quando ele tem caminho.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1863</td><td class="code add">        let mut finals: Vec&lt;(&amp;str, Option&lt;&amp;str&gt;)&gt; = Vec::new();</td></tr>
+<tr><td class="ln">1835</td><td class="code">        for item in text</td><td class="ln">1864</td><td class="code">        for item in text</td></tr>
+<tr><td class="ln">1836</td><td class="code">            .lines()</td><td class="ln">1865</td><td class="code">            .lines()</td></tr>
+<tr><td class="ln">1837</td><td class="code">            .filter(|line| has_text(line) &amp;&amp; !is_indented(line))</td><td class="ln">1866</td><td class="code">            .filter(|line| has_text(line) &amp;&amp; !is_indented(line))</td></tr>
+<tr><td class="ln">1838</td><td class="code">        {</td><td class="ln">1867</td><td class="code">        {</td></tr>
+<tr><td class="ln">1839</td><td class="code">            if is_automatic_evidence(item, &amp;automatic) || is_manual_evidence(item, &amp;manual) {</td><td class="ln">1868</td><td class="code">            if is_automatic_evidence(item, &amp;automatic) || is_manual_evidence(item, &amp;manual) {</td></tr>
+<tr><td class="ln">1840</td><td class="code">                count += 1;</td><td class="ln">1869</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln">1841</td><td class="code del">                errors.extend(</td><td class="ln">1870</td><td class="code add">                let name = evidence_item(item).map_or(&quot;&quot;, |(name, _, _)| name);</td></tr>
+<tr><td class="ln">1842</td><td class="code del">                    evidence_name_problem(item).map(|problem| format!(&quot;&#39;{sub}&#39; com {problem}&quot;)),</td><td class="ln">1871</td><td class="code add">                match normalized_evidence_name(item) {</td></tr>
+<tr><td class="ln">1843</td><td class="code del">                );</td><td class="ln">1872</td><td class="code add">                    Some(normalized) if names == EvidenceNames::Normalizable =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1873</td><td class="code add">                        finals.push((normalized, Some(name)))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1874</td><td class="code add">                    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1875</td><td class="code add">                    _ =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1876</td><td class="code add">                        finals.push((name, None));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1877</td><td class="code add">                        errors.extend(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1878</td><td class="code add">                            evidence_name_problem(item)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1879</td><td class="code add">                                .map(|problem| format!(&quot;&#39;{sub}&#39; com {problem}&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1880</td><td class="code add">                        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1881</td><td class="code add">                    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1882</td><td class="code add">                }</td></tr>
+<tr><td class="ln">1844</td><td class="code">            } else {</td><td class="ln">1883</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">1845</td><td class="code">                errors.push(format!(&quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)&quot;));</td><td class="ln">1884</td><td class="code">                errors.push(format!(&quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)&quot;));</td></tr>
+<tr><td class="ln">1846</td><td class="code">            }</td><td class="ln">1885</td><td class="code">            }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1850,11 +1889,26 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1850</td><td class="code">                &quot;&#39;{sub}&#39; sem nenhum item no formato e sem o texto &#39;{none}&#39;&quot;</td><td class="ln">1889</td><td class="code">                &quot;&#39;{sub}&#39; sem nenhum item no formato e sem o texto &#39;{none}&#39;&quot;</td></tr>
+<tr><td class="ln">1851</td><td class="code">            ));</td><td class="ln">1890</td><td class="code">            ));</td></tr>
+<tr><td class="ln">1852</td><td class="code">        }</td><td class="ln">1891</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1892</td><td class="code add">        errors.extend(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1893</td><td class="code add">            repeated_evidence_names(&amp;finals)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1894</td><td class="code add">                .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1895</td><td class="code add">                .map(|error| format!(&quot;&#39;{sub}&#39; com {error}&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1896</td><td class="code add">        );</td></tr>
+<tr><td class="ln">1853</td><td class="code">        let fields = self.evidence_fields();</td><td class="ln">1897</td><td class="code">        let fields = self.evidence_fields();</td></tr>
+<tr><td class="ln">1854</td><td class="code">        errors.extend(evidence_subitem_errors(&amp;text, &amp;sub, fields.as_ref(), false));</td><td class="ln">1898</td><td class="code">        errors.extend(evidence_subitem_errors(&amp;text, &amp;sub, fields.as_ref(), false));</td></tr>
+<tr><td class="ln">1855</td><td class="code">        Ok(errors)</td><td class="ln">1899</td><td class="code">        Ok(errors)</td></tr>
+<tr><td class="ln">1856</td><td class="code">    }</td><td class="ln">1900</td><td class="code">    }</td></tr>
+<tr><td class="ln">1857</td><td class="code"></td><td class="ln">1901</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1902</td><td class="code add">    /// Tarefa com o nome de evidência com caminho trocado pelo nome do arquivo, e os avisos.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1903</td><td class="code add">    fn evidence_renames(&amp;self, file: &amp;Path) -&gt; Result&lt;(String, Vec&lt;String&gt;)&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1904</td><td class="code add">        Ok(renamed_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1905</td><td class="code add">            &amp;read(file)?,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1906</td><td class="code add">            &amp;self.cfg(&quot;execution_section&quot;)?,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1907</td><td class="code add">            &amp;self.cfg(&quot;evidence_subsection&quot;)?,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1908</td><td class="code add">            &amp;task_id_of(file),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1909</td><td class="code add">        ))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1910</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1911</td><td class="code add"></td></tr>
+<tr><td class="ln">1858</td><td class="code">    /// Caminhos que a tarefa cria (&quot;Mudar&quot; com a ação `criar`).</td><td class="ln">1912</td><td class="code">    /// Caminhos que a tarefa cria (&quot;Mudar&quot; com a ação `criar`).</td></tr>
+<tr><td class="ln">1859</td><td class="code">    fn created_paths(&amp;self, file: &amp;Path) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1913</td><td class="code">    fn created_paths(&amp;self, file: &amp;Path) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1860</td><td class="code">        let content = read(file)?;</td><td class="ln">1914</td><td class="code">        let content = read(file)?;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2261,7 +2315,84 @@ pub(crate) fn evidence_name_problem(item: &amp;str) -&gt; Option&lt;String&gt; {</td></tr>
+<tr><td class="ln">2261</td><td class="code">    })</td><td class="ln">2315</td><td class="code">    })</td></tr>
+<tr><td class="ln">2262</td><td class="code">}</td><td class="ln">2316</td><td class="code">}</td></tr>
+<tr><td class="ln">2263</td><td class="code"></td><td class="ln">2317</td><td class="code"></td></tr>
+<tr><td class="ln">2264</td><td class="code del">fn evidence_item(line: &amp;str) -&gt; Option&lt;(&amp;str, &amp;str, &amp;str)&gt; {</td><td class="ln">2318</td><td class="code add">/// Nome normalizado de um item com caminho: o texto depois da última `/`, se for válido</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2319</td><td class="code add">/// (caminho terminado em `/` não tem nome de arquivo).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2320</td><td class="code add">pub(crate) fn normalized_evidence_name(item: &amp;str) -&gt; Option&lt;&amp;str&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2321</td><td class="code add">    let (name, _, _) = evidence_item(item)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2322</td><td class="code add">    let (_, file) = name.rsplit_once(&#39;/&#39;)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2323</td><td class="code add">    (!file.is_empty() &amp;&amp; is_valid_evidence_name(file)).then_some(file)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2324</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2325</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2326</td><td class="code add">/// Nomes repetidos depois de tirar o caminho, dados os pares (nome final, nome escrito com</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2327</td><td class="code add">/// caminho). Dois itens com o mesmo nome gravariam o mesmo arquivo: não há troca segura. Só conta</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2328</td><td class="code add">/// quando ao menos um deles tinha caminho.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2329</td><td class="code add">pub(crate) fn repeated_evidence_names(finals: &amp;[(&amp;str, Option&lt;&amp;str&gt;)]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2330</td><td class="code add">    let mut errors = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2331</td><td class="code add">    let mut reported = HashSet::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2332</td><td class="code add">    for (name, _) in finals {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2333</td><td class="code add">        let same: Vec&lt;_&gt; = finals.iter().filter(|(other, _)| other == name).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2334</td><td class="code add">        if same.len() &gt; 1</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2335</td><td class="code add">            &amp;&amp; same.iter().any(|(_, written)| written.is_some())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2336</td><td class="code add">            &amp;&amp; reported.insert(*name)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2337</td><td class="code add">        {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2338</td><td class="code add">            let items: Vec&lt;String&gt; = same</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2339</td><td class="code add">                .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2340</td><td class="code add">                .map(|(final_name, written)| format!(&quot;`{}`&quot;, written.unwrap_or(final_name)))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2341</td><td class="code add">                .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2342</td><td class="code add">            errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2343</td><td class="code add">                &quot;nome de evidência repetido depois de tirar o caminho: `{name}` ({})&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2344</td><td class="code add">                items.join(&quot;, &quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2345</td><td class="code add">            ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2346</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2347</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2348</td><td class="code add">    errors</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2349</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2350</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2351</td><td class="code add">/// Conteúdo com o nome de evidência com caminho trocado pelo nome do arquivo, e um aviso</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2352</td><td class="code add">/// `TASK-NN: antigo → novo` por troca. Só o nome muda; o resto do item e os subitens ficam.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2353</td><td class="code add">pub(crate) fn renamed_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2354</td><td class="code add">    content: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2355</td><td class="code add">    execution: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2356</td><td class="code add">    evidence: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2357</td><td class="code add">    id: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2358</td><td class="code add">) -&gt; (String, Vec&lt;String&gt;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2359</td><td class="code add">    let (execution, evidence) = (format!(&quot;## {execution}&quot;), format!(&quot;### {evidence}&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2360</td><td class="code add">    let mut warnings = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2361</td><td class="code add">    let (mut in_execution, mut in_evidence) = (false, false);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2362</td><td class="code add">    let mut lines = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2363</td><td class="code add">    for line in content.split(&#39;\n&#39;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2364</td><td class="code add">        if line.starts_with(&quot;## &quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2365</td><td class="code add">            in_execution = line.trim_end() == execution;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2366</td><td class="code add">            in_evidence = false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2367</td><td class="code add">        } else if line.starts_with(&#39;#&#39;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2368</td><td class="code add">            in_evidence = in_execution &amp;&amp; line.trim_end() == evidence;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2369</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2370</td><td class="code add">        let renamed = (in_evidence &amp;&amp; !is_indented(line))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2371</td><td class="code add">            .then(|| Some((evidence_item(line)?.0, normalized_evidence_name(line)?)))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2372</td><td class="code add">            .flatten();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2373</td><td class="code add">        match renamed {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2374</td><td class="code add">            Some((old, new)) =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2375</td><td class="code add">                warnings.push(format!(&quot;{id}: {old} → {new}&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2376</td><td class="code add">                lines.push(line.replacen(&amp;format!(&quot;`{old}`&quot;), &amp;format!(&quot;`{new}`&quot;), 1));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2377</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2378</td><td class="code add">            None =&gt; lines.push(line.to_string()),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2379</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2380</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2381</td><td class="code add">    (lines.join(&quot;\n&quot;), warnings)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2382</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2383</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2384</td><td class="code add">/// Avisos das trocas de nome de evidência, depois do cabeçalho; nada quando não há troca.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2385</td><td class="code add">fn print_renames(header: &amp;str, renames: &amp;[String]) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2386</td><td class="code add">    if renames.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2387</td><td class="code add">        return;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2388</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2389</td><td class="code add">    println!(&quot;{header}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2390</td><td class="code add">    for rename in renames {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2391</td><td class="code add">        println!(&quot;- {rename}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2392</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2393</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2394</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2395</td><td class="code add">pub(crate) fn evidence_item(line: &amp;str) -&gt; Option&lt;(&amp;str, &amp;str, &amp;str)&gt; {</td></tr>
+<tr><td class="ln">2265</td><td class="code">    let (name, rest) = quoted_name(line.strip_prefix(&quot;- &quot;)?)?;</td><td class="ln">2396</td><td class="code">    let (name, rest) = quoted_name(line.strip_prefix(&quot;- &quot;)?)?;</td></tr>
+<tr><td class="ln">2266</td><td class="code">    let rest = rest.strip_prefix(&quot; (&quot;)?;</td><td class="ln">2397</td><td class="code">    let rest = rest.strip_prefix(&quot; (&quot;)?;</td></tr>
+<tr><td class="ln">2267</td><td class="code">    let end = rest.find(&#39;)&#39;)?;</td><td class="ln">2398</td><td class="code">    let end = rest.find(&#39;)&#39;)?;</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/plan.rs</b><span class="tag criar">+92</span><span class="tag remover">−5</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};</td></tr>
+<tr><td class="ln">10</td><td class="code">use anyhow::{bail, Context, Result};</td><td class="ln">10</td><td class="code">use anyhow::{bail, Context, Result};</td></tr>
+<tr><td class="ln">11</td><td class="code">use clap::Subcommand;</td><td class="ln">11</td><td class="code">use clap::Subcommand;</td></tr>
+<tr><td class="ln">12</td><td class="code"></td><td class="ln">12</td><td class="code"></td></tr>
+<tr><td class="ln">13</td><td class="code del">use super::task::evidence_name_problem;</td><td class="ln">13</td><td class="code add">use super::task::{evidence_item, evidence_name_problem, normalized_evidence_name};</td></tr>
+<tr><td class="ln">14</td><td class="code">use crate::harness::Harness;</td><td class="ln">14</td><td class="code">use crate::harness::Harness;</td></tr>
+<tr><td class="ln">15</td><td class="code">use crate::support::{</td><td class="ln">15</td><td class="code">use crate::support::{</td></tr>
+<tr><td class="ln">16</td><td class="code">    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,</td><td class="ln">16</td><td class="code">    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,</td></tr>
+<tr class="hunk"><td colspan="4">@@ -690,6 +690,14 @@ impl Workspace {</td></tr>
+<tr><td class="ln">690</td><td class="code">                &amp;errors,</td><td class="ln">690</td><td class="code">                &amp;errors,</td></tr>
+<tr><td class="ln">691</td><td class="code">            ));</td><td class="ln">691</td><td class="code">            ));</td></tr>
+<tr><td class="ln">692</td><td class="code">        }</td><td class="ln">692</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">693</td><td class="code add">        let mut renames = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">694</td><td class="code add">        for file in markdown_files(&amp;self.tasks_dir(spec_id)?) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">695</td><td class="code add">            renames.extend(self.evidence_renames(&amp;file)?.1);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">696</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">697</td><td class="code add">        print_renames(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">698</td><td class="code add">            &quot;Nomes de evidência com caminho, trocados pelo nome do arquivo no mark-planned (nada foi alterado):&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">699</td><td class="code add">            &amp;renames,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">700</td><td class="code add">        );</td></tr>
+<tr><td class="ln">693</td><td class="code">        println!(</td><td class="ln">701</td><td class="code">        println!(</td></tr>
+<tr><td class="ln">694</td><td class="code">            &quot;Tarefas de {spec_id} válidas: {}&quot;,</td><td class="ln">702</td><td class="code">            &quot;Tarefas de {spec_id} válidas: {}&quot;,</td></tr>
+<tr><td class="ln">695</td><td class="code">            self.tasks_dir(spec_id)?.display()</td><td class="ln">703</td><td class="code">            self.tasks_dir(spec_id)?.display()</td></tr>
+<tr class="hunk"><td colspan="4">@@ -709,10 +717,21 @@ impl Workspace {</td></tr>
+<tr><td class="ln">709</td><td class="code">            ));</td><td class="ln">717</td><td class="code">            ));</td></tr>
+<tr><td class="ln">710</td><td class="code">        }</td><td class="ln">718</td><td class="code">        }</td></tr>
+<tr><td class="ln">711</td><td class="code"></td><td class="ln">719</td><td class="code"></td></tr>
+<tr><td class="ln">712</td><td class="code del">        // As tarefas já estão detalhadas e validadas: o hash passa a valer para a aprovação delas.</td><td class="ln">720</td><td class="code add">        // As tarefas já estão detalhadas e validadas: o nome com caminho vira o nome do arquivo e o</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">721</td><td class="code add">        // hash passa a valer para a aprovação delas.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">722</td><td class="code add">        let mut renames = Vec::new();</td></tr>
+<tr><td class="ln">713</td><td class="code">        for file in markdown_files(&amp;self.tasks_dir(spec_id)?) {</td><td class="ln">723</td><td class="code">        for file in markdown_files(&amp;self.tasks_dir(spec_id)?) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">724</td><td class="code add">            let (content, warnings) = self.evidence_renames(&amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">725</td><td class="code add">            if !warnings.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">726</td><td class="code add">                write(&amp;file, &amp;content)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">727</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">728</td><td class="code add">            renames.extend(warnings);</td></tr>
+<tr><td class="ln">714</td><td class="code">            self.store_hash(&amp;file)?;</td><td class="ln">729</td><td class="code">            self.store_hash(&amp;file)?;</td></tr>
+<tr><td class="ln">715</td><td class="code">        }</td><td class="ln">730</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">731</td><td class="code add">        print_renames(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">732</td><td class="code add">            &quot;Nomes de evidência com caminho trocados pelo nome do arquivo:&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">733</td><td class="code add">            &amp;renames,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">734</td><td class="code add">        );</td></tr>
+<tr><td class="ln">716</td><td class="code">        let planned = self.spec_setting(&quot;status.planned&quot;)?;</td><td class="ln">735</td><td class="code">        let planned = self.spec_setting(&quot;status.planned&quot;)?;</td></tr>
+<tr><td class="ln">717</td><td class="code">        let content = read(&amp;spec)?;</td><td class="ln">736</td><td class="code">        let content = read(&amp;spec)?;</td></tr>
+<tr><td class="ln">718</td><td class="code">        let Some(content) = frontmatter_set(&amp;content, &quot;status&quot;, &amp;planned) else {</td><td class="ln">737</td><td class="code">        let Some(content) = frontmatter_set(&amp;content, &quot;status&quot;, &amp;planned) else {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1034,15 +1053,23 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1034</td><td class="code">        }</td><td class="ln">1053</td><td class="code">        }</td></tr>
+<tr><td class="ln">1035</td><td class="code">        let mut errors = Vec::new();</td><td class="ln">1054</td><td class="code">        let mut errors = Vec::new();</td></tr>
+<tr><td class="ln">1036</td><td class="code">        let mut count = 0;</td><td class="ln">1055</td><td class="code">        let mut count = 0;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1056</td><td class="code add">        // Nome final de cada item, com o nome escrito quando ele tem caminho.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1057</td><td class="code add">        let mut finals: Vec&lt;(&amp;str, Option&lt;&amp;str&gt;)&gt; = Vec::new();</td></tr>
+<tr><td class="ln">1037</td><td class="code">        for item in text</td><td class="ln">1058</td><td class="code">        for item in text</td></tr>
+<tr><td class="ln">1038</td><td class="code">            .split(&#39;\n&#39;)</td><td class="ln">1059</td><td class="code">            .split(&#39;\n&#39;)</td></tr>
+<tr><td class="ln">1039</td><td class="code">            .filter(|item| !item.trim().is_empty() &amp;&amp; !is_indented(item))</td><td class="ln">1060</td><td class="code">            .filter(|item| !item.trim().is_empty() &amp;&amp; !is_indented(item))</td></tr>
+<tr><td class="ln">1040</td><td class="code">        {</td><td class="ln">1061</td><td class="code">        {</td></tr>
+<tr><td class="ln">1041</td><td class="code">            if is_automatic_evidence(item, &amp;automatic) || is_manual_evidence(item, &amp;manual) {</td><td class="ln">1062</td><td class="code">            if is_automatic_evidence(item, &amp;automatic) || is_manual_evidence(item, &amp;manual) {</td></tr>
+<tr><td class="ln">1042</td><td class="code">                count += 1;</td><td class="ln">1063</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln">1043</td><td class="code del">                errors.extend(</td><td class="ln">1064</td><td class="code add">                let name = evidence_item(item).map_or(&quot;&quot;, |(name, _, _)| name);</td></tr>
+<tr><td class="ln">1044</td><td class="code del">                    evidence_name_problem(item).map(|problem| format!(&quot;&#39;{sub}&#39; com {problem}&quot;)),</td><td class="ln">1065</td><td class="code add">                if let Some(normalized) = normalized_evidence_name(item) {</td></tr>
+<tr><td class="ln">1045</td><td class="code del">                );</td><td class="ln">1066</td><td class="code add">                    finals.push((normalized, Some(name)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1067</td><td class="code add">                } else {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1068</td><td class="code add">                    finals.push((name, None));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1069</td><td class="code add">                    errors.extend(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1070</td><td class="code add">                        evidence_name_problem(item).map(|problem| format!(&quot;&#39;{sub}&#39; com {problem}&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1071</td><td class="code add">                    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1072</td><td class="code add">                }</td></tr>
+<tr><td class="ln">1046</td><td class="code">            } else {</td><td class="ln">1073</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">1047</td><td class="code">                errors.push(format!(</td><td class="ln">1074</td><td class="code">                errors.push(format!(</td></tr>
+<tr><td class="ln">1048</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)&quot;</td><td class="ln">1075</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1054,10 +1081,70 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1054</td><td class="code">                &quot;&#39;{sub}&#39; sem nenhum item no formato e sem o texto &#39;{none}&#39;&quot;</td><td class="ln">1081</td><td class="code">                &quot;&#39;{sub}&#39; sem nenhum item no formato e sem o texto &#39;{none}&#39;&quot;</td></tr>
+<tr><td class="ln">1055</td><td class="code">            ));</td><td class="ln">1082</td><td class="code">            ));</td></tr>
+<tr><td class="ln">1056</td><td class="code">        }</td><td class="ln">1083</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1084</td><td class="code add">        // Dois itens que viram o mesmo nome gravariam o mesmo arquivo: não há troca segura.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1085</td><td class="code add">        let mut reported = BTreeSet::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1086</td><td class="code add">        for (name, _) in &amp;finals {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1087</td><td class="code add">            let same: Vec&lt;_&gt; = finals.iter().filter(|(other, _)| other == name).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1088</td><td class="code add">            if same.len() &gt; 1</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1089</td><td class="code add">                &amp;&amp; same.iter().any(|(_, written)| written.is_some())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1090</td><td class="code add">                &amp;&amp; reported.insert(*name)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1091</td><td class="code add">            {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1092</td><td class="code add">                let items: Vec&lt;String&gt; = same</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1093</td><td class="code add">                    .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1094</td><td class="code add">                    .map(|(final_name, written)| format!(&quot;`{}`&quot;, written.unwrap_or(final_name)))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1095</td><td class="code add">                    .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1096</td><td class="code add">                errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1097</td><td class="code add">                    &quot;&#39;{sub}&#39; com nome de evidência repetido depois de tirar o caminho: `{name}` ({})&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1098</td><td class="code add">                    items.join(&quot;, &quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1099</td><td class="code add">                ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1100</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1101</td><td class="code add">        }</td></tr>
+<tr><td class="ln">1057</td><td class="code">        let fields = self.evidence_fields();</td><td class="ln">1102</td><td class="code">        let fields = self.evidence_fields();</td></tr>
+<tr><td class="ln">1058</td><td class="code">        errors.extend(evidence_subitem_errors(&amp;text, &amp;sub, fields.as_ref(), true));</td><td class="ln">1103</td><td class="code">        errors.extend(evidence_subitem_errors(&amp;text, &amp;sub, fields.as_ref(), true));</td></tr>
+<tr><td class="ln">1059</td><td class="code">        Ok(errors)</td><td class="ln">1104</td><td class="code">        Ok(errors)</td></tr>
+<tr><td class="ln">1060</td><td class="code">    }</td><td class="ln">1105</td><td class="code">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1106</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1107</td><td class="code add">    /// Tarefa com o nome de evidência com caminho trocado pelo nome do arquivo, e um aviso</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1108</td><td class="code add">    /// `TASK-NN: antigo → novo` por troca. Só o nome muda; o resto do item e os subitens ficam.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1109</td><td class="code add">    fn evidence_renames(&amp;self, file: &amp;Path) -&gt; Result&lt;(String, Vec&lt;String&gt;)&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1110</td><td class="code add">        let execution = format!(&quot;## {}&quot;, self.task_setting(&quot;execution_section&quot;)?);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1111</td><td class="code add">        let evidence = format!(&quot;### {}&quot;, self.task_setting(&quot;evidence_subsection&quot;)?);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1112</td><td class="code add">        let id = file_stem(file);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1113</td><td class="code add">        let content = read(file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1114</td><td class="code add">        let mut warnings = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1115</td><td class="code add">        let (mut in_execution, mut in_evidence) = (false, false);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1116</td><td class="code add">        let mut lines = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1117</td><td class="code add">        for line in content.split(&#39;\n&#39;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1118</td><td class="code add">            if line.starts_with(&quot;## &quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1119</td><td class="code add">                in_execution = line.trim_end() == execution;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1120</td><td class="code add">                in_evidence = false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1121</td><td class="code add">            } else if line.starts_with(&#39;#&#39;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1122</td><td class="code add">                in_evidence = in_execution &amp;&amp; line.trim_end() == evidence;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1123</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1124</td><td class="code add">            let renamed = (in_evidence &amp;&amp; !is_indented(line))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1125</td><td class="code add">                .then(|| Some((evidence_item(line)?.0, normalized_evidence_name(line)?)))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1126</td><td class="code add">                .flatten();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1127</td><td class="code add">            match renamed {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1128</td><td class="code add">                Some((old, new)) =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1129</td><td class="code add">                    warnings.push(format!(&quot;{id}: {old} → {new}&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1130</td><td class="code add">                    lines.push(line.replacen(&amp;format!(&quot;`{old}`&quot;), &amp;format!(&quot;`{new}`&quot;), 1));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1131</td><td class="code add">                }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1132</td><td class="code add">                None =&gt; lines.push(line.to_string()),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1133</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1134</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1135</td><td class="code add">        Ok((lines.join(&quot;\n&quot;), warnings))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1136</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1137</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1138</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1139</td><td class="code add">/// Avisos das trocas de nome de evidência, depois do cabeçalho; nada quando não há troca.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1140</td><td class="code add">fn print_renames(header: &amp;str, renames: &amp;[String]) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1141</td><td class="code add">    if renames.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1142</td><td class="code add">        return;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1143</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1144</td><td class="code add">    println!(&quot;{header}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1145</td><td class="code add">    for rename in renames {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1146</td><td class="code add">        println!(&quot;- {rename}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1147</td><td class="code add">    }</td></tr>
+<tr><td class="ln">1061</td><td class="code">}</td><td class="ln">1148</td><td class="code">}</td></tr>
+<tr><td class="ln">1062</td><td class="code"></td><td class="ln">1149</td><td class="code"></td></tr>
+<tr><td class="ln">1063</td><td class="code">// --- Análise do plano: níveis de esforço, tabelas e dependências ---</td><td class="ln">1150</td><td class="code">// --- Análise do plano: níveis de esforço, tabelas e dependências ---</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/plan.rs</b><span class="tag criar">+122</span><span class="tag remover">−13</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -100,32 +100,141 @@ fn plan_outside_a_harness_fails() {</td></tr>
+<tr><td class="ln">100</td><td class="code">    assert!(stderr.contains(&quot;nenhum harness encontrado&quot;), &quot;{stderr}&quot;);</td><td class="ln">100</td><td class="code">    assert!(stderr.contains(&quot;nenhum harness encontrado&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln">101</td><td class="code">}</td><td class="ln">101</td><td class="code">}</td></tr>
+<tr><td class="ln">102</td><td class="code"></td><td class="ln">102</td><td class="code"></td></tr>
+<tr><td class="ln">103</td><td class="code del">// --- Nome de evidência inválido recusado na aprovação do plano (SPEC-010) ---</td><td class="ln">103</td><td class="code add">// --- Nome de evidência com caminho no planejamento (SPEC-010, SPEC-011) ---</td></tr>
+<tr><td class="ln">104</td><td class="code"></td><td class="ln">104</td><td class="code"></td></tr>
+<tr><td class="ln">105</td><td class="code del">#[test]</td><td class="ln">105</td><td class="code add">const SUBITEMS: &amp;str = &quot;  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.&quot;;</td></tr>
+<tr><td class="ln">106</td><td class="code del">fn evidence_name_with_a_path_is_refused_by_the_plan_validation() {</td><td class="ln">106</td><td class="code add"></td></tr>
+<tr><td class="ln">107</td><td class="code del">    let project = Project::new();</td><td class="ln">107</td><td class="code add">/// Spec aprovada (com hashes válidos), plano e TASK-01 com a subseção &quot;Evidências&quot; dada.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">108</td><td class="code add">fn plan_with_evidence(project: &amp;Project, evidence: &amp;str) -&gt; std::path::PathBuf {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">109</td><td class="code add">    use vostok::support::sha256_hex;</td></tr>
+<tr><td class="ln">108</td><td class="code">    let write = |relative: &amp;str, content: &amp;str| {</td><td class="ln">110</td><td class="code">    let write = |relative: &amp;str, content: &amp;str| {</td></tr>
+<tr><td class="ln">109</td><td class="code">        let path = project.root().join(relative);</td><td class="ln">111</td><td class="code">        let path = project.root().join(relative);</td></tr>
+<tr><td class="ln">110</td><td class="code">        std::fs::create_dir_all(path.parent().unwrap()).unwrap();</td><td class="ln">112</td><td class="code">        std::fs::create_dir_all(path.parent().unwrap()).unwrap();</td></tr>
+<tr><td class="ln">111</td><td class="code">        std::fs::write(path, content).unwrap();</td><td class="ln">113</td><td class="code">        std::fs::write(path, content).unwrap();</td></tr>
+<tr><td class="ln">112</td><td class="code">    };</td><td class="ln">114</td><td class="code">    };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">115</td><td class="code add">    let spec_body = &quot;\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Entregar. |\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">116</td><td class="code add">    let spec_hash = sha256_hex(spec_body.as_bytes());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">117</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">118</td><td class="code add">        &quot;vostok/work/specs/refined/SPEC-001-exemplo.md&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">119</td><td class="code add">        &amp;format!(&quot;---\nid: SPEC-001\ntitle: \&quot;Exemplo\&quot;\nstatus: approved\ntype: improvement\nupdated_at: null\ncontent_hash: {spec_hash}\napproved_hash: {spec_hash}\n---\n{spec_body}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">120</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">121</td><td class="code add">    let plan_body = &quot;\n# Plano\n\n## Visão geral\n\nUma tarefa.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n\n## Fatos de esforço\n\n| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|\n| TASK-01 | 0 | 1 | não | não | não |\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">122</td><td class="code add">    let plan_hash = sha256_hex(plan_body.as_bytes());</td></tr>
+<tr><td class="ln">113</td><td class="code">    write(</td><td class="ln">123</td><td class="code">    write(</td></tr>
+<tr><td class="ln">114</td><td class="code">        &quot;vostok/work/plans/SPEC-001.md&quot;,</td><td class="ln">124</td><td class="code">        &quot;vostok/work/plans/SPEC-001.md&quot;,</td></tr>
+<tr><td class="ln">115</td><td class="code del">        &quot;# Plano\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n&quot;,</td><td class="ln">125</td><td class="code add">        &amp;format!(&quot;---\nspec: SPEC-001\nspec_hash: {spec_hash}\ncontent_hash: {plan_hash}\n---\n{plan_body}&quot;),</td></tr>
+<tr><td class="ln">116</td><td class="code">    );</td><td class="ln">126</td><td class="code">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">127</td><td class="code add">    let task = project.root().join(&quot;vostok/work/tasks/SPEC-001/TASK-01.md&quot;);</td></tr>
+<tr><td class="ln">117</td><td class="code">    write(</td><td class="ln">128</td><td class="code">    write(</td></tr>
+<tr><td class="ln">118</td><td class="code">        &quot;vostok/work/tasks/SPEC-001/TASK-01.md&quot;,</td><td class="ln">129</td><td class="code">        &quot;vostok/work/tasks/SPEC-001/TASK-01.md&quot;,</td></tr>
+<tr><td class="ln">119</td><td class="code">        &amp;format!(</td><td class="ln">130</td><td class="code">        &amp;format!(</td></tr>
+<tr><td class="ln">120</td><td class="code del">            &quot;---\nid: TASK-01\nspec: SPEC-001\ntitle: \&quot;Tarefa\&quot;\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: pending\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `docs/x/saida.txt` (automática): `echo ok`\n{SUB}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  &gt; Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** SPEC-001, simples\n- **Estimativa:** simples\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n&quot;,</td><td class="ln">131</td><td class="code add">            &quot;---\nid: TASK-01\nspec: SPEC-001\ntitle: \&quot;Tarefa\&quot;\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: pending\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n{EVIDENCE}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  &gt; Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** SPEC-001, simples\n- **Estimativa:** simples\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n&quot;,</td></tr>
+<tr><td class="ln">121</td><td class="code del">            SUB = &quot;  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.&quot;</td><td class="ln">132</td><td class="code add">            EVIDENCE = evidence</td></tr>
+<tr><td class="ln">122</td><td class="code">        ),</td><td class="ln">133</td><td class="code">        ),</td></tr>
+<tr><td class="ln">123</td><td class="code">    );</td><td class="ln">134</td><td class="code">    );</td></tr>
+<tr><td class="ln">124</td><td class="code del">    let refused = failure_stderr(</td><td class="ln">135</td><td class="code add">    task</td></tr>
+<tr><td class="ln">125</td><td class="code del">        project</td><td class="ln">136</td><td class="code add">}</td></tr>
+<tr><td class="ln">126</td><td class="code del">            .vostok()</td><td class="ln">137</td><td class="code add"></td></tr>
+<tr><td class="ln">127</td><td class="code del">            .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;]),</td><td class="ln">138</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">139</td><td class="code add">fn evidence_name_with_a_path_is_accepted_with_a_warning_by_the_plan_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">140</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">141</td><td class="code add">    let task = plan_with_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">142</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">143</td><td class="code add">        &amp;format!(&quot;- `docs/x/saida.txt` (automática): `echo ok`\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">144</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">    let before = std::fs::read_to_string(&amp;task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add">    let output = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">147</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">148</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">149</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">150</td><td class="code add">        .success()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">151</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">152</td><td class="code add">        .stdout</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">153</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">154</td><td class="code add">    let stdout = String::from_utf8(output).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">155</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">156</td><td class="code add">        stdout.contains(&quot;TASK-01: docs/x/saida.txt → saida.txt&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">157</td><td class="code add">        &quot;{stdout}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add">    assert_eq!(std::fs::read_to_string(&amp;task).unwrap(), before);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">160</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">161</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">162</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">163</td><td class="code add">fn evidence_name_with_a_path_is_renamed_by_mark_planned() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">164</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">165</td><td class="code add">    let task = plan_with_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">166</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">167</td><td class="code add">        &amp;format!(&quot;- `docs/x/saida.txt` (automática): `echo ok`\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">168</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">169</td><td class="code add">    let output = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">170</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">171</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;mark-planned&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">172</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">173</td><td class="code add">        .success()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">174</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">175</td><td class="code add">        .stdout</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">176</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">177</td><td class="code add">    let stdout = String::from_utf8(output).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">178</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">179</td><td class="code add">        stdout.contains(&quot;TASK-01: docs/x/saida.txt → saida.txt&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">180</td><td class="code add">        &quot;{stdout}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">181</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">182</td><td class="code add">    let content = std::fs::read_to_string(&amp;task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">183</td><td class="code add">    assert!(!content.contains(&quot;docs/x/&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">184</td><td class="code add">    // O hash gravado vale para o conteúdo já com o nome trocado.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">185</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">186</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">187</td><td class="code add">        .args([&quot;task&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;, &quot;TASK-01&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">188</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">189</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">190</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">191</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">192</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">193</td><td class="code add">fn evidence_name_rename_keeps_the_kind_command_and_subitems() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">194</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">195</td><td class="code add">    let task = plan_with_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">196</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">197</td><td class="code add">        &amp;format!(&quot;- `docs/x/saida.txt` (automática): `echo ok`\n{SUBITEMS}\n- `notas.md` (manual): conferir a tela.\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">198</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">199</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">200</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">201</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;mark-planned&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">202</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">203</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">204</td><td class="code add">    let content = std::fs::read_to_string(&amp;task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">205</td><td class="code add">    let expected = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">206</td><td class="code add">        &quot;### Evidências\n\n- `saida.txt` (automática): `echo ok`\n{SUBITEMS}\n- `notas.md` (manual): conferir a tela.\n{SUBITEMS}\n&quot;</td></tr>
+<tr><td class="ln">128</td><td class="code">    );</td><td class="ln">207</td><td class="code">    );</td></tr>
+<tr><td class="ln">129</td><td class="code del">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td><td class="ln">208</td><td class="code add">    assert!(content.contains(&amp;expected), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln">130</td><td class="code del">    assert!(refused.contains(&quot;sem caminho&quot;), &quot;{refused}&quot;);</td><td class="ln">209</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">210</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">211</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">212</td><td class="code add">fn evidence_name_ambiguous_or_reserved_is_refused_by_the_plan_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">213</td><td class="code add">    let cases = [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">214</td><td class="code add">        (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">215</td><td class="code add">            format!(&quot;- `a/saida.txt` (automática): `echo a`\n{SUBITEMS}\n- `b/saida.txt` (automática): `echo b`\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">216</td><td class="code add">            &quot;saida.txt&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">217</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">218</td><td class="code add">        (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">219</td><td class="code add">            format!(&quot;- `docs/baseline` (automática): `echo ok`\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">220</td><td class="code add">            &quot;docs/baseline&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">221</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">222</td><td class="code add">        (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">223</td><td class="code add">            format!(&quot;- `docs/evidencias/` (automática): `echo ok`\n{SUBITEMS}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">224</td><td class="code add">            &quot;docs/evidencias/&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">225</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">226</td><td class="code add">    ];</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">227</td><td class="code add">    for (evidence, name) in cases {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">228</td><td class="code add">        let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">229</td><td class="code add">        let task = plan_with_evidence(&amp;project, &amp;evidence);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">230</td><td class="code add">        let before = std::fs::read_to_string(&amp;task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">231</td><td class="code add">        let refused = failure_stderr(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">232</td><td class="code add">            project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">233</td><td class="code add">                .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">234</td><td class="code add">                .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;]),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">235</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">236</td><td class="code add">        assert!(refused.contains(name), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">237</td><td class="code add">        assert!(refused.contains(&quot;TASK-01:&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">238</td><td class="code add">        assert_eq!(std::fs::read_to_string(&amp;task).unwrap(), before);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">239</td><td class="code add">    }</td></tr>
+<tr><td class="ln">131</td><td class="code">}</td><td class="ln">240</td><td class="code">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+100</span><span class="tag remover">−5</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -721,37 +721,132 @@ fn nested(project: &amp;Project, group: &amp;str, command: &amp;str) -&gt; assert_cmd::Command</td></tr>
+<tr><td class="ln">721</td><td class="code">    vostok</td><td class="ln">721</td><td class="code">    vostok</td></tr>
+<tr><td class="ln">722</td><td class="code">}</td><td class="ln">722</td><td class="code">}</td></tr>
+<tr><td class="ln">723</td><td class="code"></td><td class="ln">723</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">724</td><td class="code add">/// Saída de um comando que precisa terminar sem erro.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">725</td><td class="code add">fn success_stdout(command: &amp;mut assert_cmd::Command) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">726</td><td class="code add">    let output = command.assert().success().get_output().stdout.clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">727</td><td class="code add">    String::from_utf8(output).unwrap()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">728</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">729</td><td class="code add"></td></tr>
+<tr><td class="ln">724</td><td class="code">const PATH_EVIDENCE: &amp;str = &quot;- `docs/x/saida.txt` (automática): `echo ok`&quot;;</td><td class="ln">730</td><td class="code">const PATH_EVIDENCE: &amp;str = &quot;- `docs/x/saida.txt` (automática): `echo ok`&quot;;</td></tr>
+<tr><td class="ln">725</td><td class="code"></td><td class="ln">731</td><td class="code"></td></tr>
+<tr><td class="ln">726</td><td class="code">#[test]</td><td class="ln">732</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">727</td><td class="code del">fn evidence_name_with_a_path_is_refused_by_the_task_validation() {</td><td class="ln">733</td><td class="code add">fn evidence_name_with_a_path_is_accepted_with_a_warning_by_the_task_adjust_validation() {</td></tr>
+<tr><td class="ln">728</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, PATH_EVIDENCE);</td><td class="ln">734</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, PATH_EVIDENCE);</td></tr>
+<tr><td class="ln">729</td><td class="code del">    let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td><td class="ln">735</td><td class="code add">    let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln">730</td><td class="code del">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td><td class="ln">736</td><td class="code add">    let output = success_stdout(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln">731</td><td class="code del">    assert!(refused.contains(&quot;sem caminho&quot;), &quot;{refused}&quot;);</td><td class="ln">737</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">738</td><td class="code add">        output.contains(&quot;TASK-01: docs/x/saida.txt → saida.txt&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">739</td><td class="code add">        &quot;{output}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">740</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">741</td><td class="code add">    assert!(output.contains(&quot;nada foi alterado&quot;), &quot;{output}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">742</td><td class="code add">    assert_eq!(read(&amp;project, TASK_PATH), before);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">743</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">744</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">745</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">746</td><td class="code add">fn evidence_name_with_a_path_is_renamed_by_the_task_adjust_record() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">747</td><td class="code add">    let subitems = &quot;  - Prova: o comando roda.\n  - Trecho: a linha `ok`.\n  - Falha: saída vazia.&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">748</td><td class="code add">    let project = task_with_evidence(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">749</td><td class="code add">        &quot;pending&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">750</td><td class="code add">        &amp;format!(&quot;{PATH_EVIDENCE}\n{subitems}\n- `notas.md` (manual): conferir a tela.&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">751</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">752</td><td class="code add">    let mut record = nested(&amp;project, &quot;adjust&quot;, &quot;record&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">753</td><td class="code add">    record.arg(&quot;Nome de evidência trocado&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">754</td><td class="code add">    let output = success_stdout(&amp;mut record);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">755</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">756</td><td class="code add">        output.contains(&quot;TASK-01: docs/x/saida.txt → saida.txt&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">757</td><td class="code add">        &quot;{output}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">758</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">759</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">760</td><td class="code add">    // Só o nome muda: o tipo, o comando e os subitens ficam.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">761</td><td class="code add">    let expected = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">762</td><td class="code add">        &quot;### Evidências\n\n- `saida.txt` (automática): `echo ok`\n{subitems}\n- `notas.md` (manual): conferir a tela.\n&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">763</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">764</td><td class="code add">    assert!(content.contains(&amp;expected), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">765</td><td class="code add">    assert!(!content.contains(&quot;docs/x/&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">766</td><td class="code add">    // O ajuste foi registrado no histórico, com o hash do conteúdo já trocado.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">767</td><td class="code add">    assert!(content.contains(&quot;adjustments: 1\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">768</td><td class="code add">    let history = content.split(&quot;## Histórico de ajustes&quot;).nth(1).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">769</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">770</td><td class="code add">        history</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">771</td><td class="code add">            .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">772</td><td class="code add">            .any(|line| line.starts_with(&quot;| 1 |&quot;) &amp;&amp; line.contains(&quot;Nome de evidência trocado&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">773</td><td class="code add">        &quot;{history}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">774</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">775</td><td class="code add">    nested(&amp;project, &quot;approve&quot;, &quot;validate&quot;).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">776</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">777</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">778</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">779</td><td class="code add">fn evidence_name_with_a_path_is_renamed_in_an_approved_task_by_the_adjust_record() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">780</td><td class="code add">    let project = task_with_evidence(&quot;approved&quot;, PATH_EVIDENCE);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">781</td><td class="code add">    let mut record = nested(&amp;project, &quot;adjust&quot;, &quot;record&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">782</td><td class="code add">    record.arg(&quot;Nome de evidência trocado&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">783</td><td class="code add">    let output = success_stdout(&amp;mut record);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">784</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">785</td><td class="code add">        output.contains(&quot;TASK-01: docs/x/saida.txt → saida.txt&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">786</td><td class="code add">        &quot;{output}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">787</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">788</td><td class="code add">    assert!(read(&amp;project, TASK_PATH).contains(&quot;- `saida.txt` (automática): `echo ok`&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">789</td><td class="code add">    // A troca reescreve a tarefa: a aprovação cai.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">790</td><td class="code add">    assert_eq!(status(&amp;project), &quot;pending&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">791</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">792</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">793</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">794</td><td class="code add">fn evidence_name_ambiguous_or_reserved_is_refused_by_the_task_adjust() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">795</td><td class="code add">    let cases = [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">796</td><td class="code add">        (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">797</td><td class="code add">            &quot;- `a/saida.txt` (automática): `echo a`\n- `b/saida.txt` (automática): `echo b`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">798</td><td class="code add">            &quot;saida.txt&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">799</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">800</td><td class="code add">        (&quot;- `docs/baseline` (automática): `echo ok`&quot;, &quot;docs/baseline&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">801</td><td class="code add">        (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">802</td><td class="code add">            &quot;- `docs/evidencias/` (automática): `echo ok`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">803</td><td class="code add">            &quot;docs/evidencias/&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">804</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">805</td><td class="code add">    ];</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">806</td><td class="code add">    for (evidence, name) in cases {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">807</td><td class="code add">        let project = task_with_evidence(&quot;pending&quot;, evidence);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">808</td><td class="code add">        let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">809</td><td class="code add">        let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">810</td><td class="code add">        assert!(refused.contains(name), &quot;{name}: {refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">811</td><td class="code add">        assert!(refused.contains(&quot;TASK-01:&quot;), &quot;{name}: {refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">812</td><td class="code add">        let mut record = nested(&amp;project, &quot;adjust&quot;, &quot;record&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">813</td><td class="code add">        record.arg(&quot;Ajuste&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">814</td><td class="code add">        let refused = failure_stderr(&amp;mut record);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">815</td><td class="code add">        assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">816</td><td class="code add">            refused.contains(&quot;nenhum ajuste registrado&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">817</td><td class="code add">            &quot;{name}: {refused}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">818</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">819</td><td class="code add">        assert_eq!(read(&amp;project, TASK_PATH), before, &quot;{name}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">820</td><td class="code add">    }</td></tr>
+<tr><td class="ln">732</td><td class="code">}</td><td class="ln">821</td><td class="code">}</td></tr>
+<tr><td class="ln">733</td><td class="code"></td><td class="ln">822</td><td class="code"></td></tr>
+<tr><td class="ln">734</td><td class="code">#[test]</td><td class="ln">823</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">735</td><td class="code">fn evidence_name_with_a_path_is_refused_by_the_task_approval() {</td><td class="ln">824</td><td class="code">fn evidence_name_with_a_path_is_refused_by_the_task_approval() {</td></tr>
+<tr><td class="ln">736</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, PATH_EVIDENCE);</td><td class="ln">825</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, PATH_EVIDENCE);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">826</td><td class="code add">    let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln">737</td><td class="code">    let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;approve&quot;, &quot;approve&quot;));</td><td class="ln">827</td><td class="code">    let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;approve&quot;, &quot;approve&quot;));</td></tr>
+<tr><td class="ln">738</td><td class="code">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td><td class="ln">828</td><td class="code">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">829</td><td class="code add">    assert!(refused.contains(&quot;sem caminho&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln">739</td><td class="code">    assert_eq!(status(&amp;project), &quot;pending&quot;);</td><td class="ln">830</td><td class="code">    assert_eq!(status(&amp;project), &quot;pending&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">831</td><td class="code add">    assert_eq!(read(&amp;project, TASK_PATH), before);</td></tr>
+<tr><td class="ln">740</td><td class="code">}</td><td class="ln">832</td><td class="code">}</td></tr>
+<tr><td class="ln">741</td><td class="code"></td><td class="ln">833</td><td class="code"></td></tr>
+<tr><td class="ln">742</td><td class="code">#[test]</td><td class="ln">834</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">743</td><td class="code">fn evidence_name_with_a_path_is_refused_by_the_task_start() {</td><td class="ln">835</td><td class="code">fn evidence_name_with_a_path_is_refused_by_the_task_start() {</td></tr>
+<tr><td class="ln">744</td><td class="code">    let project = task_with_evidence(&quot;approved&quot;, PATH_EVIDENCE);</td><td class="ln">836</td><td class="code">    let project = task_with_evidence(&quot;approved&quot;, PATH_EVIDENCE);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">837</td><td class="code add">    let before = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln">745</td><td class="code">    let refused = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td><td class="ln">838</td><td class="code">    let refused = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td></tr>
+<tr><td class="ln">746</td><td class="code">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td><td class="ln">839</td><td class="code">    assert!(refused.contains(&quot;docs/x/saida.txt&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln">747</td><td class="code">    assert!(refused.contains(&quot;adjust-task&quot;), &quot;{refused}&quot;);</td><td class="ln">840</td><td class="code">    assert!(refused.contains(&quot;adjust-task&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln">748</td><td class="code">    assert_eq!(status(&amp;project), &quot;approved&quot;);</td><td class="ln">841</td><td class="code">    assert_eq!(status(&amp;project), &quot;approved&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">842</td><td class="code add">    assert_eq!(read(&amp;project, TASK_PATH), before);</td></tr>
+<tr><td class="ln">749</td><td class="code">}</td><td class="ln">843</td><td class="code">}</td></tr>
+<tr><td class="ln">750</td><td class="code"></td><td class="ln">844</td><td class="code"></td></tr>
+<tr><td class="ln">751</td><td class="code">#[test]</td><td class="ln">845</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">752</td><td class="code">fn evidence_name_valid_is_accepted_by_the_task_validation() {</td><td class="ln">846</td><td class="code">fn evidence_name_valid_is_accepted_by_the_task_validation() {</td></tr>
+<tr><td class="ln">753</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, &quot;- `saida.txt` (automática): `echo ok`&quot;);</td><td class="ln">847</td><td class="code">    let project = task_with_evidence(&quot;pending&quot;, &quot;- `saida.txt` (automática): `echo ok`&quot;);</td></tr>
+<tr><td class="ln">754</td><td class="code del">    nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;).assert().success();</td><td class="ln">848</td><td class="code add">    let output = success_stdout(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">849</td><td class="code add">    assert!(!output.contains(&#39;→&#39;), &quot;{output}&quot;);</td></tr>
+<tr><td class="ln">755</td><td class="code">}</td><td class="ln">850</td><td class="code">}</td></tr>
+<tr><td class="ln">756</td><td class="code"></td><td class="ln">851</td><td class="code"></td></tr>
+<tr><td class="ln">757</td><td class="code">#[test]</td><td class="ln">852</td><td class="code">#[test]</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/approve-plan/SKILL.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -101,7 +101,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj</td></tr>
+<tr><td class="ln">101</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td><td class="ln">101</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td></tr>
+<tr><td class="ln">102</td><td class="code">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td><td class="ln">102</td><td class="code">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td></tr>
+<tr><td class="ln">103</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td><td class="ln">103</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td></tr>
+<tr><td class="ln">104</td><td class="code del">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td><td class="ln">104</td><td class="code add">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Com `persist_dir` configurado em `config/tasks.yml`, a cópia das evidências para o projeto é feita pelo `vostok task persist`: o item nunca leva o destino da cópia. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td></tr>
+<tr><td class="ln">105</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td><td class="ln">105</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td></tr>
+<tr><td class="ln">106</td><td class="code">  - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova).</td><td class="ln">106</td><td class="code">  - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova).</td></tr>
+<tr><td class="ln">107</td><td class="code">  - `Falha:` o que apareceria se a tarefa tivesse falhado.</td><td class="ln">107</td><td class="code">  - `Falha:` o que apareceria se a tarefa tivesse falhado.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/skills/default/approve-plan/SKILL.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -101,7 +101,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj</td></tr>
+<tr><td class="ln">101</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td><td class="ln">101</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td></tr>
+<tr><td class="ln">102</td><td class="code">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td><td class="ln">102</td><td class="code">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td></tr>
+<tr><td class="ln">103</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td><td class="ln">103</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td></tr>
+<tr><td class="ln">104</td><td class="code del">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td><td class="ln">104</td><td class="code add">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Com `persist_dir` configurado em `config/tasks.yml`, a cópia das evidências para o projeto é feita pelo `vostok task persist`: o item nunca leva o destino da cópia. Prefira a automática; use a manual só quando não houver comando que a produza. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td></tr>
+<tr><td class="ln">105</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td><td class="ln">105</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td></tr>
+<tr><td class="ln">106</td><td class="code">  - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova).</td><td class="ln">106</td><td class="code">  - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova).</td></tr>
+<tr><td class="ln">107</td><td class="code">  - `Falha:` o que apareceria se a tarefa tivesse falhado.</td><td class="ln">107</td><td class="code">  - `Falha:` o que apareceria se a tarefa tivesse falhado.</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">474f39f</td><td class="mono">2026-10-20</td><td>feat(task): rename evidence items with a path when adjusting a task</td></tr>
+<tr><td class="mono">55fcaa2</td><td class="mono">2026-10-20</td><td>docs(skills): explain in approve-plan that persist_dir copies are automatic</td></tr>
+<tr><td class="mono">e4b46b3</td><td class="mono">2026-10-20</td><td>feat(plan): rename evidence items with a path to the file name</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<ul>
+<li><code>validate</code> avisa e o comando que grava troca: mantém o <code>validate</code> sem alterar nada; descartados reescrever no <code>validate</code> e uma opção <code>--fix</code>.</li>
+<li>Troca também no ajuste: corrige tarefas existentes; o <code>approve</code> e o <code>start</code> continuam estritos (RN-01).</li>
+<li>Nome depois da última <code>/</code>, com ou sem <code>persist_dir</code>: mais simples e cobre outros caminhos.</li>
+<li>Repetidos só são recusados quando ao menos um item tinha caminho, para não mudar o comportamento de itens já iguais.</li>
+<li>Caminho terminado em <code>/</code> é recusado na função nova, sem mexer no critério da SPEC-010.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>A causa provável da confusão é o <code>persist_dir</code>: o agente escrevia o destino da cópia como nome.</li>
+<li>Dividir o plano em três tarefas permitiu paralelizar a parte de texto, mas o <code>vostok task start</code> exige as dependências <code>done</code>, então a TASK-02 esperou a finalização da TASK-01.</li>
+<li>Evidências com <code>grep</code> em texto exclusivo da mudança (<code>vostok task persist</code>) evitam o falso positivo da SPEC-010.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>A lógica de troca e de repetidos está duplicada entre <code>plan.rs</code> e <code>task.rs</code>; o <code>plan.rs</code> pode passar a chamar <code>renamed_evidence</code>, <code>repeated_evidence_names</code> e <code>print_renames</code> de <code>task.rs</code>.</li>
+<li><code>task adjust record-manual</code> aceita o nome com caminho sem trocar; a troca é do <code>adjust record</code>.</li>
+<li>Ao mudar a <code>approve-plan</code>, rode <code>cargo install --path apps/cli</code> antes do <code>vostok update</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code>: normalização, <code>EvidenceNames</code> e fluxo do ajuste.</li>
+<li><code>apps/cli/src/commands/plan.rs</code>: fluxo do planejamento.</li>
+<li><code>apps/cli/tests/plan.rs</code> e <code>apps/cli/tests/task.rs</code>: testes <code>evidence_name_*</code>.</li>
+<li>Commits <code>e4b46b3</code>, <code>474f39f</code> e <code>55fcaa2</code>.</li>
+<li>SPEC-010 e issue Ishtar-Sink/Vostok#1: origem do problema.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-011, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

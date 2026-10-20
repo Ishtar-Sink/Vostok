@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
-use super::task::evidence_name_problem;
+use super::task::{evidence_item, evidence_name_problem, normalized_evidence_name};
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
@@ -690,6 +690,14 @@ impl Workspace {
                 &errors,
             ));
         }
+        let mut renames = Vec::new();
+        for file in markdown_files(&self.tasks_dir(spec_id)?) {
+            renames.extend(self.evidence_renames(&file)?.1);
+        }
+        print_renames(
+            "Nomes de evidência com caminho, trocados pelo nome do arquivo no mark-planned (nada foi alterado):",
+            &renames,
+        );
         println!(
             "Tarefas de {spec_id} válidas: {}",
             self.tasks_dir(spec_id)?.display()
@@ -709,10 +717,21 @@ impl Workspace {
             ));
         }
 
-        // As tarefas já estão detalhadas e validadas: o hash passa a valer para a aprovação delas.
+        // As tarefas já estão detalhadas e validadas: o nome com caminho vira o nome do arquivo e o
+        // hash passa a valer para a aprovação delas.
+        let mut renames = Vec::new();
         for file in markdown_files(&self.tasks_dir(spec_id)?) {
+            let (content, warnings) = self.evidence_renames(&file)?;
+            if !warnings.is_empty() {
+                write(&file, &content)?;
+            }
+            renames.extend(warnings);
             self.store_hash(&file)?;
         }
+        print_renames(
+            "Nomes de evidência com caminho trocados pelo nome do arquivo:",
+            &renames,
+        );
         let planned = self.spec_setting("status.planned")?;
         let content = read(&spec)?;
         let Some(content) = frontmatter_set(&content, "status", &planned) else {
@@ -1034,15 +1053,23 @@ impl Workspace {
         }
         let mut errors = Vec::new();
         let mut count = 0;
+        // Nome final de cada item, com o nome escrito quando ele tem caminho.
+        let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
         for item in text
             .split('\n')
             .filter(|item| !item.trim().is_empty() && !is_indented(item))
         {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
-                errors.extend(
-                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
-                );
+                let name = evidence_item(item).map_or("", |(name, _, _)| name);
+                if let Some(normalized) = normalized_evidence_name(item) {
+                    finals.push((normalized, Some(name)));
+                } else {
+                    finals.push((name, None));
+                    errors.extend(
+                        evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                    );
+                }
             } else {
                 errors.push(format!(
                     "'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)"
@@ -1054,9 +1081,69 @@ impl Workspace {
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
             ));
         }
+        // Dois itens que viram o mesmo nome gravariam o mesmo arquivo: não há troca segura.
+        let mut reported = BTreeSet::new();
+        for (name, _) in &finals {
+            let same: Vec<_> = finals.iter().filter(|(other, _)| other == name).collect();
+            if same.len() > 1
+                && same.iter().any(|(_, written)| written.is_some())
+                && reported.insert(*name)
+            {
+                let items: Vec<String> = same
+                    .iter()
+                    .map(|(final_name, written)| format!("`{}`", written.unwrap_or(final_name)))
+                    .collect();
+                errors.push(format!(
+                    "'{sub}' com nome de evidência repetido depois de tirar o caminho: `{name}` ({})",
+                    items.join(", ")
+                ));
+            }
+        }
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));
         Ok(errors)
+    }
+
+    /// Tarefa com o nome de evidência com caminho trocado pelo nome do arquivo, e um aviso
+    /// `TASK-NN: antigo → novo` por troca. Só o nome muda; o resto do item e os subitens ficam.
+    fn evidence_renames(&self, file: &Path) -> Result<(String, Vec<String>)> {
+        let execution = format!("## {}", self.task_setting("execution_section")?);
+        let evidence = format!("### {}", self.task_setting("evidence_subsection")?);
+        let id = file_stem(file);
+        let content = read(file)?;
+        let mut warnings = Vec::new();
+        let (mut in_execution, mut in_evidence) = (false, false);
+        let mut lines = Vec::new();
+        for line in content.split('\n') {
+            if line.starts_with("## ") {
+                in_execution = line.trim_end() == execution;
+                in_evidence = false;
+            } else if line.starts_with('#') {
+                in_evidence = in_execution && line.trim_end() == evidence;
+            }
+            let renamed = (in_evidence && !is_indented(line))
+                .then(|| Some((evidence_item(line)?.0, normalized_evidence_name(line)?)))
+                .flatten();
+            match renamed {
+                Some((old, new)) => {
+                    warnings.push(format!("{id}: {old} → {new}"));
+                    lines.push(line.replacen(&format!("`{old}`"), &format!("`{new}`"), 1));
+                }
+                None => lines.push(line.to_string()),
+            }
+        }
+        Ok((lines.join("\n"), warnings))
+    }
+}
+
+/// Avisos das trocas de nome de evidência, depois do cabeçalho; nada quando não há troca.
+fn print_renames(header: &str, renames: &[String]) {
+    if renames.is_empty() {
+        return;
+    }
+    println!("{header}");
+    for rename in renames {
+        println!("- {rename}");
     }
 }
 

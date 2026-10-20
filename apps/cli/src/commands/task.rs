@@ -2261,7 +2261,15 @@ pub(crate) fn evidence_name_problem(item: &str) -> Option<String> {
     })
 }
 
-fn evidence_item(line: &str) -> Option<(&str, &str, &str)> {
+/// Nome normalizado de um item com caminho: o texto depois da última `/`, se for válido
+/// (caminho terminado em `/` não tem nome de arquivo).
+pub(crate) fn normalized_evidence_name(item: &str) -> Option<&str> {
+    let (name, _, _) = evidence_item(item)?;
+    let (_, file) = name.rsplit_once('/')?;
+    (!file.is_empty() && is_valid_evidence_name(file)).then_some(file)
+}
+
+pub(crate) fn evidence_item(line: &str) -> Option<(&str, &str, &str)> {
     let (name, rest) = quoted_name(line.strip_prefix("- ")?)?;
     let rest = rest.strip_prefix(" (")?;
     let end = rest.find(')')?;

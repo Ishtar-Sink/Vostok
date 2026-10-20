@@ -721,37 +721,132 @@ fn nested(project: &Project, group: &str, command: &str) -> assert_cmd::Command 
     vostok
 }
 
+/// Saída de um comando que precisa terminar sem erro.
+fn success_stdout(command: &mut assert_cmd::Command) -> String {
+    let output = command.assert().success().get_output().stdout.clone();
+    String::from_utf8(output).unwrap()
+}
+
 const PATH_EVIDENCE: &str = "- `docs/x/saida.txt` (automática): `echo ok`";
 
 #[test]
-fn evidence_name_with_a_path_is_refused_by_the_task_validation() {
+fn evidence_name_with_a_path_is_accepted_with_a_warning_by_the_task_adjust_validation() {
     let project = task_with_evidence("pending", PATH_EVIDENCE);
-    let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
-    assert!(refused.contains("docs/x/saida.txt"), "{refused}");
-    assert!(refused.contains("sem caminho"), "{refused}");
+    let before = read(&project, TASK_PATH);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        output.contains("TASK-01: docs/x/saida.txt → saida.txt"),
+        "{output}"
+    );
+    assert!(output.contains("nada foi alterado"), "{output}");
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn evidence_name_with_a_path_is_renamed_by_the_task_adjust_record() {
+    let subitems = "  - Prova: o comando roda.\n  - Trecho: a linha `ok`.\n  - Falha: saída vazia.";
+    let project = task_with_evidence(
+        "pending",
+        &format!("{PATH_EVIDENCE}\n{subitems}\n- `notas.md` (manual): conferir a tela."),
+    );
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Nome de evidência trocado");
+    let output = success_stdout(&mut record);
+    assert!(
+        output.contains("TASK-01: docs/x/saida.txt → saida.txt"),
+        "{output}"
+    );
+    let content = read(&project, TASK_PATH);
+    // Só o nome muda: o tipo, o comando e os subitens ficam.
+    let expected = format!(
+        "### Evidências\n\n- `saida.txt` (automática): `echo ok`\n{subitems}\n- `notas.md` (manual): conferir a tela.\n"
+    );
+    assert!(content.contains(&expected), "{content}");
+    assert!(!content.contains("docs/x/"), "{content}");
+    // O ajuste foi registrado no histórico, com o hash do conteúdo já trocado.
+    assert!(content.contains("adjustments: 1\n"), "{content}");
+    let history = content.split("## Histórico de ajustes").nth(1).unwrap();
+    assert!(
+        history
+            .lines()
+            .any(|line| line.starts_with("| 1 |") && line.contains("Nome de evidência trocado")),
+        "{history}"
+    );
+    nested(&project, "approve", "validate").assert().success();
+}
+
+#[test]
+fn evidence_name_with_a_path_is_renamed_in_an_approved_task_by_the_adjust_record() {
+    let project = task_with_evidence("approved", PATH_EVIDENCE);
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Nome de evidência trocado");
+    let output = success_stdout(&mut record);
+    assert!(
+        output.contains("TASK-01: docs/x/saida.txt → saida.txt"),
+        "{output}"
+    );
+    assert!(read(&project, TASK_PATH).contains("- `saida.txt` (automática): `echo ok`"));
+    // A troca reescreve a tarefa: a aprovação cai.
+    assert_eq!(status(&project), "pending");
+}
+
+#[test]
+fn evidence_name_ambiguous_or_reserved_is_refused_by_the_task_adjust() {
+    let cases = [
+        (
+            "- `a/saida.txt` (automática): `echo a`\n- `b/saida.txt` (automática): `echo b`",
+            "saida.txt",
+        ),
+        ("- `docs/baseline` (automática): `echo ok`", "docs/baseline"),
+        (
+            "- `docs/evidencias/` (automática): `echo ok`",
+            "docs/evidencias/",
+        ),
+    ];
+    for (evidence, name) in cases {
+        let project = task_with_evidence("pending", evidence);
+        let before = read(&project, TASK_PATH);
+        let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+        assert!(refused.contains(name), "{name}: {refused}");
+        assert!(refused.contains("TASK-01:"), "{name}: {refused}");
+        let mut record = nested(&project, "adjust", "record");
+        record.arg("Ajuste");
+        let refused = failure_stderr(&mut record);
+        assert!(
+            refused.contains("nenhum ajuste registrado"),
+            "{name}: {refused}"
+        );
+        assert_eq!(read(&project, TASK_PATH), before, "{name}");
+    }
 }
 
 #[test]
 fn evidence_name_with_a_path_is_refused_by_the_task_approval() {
     let project = task_with_evidence("pending", PATH_EVIDENCE);
+    let before = read(&project, TASK_PATH);
     let refused = failure_stderr(&mut nested(&project, "approve", "approve"));
     assert!(refused.contains("docs/x/saida.txt"), "{refused}");
+    assert!(refused.contains("sem caminho"), "{refused}");
     assert_eq!(status(&project), "pending");
+    assert_eq!(read(&project, TASK_PATH), before);
 }
 
 #[test]
 fn evidence_name_with_a_path_is_refused_by_the_task_start() {
     let project = task_with_evidence("approved", PATH_EVIDENCE);
+    let before = read(&project, TASK_PATH);
     let refused = failure_stderr(&mut task(&project, &["start"]));
     assert!(refused.contains("docs/x/saida.txt"), "{refused}");
     assert!(refused.contains("adjust-task"), "{refused}");
     assert_eq!(status(&project), "approved");
+    assert_eq!(read(&project, TASK_PATH), before);
 }
 
 #[test]
 fn evidence_name_valid_is_accepted_by_the_task_validation() {
     let project = task_with_evidence("pending", "- `saida.txt` (automática): `echo ok`");
-    nested(&project, "adjust", "validate").assert().success();
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(!output.contains('→'), "{output}");
 }
 
 #[test]

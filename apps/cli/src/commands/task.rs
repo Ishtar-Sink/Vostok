@@ -254,6 +254,15 @@ fn filled(
     given(non_empty(spec), non_empty(task), text)
 }
 
+/// Como a validação trata o nome de evidência com caminho.
+#[derive(Clone, Copy, PartialEq)]
+enum EvidenceNames {
+    /// Recusa: a tarefa aprovada não é reescrita fora do ajuste (aprovação).
+    Strict,
+    /// Aceita o nome normalizável, que o `vostok task adjust record` troca pelo nome do arquivo.
+    Normalizable,
+}
+
 /// Status configurados em `config/tasks.yml`.
 struct Statuses {
     pending: String,
@@ -541,7 +550,7 @@ impl Tasks {
                     "{id}: edição manual sem registro; registre-a com: vostok task adjust record-manual {spec} {id}"
                 ));
             }
-            problems.extend(self.errors_of(spec, file)?);
+            problems.extend(self.errors_of(spec, file, EvidenceNames::Strict)?);
         }
         Ok(problems)
     }
@@ -615,7 +624,7 @@ impl Tasks {
         println!("Ajuste manual {count} registrado em {task}: {summary}");
         self.drop_approval(&file, task)?;
         self.restart_execution(&file, task, &summary)?;
-        let errors = self.errors_of(spec, &file)?;
+        let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
         if !errors.is_empty() {
             println!("Problemas de validação:\n{}", errors.join("\n"));
         }
@@ -624,10 +633,14 @@ impl Tasks {
 
     fn validate(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.adjustable_task(spec, task)?;
-        let errors = self.errors_of(spec, &file)?;
+        let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
         if !errors.is_empty() {
             bail!("a tarefa {task} tem problemas:\n{}", errors.join("\n"));
         }
+        print_renames(
+            "Nomes de evidência com caminho, trocados pelo nome do arquivo no vostok task adjust record (nada foi alterado):",
+            &self.evidence_renames(&file)?.1,
+        );
         println!("Tarefa {task} válida: {}", file.display());
         Ok(())
     }
@@ -635,13 +648,22 @@ impl Tasks {
     fn record(&self, spec: &str, task: &str, summary: &str) -> Result<()> {
         let summary = clean_summary(summary)?;
         let file = self.adjustable_task(spec, task)?;
-        let errors = self.errors_of(spec, &file)?;
+        let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
         if !errors.is_empty() {
             bail!(
                 "a tarefa {task} tem problemas; nenhum ajuste registrado:\n{}",
                 errors.join("\n")
             );
         }
+        // O nome com caminho vira o nome do arquivo antes do registro, que grava o hash.
+        let (content, renames) = self.evidence_renames(&file)?;
+        if !renames.is_empty() {
+            write(&file, &content)?;
+        }
+        print_renames(
+            "Nomes de evidência com caminho trocados pelo nome do arquivo:",
+            &renames,
+        );
         let origin = self.spec_cfg("adjustment_origins.agent")?;
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste {count} registrado em {task}: {}", file.display());
@@ -1635,14 +1657,19 @@ impl Tasks {
     // --- Validação da tarefa ---
 
     /// Problemas da tarefa, prefixados pelo ID. A cobertura é a da própria tarefa, que não muda aqui.
-    fn errors_of(&self, spec: &str, file: &Path) -> Result<Vec<String>> {
+    fn errors_of(&self, spec: &str, file: &Path, names: EvidenceNames) -> Result<Vec<String>> {
         let upstream = upstream_paths(&self.tasks_root.join(spec), &task_id_of(file), |file| {
             self.created_paths(file)
         })?;
-        self.task_errors(file, &upstream)
+        self.task_errors(file, &upstream, names)
     }
 
-    fn task_errors(&self, file: &Path, upstream: &HashSet<String>) -> Result<Vec<String>> {
+    fn task_errors(
+        &self,
+        file: &Path,
+        upstream: &HashSet<String>,
+        names: EvidenceNames,
+    ) -> Result<Vec<String>> {
         let id = task_id_of(file);
         let content = read(file)?;
         let mut errors: Vec<String> = template_leftovers(&content)
@@ -1655,7 +1682,7 @@ impl Tasks {
         errors.extend(self.change_errors(&content, upstream)?);
         errors.extend(self.done_errors(&content)?);
         errors.extend(self.baseline_errors(&content)?);
-        errors.extend(self.evidence_errors(&content)?);
+        errors.extend(self.evidence_errors(&content, names)?);
         Ok(errors
             .into_iter()
             .map(|error| format!("{id}: {error}"))
@@ -1812,8 +1839,8 @@ impl Tasks {
     }
 
     /// Itens de "Evidências": "- `arquivo` (automática): `comando`", "- `arquivo` (manual): descrição"
-    /// ou o texto único de `evidence_none`.
-    fn evidence_errors(&self, content: &str) -> Result<Vec<String>> {
+    /// ou o texto único de `evidence_none`. No ajuste, o nome com caminho normalizável é aceito.
+    fn evidence_errors(&self, content: &str, names: EvidenceNames) -> Result<Vec<String>> {
         let text = self.subsection(content, "evidence_subsection")?;
         if text.is_empty() {
             return Ok(Vec::new());
@@ -1832,15 +1859,27 @@ impl Tasks {
         }
         let mut errors = Vec::new();
         let mut count = 0;
+        // Nome final de cada item, com o nome escrito quando ele tem caminho.
+        let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
         for item in text
             .lines()
             .filter(|line| has_text(line) && !is_indented(line))
         {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
-                errors.extend(
-                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
-                );
+                let name = evidence_item(item).map_or("", |(name, _, _)| name);
+                match normalized_evidence_name(item) {
+                    Some(normalized) if names == EvidenceNames::Normalizable => {
+                        finals.push((normalized, Some(name)))
+                    }
+                    _ => {
+                        finals.push((name, None));
+                        errors.extend(
+                            evidence_name_problem(item)
+                                .map(|problem| format!("'{sub}' com {problem}")),
+                        );
+                    }
+                }
             } else {
                 errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)"));
             }
@@ -1850,9 +1889,24 @@ impl Tasks {
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
             ));
         }
+        errors.extend(
+            repeated_evidence_names(&finals)
+                .into_iter()
+                .map(|error| format!("'{sub}' com {error}")),
+        );
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), false));
         Ok(errors)
+    }
+
+    /// Tarefa com o nome de evidência com caminho trocado pelo nome do arquivo, e os avisos.
+    fn evidence_renames(&self, file: &Path) -> Result<(String, Vec<String>)> {
+        Ok(renamed_evidence(
+            &read(file)?,
+            &self.cfg("execution_section")?,
+            &self.cfg("evidence_subsection")?,
+            &task_id_of(file),
+        ))
     }
 
     /// Caminhos que a tarefa cria ("Mudar" com a ação `criar`).
@@ -2267,6 +2321,75 @@ pub(crate) fn normalized_evidence_name(item: &str) -> Option<&str> {
     let (name, _, _) = evidence_item(item)?;
     let (_, file) = name.rsplit_once('/')?;
     (!file.is_empty() && is_valid_evidence_name(file)).then_some(file)
+}
+
+/// Nomes repetidos depois de tirar o caminho, dados os pares (nome final, nome escrito com
+/// caminho). Dois itens com o mesmo nome gravariam o mesmo arquivo: não há troca segura. Só conta
+/// quando ao menos um deles tinha caminho.
+pub(crate) fn repeated_evidence_names(finals: &[(&str, Option<&str>)]) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut reported = HashSet::new();
+    for (name, _) in finals {
+        let same: Vec<_> = finals.iter().filter(|(other, _)| other == name).collect();
+        if same.len() > 1
+            && same.iter().any(|(_, written)| written.is_some())
+            && reported.insert(*name)
+        {
+            let items: Vec<String> = same
+                .iter()
+                .map(|(final_name, written)| format!("`{}`", written.unwrap_or(final_name)))
+                .collect();
+            errors.push(format!(
+                "nome de evidência repetido depois de tirar o caminho: `{name}` ({})",
+                items.join(", ")
+            ));
+        }
+    }
+    errors
+}
+
+/// Conteúdo com o nome de evidência com caminho trocado pelo nome do arquivo, e um aviso
+/// `TASK-NN: antigo → novo` por troca. Só o nome muda; o resto do item e os subitens ficam.
+pub(crate) fn renamed_evidence(
+    content: &str,
+    execution: &str,
+    evidence: &str,
+    id: &str,
+) -> (String, Vec<String>) {
+    let (execution, evidence) = (format!("## {execution}"), format!("### {evidence}"));
+    let mut warnings = Vec::new();
+    let (mut in_execution, mut in_evidence) = (false, false);
+    let mut lines = Vec::new();
+    for line in content.split('\n') {
+        if line.starts_with("## ") {
+            in_execution = line.trim_end() == execution;
+            in_evidence = false;
+        } else if line.starts_with('#') {
+            in_evidence = in_execution && line.trim_end() == evidence;
+        }
+        let renamed = (in_evidence && !is_indented(line))
+            .then(|| Some((evidence_item(line)?.0, normalized_evidence_name(line)?)))
+            .flatten();
+        match renamed {
+            Some((old, new)) => {
+                warnings.push(format!("{id}: {old} → {new}"));
+                lines.push(line.replacen(&format!("`{old}`"), &format!("`{new}`"), 1));
+            }
+            None => lines.push(line.to_string()),
+        }
+    }
+    (lines.join("\n"), warnings)
+}
+
+/// Avisos das trocas de nome de evidência, depois do cabeçalho; nada quando não há troca.
+fn print_renames(header: &str, renames: &[String]) {
+    if renames.is_empty() {
+        return;
+    }
+    println!("{header}");
+    for rename in renames {
+        println!("- {rename}");
+    }
 }
 
 pub(crate) fn evidence_item(line: &str) -> Option<(&str, &str, &str)> {

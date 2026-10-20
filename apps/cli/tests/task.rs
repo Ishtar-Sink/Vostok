@@ -698,3 +698,67 @@ fn persist_is_refused_when_disabled() {
         "{refused}"
     );
 }
+
+// --- Nome de evidência inválido recusado antes da execução (SPEC-010) ---
+
+/// Tarefa completa e válida com o status e a lista de "Evidências" informados.
+fn complete_task(status: &str, evidence: &str) -> String {
+    format!(
+        "---\nid: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n{evidence}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** SPEC-001, simples\n- **Estimativa:** simples\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n"
+    )
+}
+
+fn task_with_evidence(status: &str, evidence: &str) -> Project {
+    let project = Project::new();
+    write(&project, TASK_PATH, &complete_task(status, evidence));
+    project
+}
+
+/// `vostok task <grupo> <comando> SPEC-001 TASK-01`.
+fn nested(project: &Project, group: &str, command: &str) -> assert_cmd::Command {
+    let mut vostok = project.vostok();
+    vostok.args(["task", group, command, "SPEC-001", "TASK-01"]);
+    vostok
+}
+
+const PATH_EVIDENCE: &str = "- `docs/x/saida.txt` (automática): `echo ok`";
+
+#[test]
+fn evidence_name_with_a_path_is_refused_by_the_task_validation() {
+    let project = task_with_evidence("pending", PATH_EVIDENCE);
+    let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(refused.contains("docs/x/saida.txt"), "{refused}");
+    assert!(refused.contains("sem caminho"), "{refused}");
+}
+
+#[test]
+fn evidence_name_with_a_path_is_refused_by_the_task_approval() {
+    let project = task_with_evidence("pending", PATH_EVIDENCE);
+    let refused = failure_stderr(&mut nested(&project, "approve", "approve"));
+    assert!(refused.contains("docs/x/saida.txt"), "{refused}");
+    assert_eq!(status(&project), "pending");
+}
+
+#[test]
+fn evidence_name_with_a_path_is_refused_by_the_task_start() {
+    let project = task_with_evidence("approved", PATH_EVIDENCE);
+    let refused = failure_stderr(&mut task(&project, &["start"]));
+    assert!(refused.contains("docs/x/saida.txt"), "{refused}");
+    assert!(refused.contains("adjust-task"), "{refused}");
+    assert_eq!(status(&project), "approved");
+}
+
+#[test]
+fn evidence_name_valid_is_accepted_by_the_task_validation() {
+    let project = task_with_evidence("pending", "- `saida.txt` (automática): `echo ok`");
+    nested(&project, "adjust", "validate").assert().success();
+}
+
+#[test]
+fn evidence_name_reserved_or_hidden_is_refused_by_the_task_validation() {
+    for name in [".saida.txt", "baseline", "validation"] {
+        let project = task_with_evidence("pending", &format!("- `{name}` (automática): `echo ok`"));
+        let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+        assert!(refused.contains(&format!("`{name}`")), "{name}: {refused}");
+    }
+}

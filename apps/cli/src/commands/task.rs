@@ -728,6 +728,16 @@ impl Tasks {
                 "a tarefa {task} mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
             ));
         }
+        let evidence = self.subsection(&read(file)?, "evidence_subsection")?;
+        for problem in evidence
+            .lines()
+            .filter(|line| !is_indented(line))
+            .filter_map(evidence_name_problem)
+        {
+            blockers.push(format!(
+                "{problem}; ajuste a tarefa (skill adjust-task) e peça a aprovação de novo"
+            ));
+        }
         for dependency in dependencies_of(file) {
             let dependency_file = self.task_file(spec, &dependency);
             if !dependency_file.is_file() {
@@ -983,11 +993,7 @@ impl Tasks {
         for item in &items {
             let (name, kind, rest) = evidence_item(item)
                 .ok_or_else(|| anyhow!("item de evidência fora do formato: {item}"))?;
-            if name.contains('/')
-                || name.starts_with('.')
-                || name == "baseline"
-                || name == "validation"
-            {
+            if !is_valid_evidence_name(name) {
                 bail!("nome de evidência inválido: '{name}'");
             }
             let target = dir.join(name);
@@ -1832,6 +1838,9 @@ impl Tasks {
         {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
+                errors.extend(
+                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                );
             } else {
                 errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)"));
             }
@@ -2239,6 +2248,19 @@ fn is_manual_evidence(line: &str, manual: &str) -> bool {
 }
 
 /// Item de "Evidências" no formato "- `arquivo` (tipo): resto", como (arquivo, tipo, resto).
+/// Nome de evidência válido: só o nome do arquivo, fora das pastas da execução.
+fn is_valid_evidence_name(name: &str) -> bool {
+    !name.contains('/') && !name.starts_with('.') && name != "baseline" && name != "validation"
+}
+
+/// Problema do nome de um item de "Evidências", pelo mesmo critério do `vostok task evidence`.
+pub(crate) fn evidence_name_problem(item: &str) -> Option<String> {
+    let (name, _, _) = evidence_item(item)?;
+    (!is_valid_evidence_name(name)).then(|| {
+        format!("nome de evidência inválido: `{name}` (o nome é só o nome do arquivo, sem caminho, sem começar por '.' e diferente de 'baseline' e 'validation'): {item}")
+    })
+}
+
 fn evidence_item(line: &str) -> Option<(&str, &str, &str)> {
     let (name, rest) = quoted_name(line.strip_prefix("- ")?)?;
     let rest = rest.strip_prefix(" (")?;

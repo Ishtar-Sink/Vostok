@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
+use super::task::evidence_name_problem;
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
@@ -1039,6 +1040,9 @@ impl Workspace {
         {
             if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
+                errors.extend(
+                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                );
             } else {
                 errors.push(format!(
                     "'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)"

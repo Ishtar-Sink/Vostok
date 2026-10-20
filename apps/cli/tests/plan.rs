@@ -99,3 +99,33 @@ fn plan_outside_a_harness_fails() {
         failure_stderr(common::vostok_at(dir.path()).args(["plan", "validate", "SPEC-001"]));
     assert!(stderr.contains("nenhum harness encontrado"), "{stderr}");
 }
+
+// --- Nome de evidência inválido recusado na aprovação do plano (SPEC-010) ---
+
+#[test]
+fn evidence_name_with_a_path_is_refused_by_the_plan_validation() {
+    let project = Project::new();
+    let write = |relative: &str, content: &str| {
+        let path = project.root().join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    };
+    write(
+        "vostok/work/plans/SPEC-001.md",
+        "# Plano\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n",
+    );
+    write(
+        "vostok/work/tasks/SPEC-001/TASK-01.md",
+        &format!(
+            "---\nid: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: pending\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `docs/x/saida.txt` (automática): `echo ok`\n{SUB}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** SPEC-001, simples\n- **Estimativa:** simples\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n",
+            SUB = "  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro."
+        ),
+    );
+    let refused = failure_stderr(
+        project
+            .vostok()
+            .args(["plan", "approve", "validate", "SPEC-001"]),
+    );
+    assert!(refused.contains("docs/x/saida.txt"), "{refused}");
+    assert!(refused.contains("sem caminho"), "{refused}");
+}

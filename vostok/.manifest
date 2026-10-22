@@ -1,4 +1,4 @@
-version: 0.1.4
+version: 0.1.5
 files:
   .gitignore: 557a468d0da75695dd92b03cbd9532aa3586eea7fe63ff3d6f30690cf94e8892
   rules/agent/anti-loop.md: 08eedac049dc5513c46f604f526bb790c7a54f91ddff58a81bacf1e823204bfc

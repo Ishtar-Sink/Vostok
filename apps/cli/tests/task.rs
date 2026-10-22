@@ -207,11 +207,12 @@ fn accepted_difference_lets_the_task_finish() {
     .success();
     let accepted = read(&project, &format!("{REGRESSION_DIR}/accepted"));
     let fields: Vec<&str> = accepted.trim_end().split('\t').collect();
-    assert_eq!(fields.len(), 5, "{accepted}");
+    assert_eq!(fields.len(), 6, "{accepted}");
     assert_eq!(fields[0], "1");
     assert_eq!(fields[1].len(), 64);
     assert_eq!(fields[3], "cat valor.txt");
     assert_eq!(fields[4], "diferença esperada");
+    assert_eq!(fields[5], "0");
 
     task(&project, &["tests"]).assert().success();
     let passed = stdout(&mut task(&project, &["regression"]));
@@ -238,18 +239,6 @@ fn blocked_regression_numbers_only_the_divergent_commands() {
     assert!(!blocked.contains("[1]"));
     assert!(exists(&project, &format!("{REGRESSION_DIR}/02.diff")));
     assert!(!exists(&project, &format!("{REGRESSION_DIR}/01.diff")));
-}
-
-#[test]
-fn output_changed_after_the_acceptance_blocks_again() {
-    let project = running_task(&[("valor.txt", "a\n")]);
-    write(&project, "valor.txt", "b\n");
-    block_and_accept(&project, "1");
-    write(&project, "valor.txt", "c\n");
-    task(&project, &["tests"]).assert().success();
-    let blocked = stdout(&mut task(&project, &["regression"]));
-    assert!(blocked.contains("- [1] cat valor.txt\n"), "{blocked}");
-    assert_eq!(status(&project), "blocked");
 }
 
 #[test]
@@ -370,7 +359,8 @@ fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {
     let project = running_task(&[("valor.txt", "a\n")]);
     write(&project, "valor.txt", "b\n");
     block_and_accept(&project, "1");
-    write(&project, "valor.txt", "c\n");
+    // Outro código de saída bloqueia de novo; o aceite novo passa a valer pelo código 1.
+    std::fs::remove_file(project.root().join("valor.txt")).unwrap();
     block_and_accept(&project, "1");
     assert_eq!(
         read(&project, &format!("{REGRESSION_DIR}/accepted"))
@@ -380,6 +370,146 @@ fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {
     );
     let passed = stdout(&mut task(&project, &["regression"]));
     assert!(passed.contains("1 aceito(s) pelo usuário"), "{passed}");
+}
+
+// --- Linhas ignoradas e aceite por código de saída (SPEC-013) ---
+
+/// Remove a chave `regression_ignore` da configuração, como num projeto antigo.
+fn without_regression_ignore(project: &Project) {
+    let path = "vostok/config/tasks.yml";
+    let mut skipping = false;
+    let content: String = read(project, path)
+        .lines()
+        .filter(|line| {
+            if line.starts_with("regression_ignore:") {
+                skipping = true;
+                return false;
+            }
+            if skipping && line.trim_start().starts_with("- ") {
+                return false;
+            }
+            skipping = false;
+            true
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    assert!(!content.contains("regression_ignore"));
+    write(project, path, &content);
+}
+
+#[test]
+fn regression_ignore_skips_lines_with_the_configured_snippets() {
+    let project = running_task(&[("valor.txt", "ok\nDuration 1ms\nTime: 10:00:01\n")]);
+    write(&project, "valor.txt", "ok\nDuration 2ms\nTime: 10:00:02\n");
+    task(&project, &["tests"]).assert().success();
+    let passed = stdout(&mut task(&project, &["regression"]));
+    assert_eq!(
+        passed,
+        "Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.\n"
+    );
+    assert!(!exists(&project, &format!("{REGRESSION_DIR}/01.diff")));
+}
+
+#[test]
+fn regression_ignore_without_the_key_compares_the_whole_output() {
+    let project = running_task(&[("valor.txt", "ok\nDuration 1ms\n")]);
+    without_regression_ignore(&project);
+    write(&project, "valor.txt", "ok\nDuration 2ms\n");
+    task(&project, &["tests"]).assert().success();
+    let blocked = stdout(&mut task(&project, &["regression"]));
+    assert!(blocked.contains("- [1] cat valor.txt\n"), "{blocked}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn regression_ignore_keeps_the_whole_output_in_the_diff() {
+    let project = running_task(&[("valor.txt", "ok\nDuration 1ms\n")]);
+    write(&project, "valor.txt", "mudou\nDuration 2ms\n");
+    task(&project, &["tests"]).assert().success();
+    let blocked = stdout(&mut task(&project, &["regression"]));
+    assert!(blocked.contains("- [1] cat valor.txt\n"), "{blocked}");
+    assert_eq!(status(&project), "blocked");
+    let diff = read(&project, &format!("{REGRESSION_DIR}/01.diff"));
+    assert!(diff.contains("> mudou"), "{diff}");
+    assert!(diff.contains("> Duration 2ms"), "{diff}");
+    assert!(diff.contains("< Duration 1ms"), "{diff}");
+}
+
+#[test]
+fn regression_accept_holds_while_the_exit_code_is_the_same() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(&project, "valor.txt", "b\n");
+    block_and_accept(&project, "1");
+    let accepted = read(&project, &format!("{REGRESSION_DIR}/accepted"));
+    assert!(
+        accepted.ends_with("\tdiferença esperada\t0\n"),
+        "{accepted}"
+    );
+
+    for value in ["c\n", "d\ne\n"] {
+        write(&project, "valor.txt", value);
+        task(&project, &["tests"]).assert().success();
+        let passed = stdout(&mut task(&project, &["regression"]));
+        assert!(
+            passed.contains("0 igual(is) ao baseline, 1 aceito(s) pelo usuário"),
+            "{passed}"
+        );
+    }
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+}
+
+#[test]
+fn regression_accept_blocks_when_the_exit_code_changes() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(&project, "valor.txt", "b\n");
+    block_and_accept(&project, "1");
+    std::fs::remove_file(project.root().join("valor.txt")).unwrap();
+    task(&project, &["tests"]).assert().success();
+    let blocked = stdout(&mut task(&project, &["regression"]));
+    assert!(blocked.contains("- [1] cat valor.txt\n"), "{blocked}");
+    assert!(blocked.contains("> exit: 1"), "{blocked}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn regression_accept_old_line_without_exit_code_holds_by_the_hash() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(&project, "valor.txt", "b\n");
+    block_and_accept(&project, "1");
+    // Volta a linha ao formato antigo, de 5 campos, sem o código de saída.
+    let path = format!("{REGRESSION_DIR}/accepted");
+    let line = read(&project, &path);
+    let old = line.trim_end().rsplit_once('\t').unwrap().0.to_string();
+    assert_eq!(old.split('\t').count(), 5, "{old}");
+    write(&project, &path, &format!("{old}\n"));
+
+    task(&project, &["tests"]).assert().success();
+    let passed = stdout(&mut task(&project, &["regression"]));
+    assert!(passed.contains("1 aceito(s) pelo usuário"), "{passed}");
+    assert_eq!(read(&project, &path), format!("{old}\n"));
+
+    // Sem o código de saída, o aceite antigo vale só para a saída aceita.
+    write(&project, "valor.txt", "c\n");
+    task(&project, &["tests"]).assert().success();
+    let blocked = stdout(&mut task(&project, &["regression"]));
+    assert!(blocked.contains("- [1] cat valor.txt\n"), "{blocked}");
+}
+
+#[test]
+fn regression_accept_old_line_is_listed_in_the_persist_guide() {
+    let project = validated_task("b\n");
+    let path = format!("{EVIDENCE_DIR}/validation/regression/accepted");
+    let line = read(&project, &path);
+    let old = line.trim_end().rsplit_once('\t').unwrap().0.to_string();
+    write(&project, &path, &format!("{old}\n"));
+    task(&project, &["persist"]).assert().success();
+    assert!(
+        guide(&project).contains("`cat valor.txt`: valor novo esperado ([diff]"),
+        "{}",
+        guide(&project)
+    );
 }
 
 #[test]

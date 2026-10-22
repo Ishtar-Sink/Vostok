@@ -76,7 +76,7 @@ Se o usuário aceitou uma diferença de regressão como esperada, informe os nú
 vostok task resume <SPEC_ID> <TASK_ID> --accept-regression <N[,N...]> "decisão do usuário, em uma linha"
 ```
 
-O aceite vale só para a saída exata que o usuário viu: se ela mudar, ou se outro comando divergir, a regressão bloqueia de novo.
+O aceite vale até o fim da tarefa enquanto o código de saída do comando for o aceito, mesmo que a saída mude de novo; se o código mudar, ou se outro comando divergir, a regressão bloqueia de novo.
 
 Tarefa `blocked` sem decisão: **PARE** e responda com o template `blocker`, com as falhas do registro e de `evidence/<TASK_ID>/validation/`.
 
@@ -103,7 +103,7 @@ Execute:
 vostok task regression <SPEC_ID> <TASK_ID>
 ```
 
-O `vostok task regression` executa de novo os comandos de "Baseline" e compara com o baseline. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos numerados e as diferenças (o diff completo fica em `evidence/<TASK_ID>/validation/regression/NN.diff`). As opções incluem corrigir a regressão e aceitar a diferença como esperada, citando os números dos comandos aceitos (passo 2).
+O `vostok task regression` executa de novo os comandos de "Baseline" e compara com o baseline, sem as linhas que contêm algum trecho de `regression_ignore` em `vostok/config/tasks.yml` (hora, duração), dos dois lados. Se houver diferença, a tarefa fica bloqueada: **PARE** e responda com o template `blocker`, com os comandos numerados e as diferenças (o diff completo fica em `evidence/<TASK_ID>/validation/regression/NN.diff`). As opções incluem corrigir a regressão e aceitar a diferença como esperada, citando os números dos comandos aceitos (passo 2).
 
 ### 5. Gravar as evidências
 

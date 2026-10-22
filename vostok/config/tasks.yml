@@ -156,3 +156,11 @@ persist_dir: ""
 persist_readme: README.md
 
 persist_max_mb: 10
+
+# Trechos de texto ignorados pelo vostok task regression: as linhas que contêm algum deles saem da
+# comparação com o baseline, dos dois lados (hora, duração). O `NN.diff` continua com a saída inteira.
+regression_ignore:
+  - Start at
+  - Duration
+  - finished in
+  - "Time:"

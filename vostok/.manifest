@@ -18,7 +18,7 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/execute-task/SKILL.md: 7c4b86c0e1b3fe9eb7e597843daaf0e196fcde974bd9805f770b6cce74914029
   skills/default/finalize-spec/SKILL.md: 3973462a7b840f582be5e1f08c8e6140c36d9de2e575f011b57dde3a6b37f37d
-  skills/default/finish-task/SKILL.md: 23422d2117476345de4732bbe3d1b707038bcb5472160929b7b1945eee59ce9b
+  skills/default/finish-task/SKILL.md: 369800b923164eaa454dec85b75488c2f952569176e38d068069d4fa801653dc
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: a4824876621c32eea3ec697fb2b5b3c68fab26be6d9ad4c5e4c3e4c83cc705e6
   skills/default/refine-spec/SKILL.md: 4ed6eb057fb51e33cb922ef20d8ced2ff117624f4f441e97b10c33fad254f9e4

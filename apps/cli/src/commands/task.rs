@@ -144,7 +144,8 @@ const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>
 const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
 
 /// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,
-/// SHA-256 da saída aceita, data, comando e decisão, separados por tabulação.
+/// SHA-256 da saída aceita, data, comando, decisão e código de saída aceito, separados por tabulação.
+/// Linhas antigas, sem o código de saída, valem pelo hash.
 const ACCEPTED_FILE: &str = "accepted";
 
 const PERSIST_USAGE: &str = "Uso: vostok task persist <SPEC_ID> <TASK_ID> [--redact|--exclude|--accept <ARQUIVO>]... [--reviewed <ARQUIVO>=<agente|usuário>]...";
@@ -307,6 +308,15 @@ impl Tasks {
 
     fn cfg_list(&self, key: &str) -> Result<Vec<String>> {
         config_list(&self.harness.config_file("tasks.yml"), key)
+    }
+
+    /// Trechos de `regression_ignore`; sem a chave (projetos antigos), lista vazia.
+    fn regression_ignore(&self) -> Vec<String> {
+        self.cfg_list("regression_ignore")
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|item| !item.is_empty())
+            .collect()
     }
 
     /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.
@@ -925,7 +935,8 @@ impl Tasks {
         let commands = self.baseline_commands(&read(&file)?)?;
         let dir = evidence.join("validation/regression");
         clear_regression_outputs(&dir)?;
-        let accepted = accepted_hashes(&dir)?;
+        let accepted = latest_acceptances(&dir);
+        let ignore = self.regression_ignore();
 
         let root = self.project_root()?;
         let mut changed = String::new();
@@ -934,14 +945,24 @@ impl Tasks {
         for (index, command) in commands.iter().enumerate() {
             let number = index + 1;
             let name = output_name(number);
-            let (_, output) = recorded_run(command, &root)?;
+            let (code, output) = recorded_run(command, &root)?;
             let current = dir.join(&name);
             fs::write(&current, &output)?;
             let previous = base.join(&name);
             match fs::read(&previous) {
                 Err(_) => changed.push_str(&format!("- {command}: sem resultado no baseline\n")),
-                Ok(expected) if expected == output => equal += 1,
-                Ok(_) if accepted.get(&number) == Some(&sha256_hex(&output)) => accepted_count += 1,
+                Ok(expected)
+                    if without_ignored(&expected, &ignore) == without_ignored(&output, &ignore) =>
+                {
+                    equal += 1
+                }
+                Ok(_)
+                    if accepted
+                        .get(&number)
+                        .is_some_and(|item| item.covers(code, &output, &ignore)) =>
+                {
+                    accepted_count += 1
+                }
                 Ok(_) => {
                     fs::write(
                         dir.join(diff_name(number)),
@@ -2500,32 +2521,90 @@ pub struct AcceptedRegression {
     pub date: String,
     pub command: String,
     pub decision: String,
+    /// Código de saída aceito; `None` nas linhas antigas, que valem pelo hash.
+    pub exit_code: Option<i32>,
 }
 
-/// Aceites gravados em `dir/accepted`, na ordem do arquivo.
+impl AcceptedRegression {
+    /// O aceite cobre a saída atual: pelo código de saída, quando gravado; senão, pelo hash da saída
+    /// inteira (como foi gravado) ou da saída sem as linhas ignoradas.
+    fn covers(&self, code: i32, output: &[u8], ignore: &[String]) -> bool {
+        match self.exit_code {
+            Some(accepted) => accepted == code,
+            None => {
+                self.hash == sha256_hex(output)
+                    || self.hash == sha256_hex(&without_ignored(output, ignore))
+            }
+        }
+    }
+}
+
+/// Aceites gravados em `dir/accepted`, na ordem do arquivo. O código de saída é o último campo,
+/// opcional; numa linha antiga com tabulação na decisão, um último campo não numérico volta à decisão.
 pub fn accepted_regressions(dir: &Path) -> Vec<AcceptedRegression> {
     fs::read_to_string(dir.join(ACCEPTED_FILE))
         .unwrap_or_default()
         .lines()
         .filter_map(|line| {
-            let mut fields = line.splitn(5, '\t');
+            let mut fields = line.splitn(6, '\t');
+            let number = fields.next()?.parse().ok()?;
+            let hash = fields.next()?.to_string();
+            let date = fields.next()?.to_string();
+            let command = fields.next()?.to_string();
+            let mut decision = fields.next()?.to_string();
+            let exit_code = match fields.next() {
+                None => None,
+                Some(last) => match last.parse() {
+                    Ok(code) => Some(code),
+                    Err(_) => {
+                        decision = format!("{decision}\t{last}");
+                        None
+                    }
+                },
+            };
             Some(AcceptedRegression {
-                number: fields.next()?.parse().ok()?,
-                hash: fields.next()?.to_string(),
-                date: fields.next()?.to_string(),
-                command: fields.next()?.to_string(),
-                decision: fields.next()?.to_string(),
+                number,
+                hash,
+                date,
+                command,
+                decision,
+                exit_code,
             })
         })
         .collect()
 }
 
-/// SHA-256 aceito por comando; o aceite mais recente de um número vale.
-fn accepted_hashes(dir: &Path) -> Result<HashMap<usize, String>> {
-    Ok(accepted_regressions(dir)
+/// Aceite por comando; o mais recente de um número vale.
+fn latest_acceptances(dir: &Path) -> HashMap<usize, AcceptedRegression> {
+    accepted_regressions(dir)
         .into_iter()
-        .map(|item| (item.number, item.hash))
-        .collect())
+        .map(|item| (item.number, item))
+        .collect()
+}
+
+/// Saída sem as linhas que contêm algum dos trechos; sem trechos, a saída inteira.
+fn without_ignored(output: &[u8], ignore: &[String]) -> Vec<u8> {
+    if ignore.is_empty() {
+        return output.to_vec();
+    }
+    output
+        .split_inclusive(|byte| *byte == b'\n')
+        .filter(|line| {
+            let text = String::from_utf8_lossy(line);
+            !ignore.iter().any(|snippet| text.contains(snippet.as_str()))
+        })
+        .flatten()
+        .copied()
+        .collect()
+}
+
+/// Código de saída gravado por `recorded_run` na segunda linha da saída (`exit: N`).
+fn recorded_exit_code(output: &[u8]) -> Option<i32> {
+    String::from_utf8_lossy(output)
+        .lines()
+        .nth(1)
+        .and_then(|line| line.strip_prefix("exit: "))
+        .and_then(|code| code.trim().parse().ok())
 }
 
 struct Acceptance {
@@ -2562,13 +2641,19 @@ fn regression_acceptances(
             .unwrap_or("")
             .to_string();
         let command = first.strip_prefix("$ ").unwrap_or(&first).to_string();
+        let code = recorded_exit_code(&output).ok_or_else(|| {
+            anyhow!(
+                "a saída gravada do comando {number} não tem a linha 'exit: N'. Nada foi alterado"
+            )
+        })?;
         acceptances.push(Acceptance {
             number,
             line: format!(
-                "{number}\t{}\t{}\t{}\t{decision}\n",
+                "{number}\t{}\t{}\t{}\t{}\t{code}\n",
                 sha256_hex(&output),
                 utc_now(),
-                command.replace('\t', " ")
+                command.replace('\t', " "),
+                decision.replace('\t', " ")
             ),
         });
     }

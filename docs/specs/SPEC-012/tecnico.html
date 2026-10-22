@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-012 · Documento técnico · Ajuste de tarefa em execução recusa a ação criar de arquivos já criados</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-012 · aprovada em 2026-10-22 · concluída em 2026-10-22</p>
+    <h1>Ajuste de tarefa em execução recusa a ação criar de arquivos já criados</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>O <code>change_errors</code> de <code>apps/cli/src/commands/task.rs</code> passou a receber <code>running</code>, calculado por <code>is_running</code> a partir do status da tarefa. Em <code>in_progress</code>, <code>validating</code> e <code>blocked</code>, só o <code>alterar</code> é conferido contra o disco; <code>criar</code> e <code>remover</code> são pulados. O <code>restart_execution</code> passou a usar o mesmo <code>is_running</code>.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code>: <code>is_running</code>, <code>ALTER_ACTION</code>, <code>task_errors</code> e <code>change_errors</code>.</li>
+<li><code>apps/cli/tests/task.rs</code>: helper <code>task_with_change</code> e testes <code>change_in_execution_*</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li><strong>TASK-01:</strong> 4 testes de integração (criar em <code>in_progress</code>, remover em <code>validating</code>, alterar em <code>in_progress</code>, criar em <code>pending</code>), dos quais dois falharam antes do código; parâmetro <code>running</code> no <code>change_errors</code>; <code>is_running</code> centraliza a lista de status de execução.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>Numa tarefa com status <code>in_progress</code>, <code>validating</code> ou <code>blocked</code>, a validação de &quot;Mudar&quot; não deve conferir contra o disco os itens <code>criar</code> e <code>remover</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>Nesses status, o item <code>alterar</code> deve continuar exigindo caminho existente ou criado por uma dependência.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>Em <code>pending</code> e <code>approved</code>, e na validação do plano, a conferência contra o disco continua como hoje.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>O <code>vostok task adjust record</code> deve registrar o ajuste de uma tarefa em execução cujos arquivos <code>criar</code> já existem.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Ajuste em execução com criar</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Remover em execução</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Alterar em execução</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Antes da execução</td><td><span class="chip">TASK-01</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+129</span><span class="tag remover">−29</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -144,7 +144,8 @@ const EXECUTE_USAGE: &amp;str = &quot;Uso: vostok task start|baseline &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td></tr>
+<tr><td class="ln">144</td><td class="code">const FINISH_USAGE: &amp;str = &quot;Uso: vostok task tests|regression|evidence|finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; [--accept-regression &lt;N[,N...]&gt;] \&quot;decisão\&quot;&quot;;</td><td class="ln">144</td><td class="code">const FINISH_USAGE: &amp;str = &quot;Uso: vostok task tests|regression|evidence|finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt; | vostok task resume &lt;SPEC_ID&gt; &lt;TASK_ID&gt; [--accept-regression &lt;N[,N...]&gt;] \&quot;decisão\&quot;&quot;;</td></tr>
+<tr><td class="ln">145</td><td class="code"></td><td class="ln">145</td><td class="code"></td></tr>
+<tr><td class="ln">146</td><td class="code">/// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,</td><td class="ln">146</td><td class="code">/// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,</td></tr>
+<tr><td class="ln">147</td><td class="code del">/// SHA-256 da saída aceita, data, comando e decisão, separados por tabulação.</td><td class="ln">147</td><td class="code add">/// SHA-256 da saída aceita, data, comando, decisão e código de saída aceito, separados por tabulação.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">148</td><td class="code add">/// Linhas antigas, sem o código de saída, valem pelo hash.</td></tr>
+<tr><td class="ln">148</td><td class="code">const ACCEPTED_FILE: &amp;str = &quot;accepted&quot;;</td><td class="ln">149</td><td class="code">const ACCEPTED_FILE: &amp;str = &quot;accepted&quot;;</td></tr>
+<tr><td class="ln">149</td><td class="code"></td><td class="ln">150</td><td class="code"></td></tr>
+<tr><td class="ln">150</td><td class="code">const PERSIST_USAGE: &amp;str = &quot;Uso: vostok task persist &lt;SPEC_ID&gt; &lt;TASK_ID&gt; [--redact|--exclude|--accept &lt;ARQUIVO&gt;]... [--reviewed &lt;ARQUIVO&gt;=&lt;agente|usuário&gt;]...&quot;;</td><td class="ln">151</td><td class="code">const PERSIST_USAGE: &amp;str = &quot;Uso: vostok task persist &lt;SPEC_ID&gt; &lt;TASK_ID&gt; [--redact|--exclude|--accept &lt;ARQUIVO&gt;]... [--reviewed &lt;ARQUIVO&gt;=&lt;agente|usuário&gt;]...&quot;;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -157,6 +158,7 @@ const REVIEWERS: [&amp;str; 2] = [&quot;agente&quot;, &quot;usuário&quot;];</td></tr>
+<tr><td class="ln">157</td><td class="code">/// Ações aceitas em &quot;Mudar&quot;, as mesmas dos componentes afetados da spec.</td><td class="ln">158</td><td class="code">/// Ações aceitas em &quot;Mudar&quot;, as mesmas dos componentes afetados da spec.</td></tr>
+<tr><td class="ln">158</td><td class="code">const COMPONENT_ACTIONS: [&amp;str; 3] = [&quot;criar&quot;, &quot;alterar&quot;, &quot;remover&quot;];</td><td class="ln">159</td><td class="code">const COMPONENT_ACTIONS: [&amp;str; 3] = [&quot;criar&quot;, &quot;alterar&quot;, &quot;remover&quot;];</td></tr>
+<tr><td class="ln">159</td><td class="code">const CREATE_ACTION: &amp;str = &quot;criar&quot;;</td><td class="ln">160</td><td class="code">const CREATE_ACTION: &amp;str = &quot;criar&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">161</td><td class="code add">const ALTER_ACTION: &amp;str = &quot;alterar&quot;;</td></tr>
+<tr><td class="ln">160</td><td class="code"></td><td class="ln">162</td><td class="code"></td></tr>
+<tr><td class="ln">161</td><td class="code">/// Trecho executado antes da &quot;Verificação&quot;: o trap registra o comando que falhou, já que muitos</td><td class="ln">163</td><td class="code">/// Trecho executado antes da &quot;Verificação&quot;: o trap registra o comando que falhou, já que muitos</td></tr>
+<tr><td class="ln">162</td><td class="code">/// comandos de teste falham sem imprimir nada.</td><td class="ln">164</td><td class="code">/// comandos de teste falham sem imprimir nada.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -308,6 +310,15 @@ impl Tasks {</td></tr>
+<tr><td class="ln">308</td><td class="code">        config_list(&amp;self.harness.config_file(&quot;tasks.yml&quot;), key)</td><td class="ln">310</td><td class="code">        config_list(&amp;self.harness.config_file(&quot;tasks.yml&quot;), key)</td></tr>
+<tr><td class="ln">309</td><td class="code">    }</td><td class="ln">311</td><td class="code">    }</td></tr>
+<tr><td class="ln">310</td><td class="code"></td><td class="ln">312</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">313</td><td class="code add">    /// Trechos de `regression_ignore`; sem a chave (projetos antigos), lista vazia.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">314</td><td class="code add">    fn regression_ignore(&amp;self) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">315</td><td class="code add">        self.cfg_list(&quot;regression_ignore&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">316</td><td class="code add">            .unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">317</td><td class="code add">            .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">318</td><td class="code add">            .filter(|item| !item.is_empty())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">319</td><td class="code add">            .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">320</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">321</td><td class="code add"></td></tr>
+<tr><td class="ln">311</td><td class="code">    /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.</td><td class="ln">322</td><td class="code">    /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.</td></tr>
+<tr><td class="ln">312</td><td class="code">    fn evidence_fields(&amp;self) -&gt; Option&lt;EvidenceFields&gt; {</td><td class="ln">323</td><td class="code">    fn evidence_fields(&amp;self) -&gt; Option&lt;EvidenceFields&gt; {</td></tr>
+<tr><td class="ln">313</td><td class="code">        Some(EvidenceFields {</td><td class="ln">324</td><td class="code">        Some(EvidenceFields {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -689,13 +700,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">689</td><td class="code">    /// Devolve uma tarefa em execução para in_progress, com tentativas e resultados zerados, mantendo o</td><td class="ln">700</td><td class="code">    /// Devolve uma tarefa em execução para in_progress, com tentativas e resultados zerados, mantendo o</td></tr>
+<tr><td class="ln">690</td><td class="code">    /// baseline e a aprovação. Não faz nada nas demais.</td><td class="ln">701</td><td class="code">    /// baseline e a aprovação. Não faz nada nas demais.</td></tr>
+<tr><td class="ln">691</td><td class="code">    fn restart_execution(&amp;self, file: &amp;Path, task: &amp;str, summary: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">702</td><td class="code">    fn restart_execution(&amp;self, file: &amp;Path, task: &amp;str, summary: &amp;str) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">692</td><td class="code del">        let status = status_of(file);</td><td class="ln">703</td><td class="code add">        if !self.is_running(&amp;status_of(file)) {</td></tr>
+<tr><td class="ln">693</td><td class="code del">        let running = [</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">694</td><td class="code del">            &amp;self.status.in_progress,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">695</td><td class="code del">            &amp;self.status.validating,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">696</td><td class="code del">            &amp;self.status.blocked,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">697</td><td class="code del">        ];</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">698</td><td class="code del">        if !running.contains(&amp;&amp;status) {</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">699</td><td class="code">            return Ok(());</td><td class="ln">704</td><td class="code">            return Ok(());</td></tr>
+<tr><td class="ln">700</td><td class="code">        }</td><td class="ln">705</td><td class="code">        }</td></tr>
+<tr><td class="ln">701</td><td class="code">        let in_progress = &amp;self.status.in_progress;</td><td class="ln">706</td><td class="code">        let in_progress = &amp;self.status.in_progress;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -708,6 +713,16 @@ impl Tasks {</td></tr>
+<tr><td class="ln">708</td><td class="code">        Ok(())</td><td class="ln">713</td><td class="code">        Ok(())</td></tr>
+<tr><td class="ln">709</td><td class="code">    }</td><td class="ln">714</td><td class="code">    }</td></tr>
+<tr><td class="ln">710</td><td class="code"></td><td class="ln">715</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">716</td><td class="code add">    /// Status de execução: in_progress, validating e blocked.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">717</td><td class="code add">    fn is_running(&amp;self, status: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">718</td><td class="code add">        [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">719</td><td class="code add">            &amp;self.status.in_progress,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">720</td><td class="code add">            &amp;self.status.validating,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">721</td><td class="code add">            &amp;self.status.blocked,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">722</td><td class="code add">        ]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">723</td><td class="code add">        .contains(&amp;&amp;status.to_string())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">724</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">725</td><td class="code add"></td></tr>
+<tr><td class="ln">711</td><td class="code">    // --- start e baseline ---</td><td class="ln">726</td><td class="code">    // --- start e baseline ---</td></tr>
+<tr><td class="ln">712</td><td class="code"></td><td class="ln">727</td><td class="code"></td></tr>
+<tr><td class="ln">713</td><td class="code">    fn start(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">728</td><td class="code">    fn start(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -920,7 +935,8 @@ impl Tasks {</td></tr>
+<tr><td class="ln">920</td><td class="code">        let commands = self.baseline_commands(&amp;read(&amp;file)?)?;</td><td class="ln">935</td><td class="code">        let commands = self.baseline_commands(&amp;read(&amp;file)?)?;</td></tr>
+<tr><td class="ln">921</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td><td class="ln">936</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td></tr>
+<tr><td class="ln">922</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td><td class="ln">937</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td></tr>
+<tr><td class="ln">923</td><td class="code del">        let accepted = accepted_hashes(&amp;dir)?;</td><td class="ln">938</td><td class="code add">        let accepted = latest_acceptances(&amp;dir);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">939</td><td class="code add">        let ignore = self.regression_ignore();</td></tr>
+<tr><td class="ln">924</td><td class="code"></td><td class="ln">940</td><td class="code"></td></tr>
+<tr><td class="ln">925</td><td class="code">        let root = self.project_root()?;</td><td class="ln">941</td><td class="code">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln">926</td><td class="code">        let mut changed = String::new();</td><td class="ln">942</td><td class="code">        let mut changed = String::new();</td></tr>
+<tr class="hunk"><td colspan="4">@@ -929,14 +945,24 @@ impl Tasks {</td></tr>
+<tr><td class="ln">929</td><td class="code">        for (index, command) in commands.iter().enumerate() {</td><td class="ln">945</td><td class="code">        for (index, command) in commands.iter().enumerate() {</td></tr>
+<tr><td class="ln">930</td><td class="code">            let number = index + 1;</td><td class="ln">946</td><td class="code">            let number = index + 1;</td></tr>
+<tr><td class="ln">931</td><td class="code">            let name = output_name(number);</td><td class="ln">947</td><td class="code">            let name = output_name(number);</td></tr>
+<tr><td class="ln">932</td><td class="code del">            let (_, output) = recorded_run(command, &amp;root)?;</td><td class="ln">948</td><td class="code add">            let (code, output) = recorded_run(command, &amp;root)?;</td></tr>
+<tr><td class="ln">933</td><td class="code">            let current = dir.join(&amp;name);</td><td class="ln">949</td><td class="code">            let current = dir.join(&amp;name);</td></tr>
+<tr><td class="ln">934</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td><td class="ln">950</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td></tr>
+<tr><td class="ln">935</td><td class="code">            let previous = base.join(&amp;name);</td><td class="ln">951</td><td class="code">            let previous = base.join(&amp;name);</td></tr>
+<tr><td class="ln">936</td><td class="code">            match fs::read(&amp;previous) {</td><td class="ln">952</td><td class="code">            match fs::read(&amp;previous) {</td></tr>
+<tr><td class="ln">937</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td><td class="ln">953</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td></tr>
+<tr><td class="ln">938</td><td class="code del">                Ok(expected) if expected == output =&gt; equal += 1,</td><td class="ln">954</td><td class="code add">                Ok(expected)</td></tr>
+<tr><td class="ln">939</td><td class="code del">                Ok(_) if accepted.get(&amp;number) == Some(&amp;sha256_hex(&amp;output)) =&gt; accepted_count += 1,</td><td class="ln">955</td><td class="code add">                    if without_ignored(&amp;expected, &amp;ignore) == without_ignored(&amp;output, &amp;ignore) =&gt;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">956</td><td class="code add">                {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">957</td><td class="code add">                    equal += 1</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">958</td><td class="code add">                }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">959</td><td class="code add">                Ok(_)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">960</td><td class="code add">                    if accepted</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">961</td><td class="code add">                        .get(&amp;number)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">962</td><td class="code add">                        .is_some_and(|item| item.covers(code, &amp;output, &amp;ignore)) =&gt;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">963</td><td class="code add">                {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">964</td><td class="code add">                    accepted_count += 1</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">965</td><td class="code add">                }</td></tr>
+<tr><td class="ln">940</td><td class="code">                Ok(_) =&gt; {</td><td class="ln">966</td><td class="code">                Ok(_) =&gt; {</td></tr>
+<tr><td class="ln">941</td><td class="code">                    fs::write(</td><td class="ln">967</td><td class="code">                    fs::write(</td></tr>
+<tr><td class="ln">942</td><td class="code">                        dir.join(diff_name(number)),</td><td class="ln">968</td><td class="code">                        dir.join(diff_name(number)),</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1679,7 +1705,8 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1679</td><td class="code">        errors.extend(self.fixed_section_errors(&amp;content)?);</td><td class="ln">1705</td><td class="code">        errors.extend(self.fixed_section_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1680</td><td class="code">        errors.extend(self.subsection_errors(&amp;content)?);</td><td class="ln">1706</td><td class="code">        errors.extend(self.subsection_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1681</td><td class="code">        errors.extend(self.description_errors(&amp;content)?);</td><td class="ln">1707</td><td class="code">        errors.extend(self.description_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1682</td><td class="code del">        errors.extend(self.change_errors(&amp;content, upstream)?);</td><td class="ln">1708</td><td class="code add">        let running = self.is_running(&amp;status_of(file));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1709</td><td class="code add">        errors.extend(self.change_errors(&amp;content, upstream, running)?);</td></tr>
+<tr><td class="ln">1683</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td><td class="ln">1710</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1684</td><td class="code">        errors.extend(self.baseline_errors(&amp;content)?);</td><td class="ln">1711</td><td class="code">        errors.extend(self.baseline_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1685</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td><td class="ln">1712</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1747,8 +1774,14 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1747</td><td class="code">    }</td><td class="ln">1774</td><td class="code">    }</td></tr>
+<tr><td class="ln">1748</td><td class="code"></td><td class="ln">1775</td><td class="code"></td></tr>
+<tr><td class="ln">1749</td><td class="code">    /// Arquivos a mudar, com a ação coerente com a existência do caminho. Um caminho criado por uma</td><td class="ln">1776</td><td class="code">    /// Arquivos a mudar, com a ação coerente com a existência do caminho. Um caminho criado por uma</td></tr>
+<tr><td class="ln">1750</td><td class="code del">    /// tarefa de que esta depende conta como existente.</td><td class="ln">1777</td><td class="code add">    /// tarefa de que esta depende conta como existente. Em execução (`running`), `criar` e `remover`</td></tr>
+<tr><td class="ln">1751</td><td class="code del">    fn change_errors(&amp;self, content: &amp;str, upstream: &amp;HashSet&lt;String&gt;) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1778</td><td class="code add">    /// não são conferidos: a própria tarefa já pode ter criado ou removido o caminho.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1779</td><td class="code add">    fn change_errors(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1780</td><td class="code add">        &amp;self,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1781</td><td class="code add">        content: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1782</td><td class="code add">        upstream: &amp;HashSet&lt;String&gt;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1783</td><td class="code add">        running: bool,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1784</td><td class="code add">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1752</td><td class="code">        let root = self.project_root()?;</td><td class="ln">1785</td><td class="code">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln">1753</td><td class="code">        let items = change_items(&amp;self.subsection(content, &quot;change_subsection&quot;)?);</td><td class="ln">1786</td><td class="code">        let items = change_items(&amp;self.subsection(content, &quot;change_subsection&quot;)?);</td></tr>
+<tr><td class="ln">1754</td><td class="code">        let mut errors = Vec::new();</td><td class="ln">1787</td><td class="code">        let mut errors = Vec::new();</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1760,6 +1793,9 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1760</td><td class="code">                ));</td><td class="ln">1793</td><td class="code">                ));</td></tr>
+<tr><td class="ln">1761</td><td class="code">                continue;</td><td class="ln">1794</td><td class="code">                continue;</td></tr>
+<tr><td class="ln">1762</td><td class="code">            }</td><td class="ln">1795</td><td class="code">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1796</td><td class="code add">            if running &amp;&amp; action != ALTER_ACTION {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1797</td><td class="code add">                continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1798</td><td class="code add">            }</td></tr>
+<tr><td class="ln">1763</td><td class="code">            let exists = Path::new(&amp;format!(&quot;{}/{path}&quot;, root.display())).exists();</td><td class="ln">1799</td><td class="code">            let exists = Path::new(&amp;format!(&quot;{}/{path}&quot;, root.display())).exists();</td></tr>
+<tr><td class="ln">1764</td><td class="code">            if action == CREATE_ACTION &amp;&amp; exists {</td><td class="ln">1800</td><td class="code">            if action == CREATE_ACTION &amp;&amp; exists {</td></tr>
+<tr><td class="ln">1765</td><td class="code">                errors.push(format!(&quot;&#39;{path}&#39; já existe; use a ação &#39;alterar&#39;&quot;));</td><td class="ln">1801</td><td class="code">                errors.push(format!(&quot;&#39;{path}&#39; já existe; use a ação &#39;alterar&#39;&quot;));</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2485,32 +2521,90 @@ pub struct AcceptedRegression {</td></tr>
+<tr><td class="ln">2485</td><td class="code">    pub date: String,</td><td class="ln">2521</td><td class="code">    pub date: String,</td></tr>
+<tr><td class="ln">2486</td><td class="code">    pub command: String,</td><td class="ln">2522</td><td class="code">    pub command: String,</td></tr>
+<tr><td class="ln">2487</td><td class="code">    pub decision: String,</td><td class="ln">2523</td><td class="code">    pub decision: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2524</td><td class="code add">    /// Código de saída aceito; `None` nas linhas antigas, que valem pelo hash.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2525</td><td class="code add">    pub exit_code: Option&lt;i32&gt;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2526</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2527</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2528</td><td class="code add">impl AcceptedRegression {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2529</td><td class="code add">    /// O aceite cobre a saída atual: pelo código de saída, quando gravado; senão, pelo hash da saída</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2530</td><td class="code add">    /// inteira (como foi gravado) ou da saída sem as linhas ignoradas.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2531</td><td class="code add">    fn covers(&amp;self, code: i32, output: &amp;[u8], ignore: &amp;[String]) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2532</td><td class="code add">        match self.exit_code {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2533</td><td class="code add">            Some(accepted) =&gt; accepted == code,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2534</td><td class="code add">            None =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2535</td><td class="code add">                self.hash == sha256_hex(output)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2536</td><td class="code add">                    || self.hash == sha256_hex(&amp;without_ignored(output, ignore))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2537</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2538</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2539</td><td class="code add">    }</td></tr>
+<tr><td class="ln">2488</td><td class="code">}</td><td class="ln">2540</td><td class="code">}</td></tr>
+<tr><td class="ln">2489</td><td class="code"></td><td class="ln">2541</td><td class="code"></td></tr>
+<tr><td class="ln">2490</td><td class="code del">/// Aceites gravados em `dir/accepted`, na ordem do arquivo.</td><td class="ln">2542</td><td class="code add">/// Aceites gravados em `dir/accepted`, na ordem do arquivo. O código de saída é o último campo,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2543</td><td class="code add">/// opcional; numa linha antiga com tabulação na decisão, um último campo não numérico volta à decisão.</td></tr>
+<tr><td class="ln">2491</td><td class="code">pub fn accepted_regressions(dir: &amp;Path) -&gt; Vec&lt;AcceptedRegression&gt; {</td><td class="ln">2544</td><td class="code">pub fn accepted_regressions(dir: &amp;Path) -&gt; Vec&lt;AcceptedRegression&gt; {</td></tr>
+<tr><td class="ln">2492</td><td class="code">    fs::read_to_string(dir.join(ACCEPTED_FILE))</td><td class="ln">2545</td><td class="code">    fs::read_to_string(dir.join(ACCEPTED_FILE))</td></tr>
+<tr><td class="ln">2493</td><td class="code">        .unwrap_or_default()</td><td class="ln">2546</td><td class="code">        .unwrap_or_default()</td></tr>
+<tr><td class="ln">2494</td><td class="code">        .lines()</td><td class="ln">2547</td><td class="code">        .lines()</td></tr>
+<tr><td class="ln">2495</td><td class="code">        .filter_map(|line| {</td><td class="ln">2548</td><td class="code">        .filter_map(|line| {</td></tr>
+<tr><td class="ln">2496</td><td class="code del">            let mut fields = line.splitn(5, &#39;\t&#39;);</td><td class="ln">2549</td><td class="code add">            let mut fields = line.splitn(6, &#39;\t&#39;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2550</td><td class="code add">            let number = fields.next()?.parse().ok()?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2551</td><td class="code add">            let hash = fields.next()?.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2552</td><td class="code add">            let date = fields.next()?.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2553</td><td class="code add">            let command = fields.next()?.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2554</td><td class="code add">            let mut decision = fields.next()?.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2555</td><td class="code add">            let exit_code = match fields.next() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2556</td><td class="code add">                None =&gt; None,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2557</td><td class="code add">                Some(last) =&gt; match last.parse() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2558</td><td class="code add">                    Ok(code) =&gt; Some(code),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2559</td><td class="code add">                    Err(_) =&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2560</td><td class="code add">                        decision = format!(&quot;{decision}\t{last}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2561</td><td class="code add">                        None</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2562</td><td class="code add">                    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2563</td><td class="code add">                },</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2564</td><td class="code add">            };</td></tr>
+<tr><td class="ln">2497</td><td class="code">            Some(AcceptedRegression {</td><td class="ln">2565</td><td class="code">            Some(AcceptedRegression {</td></tr>
+<tr><td class="ln">2498</td><td class="code del">                number: fields.next()?.parse().ok()?,</td><td class="ln">2566</td><td class="code add">                number,</td></tr>
+<tr><td class="ln">2499</td><td class="code del">                hash: fields.next()?.to_string(),</td><td class="ln">2567</td><td class="code add">                hash,</td></tr>
+<tr><td class="ln">2500</td><td class="code del">                date: fields.next()?.to_string(),</td><td class="ln">2568</td><td class="code add">                date,</td></tr>
+<tr><td class="ln">2501</td><td class="code del">                command: fields.next()?.to_string(),</td><td class="ln">2569</td><td class="code add">                command,</td></tr>
+<tr><td class="ln">2502</td><td class="code del">                decision: fields.next()?.to_string(),</td><td class="ln">2570</td><td class="code add">                decision,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2571</td><td class="code add">                exit_code,</td></tr>
+<tr><td class="ln">2503</td><td class="code">            })</td><td class="ln">2572</td><td class="code">            })</td></tr>
+<tr><td class="ln">2504</td><td class="code">        })</td><td class="ln">2573</td><td class="code">        })</td></tr>
+<tr><td class="ln">2505</td><td class="code">        .collect()</td><td class="ln">2574</td><td class="code">        .collect()</td></tr>
+<tr><td class="ln">2506</td><td class="code">}</td><td class="ln">2575</td><td class="code">}</td></tr>
+<tr><td class="ln">2507</td><td class="code"></td><td class="ln">2576</td><td class="code"></td></tr>
+<tr><td class="ln">2508</td><td class="code del">/// SHA-256 aceito por comando; o aceite mais recente de um número vale.</td><td class="ln">2577</td><td class="code add">/// Aceite por comando; o mais recente de um número vale.</td></tr>
+<tr><td class="ln">2509</td><td class="code del">fn accepted_hashes(dir: &amp;Path) -&gt; Result&lt;HashMap&lt;usize, String&gt;&gt; {</td><td class="ln">2578</td><td class="code add">fn latest_acceptances(dir: &amp;Path) -&gt; HashMap&lt;usize, AcceptedRegression&gt; {</td></tr>
+<tr><td class="ln">2510</td><td class="code del">    Ok(accepted_regressions(dir)</td><td class="ln">2579</td><td class="code add">    accepted_regressions(dir)</td></tr>
+<tr><td class="ln">2511</td><td class="code">        .into_iter()</td><td class="ln">2580</td><td class="code">        .into_iter()</td></tr>
+<tr><td class="ln">2512</td><td class="code del">        .map(|item| (item.number, item.hash))</td><td class="ln">2581</td><td class="code add">        .map(|item| (item.number, item))</td></tr>
+<tr><td class="ln">2513</td><td class="code del">        .collect())</td><td class="ln">2582</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2583</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2584</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2585</td><td class="code add">/// Saída sem as linhas que contêm algum dos trechos; sem trechos, a saída inteira.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2586</td><td class="code add">fn without_ignored(output: &amp;[u8], ignore: &amp;[String]) -&gt; Vec&lt;u8&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2587</td><td class="code add">    if ignore.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2588</td><td class="code add">        return output.to_vec();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2589</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2590</td><td class="code add">    output</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2591</td><td class="code add">        .split_inclusive(|byte| *byte == b&#39;\n&#39;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2592</td><td class="code add">        .filter(|line| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2593</td><td class="code add">            let text = String::from_utf8_lossy(line);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2594</td><td class="code add">            !ignore.iter().any(|snippet| text.contains(snippet.as_str()))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2595</td><td class="code add">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2596</td><td class="code add">        .flatten()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2597</td><td class="code add">        .copied()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2598</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2599</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2600</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2601</td><td class="code add">/// Código de saída gravado por `recorded_run` na segunda linha da saída (`exit: N`).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2602</td><td class="code add">fn recorded_exit_code(output: &amp;[u8]) -&gt; Option&lt;i32&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2603</td><td class="code add">    String::from_utf8_lossy(output)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2604</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2605</td><td class="code add">        .nth(1)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2606</td><td class="code add">        .and_then(|line| line.strip_prefix(&quot;exit: &quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2607</td><td class="code add">        .and_then(|code| code.trim().parse().ok())</td></tr>
+<tr><td class="ln">2514</td><td class="code">}</td><td class="ln">2608</td><td class="code">}</td></tr>
+<tr><td class="ln">2515</td><td class="code"></td><td class="ln">2609</td><td class="code"></td></tr>
+<tr><td class="ln">2516</td><td class="code">struct Acceptance {</td><td class="ln">2610</td><td class="code">struct Acceptance {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2547,13 +2641,19 @@ fn regression_acceptances(</td></tr>
+<tr><td class="ln">2547</td><td class="code">            .unwrap_or(&quot;&quot;)</td><td class="ln">2641</td><td class="code">            .unwrap_or(&quot;&quot;)</td></tr>
+<tr><td class="ln">2548</td><td class="code">            .to_string();</td><td class="ln">2642</td><td class="code">            .to_string();</td></tr>
+<tr><td class="ln">2549</td><td class="code">        let command = first.strip_prefix(&quot;$ &quot;).unwrap_or(&amp;first).to_string();</td><td class="ln">2643</td><td class="code">        let command = first.strip_prefix(&quot;$ &quot;).unwrap_or(&amp;first).to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2644</td><td class="code add">        let code = recorded_exit_code(&amp;output).ok_or_else(|| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2645</td><td class="code add">            anyhow!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2646</td><td class="code add">                &quot;a saída gravada do comando {number} não tem a linha &#39;exit: N&#39;. Nada foi alterado&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2647</td><td class="code add">            )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2648</td><td class="code add">        })?;</td></tr>
+<tr><td class="ln">2550</td><td class="code">        acceptances.push(Acceptance {</td><td class="ln">2649</td><td class="code">        acceptances.push(Acceptance {</td></tr>
+<tr><td class="ln">2551</td><td class="code">            number,</td><td class="ln">2650</td><td class="code">            number,</td></tr>
+<tr><td class="ln">2552</td><td class="code">            line: format!(</td><td class="ln">2651</td><td class="code">            line: format!(</td></tr>
+<tr><td class="ln">2553</td><td class="code del">                &quot;{number}\t{}\t{}\t{}\t{decision}\n&quot;,</td><td class="ln">2652</td><td class="code add">                &quot;{number}\t{}\t{}\t{}\t{}\t{code}\n&quot;,</td></tr>
+<tr><td class="ln">2554</td><td class="code">                sha256_hex(&amp;output),</td><td class="ln">2653</td><td class="code">                sha256_hex(&amp;output),</td></tr>
+<tr><td class="ln">2555</td><td class="code">                utc_now(),</td><td class="ln">2654</td><td class="code">                utc_now(),</td></tr>
+<tr><td class="ln">2556</td><td class="code del">                command.replace(&#39;\t&#39;, &quot; &quot;)</td><td class="ln">2655</td><td class="code add">                command.replace(&#39;\t&#39;, &quot; &quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2656</td><td class="code add">                decision.replace(&#39;\t&#39;, &quot; &quot;)</td></tr>
+<tr><td class="ln">2557</td><td class="code">            ),</td><td class="ln">2657</td><td class="code">            ),</td></tr>
+<tr><td class="ln">2558</td><td class="code">        });</td><td class="ln">2658</td><td class="code">        });</td></tr>
+<tr><td class="ln">2559</td><td class="code">    }</td><td class="ln">2659</td><td class="code">    }</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+192</span><span class="tag remover">−14</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -207,11 +207,12 @@ fn accepted_difference_lets_the_task_finish() {</td></tr>
+<tr><td class="ln">207</td><td class="code">    .success();</td><td class="ln">207</td><td class="code">    .success();</td></tr>
+<tr><td class="ln">208</td><td class="code">    let accepted = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;));</td><td class="ln">208</td><td class="code">    let accepted = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;));</td></tr>
+<tr><td class="ln">209</td><td class="code">    let fields: Vec&lt;&amp;str&gt; = accepted.trim_end().split(&#39;\t&#39;).collect();</td><td class="ln">209</td><td class="code">    let fields: Vec&lt;&amp;str&gt; = accepted.trim_end().split(&#39;\t&#39;).collect();</td></tr>
+<tr><td class="ln">210</td><td class="code del">    assert_eq!(fields.len(), 5, &quot;{accepted}&quot;);</td><td class="ln">210</td><td class="code add">    assert_eq!(fields.len(), 6, &quot;{accepted}&quot;);</td></tr>
+<tr><td class="ln">211</td><td class="code">    assert_eq!(fields[0], &quot;1&quot;);</td><td class="ln">211</td><td class="code">    assert_eq!(fields[0], &quot;1&quot;);</td></tr>
+<tr><td class="ln">212</td><td class="code">    assert_eq!(fields[1].len(), 64);</td><td class="ln">212</td><td class="code">    assert_eq!(fields[1].len(), 64);</td></tr>
+<tr><td class="ln">213</td><td class="code">    assert_eq!(fields[3], &quot;cat valor.txt&quot;);</td><td class="ln">213</td><td class="code">    assert_eq!(fields[3], &quot;cat valor.txt&quot;);</td></tr>
+<tr><td class="ln">214</td><td class="code">    assert_eq!(fields[4], &quot;diferença esperada&quot;);</td><td class="ln">214</td><td class="code">    assert_eq!(fields[4], &quot;diferença esperada&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">215</td><td class="code add">    assert_eq!(fields[5], &quot;0&quot;);</td></tr>
+<tr><td class="ln">215</td><td class="code"></td><td class="ln">216</td><td class="code"></td></tr>
+<tr><td class="ln">216</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td><td class="ln">217</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln">217</td><td class="code">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td><td class="ln">218</td><td class="code">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr class="hunk"><td colspan="4">@@ -240,18 +241,6 @@ fn blocked_regression_numbers_only_the_divergent_commands() {</td></tr>
+<tr><td class="ln">240</td><td class="code">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td><td class="ln">241</td><td class="code">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td></tr>
+<tr><td class="ln">241</td><td class="code">}</td><td class="ln">242</td><td class="code">}</td></tr>
+<tr><td class="ln">242</td><td class="code"></td><td class="ln">243</td><td class="code"></td></tr>
+<tr><td class="ln">243</td><td class="code del">#[test]</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">244</td><td class="code del">fn output_changed_after_the_acceptance_blocks_again() {</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">245</td><td class="code del">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">246</td><td class="code del">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">247</td><td class="code del">    block_and_accept(&amp;project, &quot;1&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">248</td><td class="code del">    write(&amp;project, &quot;valor.txt&quot;, &quot;c\n&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">249</td><td class="code del">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">250</td><td class="code del">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">251</td><td class="code del">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">252</td><td class="code del">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">253</td><td class="code del">}</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">254</td><td class="code del"></td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">255</td><td class="code">#[test]</td><td class="ln">244</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">256</td><td class="code">fn new_difference_besides_the_accepted_one_blocks() {</td><td class="ln">245</td><td class="code">fn new_difference_besides_the_accepted_one_blocks() {</td></tr>
+<tr><td class="ln">257</td><td class="code">    let project = running_task(&amp;[(&quot;um.txt&quot;, &quot;1\n&quot;), (&quot;dois.txt&quot;, &quot;2\n&quot;)]);</td><td class="ln">246</td><td class="code">    let project = running_task(&amp;[(&quot;um.txt&quot;, &quot;1\n&quot;), (&quot;dois.txt&quot;, &quot;2\n&quot;)]);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -370,7 +359,8 @@ fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {</td></tr>
+<tr><td class="ln">370</td><td class="code">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td><td class="ln">359</td><td class="code">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln">371</td><td class="code">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td><td class="ln">360</td><td class="code">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln">372</td><td class="code">    block_and_accept(&amp;project, &quot;1&quot;);</td><td class="ln">361</td><td class="code">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln">373</td><td class="code del">    write(&amp;project, &quot;valor.txt&quot;, &quot;c\n&quot;);</td><td class="ln">362</td><td class="code add">    // Outro código de saída bloqueia de novo; o aceite novo passa a valer pelo código 1.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">363</td><td class="code add">    std::fs::remove_file(project.root().join(&quot;valor.txt&quot;)).unwrap();</td></tr>
+<tr><td class="ln">374</td><td class="code">    block_and_accept(&amp;project, &quot;1&quot;);</td><td class="ln">364</td><td class="code">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln">375</td><td class="code">    assert_eq!(</td><td class="ln">365</td><td class="code">    assert_eq!(</td></tr>
+<tr><td class="ln">376</td><td class="code">        read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;))</td><td class="ln">366</td><td class="code">        read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;))</td></tr>
+<tr class="hunk"><td colspan="4">@@ -382,6 +372,146 @@ fn later_acceptance_of_the_same_command_replaces_the_earlier_one() {</td></tr>
+<tr><td class="ln">382</td><td class="code">    assert!(passed.contains(&quot;1 aceito(s) pelo usuário&quot;), &quot;{passed}&quot;);</td><td class="ln">372</td><td class="code">    assert!(passed.contains(&quot;1 aceito(s) pelo usuário&quot;), &quot;{passed}&quot;);</td></tr>
+<tr><td class="ln">383</td><td class="code">}</td><td class="ln">373</td><td class="code">}</td></tr>
+<tr><td class="ln">384</td><td class="code"></td><td class="ln">374</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">375</td><td class="code add">// --- Linhas ignoradas e aceite por código de saída (SPEC-013) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">376</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">377</td><td class="code add">/// Remove a chave `regression_ignore` da configuração, como num projeto antigo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">378</td><td class="code add">fn without_regression_ignore(project: &amp;Project) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">379</td><td class="code add">    let path = &quot;vostok/config/tasks.yml&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">380</td><td class="code add">    let mut skipping = false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">381</td><td class="code add">    let content: String = read(project, path)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">382</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">383</td><td class="code add">        .filter(|line| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">384</td><td class="code add">            if line.starts_with(&quot;regression_ignore:&quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">385</td><td class="code add">                skipping = true;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">386</td><td class="code add">                return false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">387</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">388</td><td class="code add">            if skipping &amp;&amp; line.trim_start().starts_with(&quot;- &quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">389</td><td class="code add">                return false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">390</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">391</td><td class="code add">            skipping = false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">392</td><td class="code add">            true</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">393</td><td class="code add">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">394</td><td class="code add">        .map(|line| format!(&quot;{line}\n&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">395</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">396</td><td class="code add">    assert!(!content.contains(&quot;regression_ignore&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">397</td><td class="code add">    write(project, path, &amp;content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">398</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">399</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">400</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">401</td><td class="code add">fn regression_ignore_skips_lines_with_the_configured_snippets() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">402</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;ok\nDuration 1ms\nTime: 10:00:01\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">403</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;ok\nDuration 2ms\nTime: 10:00:02\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">404</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">405</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">406</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">407</td><td class="code add">        passed,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">408</td><td class="code add">        &quot;Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.\n&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">409</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">410</td><td class="code add">    assert!(!exists(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">411</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">412</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">413</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">414</td><td class="code add">fn regression_ignore_without_the_key_compares_the_whole_output() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">415</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;ok\nDuration 1ms\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">416</td><td class="code add">    without_regression_ignore(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">417</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;ok\nDuration 2ms\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">418</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">419</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">420</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">421</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">422</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">423</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">424</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">425</td><td class="code add">fn regression_ignore_keeps_the_whole_output_in_the_diff() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">426</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;ok\nDuration 1ms\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">427</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;mudou\nDuration 2ms\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">428</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">429</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">430</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">431</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">432</td><td class="code add">    let diff = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/01.diff&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">433</td><td class="code add">    assert!(diff.contains(&quot;&gt; mudou&quot;), &quot;{diff}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">434</td><td class="code add">    assert!(diff.contains(&quot;&gt; Duration 2ms&quot;), &quot;{diff}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">435</td><td class="code add">    assert!(diff.contains(&quot;&lt; Duration 1ms&quot;), &quot;{diff}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">436</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">437</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">438</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">439</td><td class="code add">fn regression_accept_holds_while_the_exit_code_is_the_same() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">440</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">441</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">442</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">443</td><td class="code add">    let accepted = read(&amp;project, &amp;format!(&quot;{REGRESSION_DIR}/accepted&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">444</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">445</td><td class="code add">        accepted.ends_with(&quot;\tdiferença esperada\t0\n&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">446</td><td class="code add">        &quot;{accepted}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">447</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">448</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">449</td><td class="code add">    for value in [&quot;c\n&quot;, &quot;d\ne\n&quot;] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">450</td><td class="code add">        write(&amp;project, &quot;valor.txt&quot;, value);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">451</td><td class="code add">        task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">452</td><td class="code add">        let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">453</td><td class="code add">        assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">454</td><td class="code add">            passed.contains(&quot;0 igual(is) ao baseline, 1 aceito(s) pelo usuário&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">455</td><td class="code add">            &quot;{passed}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">456</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">457</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">458</td><td class="code add">    task(&amp;project, &amp;[&quot;evidence&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">459</td><td class="code add">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">460</td><td class="code add">    assert_eq!(status(&amp;project), &quot;done&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">461</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">462</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">463</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">464</td><td class="code add">fn regression_accept_blocks_when_the_exit_code_changes() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">465</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">466</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">467</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">468</td><td class="code add">    std::fs::remove_file(project.root().join(&quot;valor.txt&quot;)).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">469</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">470</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">471</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">472</td><td class="code add">    assert!(blocked.contains(&quot;&gt; exit: 1&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">473</td><td class="code add">    assert_eq!(status(&amp;project), &quot;blocked&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">474</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">475</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">476</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">477</td><td class="code add">fn regression_accept_old_line_without_exit_code_holds_by_the_hash() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">478</td><td class="code add">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">479</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">480</td><td class="code add">    block_and_accept(&amp;project, &quot;1&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">481</td><td class="code add">    // Volta a linha ao formato antigo, de 5 campos, sem o código de saída.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">482</td><td class="code add">    let path = format!(&quot;{REGRESSION_DIR}/accepted&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">483</td><td class="code add">    let line = read(&amp;project, &amp;path);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">484</td><td class="code add">    let old = line.trim_end().rsplit_once(&#39;\t&#39;).unwrap().0.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">485</td><td class="code add">    assert_eq!(old.split(&#39;\t&#39;).count(), 5, &quot;{old}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">486</td><td class="code add">    write(&amp;project, &amp;path, &amp;format!(&quot;{old}\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">487</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">488</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">489</td><td class="code add">    let passed = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">490</td><td class="code add">    assert!(passed.contains(&quot;1 aceito(s) pelo usuário&quot;), &quot;{passed}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">491</td><td class="code add">    assert_eq!(read(&amp;project, &amp;path), format!(&quot;{old}\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">492</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">493</td><td class="code add">    // Sem o código de saída, o aceite antigo vale só para a saída aceita.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">494</td><td class="code add">    write(&amp;project, &quot;valor.txt&quot;, &quot;c\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">495</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">496</td><td class="code add">    let blocked = stdout(&amp;mut task(&amp;project, &amp;[&quot;regression&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">497</td><td class="code add">    assert!(blocked.contains(&quot;- [1] cat valor.txt\n&quot;), &quot;{blocked}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">498</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">499</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">500</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">501</td><td class="code add">fn regression_accept_old_line_is_listed_in_the_persist_guide() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">502</td><td class="code add">    let project = validated_task(&quot;b\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">503</td><td class="code add">    let path = format!(&quot;{EVIDENCE_DIR}/validation/regression/accepted&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">504</td><td class="code add">    let line = read(&amp;project, &amp;path);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">505</td><td class="code add">    let old = line.trim_end().rsplit_once(&#39;\t&#39;).unwrap().0.to_string();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">506</td><td class="code add">    write(&amp;project, &amp;path, &amp;format!(&quot;{old}\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">507</td><td class="code add">    task(&amp;project, &amp;[&quot;persist&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">508</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">509</td><td class="code add">        guide(&amp;project).contains(&quot;`cat valor.txt`: valor novo esperado ([diff]&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">510</td><td class="code add">        &quot;{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">511</td><td class="code add">        guide(&amp;project)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">512</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">513</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">514</td><td class="code add"></td></tr>
+<tr><td class="ln">385</td><td class="code">#[test]</td><td class="ln">515</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">386</td><td class="code">fn evidence_subitems_are_ignored_when_recording() {</td><td class="ln">516</td><td class="code">fn evidence_subitems_are_ignored_when_recording() {</td></tr>
+<tr><td class="ln">387</td><td class="code">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td><td class="ln">517</td><td class="code">    let project = running_task(&amp;[(&quot;valor.txt&quot;, &quot;a\n&quot;)]);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -857,3 +987,51 @@ fn evidence_name_reserved_or_hidden_is_refused_by_the_task_validation() {</td></tr>
+<tr><td class="ln">857</td><td class="code">        assert!(refused.contains(&amp;format!(&quot;`{name}`&quot;)), &quot;{name}: {refused}&quot;);</td><td class="ln">987</td><td class="code">        assert!(refused.contains(&amp;format!(&quot;`{name}`&quot;)), &quot;{name}: {refused}&quot;);</td></tr>
+<tr><td class="ln">858</td><td class="code">    }</td><td class="ln">988</td><td class="code">    }</td></tr>
+<tr><td class="ln">859</td><td class="code">}</td><td class="ln">989</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">990</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">991</td><td class="code add">// --- Ajuste de tarefa em execução com criar e remover (SPEC-012) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">992</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">993</td><td class="code add">const VALID_EVIDENCE: &amp;str = &quot;- `saida.txt` (automática): `echo ok`&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">994</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">995</td><td class="code add">/// Tarefa completa com o status e o item de &quot;Mudar&quot; informados.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">996</td><td class="code add">fn task_with_change(status: &amp;str, change: &amp;str) -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">997</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">998</td><td class="code add">    let content = complete_task(status, VALID_EVIDENCE)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">999</td><td class="code add">        .replace(&quot;- `novo.txt` (criar): arquivo novo.&quot;, change);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1000</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1001</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1002</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1003</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1004</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1005</td><td class="code add">fn change_in_execution_accepts_create_of_an_existing_file() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1006</td><td class="code add">    let project = task_with_change(&quot;in_progress&quot;, &quot;- `novo.txt` (criar): arquivo novo.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1007</td><td class="code add">    write(&amp;project, &quot;novo.txt&quot;, &quot;criado pela tarefa\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1008</td><td class="code add">    success_stdout(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1009</td><td class="code add">    let mut record = nested(&amp;project, &quot;adjust&quot;, &quot;record&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1010</td><td class="code add">    record.arg(&quot;Passos detalhados&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1011</td><td class="code add">    let output = success_stdout(&amp;mut record);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1012</td><td class="code add">    assert!(output.contains(&quot;Ajuste 1 registrado&quot;), &quot;{output}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1013</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1014</td><td class="code add">    assert!(content.contains(&quot;adjustments: 1\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1015</td><td class="code add">    assert_eq!(status(&amp;project), &quot;in_progress&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1016</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1017</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1018</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1019</td><td class="code add">fn change_in_execution_accepts_remove_of_a_missing_file() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1020</td><td class="code add">    let project = task_with_change(&quot;validating&quot;, &quot;- `velho.txt` (remover): arquivo antigo.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1021</td><td class="code add">    success_stdout(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1022</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1023</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1024</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1025</td><td class="code add">fn change_in_execution_still_checks_alter_of_a_missing_path() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1026</td><td class="code add">    let project = task_with_change(&quot;in_progress&quot;, &quot;- `ausente.txt` (alterar): arquivo.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1027</td><td class="code add">    let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1028</td><td class="code add">    assert!(refused.contains(&quot;&#39;ausente.txt&#39; não existe&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1029</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1030</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1031</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1032</td><td class="code add">fn change_in_execution_does_not_relax_a_pending_task() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1033</td><td class="code add">    let project = task_with_change(&quot;pending&quot;, &quot;- `novo.txt` (criar): arquivo novo.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1034</td><td class="code add">    write(&amp;project, &quot;novo.txt&quot;, &quot;já existia\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1035</td><td class="code add">    let refused = failure_stderr(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1036</td><td class="code add">    assert!(refused.contains(&quot;&#39;novo.txt&#39; já existe&quot;), &quot;{refused}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1037</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">97fa0d2</td><td class="mono">2026-10-22</td><td>fix(task): ignore variable lines in regression and keep acceptances by exit code</td></tr>
+<tr><td class="mono">a5413e2</td><td class="mono">2026-10-22</td><td>fix(task): let an adjustment validate create and remove items of a running task</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<ul>
+<li>Não conferir <code>criar</code> e <code>remover</code> em execução, em vez de gravar uma foto dos caminhos no <code>vostok task start</code>: a foto mexeria no <code>start</code> e nos golden e não existiria para tarefas já iniciadas.</li>
+<li>O planejamento (<code>plan.rs</code>) e as tarefas <code>pending</code> e <code>approved</code> mantêm a conferência.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>A SPEC-012 e a SPEC-013 mexeram no mesmo arquivo em sequência; os commits foram separados a partir do diff, com os testes da versão parcial rodados antes do commit.</li>
+<li>Contornos relatados nas issues (mover arquivos para fora do projeto) indicam o custo real do defeito para quem usa o harness.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li><code>is_running</code> é a fonte única dos status de execução em <code>task.rs</code>; novos status de execução precisam entrar nele.</li>
+<li>A validação do plano continua separada em <code>plan.rs</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code> (<code>change_errors</code>, <code>is_running</code>): a correção.</li>
+<li><code>apps/cli/tests/task.rs</code>: testes <code>change_in_execution_*</code>.</li>
+<li>Commit <code>a5413e2</code>: a correção desta spec (o <code>97fa0d2</code> é da SPEC-013).</li>
+<li>Issue Ishtar-Sink/Vostok#2: o relato.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-012, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

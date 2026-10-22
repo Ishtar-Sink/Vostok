@@ -857,3 +857,51 @@ fn evidence_name_reserved_or_hidden_is_refused_by_the_task_validation() {
         assert!(refused.contains(&format!("`{name}`")), "{name}: {refused}");
     }
 }
+
+// --- Ajuste de tarefa em execução com criar e remover (SPEC-012) ---
+
+const VALID_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`";
+
+/// Tarefa completa com o status e o item de "Mudar" informados.
+fn task_with_change(status: &str, change: &str) -> Project {
+    let project = Project::new();
+    let content = complete_task(status, VALID_EVIDENCE)
+        .replace("- `novo.txt` (criar): arquivo novo.", change);
+    write(&project, TASK_PATH, &content);
+    project
+}
+
+#[test]
+fn change_in_execution_accepts_create_of_an_existing_file() {
+    let project = task_with_change("in_progress", "- `novo.txt` (criar): arquivo novo.");
+    write(&project, "novo.txt", "criado pela tarefa\n");
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Passos detalhados");
+    let output = success_stdout(&mut record);
+    assert!(output.contains("Ajuste 1 registrado"), "{output}");
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("adjustments: 1\n"), "{content}");
+    assert_eq!(status(&project), "in_progress");
+}
+
+#[test]
+fn change_in_execution_accepts_remove_of_a_missing_file() {
+    let project = task_with_change("validating", "- `velho.txt` (remover): arquivo antigo.");
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+}
+
+#[test]
+fn change_in_execution_still_checks_alter_of_a_missing_path() {
+    let project = task_with_change("in_progress", "- `ausente.txt` (alterar): arquivo.");
+    let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(refused.contains("'ausente.txt' não existe"), "{refused}");
+}
+
+#[test]
+fn change_in_execution_does_not_relax_a_pending_task() {
+    let project = task_with_change("pending", "- `novo.txt` (criar): arquivo novo.");
+    write(&project, "novo.txt", "já existia\n");
+    let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(refused.contains("'novo.txt' já existe"), "{refused}");
+}

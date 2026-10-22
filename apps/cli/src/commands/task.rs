@@ -157,6 +157,7 @@ const REVIEWERS: [&str; 2] = ["agente", "usuário"];
 /// Ações aceitas em "Mudar", as mesmas dos componentes afetados da spec.
 const COMPONENT_ACTIONS: [&str; 3] = ["criar", "alterar", "remover"];
 const CREATE_ACTION: &str = "criar";
+const ALTER_ACTION: &str = "alterar";
 
 /// Trecho executado antes da "Verificação": o trap registra o comando que falhou, já que muitos
 /// comandos de teste falham sem imprimir nada.
@@ -689,13 +690,7 @@ impl Tasks {
     /// Devolve uma tarefa em execução para in_progress, com tentativas e resultados zerados, mantendo o
     /// baseline e a aprovação. Não faz nada nas demais.
     fn restart_execution(&self, file: &Path, task: &str, summary: &str) -> Result<()> {
-        let status = status_of(file);
-        let running = [
-            &self.status.in_progress,
-            &self.status.validating,
-            &self.status.blocked,
-        ];
-        if !running.contains(&&status) {
+        if !self.is_running(&status_of(file)) {
             return Ok(());
         }
         let in_progress = &self.status.in_progress;
@@ -706,6 +701,16 @@ impl Tasks {
             "Ajuste em execução: {task} voltou para '{in_progress}', com tentativas e resultados zerados e o baseline mantido."
         );
         Ok(())
+    }
+
+    /// Status de execução: in_progress, validating e blocked.
+    fn is_running(&self, status: &str) -> bool {
+        [
+            &self.status.in_progress,
+            &self.status.validating,
+            &self.status.blocked,
+        ]
+        .contains(&&status.to_string())
     }
 
     // --- start e baseline ---
@@ -1679,7 +1684,8 @@ impl Tasks {
         errors.extend(self.fixed_section_errors(&content)?);
         errors.extend(self.subsection_errors(&content)?);
         errors.extend(self.description_errors(&content)?);
-        errors.extend(self.change_errors(&content, upstream)?);
+        let running = self.is_running(&status_of(file));
+        errors.extend(self.change_errors(&content, upstream, running)?);
         errors.extend(self.done_errors(&content)?);
         errors.extend(self.baseline_errors(&content)?);
         errors.extend(self.evidence_errors(&content, names)?);
@@ -1747,8 +1753,14 @@ impl Tasks {
     }
 
     /// Arquivos a mudar, com a ação coerente com a existência do caminho. Um caminho criado por uma
-    /// tarefa de que esta depende conta como existente.
-    fn change_errors(&self, content: &str, upstream: &HashSet<String>) -> Result<Vec<String>> {
+    /// tarefa de que esta depende conta como existente. Em execução (`running`), `criar` e `remover`
+    /// não são conferidos: a própria tarefa já pode ter criado ou removido o caminho.
+    fn change_errors(
+        &self,
+        content: &str,
+        upstream: &HashSet<String>,
+        running: bool,
+    ) -> Result<Vec<String>> {
         let root = self.project_root()?;
         let items = change_items(&self.subsection(content, "change_subsection")?);
         let mut errors = Vec::new();
@@ -1758,6 +1770,9 @@ impl Tasks {
                     "ação inválida para '{path}': '{action}' (use: {})",
                     COMPONENT_ACTIONS.join(" ")
                 ));
+                continue;
+            }
+            if running && action != ALTER_ACTION {
                 continue;
             }
             let exists = Path::new(&format!("{}/{path}", root.display())).exists();

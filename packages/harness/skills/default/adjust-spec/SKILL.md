@@ -3,7 +3,7 @@ name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record"
   templates: "templates/spec/sections"
@@ -154,6 +154,8 @@ vostok spec adjust validate <SPEC_ID>
 ```
 
 O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+
+Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do projeto mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário e sem nova rodada ([adjust-spec-05]); o que for acrescentado ou trocado além do pedido entra no "Registro de decisões" como inferência ([adjust-spec-06]).
 
 ### 9. Registrar o ajuste
 

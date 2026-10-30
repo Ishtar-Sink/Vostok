@@ -53,7 +53,7 @@ Como preencher cada seção. As seções de cada tipo e a ordem delas estão em 
 | Fluxos | Fluxo principal em passos numerados. Fluxos alternativos como `FA-01`, cada um com o passo em que se desvia. |
 | Casos de borda | Situações fora do fluxo principal, com `CB-01`, o comportamento esperado e os requisitos relacionados. |
 | Contratos e interfaces | Assinaturas exatas em blocos de código: comandos e argumentos, formatos de arquivo, campos de front-matter e configuração. |
-| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. O script confere que `alterar` e `remover` apontam para caminhos existentes, e que `criar` aponta para um caminho que ainda não existe. |
+| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. Escreva os caminhos no nível em que o trabalho pode ser dividido (por módulo, contexto ou feature): não cite a pasta inteira de um módulo que agrupa partes independentes, e liste os pontos de integração compartilhados (registro de rotas, menu, configuração comum) em linhas próprias. O plano usa esses caminhos para calcular o que roda em paralelo: componentes grossos demais fazem as tarefas de módulo assumirem os mesmos caminhos e a onda vira sequencial. O script confere que `alterar` e `remover` apontam para caminhos existentes, que `criar` aponta para um caminho que ainda não existe, que uma pasta não contém outro caminho citado na spec e que uma pasta existente não usa a ação `alterar`. |
 | Casos de teste | Com `CT-01`: cenário, passos, resultado esperado e requisitos cobertos. Todo `RF` aparece em ao menos um caso de teste. |
 
 ## Seções de estudo (study)

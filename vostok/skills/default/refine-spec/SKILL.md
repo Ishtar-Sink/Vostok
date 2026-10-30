@@ -3,7 +3,7 @@ name: refine-spec
 description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "2.1.1"
+  version: "2.2.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined"
   templates: "templates/spec/refined.md templates/spec/sections"
@@ -102,6 +102,7 @@ Leia só o necessário para preencher as seções do tipo. Não altere nenhum ar
 |---|---|
 | Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |
 | Há uma interpretação claramente dominante e de baixo impacto | Inferência |
+| Um componente de "Componentes afetados" agrupa partes que a spec descreve como independentes | Inferência: detalhe os caminhos no lugar do componente, a partir da investigação do passo 3; só pergunte se a divisão muda o escopo da spec |
 | Conflito entre trechos da spec | Pergunta, sempre |
 | O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |
 
@@ -140,6 +141,8 @@ vostok spec validate <SPEC_ID>
 ```
 
 O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+
+Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do passo 3 mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário; só pergunte se a divisão muda o escopo da spec.
 
 Com a refinada válida, execute:
 

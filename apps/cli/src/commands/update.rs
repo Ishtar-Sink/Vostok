@@ -26,6 +26,7 @@ struct Changes {
     kept_locals: Vec<PathBuf>,
     added_keys: Vec<String>,
     routing: Vec<PathBuf>,
+    agents: Vec<PathBuf>,
     conflicts: Vec<String>,
     manifest: bool,
 }
@@ -37,6 +38,7 @@ impl Changes {
             && self.kept_locals.is_empty()
             && self.added_keys.is_empty()
             && self.routing.is_empty()
+            && self.agents.is_empty()
             && !self.manifest
     }
 }
@@ -52,6 +54,7 @@ pub fn run() -> Result<()> {
     ensure_required_context(&harness, &mut changes)?;
     let routing = routing::generate(&harness)?;
     changes.routing = routing.changed;
+    changes.agents = routing.agents;
     changes.kept_locals.extend(routing.kept_locals);
     changes.conflicts = routing.conflicts;
     changes.manifest = current.write(&harness)?;
@@ -340,6 +343,9 @@ fn print(root: &Path, changes: &Changes) {
     }
     for path in &changes.routing {
         println!("Roteamento regenerado: {}", shown(path));
+    }
+    for path in &changes.agents {
+        println!("Subagente regenerado: {}", shown(path));
     }
     println!("Harness atualizado para a versão {}.", manifest::VERSION);
 }

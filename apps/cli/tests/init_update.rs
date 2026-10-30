@@ -13,7 +13,7 @@ use common::{failure_stderr, vostok_at, Project};
 use tempfile::TempDir;
 use vostok::embedded;
 use vostok::manifest::Manifest;
-use vostok::support::{config_get, config_list, sha256_hex};
+use vostok::support::{config_get, config_list, frontmatter_get, sha256_hex};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const SUPPORTED: &str = "claude-code, codex, cursor";
@@ -654,6 +654,188 @@ fn update_outside_a_project_fails_pointing_to_init() {
     let error = failure_stderr(workspace.vostok().arg("update"));
 
     assert!(error.contains("vostok init"), "{error}");
+}
+
+// --- subagentes (CT-08, RF-12) ---
+
+const SPECIALISTS: [&str; 7] = [
+    "planejador",
+    "arquiteto",
+    "engenheiro",
+    "desenvolvedor",
+    "qa-lead",
+    "ui-ux-designer",
+    "qa",
+];
+const ARCHITECT_AGENT: &str = ".claude/agents/vostok-arquiteto.md";
+
+#[test]
+fn ct08_init_generates_a_subagent_per_specialist_persona_for_claude_code() {
+    let workspace = Workspace::new();
+
+    let out = workspace.init(&["--yes", "--tools", "claude-code"]);
+
+    for name in SPECIALISTS {
+        let agent = workspace.read(&format!(".claude/agents/vostok-{name}.md"));
+        assert!(
+            agent.starts_with(&format!("---\nname: vostok-{name}\ndescription: \"")),
+            "{agent}"
+        );
+        assert!(
+            agent.contains(&format!("vostok context load --persona {name}")),
+            "{agent}"
+        );
+    }
+    assert!(!workspace.exists(".claude/agents/vostok-coordenador.md"));
+    assert!(
+        out.contains("Subagentes: .claude/agents (7 personas)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn ct08_subagent_description_comes_from_the_persona() {
+    let workspace = installed("claude-code");
+
+    let persona = workspace.path("vostok/personas/arquiteto.md");
+    let expected = frontmatter_get(&persona, "description").unwrap();
+
+    assert_eq!(
+        workspace.read("vostok/personas/arquiteto.md"),
+        workspace.embedded("personas/arquiteto.md")
+    );
+    assert_eq!(
+        frontmatter_get(&workspace.path(ARCHITECT_AGENT), "description").unwrap(),
+        expected
+    );
+    assert_eq!(
+        frontmatter_get(&workspace.path(ARCHITECT_AGENT), "model").unwrap(),
+        "inherit"
+    );
+}
+
+#[test]
+fn ct08_init_generates_subagents_only_for_registered_tools() {
+    let workspace = installed("codex");
+
+    assert!(!workspace.exists(".claude/agents"));
+    assert!(!workspace.exists(".cursor/agents"));
+}
+
+#[test]
+fn ct08_codex_subagents_follow_the_study_format() {
+    let workspace = Workspace::new();
+
+    let out = workspace.init(&["--yes", "--tools", "codex"]);
+
+    let description = frontmatter_get(
+        &workspace.path("vostok/personas/arquiteto.md"),
+        "description",
+    )
+    .unwrap();
+    let agent = workspace.read(".codex/agents/vostok-arquiteto.toml");
+    assert!(
+        agent.starts_with(&format!(
+            "name = \"vostok-arquiteto\"\ndescription = \"{description}\"\ndeveloper_instructions = \"\"\"\n"
+        )),
+        "{agent}"
+    );
+    assert!(agent.contains("vostok context load --persona arquiteto"));
+    assert!(agent.ends_with("\"\"\"\n"), "{agent}");
+    for name in SPECIALISTS {
+        assert!(workspace.exists(&format!(".codex/agents/vostok-{name}.toml")));
+    }
+    assert!(!workspace.exists(".codex/agents/vostok-coordenador.toml"));
+    assert!(
+        out.contains("Subagentes: .codex/agents (7 personas)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn ct08_cursor_subagents_follow_the_study_format() {
+    let workspace = installed("cursor");
+
+    let agent = workspace.read(".cursor/agents/vostok-arquiteto.md");
+
+    assert!(
+        agent.starts_with("---\nname: vostok-arquiteto\ndescription: \""),
+        "{agent}"
+    );
+    assert!(agent.contains("\nmodel: inherit\n---\n"), "{agent}");
+    assert!(agent.contains("vostok context load --persona arquiteto"));
+}
+
+#[test]
+fn ct08_cursor_reuses_the_agents_of_another_registered_tool() {
+    let with_claude = Workspace::new();
+    let out = with_claude.init(&["--yes", "--tools", "claude-code,cursor"]);
+    assert!(with_claude.exists(ARCHITECT_AGENT));
+    assert!(!with_claude.exists(".cursor/agents"));
+    assert!(!out.contains("Subagentes: .cursor/agents"), "{out}");
+
+    let alone = Workspace::new();
+    let out = alone.init(&["--yes", "--tools", "cursor"]);
+    assert!(alone.exists(".cursor/agents/vostok-arquiteto.md"));
+    assert!(
+        out.contains("Subagentes: .cursor/agents (7 personas)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn ct08_update_recreates_a_removed_subagent() {
+    let workspace = installed("claude-code");
+    let generated = workspace.read(ARCHITECT_AGENT);
+    fs::remove_file(workspace.path(ARCHITECT_AGENT)).unwrap();
+
+    let out = workspace.update();
+
+    assert_eq!(workspace.read(ARCHITECT_AGENT), generated);
+    assert!(
+        out.contains(&format!("Subagente regenerado: {ARCHITECT_AGENT}")),
+        "{out}"
+    );
+    assert!(workspace.update().contains("já está atualizado"));
+}
+
+#[test]
+fn ct08_update_keeps_a_changed_subagent_as_local() {
+    let workspace = installed("claude-code");
+    let generated = workspace.read(ARCHITECT_AGENT);
+    workspace.write(ARCHITECT_AGENT, "minha versão\n");
+
+    let out = workspace.update();
+
+    assert_eq!(
+        workspace.read(&format!("{ARCHITECT_AGENT}.local")),
+        "minha versão\n"
+    );
+    assert_eq!(workspace.read(ARCHITECT_AGENT), generated);
+    assert!(
+        out.contains(&format!("Versão local guardada: {ARCHITECT_AGENT}.local")),
+        "{out}"
+    );
+    assert!(
+        !out.contains(&format!("Subagente regenerado: {ARCHITECT_AGENT}.local")),
+        "{out}"
+    );
+}
+
+#[test]
+fn ct08_update_preserves_the_agents_of_the_project() {
+    let workspace = installed("claude-code");
+    let own = ".claude/agents/meu-agente.md";
+    workspace.write(own, "---\nname: meu-agente\n---\n\nMeu agente.\n");
+
+    let out = workspace.update();
+
+    assert_eq!(
+        workspace.read(own),
+        "---\nname: meu-agente\n---\n\nMeu agente.\n"
+    );
+    assert!(!workspace.exists(&format!("{own}.local")));
+    assert!(out.contains("já está atualizado"), "{out}");
 }
 
 // --- manifesto ---

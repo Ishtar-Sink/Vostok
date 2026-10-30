@@ -1,5 +1,6 @@
 //! Roteamento do projeto para as ferramentas de agente: o `AGENTS.md`, o arquivo de roteamento de
-//! cada ferramenta, os redirecionamentos das skills e o catálogo (RF-06, RF-12, RF-19, RF-25).
+//! cada ferramenta, os redirecionamentos das skills, as definições de subagente das personas e o
+//! catálogo (RF-06, RF-12, RF-19, RF-25).
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -11,7 +12,24 @@ use crate::commands::skill::{skill_dir, update_catalog, write_redirects, Scope};
 use crate::embedded;
 use crate::harness::Harness;
 use crate::manifest::catalog_path;
-use crate::support::{config_get, config_list};
+use crate::support::{config_get, config_list, frontmatter_get, yaml_escape};
+
+/// Formato do arquivo de definição de subagente de uma ferramenta.
+#[derive(Debug, PartialEq, Eq)]
+pub enum AgentFormat {
+    /// Markdown com front-matter YAML e o corpo como instruções.
+    Markdown,
+    /// TOML com `name`, `description` e `developer_instructions`.
+    Toml,
+}
+
+/// Onde e como uma ferramenta lê as definições de subagente.
+#[derive(Debug, PartialEq, Eq)]
+pub struct AgentTarget {
+    pub dir: &'static str,
+    pub extension: &'static str,
+    pub format: AgentFormat,
+}
 
 /// Ferramenta de agente suportada e o que ela recebe no projeto.
 #[derive(Debug, PartialEq, Eq)]
@@ -22,6 +40,13 @@ pub struct Tool {
     pub redirect_dir: &'static str,
     /// Arquivo de roteamento próprio da ferramenta, além do `AGENTS.md`.
     pub routing_file: Option<&'static str>,
+    /// Pasta e formato das definições de subagente das personas, relativos à raiz do projeto;
+    /// `None` quando o estudo não aponta a ferramenta como compatível (RF-12,
+    /// `docs/estudos/multiagentes.md`).
+    pub agents: Option<AgentTarget>,
+    /// Ferramenta cuja pasta de definições esta também lê; com ela registrada, esta não recebe
+    /// definições próprias, para não duplicar as personas.
+    pub agents_read_from: Option<&'static str>,
 }
 
 pub const TOOLS: [Tool; 3] = [
@@ -30,18 +55,36 @@ pub const TOOLS: [Tool; 3] = [
         label: "Claude Code",
         redirect_dir: ".claude/skills",
         routing_file: Some("CLAUDE.md"),
+        agents: Some(AgentTarget {
+            dir: ".claude/agents",
+            extension: "md",
+            format: AgentFormat::Markdown,
+        }),
+        agents_read_from: None,
     },
     Tool {
         name: "codex",
         label: "Codex",
         redirect_dir: ".agents/skills",
         routing_file: None,
+        agents: Some(AgentTarget {
+            dir: ".codex/agents",
+            extension: "toml",
+            format: AgentFormat::Toml,
+        }),
+        agents_read_from: None,
     },
     Tool {
         name: "cursor",
         label: "Cursor",
         redirect_dir: ".cursor/skills",
         routing_file: None,
+        agents: Some(AgentTarget {
+            dir: ".cursor/agents",
+            extension: "md",
+            format: AgentFormat::Markdown,
+        }),
+        agents_read_from: Some("claude-code"),
     },
 ];
 
@@ -50,6 +93,11 @@ const AGENTS_CONTENT: &str = "> Este arquivo é o roteamento para o harness do p
 const TOOL_ROUTING_CONTENT: &str = "> Este arquivo é o roteamento para o harness do projeto.\n> Leia o arquivo `AGENTS.md` para carregar o harness.\n";
 const LOCAL_SUFFIX: &str = ".local";
 const SKILL_FILE: &str = "SKILL.md";
+const PERSONAS_DIR: &str = "personas";
+/// O Coordenador é o chat principal e não vira subagente.
+const COORDINATOR: &str = "coordenador";
+/// Identifica os arquivos gerados e evita colisão com os agentes do projeto.
+const AGENT_PREFIX: &str = "vostok-";
 
 /// Resultado da geração do roteamento.
 #[derive(Debug, Default)]
@@ -60,6 +108,15 @@ pub struct Routing {
     pub kept_locals: Vec<PathBuf>,
     /// Skills customizadas com o nome de uma skill padrão.
     pub conflicts: Vec<String>,
+    /// Definições de subagente criadas ou alteradas.
+    pub agents: Vec<PathBuf>,
+}
+
+/// Persona especialista, lida do front-matter de `personas/<nome>.md`.
+struct Persona {
+    name: String,
+    title: String,
+    description: String,
 }
 
 /// Nomes das ferramentas suportadas, para as mensagens de erro.
@@ -128,8 +185,9 @@ pub fn project_root(harness: &Harness) -> Result<PathBuf> {
         .with_context(|| format!("raiz do projeto inexistente: {}", root.display()))
 }
 
-/// Gera o `AGENTS.md`, os arquivos de roteamento e os redirecionamentos das ferramentas registradas
-/// em `redirect_dirs` e atualiza o catálogo com as skills instaladas.
+/// Gera o `AGENTS.md`, os arquivos de roteamento, os redirecionamentos e as definições de subagente
+/// das personas das ferramentas registradas em `redirect_dirs` e atualiza o catálogo com as skills
+/// instaladas.
 pub fn generate(harness: &Harness) -> Result<Routing> {
     let root = project_root(harness)?;
     let redirect_dirs: Vec<String> =
@@ -138,9 +196,14 @@ pub fn generate(harness: &Harness) -> Result<Routing> {
             .filter(|dir| !dir.is_empty())
             .collect();
     let catalog = harness.root.join(catalog_path(harness)?);
+    let agent_dirs: Vec<PathBuf> = agent_targets(&registered_tools(&redirect_dirs))
+        .iter()
+        .map(|(_, target)| root.join(target.dir))
+        .collect();
     let watched: Vec<PathBuf> = routing_files(&redirect_dirs)
         .map(|file| root.join(file))
         .chain(redirect_dirs.iter().map(|dir| root.join(dir)))
+        .chain(agent_dirs.iter().cloned())
         .chain([catalog.clone()])
         .collect();
     let before = snapshot(&watched);
@@ -158,14 +221,115 @@ pub fn generate(harness: &Harness) -> Result<Routing> {
     }
     restore_catalog(harness, &catalog)?;
     routing.conflicts = write_skills(harness)?;
+    let agent_locals = write_agents(harness, &root, &redirect_dirs)?;
 
     let after = snapshot(&watched);
-    routing.changed = after
-        .iter()
-        .filter(|(path, content)| before.get(*path) != Some(*content))
-        .map(|(path, _)| path.clone())
-        .collect();
+    for (path, content) in &after {
+        if before.get(path) == Some(content) || agent_locals.contains(path) {
+            continue;
+        }
+        if agent_dirs.iter().any(|dir| path.starts_with(dir)) {
+            routing.agents.push(path.clone());
+        } else {
+            routing.changed.push(path.clone());
+        }
+    }
+    routing.kept_locals.extend(agent_locals);
     Ok(routing)
+}
+
+/// Ferramentas de `TOOLS` cujo `redirect_dir` está em `redirect_dirs`.
+fn registered_tools(redirect_dirs: &[String]) -> Vec<&'static Tool> {
+    TOOLS
+        .iter()
+        .filter(|tool| redirect_dirs.iter().any(|dir| dir == tool.redirect_dir))
+        .collect()
+}
+
+/// Ferramentas que recebem definições de subagente entre as registradas, com o destino de cada uma:
+/// as compatíveis, menos as que já leem a pasta de outra ferramenta registrada (RF-12).
+pub fn agent_targets(tools: &[&'static Tool]) -> Vec<(&'static Tool, &'static AgentTarget)> {
+    tools
+        .iter()
+        .filter(|tool| {
+            tool.agents_read_from
+                .is_none_or(|other| !tools.iter().any(|registered| registered.name == other))
+        })
+        .filter_map(|tool| tool.agents.as_ref().map(|target| (*tool, target)))
+        .collect()
+}
+
+/// Grava uma definição de subagente por persona especialista para cada ferramenta que as recebe;
+/// uma versão diferente que já existia é guardada como `.local`, cujos caminhos são devolvidos.
+fn write_agents(harness: &Harness, root: &Path, redirect_dirs: &[String]) -> Result<Vec<PathBuf>> {
+    let targets = agent_targets(&registered_tools(redirect_dirs));
+    if targets.is_empty() {
+        return Ok(Vec::new());
+    }
+    let personas = personas(harness)?;
+    let mut locals = Vec::new();
+    for (_, target) in targets {
+        for persona in &personas {
+            let file = format!("{AGENT_PREFIX}{}.{}", persona.name, target.extension);
+            let content = render_agent(&target.format, persona);
+            if let Some(local) = write_routing_file(&root.join(target.dir).join(file), &content)? {
+                locals.push(local);
+            }
+        }
+    }
+    Ok(locals)
+}
+
+/// Personas especialistas da pasta `personas` do harness, sem o Coordenador, em ordem alfabética.
+fn personas(harness: &Harness) -> Result<Vec<Persona>> {
+    let Ok(entries) = fs::read_dir(harness.root.join(PERSONAS_DIR)) else {
+        return Ok(Vec::new());
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
+        .filter(|path| path.file_stem().is_some_and(|stem| stem != COORDINATOR))
+        .collect();
+    paths.sort();
+    paths
+        .iter()
+        .map(|path| {
+            Ok(Persona {
+                name: frontmatter_get(path, "name")?,
+                title: frontmatter_get(path, "title")?,
+                description: frontmatter_get(path, "description")?,
+            })
+        })
+        .collect()
+}
+
+/// Definição de subagente da persona no formato da ferramenta. Sem `tools` e com o modelo da sessão:
+/// o modelo é escolhido no disparo, pelo perfil da tarefa.
+fn render_agent(format: &AgentFormat, persona: &Persona) -> String {
+    let name = &persona.name;
+    let instructions = format!(
+        "Persona {} do harness Vostok, como subagente.\n\
+         Antes de qualquer outra ação, execute `vostok context load --persona {name}` e siga a persona e o contexto carregados.\n\
+         A tarefa, o que entregar e o modelo vêm da mensagem do Coordenador que disparou este subagente.\n",
+        persona.title
+    );
+    // As aspas duplas do YAML e as strings básicas do TOML escapam `\` e `"` do mesmo jeito.
+    let description = yaml_escape(&persona.description);
+    match format {
+        AgentFormat::Markdown => {
+            let quoted: String = instructions
+                .lines()
+                .map(|line| format!("> {line}\n"))
+                .collect();
+            format!(
+                "---\nname: {AGENT_PREFIX}{name}\ndescription: \"{description}\"\nmodel: inherit\n---\n\n{quoted}"
+            )
+        }
+        AgentFormat::Toml => format!(
+            "name = \"{AGENT_PREFIX}{name}\"\ndescription = \"{description}\"\ndeveloper_instructions = \"\"\"\n{instructions}\"\"\"\n"
+        ),
+    }
 }
 
 /// `AGENTS.md`, sempre, e o arquivo de roteamento de cada ferramenta registrada que tem um.

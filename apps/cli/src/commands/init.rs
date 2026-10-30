@@ -181,6 +181,7 @@ fn install(harness: &Harness, choices: &Choices) -> Result<()> {
         println!("Versão anterior guardada: {}", relative(&root, local));
     }
     print_routing(&root, &routing.changed, &choices.tools);
+    print_agents(&root, &routing.agents, &choices.tools);
     println!("Manifesto: {INSTALL_DIR}/{}", manifest::FILE_NAME);
     Ok(())
 }
@@ -199,6 +200,15 @@ fn print_routing(root: &Path, changed: &[PathBuf], tools: &[&Tool]) {
             .filter(|path| in_redirect_dir(path, tool))
             .count();
         println!("Redirecionamentos: {} ({count} skills)", tool.redirect_dir);
+    }
+}
+
+/// Definições de subagente resumidas por pasta, para cada ferramenta que as recebeu (RF-12).
+fn print_agents(root: &Path, agents: &[PathBuf], tools: &[&'static Tool]) {
+    for (_, target) in routing::agent_targets(tools) {
+        let dir = root.join(target.dir);
+        let count = agents.iter().filter(|path| path.starts_with(&dir)).count();
+        println!("Subagentes: {} ({count} personas)", target.dir);
     }
 }
 

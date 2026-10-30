@@ -2,7 +2,7 @@
 //! Reproduzem `create-new-spec.sh`, `list-specs.sh`, `create-refined-spec.sh`, `adjust-spec.sh` e
 //! `approve-spec.sh`, com as mesmas mensagens, recusas e códigos de saída (SPEC-005, RN-03).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
@@ -665,30 +665,119 @@ fn refined_errors(specs: &Specs, file: &Path) -> Result<Vec<String>> {
     }
 
     if has("affected-components") {
-        let root = specs.project_root()?.display().to_string();
-        for row in rows_of("affected-components")? {
-            let path = markdown_cell(&row, 1).replace('`', "");
-            let action = markdown_cell(&row, 2);
-            if path == "-" {
+        errors.extend(component_errors(
+            &content,
+            &specs.project_root()?.display().to_string(),
+            &rows_of("affected-components")?,
+        ));
+    }
+    Ok(errors)
+}
+
+fn component_errors(content: &str, root: &str, rows: &[String]) -> Vec<String> {
+    let components: Vec<(String, String)> = rows
+        .iter()
+        .map(|row| {
+            (
+                markdown_cell(row, 1).replace('`', ""),
+                markdown_cell(row, 2),
+            )
+        })
+        .filter(|(path, _)| path != "-")
+        .collect();
+    let mut cited = backticked_paths(content);
+    cited.extend(
+        components
+            .iter()
+            .map(|(path, _)| trim_trailing_slashes(path).to_string()),
+    );
+
+    let mut errors = Vec::new();
+    for (path, action) in &components {
+        if !format!(" {COMPONENT_ACTIONS} ").contains(&format!(" {action} ")) {
+            errors.push(format!(
+                "ação inválida para '{path}': '{action}' (use: {COMPONENT_ACTIONS})"
+            ));
+            continue;
+        }
+        let exists = Path::new(&format!("{root}/{path}")).exists();
+        if action == "criar" && exists {
+            errors.push(format!("'{path}' já existe; use a ação 'alterar'"));
+        } else if action != "criar" && !exists {
+            errors.push(format!(
+                "'{path}' não existe em {root}; use a ação 'criar' ou corrija o caminho"
+            ));
+        }
+        let folder = trim_trailing_slashes(path);
+        if folder.is_empty() {
+            continue;
+        }
+        let inner = inner_paths(folder, &cited);
+        if action != "remover" && !inner.is_empty() {
+            errors.push(folder_with_cited_paths_error(folder, &inner));
+        } else if action == "alterar" && Path::new(&format!("{root}/{folder}")).is_dir() {
+            errors.push(format!(
+                "'{folder}' é uma pasta; com a ação 'alterar', liste os arquivos ou as subpastas que mudam"
+            ));
+        }
+    }
+    errors
+}
+
+/// Caminhos entre crases (fechadas, sem espaço, com `/`) fora de blocos de código.
+fn backticked_paths(content: &str) -> BTreeSet<String> {
+    let mut paths = BTreeSet::new();
+    let mut in_code = false;
+    for line in content.lines() {
+        if line.trim_start().starts_with("```") {
+            in_code = !in_code;
+            continue;
+        }
+        if in_code {
+            continue;
+        }
+        let parts: Vec<&str> = line.split('`').collect();
+        for (index, part) in parts.iter().enumerate() {
+            if index % 2 == 0 || index >= parts.len() - 1 {
                 continue;
             }
-            if !format!(" {COMPONENT_ACTIONS} ").contains(&format!(" {action} ")) {
-                errors.push(format!(
-                    "ação inválida para '{path}': '{action}' (use: {COMPONENT_ACTIONS})"
-                ));
-                continue;
-            }
-            let exists = Path::new(&format!("{root}/{path}")).exists();
-            if action == "criar" && exists {
-                errors.push(format!("'{path}' já existe; use a ação 'alterar'"));
-            } else if action != "criar" && !exists {
-                errors.push(format!(
-                    "'{path}' não existe em {root}; use a ação 'criar' ou corrija o caminho"
-                ));
+            let path = trim_trailing_slashes(part);
+            if is_cited_path(path) {
+                paths.insert(path.to_string());
             }
         }
     }
-    Ok(errors)
+    paths
+}
+
+/// Caminho citado: sem espaço, com `/` e sem marcadores de molde como `<modulo>` ou `*.ts` (RN-02).
+fn is_cited_path(path: &str) -> bool {
+    !path.is_empty()
+        && path.contains('/')
+        && !path.contains(|c: char| c.is_whitespace() || "<>*{}".contains(c))
+}
+
+fn trim_trailing_slashes(path: &str) -> &str {
+    path.trim_end_matches('/')
+}
+
+/// Até quatro caminhos citados dentro da pasta; o quarto só indica que há mais.
+fn inner_paths(folder: &str, cited: &BTreeSet<String>) -> Vec<String> {
+    let prefix = format!("{folder}/");
+    cited
+        .iter()
+        .filter(|path| path.starts_with(&prefix))
+        .take(4)
+        .cloned()
+        .collect()
+}
+
+fn folder_with_cited_paths_error(folder: &str, inner: &[String]) -> String {
+    let more = if inner.len() > 3 { ", ..." } else { "" };
+    let list = inner[..inner.len().min(3)].join(", ");
+    format!(
+        "'{folder}' contém caminhos citados na spec ({list}{more}); liste os caminhos específicos no lugar da pasta"
+    )
 }
 
 fn is_requirement_id(value: &str) -> bool {

@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load"
+  scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status"
   templates: "templates/task/task.md"
 ---
 
@@ -125,7 +125,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 
 **Descrição** (para pessoas):
 
-- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, esforço (o nível), risco e o que a tarefa bloqueia ou desbloqueia.
+- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.
 - **`#{TASK_CARD_DESCRIPTION}`:** uma ou duas frases sobre o que a tarefa entrega, pronta para o card.
 - **`#{TASK_CARD_CRITERIA}`:** checklist de critérios de aceite, cada item como `  - [ ] critério`, indentado sob "Critérios de aceite".
@@ -156,7 +156,8 @@ Responda com o template `completion`:
 
 - **O que foi feito:** a pasta das tarefas, a [lista de tarefas](#lista-de-tarefas), a remoção do plano e o novo status da spec.
 - **Verificação:** os comandos executados e o resultado.
-- **Pendências:** informe que cada tarefa é carregada para execução com `vostok task load <SPEC_ID> <TASK_ID>` e que o nível é só uma sugestão de esforço.
+- **Pendências:** informe que cada tarefa é carregada para execução com `vostok task load <SPEC_ID> <TASK_ID>` e que o perfil é a sugestão de modelo de cada tarefa.
+- **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
@@ -167,7 +168,7 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 ### Lista de tarefas
 
 ```markdown
-| ID | Título | Tipo | Nível | Bloqueada por |
+| ID | Título | Tipo | Perfil | Bloqueada por |
 |---|---|---|---|---|
-| TASK-01 | Título curto | tarefa | simples | - |
+| TASK-01 | Título curto | tarefa | mecanica | - |
 ```

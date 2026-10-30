@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record"
+  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -163,6 +163,7 @@ Responda com o template `completion`:
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
+- **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 

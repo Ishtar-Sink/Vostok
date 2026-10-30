@@ -5,7 +5,7 @@ allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task load, vostok memory search, vostok task resume, vostok task tests, vostok task regression, vostok task evidence, vostok task persist, vostok task finish"
+  scripts: "vostok context load, vostok task load, vostok memory search, vostok task resume, vostok task tests, vostok task regression, vostok task evidence, vostok task persist, vostok task finish, vostok task status"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -159,5 +159,6 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o status da tarefa (e o da spec, se mudou), as linhas do registro desta execução e os caminhos das evidências em `evidence/<TASK_ID>/`.
 - **Verificação:** os comandos executados e o resultado de cada etapa.
+- **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.

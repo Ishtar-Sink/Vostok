@@ -5,7 +5,7 @@ allowed-tools: Read Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task load, vostok task approve validate, vostok task approve approve"
+  scripts: "vostok context load, vostok task load, vostok task approve validate, vostok task approve approve, vostok task status"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -101,6 +101,7 @@ Responda com o template `completion`:
 - **O que foi feito:** as tarefas aprovadas, na [lista de tarefas pendentes](#lista-de-tarefas-pendentes), com o novo status.
 - **Verificação:** os comandos executados e o resultado.
 - **Próximos passos:** a execução de uma tarefa aprovada, pedida pelo ID (skill `execute-task`).
+- **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).
 
 ## Formatos de resposta
 
@@ -109,7 +110,7 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 ### Lista de tarefas pendentes
 
 ```markdown
-| Spec | ID | Título | Nível | Bloqueada por |
+| Spec | ID | Título | Perfil | Bloqueada por |
 |---|---|---|---|---|
-| SPEC-002 | TASK-03 | Título curto | moderada | TASK-02 |
+| SPEC-002 | TASK-03 | Título curto | padrao | TASK-02 |
 ```

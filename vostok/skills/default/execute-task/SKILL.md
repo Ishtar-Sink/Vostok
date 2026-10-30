@@ -3,9 +3,9 @@ name: execute-task
 description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa ou uma onda por pedido; numa onda, o Coordenador dispara um subagente por tarefa, com a persona e o modelo dela. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa ou uma onda, citar um ID como TASK-03 para execução ou pedir para executar a onda N."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok task baseline, vostok commit check"
+  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok commit check"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -109,13 +109,26 @@ Para cada grupo, dispare um subagente por tarefa: em sequência dentro do grupo 
 
 Se a ferramenta tem as definições de subagente das personas (`vostok-<persona>`), use a da persona.
 
-Numa onda com mais de uma tarefa, o Coordenador pode iniciar cada tarefa (`vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>`) e coletar o baseline dela (`vostok task baseline <SPEC_ID> <TASK_ID>`) antes de disparar o primeiro subagente, para que nenhum baseline já contenha a mudança de outra tarefa. Nesse caso, o pedido diz que a tarefa já foi iniciada e o baseline já foi coletado, e o subagente pula os passos "Iniciar" e "Coletar o baseline".
+**Antes de disparar o primeiro subagente**, o Coordenador inicia cada tarefa da onda, inclusive numa onda de uma tarefa, e só então dispara os subagentes:
 
-Sem subagentes (FA-01): execute cada tarefa na própria sessão, uma por vez, carregando a persona com `vostok context load --persona <persona>` e seguindo o roteiro do pedido, com o modelo da sessão.
+```bash
+vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
+```
+
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
+
+| Recusa | Como resolver |
+|---|---|
+| Tarefa fora de `approved` | Aprovar a tarefa (skill `approve-task`), a pedido do usuário. |
+| Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
+| Dependência fora de `done` | Executar e concluir a dependência antes. |
+| Caminho `criar` de Mudar já existe | O estado anterior já foi alterado: restaurar o estado anterior, com a decisão do usuário, e iniciar de novo. |
+
+Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, carregando a persona com `vostok context load --persona <persona>` e seguindo o roteiro do pedido, com o modelo da sessão.
 
 ### 6. Consolidar
 
-Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress` e leia o resumo devolvido. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
+Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" (`vostok task load`) a linha `baseline` e leia o resumo devolvido. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
 
 ### 7. Responder ao usuário
 
@@ -135,37 +148,15 @@ Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 Os passos que o subagente segue para a sua tarefa, pelo [pedido ao subagente](#pedido-ao-subagente). Sem subagentes, a própria sessão os segue para cada tarefa.
 
-### Iniciar
-
-Execute, com o modelo recebido do Coordenador:
-
-```bash
-vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
-```
-
-O `--model` grava no front-matter e no registro de execução o modelo escolhido pelo Coordenador (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, e muda o status para `in_progress`. Se ele recusar, **PARE** e devolva ao Coordenador a mensagem do comando no template `blocker`:
-
-| Recusa | Como resolver |
-|---|---|
-| Tarefa fora de `approved` | Aprovar a tarefa (skill `approve-task`), a pedido do usuário. |
-| Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
-| Dependência fora de `done` | Executar e concluir a dependência antes. |
-
 ### Carregar a tarefa
 
 Execute `vostok task load <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): execute `vostok context load --skill execute-task --persona ui-ux-designer` antes de implementar.
 
-### Coletar o baseline
+### Conferir o baseline
 
-Antes de mudar qualquer arquivo, execute:
-
-```bash
-vostok task baseline <SPEC_ID> <TASK_ID>
-```
-
-O `vostok task baseline` executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Ele grava também a saída das evidências automáticas, para o `vostok task evidence` avisar quando uma evidência não muda com a tarefa. Se o comando recusar, **PARE** e responda com o template `blocker`.
+Antes de mudar qualquer arquivo, confirme no registro da tarefa (`vostok task load <SPEC_ID> <TASK_ID>`) a linha `baseline`. Sem ela, **PARE** e devolva ao Coordenador com o template `blocker`. O `vostok task baseline` só existe para tarefa iniciada antes da versão que coleta o baseline no `start`.
 
 ### Implementar os testes
 
@@ -193,9 +184,7 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 Você é o subagente da tarefa <TASK_ID> da <SPEC_ID>, com a persona <persona>.
 
 1. Rode `vostok context load --persona <persona>` e `vostok context load --skill execute-task`.
-2. Rode `vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>`.
-3. Siga os passos "Carregar a tarefa", "Coletar o baseline", "Implementar os testes" e "Implementar o código" da skill `execute-task`, só para esta tarefa, sem commit nem stage e sem finalizar.
+2. A tarefa já foi iniciada pelo Coordenador com `--model <MODELO>` e o baseline já foi coletado: não rode `vostok task start` nem `vostok task baseline`, e não mude nenhum arquivo antes de conferir a linha `baseline` no registro.
+3. Siga os passos "Carregar a tarefa", "Conferir o baseline", "Implementar os testes" e "Implementar o código" da skill `execute-task`, só para esta tarefa, sem commit nem stage e sem finalizar.
 4. Devolva, em até 5 linhas: o resultado, os arquivos mudados e o que ficou em aberto; se precisar parar, devolva a mensagem no template `blocker` ou `question`.
 ```
-
-Quando o Coordenador já iniciou a tarefa e coletou o baseline (passo 5), troque o item 2 por "A tarefa já foi iniciada com `--model <MODELO>` e o baseline já foi coletado: não rode `vostok task start` nem `vostok task baseline`." e tire "Coletar o baseline" do item 3.

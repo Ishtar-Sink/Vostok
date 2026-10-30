@@ -13,6 +13,10 @@ metadata:
 
 Comprova e conclui uma tarefa implementada, só a pedido do usuário: testes da "Verificação", comparação com o baseline, evidências e critérios de conclusão, parando para o usuário decidir sempre que ela ficar bloqueada.
 
+## Persona
+
+Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `validating` ou `blocked`.
@@ -57,7 +61,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill finish-task
+vostok context load --skill finish-task --persona qa
 ```
 
 ### 2. Identificar a tarefa
@@ -155,3 +159,5 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o status da tarefa (e o da spec, se mudou), as linhas do registro desta execução e os caminhos das evidências em `evidence/<TASK_ID>/`.
 - **Verificação:** os comandos executados e o resultado de cada etapa.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.

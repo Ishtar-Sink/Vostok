@@ -590,6 +590,33 @@ fn cb04_update_with_the_same_binary_changes_nothing() {
 }
 
 #[test]
+fn ct15_update_adds_the_coordinator_to_an_older_required_context() {
+    let workspace = installed("codex");
+    workspace.replace(
+        "vostok/config/context.yml",
+        "  - personas/coordenador.md\n",
+        "",
+    );
+
+    let out = workspace.update();
+
+    let context = workspace.read("vostok/config/context.yml");
+    assert_eq!(context.matches("  - personas/coordenador.md\n").count(), 1);
+    let required = config_list(&workspace.path("vostok/config/context.yml"), "required").unwrap();
+    assert!(
+        required.contains(&"personas/coordenador.md".to_string()),
+        "{required:?}"
+    );
+    assert!(
+        out.contains(
+            "Configuração acrescentada: config/context.yml: required.personas/coordenador.md"
+        ),
+        "{out}"
+    );
+    assert!(workspace.update().contains("já está atualizado"));
+}
+
+#[test]
 fn cb05_update_preserves_custom_skill_named_like_a_new_default_skill() {
     let workspace = installed("codex");
     fs::remove_dir_all(workspace.path("vostok/skills/default/refine-spec")).unwrap();

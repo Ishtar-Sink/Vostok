@@ -13,6 +13,10 @@ metadata:
 
 Transforma uma spec com status `draft` em uma spec refinada: concreta, sem ambiguidades conhecidas, com requisitos, testes e critérios de aceite rastreáveis e com cada decisão registrada.
 
+## Persona
+
+Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Rascunho:** a spec original, em `draft/`. Não é editada por esta skill.
@@ -59,7 +63,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill refine-spec
+vostok context load --skill refine-spec --persona planejador
 ```
 
 ### 2. Identificar a spec
@@ -152,6 +156,8 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho e o tipo da refinada, um resumo de 1 a 3 frases do que mudou e a contagem de itens por seção (ex.: 8 RF, 12 CT, 6 CA).
 - **Pendências:** o número de pendências registradas na refinada.
 - Acrescente a [tabela de inferências](#tabela-de-inferências) com o cabeçalho "Inferências" depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

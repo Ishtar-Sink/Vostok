@@ -13,6 +13,10 @@ metadata:
 
 Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas e rastreáveis, com a persona e o perfil de execução de cada uma. O plano é só um documento de revisão.
 
+## Persona
+
+Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Aprovada:** a spec em `refined/` com status `approved`. É a única que pode ser planejada.
@@ -54,7 +58,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill plan-tasks
+vostok context load --skill plan-tasks --persona planejador
 ```
 
 ### 2. Identificar a spec
@@ -129,6 +133,8 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho do plano e o [resumo do plano](#resumo-do-plano). Se o plano foi recriado, informe o aviso do comando.
 - **Verificação:** os comandos executados e o resultado.
 - **Pendências:** informe que o plano pode ser ajustado (skill `adjust-plan`) ou aprovado (skill `approve-plan`), e que o perfil é a sugestão de modelo da tarefa.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

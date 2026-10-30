@@ -11,9 +11,12 @@ use crate::embedded;
 use crate::harness::Harness;
 use crate::manifest::{self, Manifest};
 use crate::routing;
-use crate::support::sha256_hex;
+use crate::support::{config_list, sha256_hex};
 
 const CONFIG_DIR: &str = "config/";
+
+/// Itens que o contexto obrigatório precisa ter desde a v0.2.0 (RF-25).
+const REQUIRED_CONTEXT: &[&str] = &["personas/coordenador.md"];
 
 /// O que a atualização mudou, na ordem em que aparece na saída.
 #[derive(Debug, Default)]
@@ -46,6 +49,7 @@ pub fn run() -> Result<()> {
 
     update_binary_files(&harness, &previous, &current, &mut changes)?;
     merge_configs(&harness, &mut changes)?;
+    ensure_required_context(&harness, &mut changes)?;
     let routing = routing::generate(&harness)?;
     changes.routing = routing.changed;
     changes.kept_locals.extend(routing.kept_locals);
@@ -104,6 +108,51 @@ fn merge_configs(harness: &Harness, changes: &mut Changes) -> Result<()> {
             .added_keys
             .extend(added.into_iter().map(|key| format!("{path}: {key}")));
     }
+    Ok(())
+}
+
+/// Garante os itens de `REQUIRED_CONTEXT` na lista `required` de `config/context.yml`, que o
+/// `merge_keys` não completa por já existir a chave (RF-25, CB-06).
+fn ensure_required_context(harness: &Harness, changes: &mut Changes) -> Result<()> {
+    let path = harness.root.join("config/context.yml");
+    let Ok(content) = fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    let current = config_list(&path, "required").unwrap_or_default();
+    let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
+    let mut added = Vec::new();
+    for item in REQUIRED_CONTEXT {
+        if current.iter().any(|existing| existing == item) {
+            continue;
+        }
+        let Some(header) = lines
+            .iter()
+            .position(|line| line.trim_end() == "required:" || line.trim_end() == "required: []")
+        else {
+            continue;
+        };
+        if lines[header].trim_end() == "required: []" {
+            lines[header] = "required:".to_string();
+        }
+        let mut insert_at = header + 1;
+        for (offset, line) in lines.iter().enumerate().skip(header + 1) {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("- ") {
+                insert_at = offset + 1;
+            } else if !line.is_empty() && !line.starts_with(' ') && !trimmed.starts_with('#') {
+                break;
+            }
+        }
+        lines.insert(insert_at, format!("  - {item}"));
+        added.push(format!("config/context.yml: required.{item}"));
+    }
+    if added.is_empty() {
+        return Ok(());
+    }
+    let mut merged = lines.join("\n");
+    merged.push('\n');
+    write(&path, merged.as_bytes())?;
+    changes.added_keys.extend(added);
     Ok(())
 }
 

@@ -13,6 +13,10 @@ metadata:
 
 Leva uma tarefa aprovada de `approved` a `in_progress`, coleta o estado anterior (baseline) e implementa a tarefa, deixando-a em execução e pronta para ser finalizada pela skill `finish-task`.
 
+## Persona
+
+Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interface, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
@@ -52,7 +56,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill execute-task
+vostok context load --skill execute-task --persona desenvolvedor
 ```
 
 ### 2. Identificar a tarefa
@@ -83,6 +87,8 @@ O comando confere se a tarefa está aprovada, sem mudança depois da aprovação
 
 Execute `vostok task load <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
 
+Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): execute `vostok context load --skill execute-task --persona ui-ux-designer` antes de implementar.
+
 ### 5. Coletar o baseline
 
 Antes de mudar qualquer arquivo, execute:
@@ -110,6 +116,8 @@ Execute `vostok commit check` e responda com o template `completion`:
 - **Próximos passos:** o pedido em linguagem natural para finalizar a tarefa, por exemplo `- "finaliza a TASK-04" (skill finish-task): executar os testes, comparar com o baseline e concluir a tarefa`. Nunca indique um comando.
 
 Esta skill não chama a `finish-task` nem roda `vostok task tests`, `vostok task regression` ou `vostok task evidence` (RN-03): a conclusão só começa quando o usuário pedir.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

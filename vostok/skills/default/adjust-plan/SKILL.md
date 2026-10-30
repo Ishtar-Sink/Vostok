@@ -12,6 +12,10 @@ metadata:
 
 Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando o plano válido, com os perfis recalculados e cada ajuste registrado no histórico.
 
+## Persona
+
+Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`, criado pela skill `plan-tasks`. É o único que esta skill edita.
@@ -58,7 +62,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill adjust-plan
+vostok context load --skill adjust-plan --persona planejador
 ```
 
 Os formatos das tabelas do plano estão em "Formatos de resposta" da skill [plan-tasks](../plan-tasks/SKILL.md).
@@ -168,6 +172,8 @@ Responda com o template `completion`:
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta. Informe que o plano pode receber novos ajustes ou ser aprovado (skill `approve-plan`).
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

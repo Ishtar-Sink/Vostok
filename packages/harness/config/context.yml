@@ -8,6 +8,8 @@ required:
   - rules/agent
   - rules/project/language.md
   - templates/responses
+  # Persona do chat fora das skills (RF-25); o vostok update a acrescenta se faltar.
+  - personas/coordenador.md
 
 # Carregado sob demanda por `vostok context load --skill <nome>`, no passo 1 de cada skill.
 # Cada entrada lista os arquivos que a skill carrega além de `required`, na ordem em que aparecem aqui.

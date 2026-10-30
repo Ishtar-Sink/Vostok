@@ -13,6 +13,10 @@ metadata:
 
 Aplica à spec refinada certa todos os ajustes que o usuário pediu, deixando a spec válida e cada ajuste registrado no histórico.
 
+## Persona
+
+Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Refinada:** a spec em `refined/`, com status `refined` ou `approved`. É a única que esta skill edita.
@@ -60,7 +64,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill adjust-spec
+vostok context load --skill adjust-spec --persona planejador
 ```
 
 ### 2. Identificar a spec
@@ -170,6 +174,8 @@ Responda com o template `completion`:
 - Se o comando avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

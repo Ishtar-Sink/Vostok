@@ -13,6 +13,10 @@ metadata:
 
 Transforma o plano de tarefas aprovado pelo usuário em arquivos de tarefa detalhados: prontos para um agente executar e para pessoas acompanharem num board.
 
+## Persona
+
+Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas tarefas com interface, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
@@ -53,7 +57,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill approve-plan
+vostok context load --skill approve-plan --persona arquiteto --persona engenheiro --persona qa-lead
 ```
 
 ### 2. Identificar o plano
@@ -91,6 +95,8 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 | Problema de validação do plano | Ajustar o plano com a skill `adjust-plan`. |
 
 ### 4. Detalhar as tarefas
+
+Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona.
 
 Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` do arquivo:
 
@@ -149,6 +155,8 @@ Responda com o template `completion`:
 - **O que foi feito:** a pasta das tarefas, a [lista de tarefas](#lista-de-tarefas), a remoção do plano e o novo status da spec.
 - **Verificação:** os comandos executados e o resultado.
 - **Pendências:** informe que cada tarefa é carregada para execução com `vostok task load <SPEC_ID> <TASK_ID>` e que o nível é só uma sugestão de esforço.
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

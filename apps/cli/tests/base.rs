@@ -83,6 +83,73 @@ fn shell_script_mentions(text: &str) -> Vec<usize> {
         .collect()
 }
 
+const SKILL_PERSONAS: [(&str, &str); 8] = [
+    ("refine-spec", "--persona planejador"),
+    ("adjust-spec", "--persona planejador"),
+    ("plan-tasks", "--persona planejador"),
+    ("adjust-plan", "--persona planejador"),
+    (
+        "approve-plan",
+        "--persona arquiteto --persona engenheiro --persona qa-lead",
+    ),
+    (
+        "adjust-task",
+        "--persona arquiteto --persona engenheiro --persona qa-lead",
+    ),
+    ("execute-task", "--persona desenvolvedor"),
+    ("finish-task", "--persona qa"),
+];
+
+#[test]
+fn ct07_skills_load_the_persona_of_each_stage() {
+    let skill_file = |name: &str| {
+        String::from_utf8(
+            embedded::file(&format!("skills/default/{name}/SKILL.md"))
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap()
+    };
+    for (skill, personas) in SKILL_PERSONAS {
+        let content = skill_file(skill);
+        assert!(
+            content.contains(&format!(
+                "\nvostok context load --skill {skill} {personas}\n"
+            )),
+            "{skill} sem a linha com {personas}"
+        );
+        assert!(
+            content.contains("\n## Persona\n"),
+            "{skill} sem a seção Persona"
+        );
+        assert!(
+            content.contains("o chat volta à persona Coordenador"),
+            "{skill} sem a volta ao Coordenador"
+        );
+    }
+    for skill in ["approve-plan", "execute-task"] {
+        assert!(
+            skill_file(skill).contains("--persona ui-ux-designer"),
+            "{skill} sem a persona ui-ux-designer"
+        );
+    }
+    for file in embedded::files() {
+        let Some(name) = file
+            .strip_prefix("skills/default/")
+            .and_then(|rest| rest.strip_suffix("/SKILL.md"))
+        else {
+            continue;
+        };
+        if SKILL_PERSONAS.iter().any(|(skill, _)| *skill == name) {
+            continue;
+        }
+        assert!(
+            !skill_file(name).contains("--persona"),
+            "{name} não deveria carregar persona"
+        );
+    }
+}
+
 #[test]
 fn ct13_skills_and_skill_templates_call_vostok() {
     let files = embedded::files();
@@ -115,8 +182,12 @@ fn ct13_skills_and_skill_templates_call_vostok() {
             .trim_start_matches("skills/default/")
             .trim_end_matches("/SKILL.md");
         let content = String::from_utf8(embedded::file(skill).unwrap().to_vec()).unwrap();
+        let prefix = format!("vostok context load --skill {name}");
         assert!(
-            content.contains(&format!("\nvostok context load --skill {name}\n")),
+            content.lines().any(|line| {
+                line.strip_prefix(&prefix)
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with(" --persona "))
+            }),
             "{skill} sem `vostok context load --skill {name}`"
         );
         // `Bash` sem restrição (skills que rodam os testes da tarefa) também libera o `vostok`.

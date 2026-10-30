@@ -13,6 +13,10 @@ metadata:
 
 Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa válida e cada ajuste registrado no histórico.
 
+## Persona
+
+Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pelo `vostok context load`. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+
 ## Termos
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`. Tarefas com status `pending`, `approved`, `in_progress`, `validating` ou `blocked` são ajustadas; `done`, não.
@@ -61,7 +65,7 @@ Copie e marque o progresso:
 Execute:
 
 ```bash
-vostok context load --skill adjust-task
+vostok context load --skill adjust-task --persona arquiteto --persona engenheiro --persona qa-lead
 ```
 
 Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-plan](../approve-plan/SKILL.md).
@@ -159,6 +163,8 @@ Responda com o template `completion`:
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
+
+Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Formatos de resposta
 

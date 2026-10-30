@@ -420,3 +420,60 @@ fn context_load_rejects_persona_with_paths() {
         "Uso: vostok context load [--skill <nome>] [--persona <nome>]...; --persona não se combina com caminhos\n"
     );
 }
+
+fn tree_contents(
+    root: &std::path::Path,
+) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+    fn walk(
+        dir: &std::path::Path,
+        out: &mut std::collections::BTreeMap<std::path::PathBuf, Vec<u8>>,
+    ) {
+        for entry in fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else {
+                out.insert(path.clone(), fs::read(&path).unwrap());
+            }
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    walk(root, &mut out);
+    out
+}
+
+#[test]
+fn ct15_required_context_includes_the_coordinator() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args(["context", "load"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.contains("--- arquivo: personas/coordenador.md ---"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn ct15_loading_a_skill_with_a_persona_writes_nothing() {
+    let project = Project::new();
+    let before = tree_contents(project.root());
+    project
+        .vostok()
+        .args([
+            "context",
+            "load",
+            "--skill",
+            "refine-spec",
+            "--persona",
+            "planejador",
+        ])
+        .assert()
+        .success();
+    assert_eq!(tree_contents(project.root()), before);
+}

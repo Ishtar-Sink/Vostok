@@ -5,6 +5,7 @@ title: "#{TASK_TITLE_YAML}"
 profile: #{TASK_PROFILE}
 persona: #{TASK_PERSONA}
 depends_on: [#{TASK_DEPENDS}]
+wave: #{TASK_WAVE}
 covers: [#{TASK_COVERS}]
 type: #{TASK_TYPE}
 labels: [#{SPEC_ID}, #{TASK_PROFILE}]

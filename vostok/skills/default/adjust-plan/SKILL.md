@@ -31,7 +31,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 
 [adjust-plan-01]: Só ajuste planos existentes e atualizados. Nunca edite a spec nem arquivos de tarefa.
 [adjust-plan-02]: Nunca edite um plano sem ter certeza de que é o correto. Na dúvida, pergunte (passo 2).
-[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Perfil" (ou "Nível", em planos antigos), a seção "Perfis de execução" nem o "Histórico de ajustes". Só os comandos os alteram.
+[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Perfil" (ou "Nível", em planos antigos), a coluna "Onda", a seção "Arquivos em comum por onda", a seção "Perfis de execução" nem o "Histórico de ajustes". Só os comandos os alteram.
 [adjust-plan-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-plan-05]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-plan-06]: Não amplie o pedido. O que não foi pedido e for necessário para o plano continuar coerente (renumerar dependências, redistribuir cobertura) é inferência e aparece na resposta.
@@ -141,7 +141,7 @@ Aplique os ajustes nas seções "Visão geral", "Tarefas", "Componentes por tare
 - Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as dependências.
 - Toda tarefa tem uma linha na tabela de fatos, e toda linha de fatos tem uma tarefa.
 - Em planos com a seção "Componentes por tarefa", toda tarefa tem uma linha nela, e todo componente da spec fica em alguma tarefa. Os números de arquivos a criar e a alterar são recalculados pelo `vostok plan adjust record`.
-- Na coluna "Perfil" (ou "Nível", em planos antigos), deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula. Não mexa na seção "Perfis de execução".
+- Na coluna "Perfil" (ou "Nível", em planos antigos) e na coluna "Onda", deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula, inclusive a seção "Arquivos em comum por onda". Não mexa na seção "Perfis de execução".
 - Atualize a visão geral se a divisão ou a ordem do trabalho mudou.
 
 ### 8. Validar

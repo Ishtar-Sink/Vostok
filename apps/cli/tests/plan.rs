@@ -441,7 +441,7 @@ fn profile_plan_create_uses_the_profile_columns() {
     let plan = plan_text(&project);
     assert!(
         plan.contains(
-            "| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Cobre |\n|---|---|---|---|---|---|---|---|"
+            "| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Onda | Cobre |\n|---|---|---|---|---|---|---|---|---|"
         ),
         "{plan}"
     );
@@ -830,4 +830,298 @@ fn coverage_unknown_cb_is_refused() {
         &coverage_plan("RF-01, CT-01, CB-09"),
     );
     assert!(validate_stderr(&project).contains("a tarefa cobre CB-09, que não existe na spec"));
+}
+
+// --- Ondas e arquivos em comum (SPEC-014: RF-14, RF-31, CB-04, CT-09, CT-20, RNF-02) ---
+
+const SHARED_HEADER: &str = "## Arquivos em comum por onda\n\nCalculada pelo score.\n\n| Onda | Arquivo | Tarefas |\n|---|---|---|";
+
+/// Corpo de plano com as colunas "Onda" e os componentes por tarefa, mais a seção de arquivos em comum.
+fn wave_plan(rows: &str, facts: &str, components: &str) -> String {
+    format!("\n# Plano\n\n## Visão geral\n\nUm plano.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Onda | Cobre |\n|---|---|---|---|---|---|---|---|---|\n{rows}\n\n## Componentes por tarefa\n\n| ID | Componentes |\n|---|---|\n{components}\n\n## Fatos de esforço\n\n{FACTS_HEADER}\n{facts}\n\n{SHARED_HEADER}\n| - | - | - |\n")
+}
+
+fn wave_row(id: &str, depends: &str, wave: &str, covers: &str) -> String {
+    format!("| {id} | Tarefa {id} | Faz. | tarefa | desenvolvedor | - | {depends} | {wave} | {covers} |")
+}
+
+fn stored_wave(plan: &str, id: &str) -> String {
+    let row = plan
+        .lines()
+        .find(|line| line.starts_with(&format!("| {id} |")))
+        .unwrap_or_else(|| panic!("{id} ausente: {plan}"));
+    row.split('|').nth(8).unwrap().trim().to_string()
+}
+
+fn shared_section(plan: &str) -> String {
+    let start = plan.find("## Arquivos em comum por onda").unwrap();
+    let rest = &plan[start..];
+    let end = rest[3..].find("\n## ").map_or(rest.len(), |n| n + 3);
+    rest[..end].to_string()
+}
+
+fn dash_facts(count: usize) -> String {
+    (1..=count)
+        .map(|n| format!("| TASK-{n:02} | - | - | não | não | não |"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn dash_components(count: usize) -> String {
+    (1..=count)
+        .map(|n| format!("| TASK-{n:02} | - |"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Projeto com as tarefas dadas `(depende de, onda gravada)`, sem componentes.
+fn wave_project(tasks: &[(&str, &str)]) -> Project {
+    let rows: Vec<String> = tasks
+        .iter()
+        .enumerate()
+        .map(|(n, (depends, wave))| wave_row(&format!("TASK-{:02}", n + 1), depends, wave, "-"))
+        .collect();
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &wave_plan(
+            &rows.join("\n"),
+            &dash_facts(tasks.len()),
+            &dash_components(tasks.len()),
+        ),
+    );
+    project
+}
+
+#[test]
+fn waves_follow_the_dependencies() {
+    let project = wave_project(&[
+        ("-", "-"),
+        ("-", "-"),
+        ("TASK-01", "-"),
+        ("TASK-02, TASK-03", "-"),
+    ]);
+    score(&project);
+    let plan = plan_text(&project);
+    let waves: Vec<String> = (1..=4)
+        .map(|n| stored_wave(&plan, &format!("TASK-{n:02}")))
+        .collect();
+    assert_eq!(waves, ["1", "1", "2", "3"], "{plan}");
+}
+
+#[test]
+fn waves_task_without_dependencies_is_in_wave_1() {
+    let project = wave_project(&[("-", "-")]);
+    score(&project);
+    let plan = plan_text(&project);
+    assert_eq!(stored_wave(&plan, "TASK-01"), "1", "{plan}");
+    assert!(plan.contains("| - | 1 | - |"), "{plan}");
+}
+
+#[test]
+fn waves_and_profiles_are_the_same_in_two_runs() {
+    let project = wave_project(&[("-", "-"), ("TASK-01", "-")]);
+    score(&project);
+    let first = plan_text(&project);
+    score(&project);
+    let second = plan_text(&project);
+    assert_eq!(tasks_section(&first), tasks_section(&second));
+    assert_eq!(shared_section(&first), shared_section(&second));
+}
+
+#[test]
+fn waves_different_from_the_computed_are_refused_by_validate() {
+    let project = wave_project(&[("-", "2")]);
+    assert!(validate_stderr(&project)
+        .contains("TASK-01: onda \"2\" diferente da calculada \"1\" (execute vostok plan score)"));
+}
+
+#[test]
+fn waves_shared_files_are_listed_by_score() {
+    let project = Project::new();
+    let rows = format!(
+        "{}\n{}",
+        wave_row("TASK-01", "-", "-", "RF-01, CT-01"),
+        wave_row("TASK-02", "-", "-", "RF-02")
+    );
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &wave_plan(
+            &rows,
+            &dash_facts(2),
+            "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/a.rs`, `src/b.rs` |",
+        ),
+    );
+    let out = score(&project);
+    let section = shared_section(&plan_text(&project));
+    assert!(
+        section.contains("| 1 | `src/a.rs` | TASK-01, TASK-02 |"),
+        "{section}"
+    );
+    assert!(!section.contains("src/b.rs"), "{section}");
+    assert!(!section.contains("| - | - | - |"), "{section}");
+    assert!(
+        out.contains("Arquivos em comum por onda (executar em sequência):"),
+        "{out}"
+    );
+    assert!(
+        out.contains("- onda 1: `src/a.rs` (TASK-01, TASK-02)"),
+        "{out}"
+    );
+}
+
+#[test]
+fn waves_files_shared_across_waves_are_not_listed() {
+    let project = Project::new();
+    let rows = format!(
+        "{}\n{}",
+        wave_row("TASK-01", "-", "-", "RF-01, CT-01"),
+        wave_row("TASK-02", "TASK-01", "-", "RF-02")
+    );
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &wave_plan(
+            &rows,
+            &dash_facts(2),
+            "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/a.rs` |",
+        ),
+    );
+    let out = score(&project);
+    let section = shared_section(&plan_text(&project));
+    assert!(section.contains("| - | - | - |"), "{section}");
+    assert!(
+        out.contains("Nenhum arquivo em comum entre tarefas da mesma onda."),
+        "{out}"
+    );
+}
+
+#[test]
+fn waves_outdated_shared_files_section_is_refused_by_validate() {
+    let project = wave_project(&[("-", "-")]);
+    score(&project);
+    let edited = plan_text(&project).replace(
+        "|---|---|---|\n| - | - | - |",
+        "|---|---|---|\n| 1 | `src/a.rs` | TASK-01, TASK-02 |",
+    );
+    assert_ne!(edited, plan_text(&project));
+    write_file(&project, "vostok/work/plans/SPEC-001.md", &edited);
+    assert!(validate_stderr(&project).contains(
+        "a seção 'Arquivos em comum por onda' está desatualizada (execute vostok plan score)"
+    ));
+}
+
+#[test]
+fn waves_create_tasks_writes_the_wave_field() {
+    let project = Project::new();
+    let rows = format!(
+        "{}\n{}",
+        wave_row("TASK-01", "-", "-", "RF-01, CT-01"),
+        wave_row("TASK-02", "TASK-01", "-", "RF-02")
+    );
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &wave_plan(
+            &rows,
+            &dash_facts(2),
+            "| TASK-01 | `src/a.rs`, `src/b.rs` |\n| TASK-02 | `src/c.rs`, `docs/d.md` |",
+        ),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let read = |id: &str| {
+        std::fs::read_to_string(
+            project
+                .root()
+                .join(format!("vostok/work/tasks/SPEC-001/{id}.md")),
+        )
+        .unwrap()
+    };
+    assert!(
+        read("TASK-01").contains("\nwave: 1\n"),
+        "{}",
+        read("TASK-01")
+    );
+    assert!(
+        read("TASK-02").contains("\nwave: 2\n"),
+        "{}",
+        read("TASK-02")
+    );
+}
+
+#[test]
+fn waves_plan_without_the_column_stays_valid() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+            "| TASK-01 | 0 | 1 | não | não | não |",
+        ),
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(!plan.contains("Onda"), "{plan}");
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &legacy_plan(
+            "| TASK-01 | Tarefa | Faz. | tarefa | simples | - | RF-01 |\n| TASK-02 | Tarefa 2 | Faz. | tarefa | simples | TASK-01 | RF-01 |",
+            "| TASK-01 | 0 | 1 | não | não | não |\n| TASK-02 | 0 | 1 | não | não | não |",
+        ),
+    );
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let task = |id: &str| {
+        std::fs::read_to_string(
+            project
+                .root()
+                .join(format!("vostok/work/tasks/SPEC-001/{id}.md")),
+        )
+        .unwrap()
+    };
+    assert!(task("TASK-01").contains("\nwave: 1\n"));
+    assert!(task("TASK-02").contains("\nwave: 2\n"));
+}
+
+#[test]
+fn waves_public_function_computes_the_waves() {
+    let tasks = vec![
+        ("TASK-01".to_string(), vec![]),
+        ("TASK-02".to_string(), vec!["TASK-01".to_string()]),
+        ("TASK-03".to_string(), vec![]),
+    ];
+    let waves = vostok::commands::plan::waves(&tasks);
+    assert_eq!(waves["TASK-01"], 1);
+    assert_eq!(waves["TASK-02"], 2);
+    assert_eq!(waves["TASK-03"], 1);
 }

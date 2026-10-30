@@ -1,7 +1,7 @@
 //! Comandos `plan`: planos de tarefas: criação, níveis, ajuste e aprovação.
 //! Reproduzem `plan-tasks.sh`, `adjust-plan.sh`, `approve-plan.sh` e a lib `plan.sh`.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -66,11 +66,13 @@ const APPROVE_USAGE: &str = "Uso: vostok plan approve create-tasks|validate|mark
 const TASKS_HEADING: &str = "Tarefas";
 const FACTS_HEADING: &str = "Fatos de esforço";
 const COMPONENTS_HEADING: &str = "Componentes por tarefa";
+const SHARED_HEADING: &str = "Arquivos em comum por onda";
 const OVERVIEW_HEADING: &str = "Visão geral";
 const COMPONENT_ACTIONS: &str = "criar alterar remover";
 
 const PROFILE_COLUMN: &str = "Perfil";
 const LEVEL_COLUMN: &str = "Nível";
+const WAVE_COLUMN: &str = "Onda";
 const PERSONA_COLUMN: &str = "Persona";
 const ID_COLUMN: &str = "ID";
 const TITLE_COLUMN: &str = "Título";
@@ -403,14 +405,48 @@ impl Workspace {
         if !problems.is_empty() {
             return Ok(Err(problems));
         }
-        let levels = findings
+        let mut levels = HashMap::new();
+        let mut waves = HashMap::new();
+        for finding in findings {
+            match finding {
+                Finding::Level { id, computed, .. } => {
+                    levels.insert(id, computed);
+                }
+                Finding::Wave { id, computed, .. } => {
+                    waves.insert(id, computed);
+                }
+                Finding::Problem(_) => {}
+            }
+        }
+        let columns = Columns::of(plan);
+        let mut scored = rewrite_column(plan, &levels, columns.level_index(), &columns);
+        scored = rewrite_column(&scored, &waves, columns.index(WAVE_COLUMN), &columns);
+        if let Some(rows) = self.shared_rows_of(&scored) {
+            scored = rewrite_shared(&scored, &rows);
+        }
+        Ok(Ok(scored))
+    }
+
+    /// Arquivos em comum por onda do plano; `None` sem a seção deles ou sem a de componentes.
+    fn shared_files_of(&self, plan: &str) -> Option<Vec<(usize, String, Vec<String>)>> {
+        if markdown_section(plan, SHARED_HEADING).is_none()
+            || markdown_section(plan, COMPONENTS_HEADING).is_none()
+        {
+            return None;
+        }
+        let tasks: Vec<(String, Vec<String>)> = plan_tasks(plan, &HashMap::new())
             .into_iter()
-            .filter_map(|finding| match finding {
-                Finding::Level { id, computed, .. } => Some((id, computed)),
-                Finding::Problem(_) => None,
+            .map(|task| {
+                let depends = id_list(&task.depends);
+                (task.id, depends)
             })
             .collect();
-        Ok(Ok(rewrite_levels(plan, &levels, &Columns::of(plan))))
+        Some(shared_files(&waves(&tasks), &task_components(plan)))
+    }
+
+    fn shared_rows_of(&self, plan: &str) -> Option<String> {
+        self.shared_files_of(plan)
+            .map(|shared| shared_rows(&shared))
     }
 
     fn plan_is_outdated(&self, plan: &Path, spec: &Path) -> Result<bool> {
@@ -549,6 +585,18 @@ impl Workspace {
                 .into_iter()
                 .filter_map(|finding| finding.into_error(scale)),
         );
+        if let Some(rows) = self.shared_rows_of(&analyzed) {
+            let stored: Vec<String> = table_rows(plan, SHARED_HEADING)
+                .iter()
+                .map(|row| row.trim().to_string())
+                .collect();
+            let computed: Vec<String> = rows.lines().map(|row| row.trim().to_string()).collect();
+            if stored != computed {
+                errors.push(format!(
+                    "a seção '{SHARED_HEADING}' está desatualizada (execute vostok plan score)"
+                ));
+            }
+        }
         if let Some(facts) = components {
             errors.extend(facts.problems);
             errors.extend(
@@ -673,6 +721,7 @@ impl Workspace {
             ("SPEC_TITLE", field(&spec, "title")),
             ("SPEC_HASH", approved),
             ("DATETIME", now),
+            ("PLAN_SHARED_FILES", "| - | - | - |".to_string()),
             (
                 "ADJUSTMENT_HISTORY",
                 history.trim_end_matches('\n').to_string(),
@@ -751,6 +800,16 @@ impl Workspace {
             "{success} gravados no plano de {spec_id}: {}",
             plan.display()
         );
+        if let Some(shared) = self.shared_files_of(&content) {
+            if shared.is_empty() {
+                println!("Nenhum arquivo em comum entre tarefas da mesma onda.");
+            } else {
+                println!("Arquivos em comum por onda (executar em sequência):");
+                for (wave, path, tasks) in shared {
+                    println!("- onda {wave}: `{path}` ({})", tasks.join(", "));
+                }
+            }
+        }
         if let Some(spec) = spec {
             if let Some(facts) = self.component_facts(&content, &spec)? {
                 if !facts.orphans.is_empty() {
@@ -895,7 +954,9 @@ impl Workspace {
 
         // As tarefas são montadas em memória e gravadas juntas: ou todas existem, ou nenhuma.
         let mut files = Vec::new();
-        for task in plan_tasks(&read(&plan)?, &self.profile_legacy()) {
+        let plan_content = read(&plan)?;
+        let plan_waves = plan_waves(&plan_content);
+        for task in plan_tasks(&plan_content, &self.profile_legacy()) {
             let depends = as_list(&task.depends);
             let blocked_by = if depends.is_empty() {
                 "-".to_string()
@@ -910,6 +971,10 @@ impl Workspace {
                 ("TASK_EFFORT", task.effort.clone()),
                 ("TASK_PROFILE", task.profile.clone()),
                 ("TASK_PERSONA", task.persona.clone()),
+                (
+                    "TASK_WAVE",
+                    plan_waves.get(&task.id).copied().unwrap_or(1).to_string(),
+                ),
                 ("TASK_DEPENDS", depends),
                 ("TASK_COVERS", as_list(&task.covers)),
                 ("TASK_TYPE", task.kind.clone()),
@@ -1585,13 +1650,18 @@ enum Finding {
         computed: String,
         stored: String,
     },
+    Wave {
+        id: String,
+        computed: String,
+        stored: String,
+    },
 }
 
 impl Finding {
     fn problem(&self) -> Option<String> {
         match self {
             Finding::Problem(problem) => Some(problem.clone()),
-            Finding::Level { .. } => None,
+            Finding::Level { .. } | Finding::Wave { .. } => None,
         }
     }
 
@@ -1612,6 +1682,15 @@ impl Finding {
                     "{id}: {name} \"{stored}\" diferente do calculado \"{computed}\" (execute vostok plan score)"
                 )
             }),
+            Finding::Wave {
+                id,
+                computed,
+                stored,
+            } => (computed != stored).then(|| {
+                format!(
+                    "{id}: onda \"{stored}\" diferente da calculada \"{computed}\" (execute vostok plan score)"
+                )
+            }),
         }
     }
 }
@@ -1624,6 +1703,7 @@ struct Analyzer {
     order: Vec<String>,
     tasks: HashSet<String>,
     stored: HashMap<String, String>,
+    stored_waves: HashMap<String, String>,
     depends: HashMap<String, Vec<String>>,
     covered: HashMap<String, i64>,
     facts: Vec<String>,
@@ -1640,6 +1720,7 @@ impl Analyzer {
             order: Vec::new(),
             tasks: HashSet::new(),
             stored: HashMap::new(),
+            stored_waves: HashMap::new(),
             depends: HashMap::new(),
             covered: HashMap::new(),
             facts: Vec::new(),
@@ -1707,6 +1788,8 @@ impl Analyzer {
                 "{id}: persona inválida \"{persona}\" (use o nome da persona em minúsculas, com hífens, ou -)"
             ));
         }
+        self.stored_waves
+            .insert(id.clone(), cell(self.columns.index(WAVE_COLUMN)));
         self.stored.insert(id.clone(), stored);
         self.depends.insert(id.clone(), id_list(&depends));
         let covered = id_list(&covers).len() as i64;
@@ -1772,8 +1855,9 @@ impl Analyzer {
         if self.order.is_empty() {
             self.problem("a tabela de tarefas está vazia".to_string());
         }
+        let mut graph_ok = true;
         for id in self.order.clone() {
-            self.check_dependencies(&id);
+            graph_ok &= self.check_dependencies(&id);
             if !self.facts.contains(&id) {
                 self.problem(format!("{id}: sem fatos de esforço"));
                 continue;
@@ -1795,27 +1879,48 @@ impl Analyzer {
                 self.problem(format!("fatos de esforço de uma tarefa inexistente: {id}"));
             }
         }
-        self.check_cycles();
-    }
-
-    fn check_dependencies(&mut self, id: &str) {
-        for dependency in self.depends[id].clone() {
-            if dependency == id {
-                self.problem(format!("{id}: depende de si mesma"));
-            } else if !self.tasks.contains(&dependency) {
-                self.problem(format!("{id}: dependência inexistente {dependency}"));
+        graph_ok &= self.check_cycles();
+        if graph_ok && self.columns.index(WAVE_COLUMN).is_some() {
+            let tasks: Vec<(String, Vec<String>)> = self
+                .order
+                .iter()
+                .map(|id| (id.clone(), self.depends[id].clone()))
+                .collect();
+            let computed = waves(&tasks);
+            for id in self.order.clone() {
+                self.findings.push(Finding::Wave {
+                    computed: computed.get(&id).copied().unwrap_or(1).to_string(),
+                    stored: self.stored_waves[&id].clone(),
+                    id,
+                });
             }
         }
     }
 
+    /// `false` quando a tarefa tem dependência inválida.
+    fn check_dependencies(&mut self, id: &str) -> bool {
+        let mut ok = true;
+        for dependency in self.depends[id].clone() {
+            if dependency == id {
+                self.problem(format!("{id}: depende de si mesma"));
+                ok = false;
+            } else if !self.tasks.contains(&dependency) {
+                self.problem(format!("{id}: dependência inexistente {dependency}"));
+                ok = false;
+            }
+        }
+        ok
+    }
+
     /// Busca em profundidade: um vértice em andamento revisitado fecha um ciclo.
-    fn check_cycles(&mut self) {
+    fn check_cycles(&mut self) -> bool {
         let mut visits = Visits::default();
         for id in self.order.clone() {
             if !visits.state.contains_key(&id) {
                 self.visit(&id, &mut visits);
             }
         }
+        visits.cycled.is_empty()
     }
 
     fn visit(&mut self, id: &str, visits: &mut Visits) {
@@ -2055,9 +2160,14 @@ fn id_list(cell: &str) -> Vec<String> {
     text.split_whitespace().map(str::to_string).collect()
 }
 
-/// Grava o perfil (ou nível) calculado na coluna dele, em cada tarefa.
-fn rewrite_levels(plan: &str, levels: &HashMap<String, String>, columns: &Columns) -> String {
-    let Some(column) = columns.level_index() else {
+/// Grava os valores calculados (perfil, nível ou onda) na coluna da tabela de tarefas, em cada tarefa.
+fn rewrite_column(
+    plan: &str,
+    levels: &HashMap<String, String>,
+    column: Option<usize>,
+    columns: &Columns,
+) -> String {
+    let Some(column) = column else {
         return plan.to_string();
     };
     let expected = columns.cells();
@@ -2133,6 +2243,160 @@ fn rewrite_file_facts(plan: &str, counts: &HashMap<String, (i64, i64)>) -> Strin
                     out.push(cells.join("|"));
                     continue;
                 }
+            }
+        }
+        out.push(raw.to_string());
+    }
+    join_lines(&out)
+}
+
+/// Onda de cada tarefa: 1 sem dependências; senão, 1 + a maior onda das dependências.
+/// Dependências inexistentes são ignoradas; tarefas em ciclo ficam fora do resultado.
+pub fn waves(tasks: &[(String, Vec<String>)]) -> BTreeMap<String, usize> {
+    let depends: BTreeMap<&str, &Vec<String>> = tasks
+        .iter()
+        .map(|(id, depends)| (id.as_str(), depends))
+        .collect();
+    let mut result: BTreeMap<String, usize> = BTreeMap::new();
+    let mut running: HashSet<&str> = HashSet::new();
+    let mut cyclic: HashSet<&str> = HashSet::new();
+    for (id, _) in tasks {
+        wave_of(id, &depends, &mut result, &mut running, &mut cyclic);
+    }
+    result
+}
+
+/// Onda de uma tarefa, ou `None` se ela está num ciclo ou depende de uma tarefa em ciclo.
+fn wave_of<'a>(
+    id: &'a str,
+    depends: &BTreeMap<&'a str, &'a Vec<String>>,
+    result: &mut BTreeMap<String, usize>,
+    running: &mut HashSet<&'a str>,
+    cyclic: &mut HashSet<&'a str>,
+) -> Option<usize> {
+    if let Some(wave) = result.get(id) {
+        return Some(*wave);
+    }
+    if cyclic.contains(id) {
+        return None;
+    }
+    if !running.insert(id) {
+        cyclic.insert(id);
+        return None;
+    }
+    let mut highest = 0;
+    let mut broken = false;
+    for dependency in depends.get(id).copied().into_iter().flatten() {
+        let Some((key, _)) = depends.get_key_value(dependency.as_str()) else {
+            continue;
+        };
+        match wave_of(key, depends, result, running, cyclic) {
+            Some(wave) => highest = highest.max(wave),
+            None => broken = true,
+        }
+    }
+    running.remove(id);
+    if broken || cyclic.contains(id) {
+        cyclic.insert(id);
+        return None;
+    }
+    result.insert(id.to_string(), highest + 1);
+    Some(highest + 1)
+}
+
+/// Ondas das tarefas do plano, pelas dependências da tabela de tarefas.
+fn plan_waves(plan: &str) -> BTreeMap<String, usize> {
+    let tasks: Vec<(String, Vec<String>)> = plan_tasks(plan, &HashMap::new())
+        .into_iter()
+        .map(|task| {
+            let depends = id_list(&task.depends);
+            (task.id, depends)
+        })
+        .collect();
+    waves(&tasks)
+}
+
+/// Caminhos de cada tarefa na seção "Componentes por tarefa", sem repetição.
+fn task_components(plan: &str) -> BTreeMap<String, Vec<String>> {
+    let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for row in table_rows(plan, COMPONENTS_HEADING) {
+        let paths = map.entry(markdown_cell(&row, 1)).or_default();
+        for path in markdown_cell(&row, 2).split(',') {
+            let path = path.replace('`', "").trim().to_string();
+            if !path.is_empty() && path != "-" && !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+    }
+    map
+}
+
+/// `(onda, caminho, tarefas)` dos caminhos que duas ou mais tarefas da mesma onda assumem.
+fn shared_files(
+    waves: &BTreeMap<String, usize>,
+    components: &BTreeMap<String, Vec<String>>,
+) -> Vec<(usize, String, Vec<String>)> {
+    let mut grouped: BTreeMap<(usize, String), Vec<String>> = BTreeMap::new();
+    for (id, paths) in components {
+        let Some(&wave) = waves.get(id) else { continue };
+        for path in paths {
+            grouped
+                .entry((wave, path.clone()))
+                .or_default()
+                .push(id.clone());
+        }
+    }
+    grouped
+        .into_iter()
+        .filter(|(_, tasks)| tasks.len() >= 2)
+        .map(|((wave, path), tasks)| (wave, path, tasks))
+        .collect()
+}
+
+/// Linhas da tabela de arquivos em comum, ou `| - | - | - |` sem nenhum.
+fn shared_rows(shared: &[(usize, String, Vec<String>)]) -> String {
+    if shared.is_empty() {
+        return "| - | - | - |".to_string();
+    }
+    shared
+        .iter()
+        .map(|(wave, path, tasks)| format!("| {wave} | `{path}` | {} |", tasks.join(", ")))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Troca as linhas da tabela da seção de arquivos em comum, mantendo o texto e o cabeçalho.
+fn rewrite_shared(plan: &str, rows: &str) -> String {
+    let heading = format!("## {SHARED_HEADING}");
+    let mut in_code = false;
+    let mut inside = false;
+    let mut header = false;
+    let mut replaced = false;
+    let mut out: Vec<String> = Vec::new();
+    for raw in file_lines(plan) {
+        let plain = raw.strip_suffix('\r').unwrap_or(raw);
+        if is_fence(plain) {
+            in_code = !in_code;
+        }
+        if !in_code && plain == heading {
+            inside = true;
+            out.push(raw.to_string());
+            continue;
+        }
+        if !in_code && inside && plain.starts_with("## ") {
+            inside = false;
+        }
+        if inside && plain.starts_with('|') {
+            if replaced {
+                continue;
+            }
+            if !header {
+                header = true;
+            } else if is_separator_row(plain) {
+                out.push(raw.to_string());
+                out.extend(rows.lines().map(str::to_string));
+                replaced = true;
+                continue;
             }
         }
         out.push(raw.to_string());

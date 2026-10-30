@@ -26,13 +26,14 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 - **Fatos de esforço:** o que se sabe sobre a tarefa: arquivos a criar e a alterar, que o `vostok plan score` calcula pelos componentes da tarefa, e se ela muda um contrato público, depende de inferência ou cobre um risco alto, que o agente informa.
 - **Perfil:** o que a tarefa exige do modelo (`mecanica`, `padrao` ou `julgamento`), calculado pelo comando a partir dos fatos, pelo que a tarefa faz. Nunca indica um modelo.
 - **Persona:** o nome da persona que executa a tarefa, como `desenvolvedor`, ou `-`.
+- **Onda:** o número da onda da tarefa, calculado pelo `vostok plan score` a partir das dependências (1 sem dependências; senão, 1 mais a maior onda das dependências). Tarefas da mesma onda podem rodar em paralelo.
 
 ## Regras
 
 [plan-tasks-01]: Só planeje specs com status `approved`.
 [plan-tasks-02]: Nunca altere um plano atualizado. Um pedido para planejar uma spec que já tem plano atualizado é informado e para; ajustes são feitos pela skill `adjust-plan` só quando o usuário pedir.
 [plan-tasks-03]: O planejamento de uma spec nunca altera o plano de outra.
-[plan-tasks-04]: Nunca preencha a coluna "Perfil" à mão. Só o `vostok plan score` a grava.
+[plan-tasks-04]: Nunca preencha à mão a coluna "Perfil", a coluna "Onda" nem a seção "Arquivos em comum por onda". Só o `vostok plan score` as grava.
 [plan-tasks-05]: Nunca edite o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" do plano.
 [plan-tasks-06]: Todo ID da spec que precisa de cobertura (RF e CT em `feature`, `improvement` e `fix`; PQ em `study`; S em `analysis`) é coberto por pelo menos uma tarefa. CB pode ser citado em "Cobre" como cobertura opcional.
 [plan-tasks-07]: Não crie arquivos de tarefa. Eles só existem depois que o usuário aprova o plano (skill `approve-plan`).
@@ -114,7 +115,7 @@ Execute:
 vostok plan score <SPEC_ID>
 ```
 
-O comando grava o perfil de cada tarefa na coluna "Perfil". Se ele recusar por fato inválido, corrija a tabela de fatos e execute de novo.
+O comando grava o perfil de cada tarefa na coluna "Perfil", a onda na coluna "Onda" e, na seção "Arquivos em comum por onda", os arquivos que duas tarefas da mesma onda assumem (essas tarefas devem rodar em sequência). Se ele recusar por fato inválido, corrija a tabela de fatos e execute de novo.
 
 ### 6. Validar
 
@@ -142,11 +143,11 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 
 ### Tabela de tarefas
 
-`Tipo` é `tarefa`, `historia` ou `bug`. Em "Persona", o nome da persona que executa a tarefa (como `desenvolvedor`) ou `-`. Sem dependências, use `-`. Deixe `-` em "Perfil": o `vostok plan score` o preenche.
+`Tipo` é `tarefa`, `historia` ou `bug`. Em "Persona", o nome da persona que executa a tarefa (como `desenvolvedor`) ou `-`. Sem dependências, use `-`. Deixe `-` em "Perfil" e em "Onda": o `vostok plan score` os preenche.
 
 ```markdown
-| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | RF-01, CT-01 |
-| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | RF-02, CT-02 |
+| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | - | RF-01, CT-01 |
+| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | - | RF-02, CT-02 |
 ```
 
 ### Tabela de componentes
@@ -169,14 +170,18 @@ Deixe `-` em "Arquivos a criar" e "Arquivos a alterar": o `vostok plan score` os
 
 ### Resumo do plano
 
-A visão geral em prosa, a tabela de tarefas com os perfis gravados e a descrição de cada perfil usado, lida da seção "Perfis de execução" do plano.
+A visão geral em prosa, a tabela de tarefas com os perfis e as ondas gravados, a lista dos arquivos em comum por onda (ou a informação de que não há nenhum) e a descrição de cada perfil usado, lida da seção "Perfis de execução" do plano.
 
 ```markdown
 Visão geral do plano.
 
-| ID | Título | Persona | Perfil | Dependências | Cobre |
-|---|---|---|---|---|---|
-| TASK-01 | Título curto | desenvolvedor | mecanica | - | RF-01, CT-01 |
+| ID | Título | Persona | Perfil | Dependências | Onda | Cobre |
+|---|---|---|---|---|---|---|
+| TASK-01 | Título curto | desenvolvedor | mecanica | - | 1 | RF-01, CT-01 |
+
+Arquivos em comum por onda (executar em sequência):
+
+- onda 1: `caminho` (TASK-01, TASK-02)
 
 - **mecanica:** descrição do perfil.
 ```

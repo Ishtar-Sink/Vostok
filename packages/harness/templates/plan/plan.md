@@ -18,8 +18,8 @@ Documento para revisão. É removido quando o plano é aprovado.
 
 ## Tarefas
 
-| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Cobre |
-|---|---|---|---|---|---|---|---|
+| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Onda | Cobre |
+|---|---|---|---|---|---|---|---|---|
 #{PLAN_TASKS}
 
 ## Componentes por tarefa
@@ -35,6 +35,14 @@ Cada tarefa lista os caminhos de "Componentes afetados" da spec que ela assume.
 | ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |
 |---|---|---|---|---|---|
 #{PLAN_FACTS}
+
+## Arquivos em comum por onda
+
+Seção calculada pelo `vostok plan score` a partir dos componentes por tarefa. O Coordenador executa em sequência as tarefas de uma mesma linha.
+
+| Onda | Arquivo | Tarefas |
+|---|---|---|
+#{PLAN_SHARED_FILES}
 
 ## Perfis de execução
 

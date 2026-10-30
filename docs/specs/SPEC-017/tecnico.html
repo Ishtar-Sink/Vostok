@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-017 · Documento técnico · Baseline que mede a entrega da própria tarefa</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-017 · aprovada em 2026-10-30 · concluída em 2026-10-30</p>
+    <h1>Baseline que mede a entrega da própria tarefa</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>A correção atua em três pontos: a validação das tarefas (plano e tarefa) recusa comando de &quot;Baseline&quot; que cita um caminho <code>criar</code> de &quot;Mudar&quot;; o <code>vostok task regression</code> ignora, dos dois lados, as linhas que citam esses caminhos; e a orientação de baseline (skill <code>approve-plan</code> e persona engenheiro) passa a ser por ação de &quot;Mudar&quot;. Uma função comum de erro é usada pelas duas validações.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code>: nova <code>delivery_errors</code> (um erro por caminho <code>criar</code> citado no comando), usada por <code>baseline_errors</code> da tarefa; a regressão soma <code>created_paths</code> à lista de <code>regression_ignore</code>.</li>
+<li><code>apps/cli/src/commands/plan.rs</code>: <code>task_errors</code> coleta os caminhos <code>criar</code> de &quot;Mudar&quot; e passa a <code>baseline_errors</code>, que reutiliza <code>delivery_errors</code>.</li>
+<li><code>approve-plan/SKILL.md</code> e <code>personas/engenheiro.md</code>: orientação textual do baseline e regra [persona/engenheiro-03].</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<p><strong>TASK-01 (CLI):</strong> <code>baseline_errors</code> recebe os caminhos criados; numa tarefa em execução a lista vai vazia, então a recusa não se aplica ([adjust-task-10]). Na regressão, os caminhos <code>criar</code> entram na lista de linhas ignoradas, aplicada à saída do baseline e à nova; o código de saída segue comparado. Sete testes novos cobrem validação do plano, da tarefa, tarefa em execução, regressão ignorada, demais linhas comparadas e tarefa sem <code>criar</code>.</p>
+<p><strong>TASK-02 (skills):</strong> a orientação de <code>TASK_BASELINE</code> na <code>approve-plan</code> e a regra da persona engenheiro foram reescritas por ação de &quot;Mudar&quot;. Depois, a regra de tirar o resumo de contagem (<code>test result</code>) quando o baseline lista testes foi acrescentada (commit 22037ad).</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-03</td><td><code>vostok plan validate</code> recusa a tarefa com comando de &quot;Baseline&quot; que contém um caminho <code>criar</code> de &quot;Mudar&quot; da mesma tarefa, com a mensagem <code>&#39;Baseline&#39; com comando que cita &#39;&lt;caminho&gt;&#39;, que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: &lt;comando&gt;</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>A validação da tarefa em <code>apps/cli/src/commands/task.rs</code> aplica a mesma recusa do RF-03 a tarefas fora de execução; numa tarefa em execução com baseline coletado, a recusa não se aplica, porque o &quot;Baseline&quot; não pode mais mudar ([adjust-task-10]).</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-05</td><td>O <code>vostok task regression</code> retira, da saída do baseline e da nova, as linhas que contêm um caminho <code>criar</code> de &quot;Mudar&quot; da tarefa, além das de <code>regression_ignore</code>, antes de comparar; as demais linhas e o código de saída continuam comparados.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>A regressão de uma tarefa sem caminho <code>criar</code> continua igual à de hoje.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Validação do plano recusa</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Validação do plano aceita</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Validação da tarefa</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Tarefa em execução</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Regressão ignora a entrega</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Regressão compara o resto</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Tarefa sem <code>criar</code></td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-01</td><td>Comando cita um caminho <code>criar</code> e outro que a tarefa não cria (<code>for p in package.json LICENSE</code>)</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-02</td><td>Comando <code>test -e src/x.rs</code> sem saída, só código de saída</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-03</td><td>Tarefa já aprovada com baseline que cita <code>criar</code></td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-04</td><td>Tarefa em execução com esse baseline recebe ajuste</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-05</td><td>Saída de teste que cita um arquivo criado (ex.: erro de compilação em <code>src/x.rs</code>)</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-01</td><td>A orientação de &quot;Baseline&quot; na <code>approve-plan</code> diz que o baseline detecta regressão e mede o que a tarefa toca e não pode quebrar: para <code>alterar</code>, os testes, o lint e a checagem de tipos que cobrem esses arquivos e as saídas atuais que eles produzem; para <code>remover</code>, o que referencia o caminho (build, imports, links); nunca os caminhos <code>criar</code> nem o texto que a tarefa acrescenta; comandos focados em vez da suíte inteira, quando houver.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-02</td><td>A regra [persona/engenheiro-03] passa a dizer o mesmo que o RF-01, de forma curta.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-08</td><td>Orientação</td><td><span class="chip">TASK-02</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/approve-plan/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/personas/engenheiro.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/plan.rs</b><span class="tag criar">+13</span><span class="tag remover">−4</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -10,7 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};</td></tr>
+<tr><td class="ln">10</td><td class="code">use anyhow::{bail, Context, Result};</td><td class="ln">10</td><td class="code">use anyhow::{bail, Context, Result};</td></tr>
+<tr><td class="ln">11</td><td class="code">use clap::Subcommand;</td><td class="ln">11</td><td class="code">use clap::Subcommand;</td></tr>
+<tr><td class="ln">12</td><td class="code"></td><td class="ln">12</td><td class="code"></td></tr>
+<tr><td class="ln">13</td><td class="code del">use super::task::{evidence_item, evidence_name_problem, normalized_evidence_name};</td><td class="ln">13</td><td class="code add">use super::task::{</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">14</td><td class="code add">    delivery_errors, evidence_item, evidence_name_problem, normalized_evidence_name,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">15</td><td class="code add">};</td></tr>
+<tr><td class="ln">14</td><td class="code">use crate::harness::Harness;</td><td class="ln">16</td><td class="code">use crate::harness::Harness;</td></tr>
+<tr><td class="ln">15</td><td class="code">use crate::support::{</td><td class="ln">17</td><td class="code">use crate::support::{</td></tr>
+<tr><td class="ln">16</td><td class="code">    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,</td><td class="ln">18</td><td class="code">    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1165,7 +1167,13 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1165</td><td class="code">        errors.extend(self.description_errors(&amp;content)?);</td><td class="ln">1167</td><td class="code">        errors.extend(self.description_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1166</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream)?);</td><td class="ln">1168</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream)?);</td></tr>
+<tr><td class="ln">1167</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td><td class="ln">1169</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1168</td><td class="code del">        errors.extend(self.baseline_errors(&amp;content)?);</td><td class="ln">1170</td><td class="code add">        let created: Vec&lt;String&gt; = self</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1171</td><td class="code add">            .change_items(&amp;content)?</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1172</td><td class="code add">            .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1173</td><td class="code add">            .filter(|(action, _)| action == &quot;criar&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1174</td><td class="code add">            .map(|(_, path)| path)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1175</td><td class="code add">            .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1176</td><td class="code add">        errors.extend(self.baseline_errors(&amp;content, &amp;created)?);</td></tr>
+<tr><td class="ln">1169</td><td class="code">        errors.extend(self.evidence_errors(&amp;content)?);</td><td class="ln">1177</td><td class="code">        errors.extend(self.evidence_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1170</td><td class="code">        let covers = field(file, &quot;covers&quot;).replace([&#39;[&#39;, &#39;]&#39;], &quot;&quot;);</td><td class="ln">1178</td><td class="code">        let covers = field(file, &quot;covers&quot;).replace([&#39;[&#39;, &#39;]&#39;], &quot;&quot;);</td></tr>
+<tr><td class="ln">1171</td><td class="code">        if sorted_list(&amp;covers) != sorted_list(plan_covers) {</td><td class="ln">1179</td><td class="code">        if sorted_list(&amp;covers) != sorted_list(plan_covers) {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1314,7 +1322,7 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1314</td><td class="code">    }</td><td class="ln">1322</td><td class="code">    }</td></tr>
+<tr><td class="ln">1315</td><td class="code"></td><td class="ln">1323</td><td class="code"></td></tr>
+<tr><td class="ln">1316</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td><td class="ln">1324</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td></tr>
+<tr><td class="ln">1317</td><td class="code del">    fn baseline_errors(&amp;self, content: &amp;str) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1325</td><td class="code add">    fn baseline_errors(&amp;self, content: &amp;str, created: &amp;[String]) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1318</td><td class="code">        let sub = self.task_setting(&quot;baseline_subsection&quot;)?;</td><td class="ln">1326</td><td class="code">        let sub = self.task_setting(&quot;baseline_subsection&quot;)?;</td></tr>
+<tr><td class="ln">1319</td><td class="code">        let text = command_output(</td><td class="ln">1327</td><td class="code">        let text = command_output(</td></tr>
+<tr><td class="ln">1320</td><td class="code">            &amp;self</td><td class="ln">1328</td><td class="code">            &amp;self</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1331,8 +1339,9 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1331</td><td class="code">                .strip_prefix(&quot;- &quot;)</td><td class="ln">1339</td><td class="code">                .strip_prefix(&quot;- &quot;)</td></tr>
+<tr><td class="ln">1332</td><td class="code">                .and_then(backticked)</td><td class="ln">1340</td><td class="code">                .and_then(backticked)</td></tr>
+<tr><td class="ln">1333</td><td class="code">                .filter(|(_, rest)| rest.is_empty());</td><td class="ln">1341</td><td class="code">                .filter(|(_, rest)| rest.is_empty());</td></tr>
+<tr><td class="ln">1334</td><td class="code del">            if command.is_some() {</td><td class="ln">1342</td><td class="code add">            if let Some((command, _)) = command {</td></tr>
+<tr><td class="ln">1335</td><td class="code">                count += 1;</td><td class="ln">1343</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1344</td><td class="code add">                errors.extend(delivery_errors(&amp;sub, command, created));</td></tr>
+<tr><td class="ln">1336</td><td class="code">            } else {</td><td class="ln">1345</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">1337</td><td class="code">                errors.push(format!(</td><td class="ln">1346</td><td class="code">                errors.push(format!(</td></tr>
+<tr><td class="ln">1338</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td><td class="ln">1347</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+65</span><span class="tag remover">−10</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -882,13 +882,17 @@ impl Tasks {</td></tr>
+<tr><td class="ln">882</td><td class="code">            other =&gt; other,</td><td class="ln">882</td><td class="code">            other =&gt; other,</td></tr>
+<tr><td class="ln">883</td><td class="code">        };</td><td class="ln">883</td><td class="code">        };</td></tr>
+<tr><td class="ln">884</td><td class="code">        let file = self.find_task(spec, task)?;</td><td class="ln">884</td><td class="code">        let file = self.find_task(spec, task)?;</td></tr>
+<tr><td class="ln">885</td><td class="code del">        let blockers = self.start_blockers(spec, task, &amp;file)?;</td><td class="ln">885</td><td class="code add">        let mut blockers = self.start_blockers(spec, task, &amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">886</td><td class="code add">        if blockers.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">887</td><td class="code add">            blockers = self.created_conflicts(&amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">888</td><td class="code add">        }</td></tr>
+<tr><td class="ln">886</td><td class="code">        if !blockers.is_empty() {</td><td class="ln">889</td><td class="code">        if !blockers.is_empty() {</td></tr>
+<tr><td class="ln">887</td><td class="code">            bail!(</td><td class="ln">890</td><td class="code">            bail!(</td></tr>
+<tr><td class="ln">888</td><td class="code">                &quot;a tarefa {task} não pode ser iniciada; nada foi alterado:\n{}&quot;,</td><td class="ln">891</td><td class="code">                &quot;a tarefa {task} não pode ser iniciada; nada foi alterado:\n{}&quot;,</td></tr>
+<tr><td class="ln">889</td><td class="code">                blockers.join(&quot;\n&quot;)</td><td class="ln">892</td><td class="code">                blockers.join(&quot;\n&quot;)</td></tr>
+<tr><td class="ln">890</td><td class="code">            );</td><td class="ln">893</td><td class="code">            );</td></tr>
+<tr><td class="ln">891</td><td class="code">        }</td><td class="ln">894</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">895</td><td class="code add">        let (dir, baseline_detail) = self.collect_baseline(&amp;file, task)?;</td></tr>
+<tr><td class="ln">892</td><td class="code">        let in_progress = &amp;self.status.in_progress;</td><td class="ln">896</td><td class="code">        let in_progress = &amp;self.status.in_progress;</td></tr>
+<tr><td class="ln">893</td><td class="code">        frontmatter_set(&amp;file, &quot;status&quot;, in_progress)?;</td><td class="ln">897</td><td class="code">        frontmatter_set(&amp;file, &quot;status&quot;, in_progress)?;</td></tr>
+<tr><td class="ln">894</td><td class="code">        let approved_at = frontmatter_get(&amp;file, &quot;approved_at&quot;).unwrap_or_else(|_| &quot;?&quot;.into());</td><td class="ln">898</td><td class="code">        let approved_at = frontmatter_get(&amp;file, &quot;approved_at&quot;).unwrap_or_else(|_| &quot;?&quot;.into());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -898,8 +902,10 @@ impl Tasks {</td></tr>
+<tr><td class="ln">898</td><td class="code">            detail.push_str(&amp;format!(&quot;; modelo: {model}&quot;));</td><td class="ln">902</td><td class="code">            detail.push_str(&amp;format!(&quot;; modelo: {model}&quot;));</td></tr>
+<tr><td class="ln">899</td><td class="code">        }</td><td class="ln">903</td><td class="code">        }</td></tr>
+<tr><td class="ln">900</td><td class="code">        self.record_step(&amp;file, &quot;início&quot;, in_progress, &amp;detail)?;</td><td class="ln">904</td><td class="code">        self.record_step(&amp;file, &quot;início&quot;, in_progress, &amp;detail)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">905</td><td class="code add">        self.record_step(&amp;file, &quot;baseline&quot;, &quot;coletado&quot;, &amp;baseline_detail)?;</td></tr>
+<tr><td class="ln">901</td><td class="code">        println!(</td><td class="ln">906</td><td class="code">        println!(</td></tr>
+<tr><td class="ln">902</td><td class="code del">            &quot;Tarefa {task} iniciada: status &#39;{in_progress}&#39;. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline {spec} {task}&quot;</td><td class="ln">907</td><td class="code add">            &quot;Tarefa {task} iniciada: status &#39;{in_progress}&#39;. Baseline de {task} coletado em {}: {baseline_detail}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">908</td><td class="code add">            dir.display()</td></tr>
+<tr><td class="ln">903</td><td class="code">        );</td><td class="ln">909</td><td class="code">        );</td></tr>
+<tr><td class="ln">904</td><td class="code">        Ok(())</td><td class="ln">910</td><td class="code">        Ok(())</td></tr>
+<tr><td class="ln">905</td><td class="code">    }</td><td class="ln">911</td><td class="code">    }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -954,14 +960,41 @@ impl Tasks {</td></tr>
+<tr><td class="ln">954</td><td class="code">        if status != *in_progress {</td><td class="ln">960</td><td class="code">        if status != *in_progress {</td></tr>
+<tr><td class="ln">955</td><td class="code">            bail!(&quot;a tarefa {task} está com status &#39;{status}&#39;; o baseline só é coletado com status &#39;{in_progress}&#39; (vostok task start)&quot;);</td><td class="ln">961</td><td class="code">            bail!(&quot;a tarefa {task} está com status &#39;{status}&#39;; o baseline só é coletado com status &#39;{in_progress}&#39; (vostok task start)&quot;);</td></tr>
+<tr><td class="ln">956</td><td class="code">        }</td><td class="ln">962</td><td class="code">        }</td></tr>
+<tr><td class="ln">957</td><td class="code del">        let dir = self.evidence_dir(&amp;file)?.join(&quot;baseline&quot;);</td><td class="ln">963</td><td class="code add">        let conflicts = self.created_conflicts(&amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">964</td><td class="code add">        if !conflicts.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">965</td><td class="code add">            bail!(&quot;{}&quot;, conflicts.join(&quot;\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">966</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">967</td><td class="code add">        let (dir, detail) = self.collect_baseline(&amp;file, task)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">968</td><td class="code add">        self.record_step(&amp;file, &quot;baseline&quot;, &quot;coletado&quot;, &amp;detail)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">969</td><td class="code add">        println!(&quot;Baseline de {task} coletado em {}: {detail}&quot;, dir.display());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">970</td><td class="code add">        Ok(())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">971</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">972</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">973</td><td class="code add">    /// Mensagens dos caminhos que a tarefa cria e que já existem no projeto.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">974</td><td class="code add">    fn created_conflicts(&amp;self, file: &amp;Path) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">975</td><td class="code add">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">976</td><td class="code add">        Ok(self</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">977</td><td class="code add">            .created_paths(file)?</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">978</td><td class="code add">            .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">979</td><td class="code add">            .filter(|path| root.join(path).exists())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">980</td><td class="code add">            .map(|path| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">981</td><td class="code add">                format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">982</td><td class="code add">                    &quot;&#39;{path}&#39; já existe, mas a tarefa o cria: o estado anterior já foi alterado; restaure o estado anterior antes de coletar o baseline&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">983</td><td class="code add">                )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">984</td><td class="code add">            })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">985</td><td class="code add">            .collect())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">986</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">987</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">988</td><td class="code add">    /// Executa e grava o baseline; não grava registro nem status.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">989</td><td class="code add">    fn collect_baseline(&amp;self, file: &amp;Path, task: &amp;str) -&gt; Result&lt;(PathBuf, String)&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">990</td><td class="code add">        let dir = self.evidence_dir(file)?.join(&quot;baseline&quot;);</td></tr>
+<tr><td class="ln">958</td><td class="code">        if dir.exists() {</td><td class="ln">991</td><td class="code">        if dir.exists() {</td></tr>
+<tr><td class="ln">959</td><td class="code">            bail!(</td><td class="ln">992</td><td class="code">            bail!(</td></tr>
+<tr><td class="ln">960</td><td class="code">                &quot;o baseline de {task} já foi coletado em {}; ele não é sobrescrito&quot;,</td><td class="ln">993</td><td class="code">                &quot;o baseline de {task} já foi coletado em {}; ele não é sobrescrito&quot;,</td></tr>
+<tr><td class="ln">961</td><td class="code">                dir.display()</td><td class="ln">994</td><td class="code">                dir.display()</td></tr>
+<tr><td class="ln">962</td><td class="code">            );</td><td class="ln">995</td><td class="code">            );</td></tr>
+<tr><td class="ln">963</td><td class="code">        }</td><td class="ln">996</td><td class="code">        }</td></tr>
+<tr><td class="ln">964</td><td class="code del">        let content = read(&amp;file)?;</td><td class="ln">997</td><td class="code add">        let content = read(file)?;</td></tr>
+<tr><td class="ln">965</td><td class="code">        let commands = self.baseline_commands(&amp;content)?;</td><td class="ln">998</td><td class="code">        let commands = self.baseline_commands(&amp;content)?;</td></tr>
+<tr><td class="ln">966</td><td class="code">        if commands.is_empty() {</td><td class="ln">999</td><td class="code">        if commands.is_empty() {</td></tr>
+<tr><td class="ln">967</td><td class="code">            bail!(&quot;a tarefa {task} não tem comandos em &#39;Baseline&#39;&quot;);</td><td class="ln">1000</td><td class="code">            bail!(&quot;a tarefa {task} não tem comandos em &#39;Baseline&#39;&quot;);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1000,9 +1033,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1000</td><td class="code">                evidences.len()</td><td class="ln">1033</td><td class="code">                evidences.len()</td></tr>
+<tr><td class="ln">1001</td><td class="code">            ));</td><td class="ln">1034</td><td class="code">            ));</td></tr>
+<tr><td class="ln">1002</td><td class="code">        }</td><td class="ln">1035</td><td class="code">        }</td></tr>
+<tr><td class="ln">1003</td><td class="code del">        self.record_step(&amp;file, &quot;baseline&quot;, &quot;coletado&quot;, &amp;detail)?;</td><td class="ln">1036</td><td class="code add">        Ok((dir, detail))</td></tr>
+<tr><td class="ln">1004</td><td class="code del">        println!(&quot;Baseline de {task} coletado em {}: {detail}&quot;, dir.display());</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1005</td><td class="code del">        Ok(())</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1006</td><td class="code">    }</td><td class="ln">1037</td><td class="code">    }</td></tr>
+<tr><td class="ln">1007</td><td class="code"></td><td class="ln">1038</td><td class="code"></td></tr>
+<tr><td class="ln">1008</td><td class="code">    /// Comandos de &quot;Baseline&quot;, sem os acentos graves.</td><td class="ln">1039</td><td class="code">    /// Comandos de &quot;Baseline&quot;, sem os acentos graves.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1036,6 +1067,9 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1036</td><td class="code">    fn tests(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td><td class="ln">1067</td><td class="code">    fn tests(&amp;self, spec: &amp;str, task: &amp;str) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">1037</td><td class="code">        let file = self.find_task(spec, task)?;</td><td class="ln">1068</td><td class="code">        let file = self.find_task(spec, task)?;</td></tr>
+<tr><td class="ln">1038</td><td class="code">        self.require_running(&amp;file, task)?;</td><td class="ln">1069</td><td class="code">        self.require_running(&amp;file, task)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1070</td><td class="code add">        if !self.evidence_dir(&amp;file)?.join(&quot;baseline&quot;).is_dir() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1071</td><td class="code add">            bail!(&quot;o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1072</td><td class="code add">        }</td></tr>
+<tr><td class="ln">1039</td><td class="code">        let block = verify_block(&amp;self.subsection(&amp;read(&amp;file)?, &quot;verify_subsection&quot;)?);</td><td class="ln">1073</td><td class="code">        let block = verify_block(&amp;self.subsection(&amp;read(&amp;file)?, &quot;verify_subsection&quot;)?);</td></tr>
+<tr><td class="ln">1040</td><td class="code">        if !has_text(&amp;block) {</td><td class="ln">1074</td><td class="code">        if !has_text(&amp;block) {</td></tr>
+<tr><td class="ln">1041</td><td class="code">            bail!(</td><td class="ln">1075</td><td class="code">            bail!(</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1110,7 +1144,8 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1110</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td><td class="ln">1144</td><td class="code">        let dir = evidence.join(&quot;validation/regression&quot;);</td></tr>
+<tr><td class="ln">1111</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td><td class="ln">1145</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td></tr>
+<tr><td class="ln">1112</td><td class="code">        let accepted = latest_acceptances(&amp;dir);</td><td class="ln">1146</td><td class="code">        let accepted = latest_acceptances(&amp;dir);</td></tr>
+<tr><td class="ln">1113</td><td class="code del">        let ignore = self.regression_ignore();</td><td class="ln">1147</td><td class="code add">        let mut ignore = self.regression_ignore();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1148</td><td class="code add">        ignore.extend(self.created_paths(&amp;file)?);</td></tr>
+<tr><td class="ln">1114</td><td class="code"></td><td class="ln">1149</td><td class="code"></td></tr>
+<tr><td class="ln">1115</td><td class="code">        let root = self.project_root()?;</td><td class="ln">1150</td><td class="code">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln">1116</td><td class="code">        let mut changed = String::new();</td><td class="ln">1151</td><td class="code">        let mut changed = String::new();</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1911,7 +1946,12 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1911</td><td class="code">        let running = self.is_running(&amp;status_of(file));</td><td class="ln">1946</td><td class="code">        let running = self.is_running(&amp;status_of(file));</td></tr>
+<tr><td class="ln">1912</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream, running)?);</td><td class="ln">1947</td><td class="code">        errors.extend(self.change_errors(&amp;content, upstream, running)?);</td></tr>
+<tr><td class="ln">1913</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td><td class="ln">1948</td><td class="code">        errors.extend(self.done_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1914</td><td class="code del">        errors.extend(self.baseline_errors(&amp;content)?);</td><td class="ln">1949</td><td class="code add">        let created = if running {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1950</td><td class="code add">            Vec::new()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1951</td><td class="code add">        } else {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1952</td><td class="code add">            self.created_paths(file)?</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1953</td><td class="code add">        };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1954</td><td class="code add">        errors.extend(self.baseline_errors(&amp;content, &amp;created)?);</td></tr>
+<tr><td class="ln">1915</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td><td class="ln">1955</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td></tr>
+<tr><td class="ln">1916</td><td class="code">        Ok(errors</td><td class="ln">1956</td><td class="code">        Ok(errors</td></tr>
+<tr><td class="ln">1917</td><td class="code">            .into_iter()</td><td class="ln">1957</td><td class="code">            .into_iter()</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2054,7 +2094,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2054</td><td class="code">    }</td><td class="ln">2094</td><td class="code">    }</td></tr>
+<tr><td class="ln">2055</td><td class="code"></td><td class="ln">2095</td><td class="code"></td></tr>
+<tr><td class="ln">2056</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td><td class="ln">2096</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td></tr>
+<tr><td class="ln">2057</td><td class="code del">    fn baseline_errors(&amp;self, content: &amp;str) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">2097</td><td class="code add">    fn baseline_errors(&amp;self, content: &amp;str, created: &amp;[String]) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">2058</td><td class="code">        let text = self.subsection(content, &quot;baseline_subsection&quot;)?;</td><td class="ln">2098</td><td class="code">        let text = self.subsection(content, &quot;baseline_subsection&quot;)?;</td></tr>
+<tr><td class="ln">2059</td><td class="code">        if text.is_empty() {</td><td class="ln">2099</td><td class="code">        if text.is_empty() {</td></tr>
+<tr><td class="ln">2060</td><td class="code">            return Ok(Vec::new());</td><td class="ln">2100</td><td class="code">            return Ok(Vec::new());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2065,6 +2105,9 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2065</td><td class="code">        for item in text.lines().filter(|line| has_text(line)) {</td><td class="ln">2105</td><td class="code">        for item in text.lines().filter(|line| has_text(line)) {</td></tr>
+<tr><td class="ln">2066</td><td class="code">            if is_baseline_item(item) {</td><td class="ln">2106</td><td class="code">            if is_baseline_item(item) {</td></tr>
+<tr><td class="ln">2067</td><td class="code">                count += 1;</td><td class="ln">2107</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2108</td><td class="code add">                if let Some(command) = baseline_command(item) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2109</td><td class="code add">                    errors.extend(delivery_errors(&amp;sub, command, created));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2110</td><td class="code add">                }</td></tr>
+<tr><td class="ln">2068</td><td class="code">            } else {</td><td class="ln">2111</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">2069</td><td class="code">                errors.push(format!(</td><td class="ln">2112</td><td class="code">                errors.push(format!(</td></tr>
+<tr><td class="ln">2070</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td><td class="ln">2113</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2515,6 +2558,18 @@ fn is_baseline_item(line: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln">2515</td><td class="code">        .is_some_and(|(_, rest)| rest.is_empty())</td><td class="ln">2558</td><td class="code">        .is_some_and(|(_, rest)| rest.is_empty())</td></tr>
+<tr><td class="ln">2516</td><td class="code">}</td><td class="ln">2559</td><td class="code">}</td></tr>
+<tr><td class="ln">2517</td><td class="code"></td><td class="ln">2560</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2561</td><td class="code add">/// Um erro por caminho `criar` citado no comando de &quot;Baseline&quot;: o baseline mede o que a tarefa</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2562</td><td class="code add">/// não pode quebrar, não a entrega.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2563</td><td class="code add">pub(super) fn delivery_errors(sub: &amp;str, command: &amp;str, created: &amp;[String]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2564</td><td class="code add">    created</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2565</td><td class="code add">        .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2566</td><td class="code add">        .filter(|path| command.contains(path.as_str()))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2567</td><td class="code add">        .map(|path| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2568</td><td class="code add">            format!(&quot;&#39;{sub}&#39; com comando que cita &#39;{path}&#39;, que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2569</td><td class="code add">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2570</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2571</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2572</td><td class="code add"></td></tr>
+<tr><td class="ln">2518</td><td class="code">/// Comando de um item de &quot;Baseline&quot; (&quot;- `comando`&quot;); o comando pode ter crases.</td><td class="ln">2573</td><td class="code">/// Comando de um item de &quot;Baseline&quot; (&quot;- `comando`&quot;); o comando pode ter crases.</td></tr>
+<tr><td class="ln">2519</td><td class="code">fn baseline_command(line: &amp;str) -&gt; Option&lt;&amp;str&gt; {</td><td class="ln">2574</td><td class="code">fn baseline_command(line: &amp;str) -&gt; Option&lt;&amp;str&gt; {</td></tr>
+<tr><td class="ln">2520</td><td class="code">    line.strip_prefix(&quot;- `&quot;)?</td><td class="ln">2575</td><td class="code">    line.strip_prefix(&quot;- `&quot;)?</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/plan.rs</b><span class="tag criar">+45</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1125,3 +1125,48 @@ fn waves_public_function_computes_the_waves() {</td></tr>
+<tr><td class="ln">1125</td><td class="code">    assert_eq!(waves[&quot;TASK-02&quot;], 2);</td><td class="ln">1125</td><td class="code">    assert_eq!(waves[&quot;TASK-02&quot;], 2);</td></tr>
+<tr><td class="ln">1126</td><td class="code">    assert_eq!(waves[&quot;TASK-03&quot;], 1);</td><td class="ln">1126</td><td class="code">    assert_eq!(waves[&quot;TASK-03&quot;], 1);</td></tr>
+<tr><td class="ln">1127</td><td class="code">}</td><td class="ln">1127</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1128</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1129</td><td class="code add">// --- Baseline sem a entrega (SPEC-017) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1130</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1131</td><td class="code add">const DELIVERY_MESSAGE: &amp;str = &quot;&#39;Baseline&#39; com comando que cita &#39;novo.txt&#39;, que a tarefa cria&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1132</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1133</td><td class="code add">fn set_baseline(task: &amp;std::path::Path, command: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1134</td><td class="code add">    let text = std::fs::read_to_string(task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1135</td><td class="code add">    std::fs::write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1136</td><td class="code add">        task,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1137</td><td class="code add">        text.replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1138</td><td class="code add">            &quot;### Baseline\n\n- `true`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1139</td><td class="code add">            &amp;format!(&quot;### Baseline\n\n- `{command}`&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1140</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1141</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1142</td><td class="code add">    .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1143</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1144</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1145</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1146</td><td class="code add">fn baseline_delivery_is_refused_by_the_plan_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1147</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1148</td><td class="code add">    let task = plan_with_evidence(&amp;project, &quot;Não se aplica.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1149</td><td class="code add">    set_baseline(&amp;task, &quot;test -e novo.txt &amp;&amp; echo existe&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1150</td><td class="code add">    let output = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1151</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1152</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1153</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1154</td><td class="code add">        .failure()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1155</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1156</td><td class="code add">        .stderr</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1157</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1158</td><td class="code add">    let stderr = String::from_utf8(output).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1159</td><td class="code add">    assert!(stderr.contains(DELIVERY_MESSAGE), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1160</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1161</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1162</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1163</td><td class="code add">fn baseline_delivery_other_commands_stay_valid_in_the_plan() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1164</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1165</td><td class="code add">    let task = plan_with_evidence(&amp;project, &quot;Não se aplica.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1166</td><td class="code add">    set_baseline(&amp;task, &quot;cargo --version&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1167</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1168</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1169</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1170</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1171</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1172</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+200</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1292,6 +1292,112 @@ fn model_start_without_model_keeps_the_record() {</td></tr>
+<tr><td class="ln">1292</td><td class="code">    assert!(!line.contains(&quot;modelo:&quot;), &quot;{line}&quot;);</td><td class="ln">1292</td><td class="code">    assert!(!line.contains(&quot;modelo:&quot;), &quot;{line}&quot;);</td></tr>
+<tr><td class="ln">1293</td><td class="code">}</td><td class="ln">1293</td><td class="code">}</td></tr>
+<tr><td class="ln">1294</td><td class="code"></td><td class="ln">1294</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1295</td><td class="code add">// --- Baseline garantido no início (SPEC-016) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1296</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1297</td><td class="code add">const BASELINE_DIR: &amp;str = &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/baseline&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1298</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1299</td><td class="code add">fn approved_task(baseline: &amp;str) -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1300</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1301</td><td class="code add">    let content = complete_task(&quot;pending&quot;, &quot;Não se aplica.&quot;).replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1302</td><td class="code add">        &quot;### Baseline\n\n- `true`\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1303</td><td class="code add">        &amp;format!(&quot;### Baseline\n\n{baseline}\n&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1304</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1305</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1306</td><td class="code add">    success_stdout(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;record-manual&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1307</td><td class="code add">    success_stdout(&amp;mut nested(&amp;project, &quot;approve&quot;, &quot;approve&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1308</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1309</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1310</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1311</td><td class="code add">fn in_progress_without_baseline() -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1312</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1313</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1314</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1315</td><td class="code add">        TASK_PATH,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1316</td><td class="code add">        &amp;complete_task(&quot;in_progress&quot;, &quot;Não se aplica.&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1317</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1318</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1319</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1320</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1321</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1322</td><td class="code add">fn start_baseline_is_collected_by_the_start() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1323</td><td class="code add">    let project = approved_task(&quot;- `true`\n- `echo antes`&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1324</td><td class="code add">    let output = success_stdout(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1325</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1326</td><td class="code add">    assert!(content.contains(&quot;\nstatus: in_progress\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1327</td><td class="code add">    assert!(exists(&amp;project, &amp;format!(&quot;{BASELINE_DIR}/01.out&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1328</td><td class="code add">    assert!(exists(&amp;project, &amp;format!(&quot;{BASELINE_DIR}/02.out&quot;)));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1329</td><td class="code add">    let start = content.find(&quot;| início |&quot;).expect(&quot;início&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1330</td><td class="code add">    let baseline = content.find(&quot;| baseline |&quot;).expect(&quot;baseline&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1331</td><td class="code add">    assert!(start &lt; baseline, &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1332</td><td class="code add">    assert!(output.contains(&quot;Baseline de TASK-01 coletado&quot;), &quot;{output}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1333</td><td class="code add">    assert!(output.contains(&quot;códigos de saída: 0, 0&quot;), &quot;{output}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1334</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1335</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1336</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1337</td><td class="code add">fn start_baseline_refuses_an_existing_created_path() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1338</td><td class="code add">    let project = approved_task(&quot;- `true`&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1339</td><td class="code add">    write(&amp;project, &quot;novo.txt&quot;, &quot;já existe&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1340</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1341</td><td class="code add">    assert!(stderr.contains(&quot;&#39;novo.txt&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1342</td><td class="code add">    assert!(stderr.contains(&quot;a tarefa o cria&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1343</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1344</td><td class="code add">    assert!(content.contains(&quot;\nstatus: approved\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1345</td><td class="code add">    assert!(!exists(&amp;project, BASELINE_DIR));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1346</td><td class="code add">    assert!(!content.contains(&quot;| início |&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1347</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1348</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1349</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1350</td><td class="code add">fn start_baseline_failure_keeps_the_task_approved() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1351</td><td class="code add">    let project = approved_task(&quot;- `true`&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1352</td><td class="code add">    write(&amp;project, &quot;vostok/work/tasks/SPEC-001/evidence&quot;, &quot;arquivo&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1353</td><td class="code add">    failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1354</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1355</td><td class="code add">    assert!(content.contains(&quot;\nstatus: approved\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1356</td><td class="code add">    assert!(!content.contains(&quot;| início |&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1357</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1358</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1359</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1360</td><td class="code add">fn start_baseline_legacy_task_still_collects() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1361</td><td class="code add">    let project = task_before_baseline(&amp;[(&quot;a.txt&quot;, &quot;x&quot;)], &quot;Não se aplica.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1362</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1363</td><td class="code add">    assert!(exists(&amp;project, BASELINE_DIR));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1364</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1365</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1366</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1367</td><td class="code add">fn start_baseline_legacy_task_refuses_an_existing_created_path() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1368</td><td class="code add">    let project = in_progress_without_baseline();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1369</td><td class="code add">    write(&amp;project, &quot;novo.txt&quot;, &quot;já existe&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1370</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;baseline&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1371</td><td class="code add">    assert!(stderr.contains(&quot;&#39;novo.txt&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1372</td><td class="code add">    assert!(!exists(&amp;project, BASELINE_DIR));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1373</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1374</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1375</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1376</td><td class="code add">fn start_baseline_tests_refuse_a_task_without_baseline() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1377</td><td class="code add">    let project = in_progress_without_baseline();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1378</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;tests&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1379</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1380</td><td class="code add">        stderr.contains(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1381</td><td class="code add">            &quot;o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPEC-001 TASK-01&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1382</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1383</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1384</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1385</td><td class="code add">    let content = read(&amp;project, TASK_PATH);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1386</td><td class="code add">    assert!(content.contains(&quot;\nattempts: 0\n&quot;), &quot;{content}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1387</td><td class="code add">    assert!(!exists(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1388</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1389</td><td class="code add">        &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/validation/tests.out&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1390</td><td class="code add">    ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1391</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1392</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1393</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1394</td><td class="code add">fn start_baseline_second_baseline_is_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1395</td><td class="code add">    let project = approved_task(&quot;- `true`&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1396</td><td class="code add">    success_stdout(&amp;mut task(&amp;project, &amp;[&quot;start&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1397</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;baseline&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1398</td><td class="code add">    assert!(stderr.contains(&quot;já foi coletado&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1399</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1400</td><td class="code add"></td></tr>
+<tr><td class="ln">1295</td><td class="code">// --- Status das tarefas (SPEC-014) ---</td><td class="ln">1401</td><td class="code">// --- Status das tarefas (SPEC-014) ---</td></tr>
+<tr><td class="ln">1296</td><td class="code"></td><td class="ln">1402</td><td class="code"></td></tr>
+<tr><td class="ln">1297</td><td class="code">fn status_task(project: &amp;Project, id: &amp;str, lines: &amp;[&amp;str]) {</td><td class="ln">1403</td><td class="code">fn status_task(project: &amp;Project, id: &amp;str, lines: &amp;[&amp;str]) {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1558,3 +1664,97 @@ fn status_refuses_an_invalid_override() {</td></tr>
+<tr><td class="ln">1558</td><td class="code">        &quot;{stderr}&quot;</td><td class="ln">1664</td><td class="code">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln">1559</td><td class="code">    );</td><td class="ln">1665</td><td class="code">    );</td></tr>
+<tr><td class="ln">1560</td><td class="code">}</td><td class="ln">1666</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1667</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1668</td><td class="code add">// --- Baseline sem a entrega (SPEC-017) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1669</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1670</td><td class="code add">const DELIVERY_COMMAND: &amp;str = &quot;test -e novo.txt &amp;&amp; echo existe&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1671</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1672</td><td class="code add">fn with_delivery_baseline(status: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1673</td><td class="code add">    complete_task(status, &quot;Não se aplica.&quot;).replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1674</td><td class="code add">        &quot;### Baseline\n\n- `true`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1675</td><td class="code add">        &amp;format!(&quot;### Baseline\n\n- `{DELIVERY_COMMAND}`&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1676</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1677</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1678</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1679</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1680</td><td class="code add">fn baseline_delivery_is_refused_by_the_task_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1681</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1682</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;with_delivery_baseline(&quot;pending&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1683</td><td class="code add">    let output = nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1684</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1685</td><td class="code add">        .failure()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1686</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1687</td><td class="code add">        .stderr</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1688</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1689</td><td class="code add">    let stderr = String::from_utf8(output).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1690</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1691</td><td class="code add">        stderr.contains(&quot;&#39;Baseline&#39; com comando que cita &#39;novo.txt&#39;, que a tarefa cria&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1692</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1693</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1694</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1695</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1696</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1697</td><td class="code add">fn baseline_delivery_running_task_is_not_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1698</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1699</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;with_delivery_baseline(&quot;in_progress&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1700</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1701</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1702</td><td class="code add">        &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/baseline/.keep&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1703</td><td class="code add">        &quot;&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1704</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1705</td><td class="code add">    let output = nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;).output().unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1706</td><td class="code add">    let stderr = String::from_utf8(output.stderr).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1707</td><td class="code add">    assert!(!stderr.contains(&quot;que a tarefa cria&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1708</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1709</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1710</td><td class="code add">const CREATED_BASELINE: &amp;str = &quot;for p in src/novo.rs LICENSE; do test -e \&quot;$p\&quot; &amp;&amp; echo \&quot;$p existe\&quot; || echo \&quot;$p ausente\&quot;; done&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1711</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1712</td><td class="code add">/// Tarefa em execução que cria `src/novo.rs`, com `LICENSE` gravado e baseline já coletado.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1713</td><td class="code add">fn task_with_created_path() -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1714</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1715</td><td class="code add">    write(&amp;project, &quot;LICENSE&quot;, &quot;texto&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1716</td><td class="code add">    let text = complete_task(&quot;in_progress&quot;, &quot;Não se aplica.&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1717</td><td class="code add">        .replace(&quot;- `novo.txt` (criar)&quot;, &quot;- `src/novo.rs` (criar)&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1718</td><td class="code add">        .replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1719</td><td class="code add">            &quot;### Baseline\n\n- `true`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1720</td><td class="code add">            &amp;format!(&quot;### Baseline\n\n- `{CREATED_BASELINE}`&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1721</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1722</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;text);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1723</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1724</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1725</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1726</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1727</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1728</td><td class="code add">fn baseline_delivery_created_path_is_not_a_regression() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1729</td><td class="code add">    let project = task_with_created_path();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1730</td><td class="code add">    write(&amp;project, &quot;src/novo.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1731</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1732</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1733</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1734</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1735</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1736</td><td class="code add">fn baseline_delivery_other_lines_are_still_compared() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1737</td><td class="code add">    let project = task_with_created_path();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1738</td><td class="code add">    write(&amp;project, &quot;src/novo.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1739</td><td class="code add">    std::fs::remove_file(project.root().join(&quot;LICENSE&quot;)).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1740</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1741</td><td class="code add">    let output = task(&amp;project, &amp;[&quot;regression&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1742</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1743</td><td class="code add">        .failure()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1744</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1745</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1746</td><td class="code add">    let all = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1747</td><td class="code add">        &quot;{}{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1748</td><td class="code add">        String::from_utf8_lossy(&amp;output.stdout),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1749</td><td class="code add">        String::from_utf8_lossy(&amp;output.stderr)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1750</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1751</td><td class="code add">    assert!(all.contains(&quot;LICENSE&quot;), &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1752</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1753</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1754</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1755</td><td class="code add">fn baseline_delivery_task_without_created_paths_is_unchanged() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1756</td><td class="code add">    let project = running_task(&amp;[(&quot;a.txt&quot;, &quot;antes&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1757</td><td class="code add">    write(&amp;project, &quot;a.txt&quot;, &quot;depois&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1758</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1759</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1760</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/approve-plan/SKILL.md</b><span class="tag criar">+2</span><span class="tag remover">−2</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3,7 +3,7 @@ name: approve-plan</td></tr>
+<tr><td class="ln">3</td><td class="code">description: &quot;Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano.&quot;</td><td class="ln">3</td><td class="code">description: &quot;Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano.&quot;</td></tr>
+<tr><td class="ln">4</td><td class="code">allowed-tools: Read Edit Glob Bash(vostok *)</td><td class="ln">4</td><td class="code">allowed-tools: Read Edit Glob Bash(vostok *)</td></tr>
+<tr><td class="ln">5</td><td class="code">metadata:</td><td class="ln">5</td><td class="code">metadata:</td></tr>
+<tr><td class="ln">6</td><td class="code del">  version: &quot;1.0.0&quot;</td><td class="ln">6</td><td class="code add">  version: &quot;1.1.1&quot;</td></tr>
+<tr><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td></tr>
+<tr><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status&quot;</td><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status&quot;</td></tr>
+<tr><td class="ln">9</td><td class="code">  templates: &quot;templates/task/task.md&quot;</td><td class="ln">9</td><td class="code">  templates: &quot;templates/task/task.md&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -107,7 +107,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj</td></tr>
+<tr><td class="ln">107</td><td class="code">- **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec.</td><td class="ln">107</td><td class="code">- **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec.</td></tr>
+<tr><td class="ln">108</td><td class="code">- **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.</td><td class="ln">108</td><td class="code">- **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.</td></tr>
+<tr><td class="ln">109</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td><td class="ln">109</td><td class="code">- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.</td></tr>
+<tr><td class="ln">110</td><td class="code del">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td><td class="ln">110</td><td class="code add">- **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. O baseline detecta regressão: mede o que já existe, que a tarefa toca e não pode quebrar. Para cada `alterar` de &quot;Mudar&quot;, inclua os testes, o lint e a checagem de tipos que cobrem esses arquivos, e as saídas atuais que eles produzem. Para cada `remover`, inclua o que referencia o caminho (build, imports, links). Meça isso e nunca a entrega da tarefa: nem os caminhos `criar` (o `vostok plan approve validate` recusa), nem o texto ou os testes que a tarefa acrescenta; quando a saída lista testes, filtre os nomes novos da tarefa e tire o resumo de contagem (`grep -v &#39;^test result&#39;` ou equivalente), que muda com os testes novos. Prefira comandos focados no que a tarefa toca à suíte inteira, e ordene saídas que mudam de ordem entre execuções. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.</td></tr>
+<tr><td class="ln">111</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td><td class="ln">111</td><td class="code">- **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado.</td></tr>
+<tr><td class="ln">112</td><td class="code">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Com `persist_dir` configurado em `config/tasks.yml`, a cópia das evidências para o projeto é feita pelo `vostok task persist`: o item nunca leva o destino da cópia. Prefira a automática; use a manual só quando não houver comando que a produza. Cada evidência automática busca algo que só existe depois da tarefa: o nome de um teste novo, um texto que a tarefa acrescenta, nunca um texto que já existe; antes de escrevê-la, rode o comando e confira que a saída de hoje não é a esperada. O `vostok task baseline` grava a saída de cada evidência automática antes da mudança, e o `vostok task evidence` avisa quando a saída final é igual. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td><td class="ln">112</td><td class="code">- **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Com `persist_dir` configurado em `config/tasks.yml`, a cópia das evidências para o projeto é feita pelo `vostok task persist`: o item nunca leva o destino da cópia. Prefira a automática; use a manual só quando não houver comando que a produza. Cada evidência automática busca algo que só existe depois da tarefa: o nome de um teste novo, um texto que a tarefa acrescenta, nunca um texto que já existe; antes de escrevê-la, rode o comando e confira que a saída de hoje não é a esperada. O `vostok task baseline` grava a saída de cada evidência automática antes da mudança, e o `vostok task evidence` avisa quando a saída final é igual. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:</td></tr>
+<tr><td class="ln">113</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td><td class="ln">113</td><td class="code">  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/personas/engenheiro.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -33,7 +33,7 @@ Você atua como Engenheiro do time do harness Vostok. Seu foco é deixar a execu</td></tr>
+<tr><td class="ln">33</td><td class="code"></td><td class="ln">33</td><td class="code"></td></tr>
+<tr><td class="ln">34</td><td class="code">[persona/engenheiro-01]: Esta persona se soma às regras do harness (`rules/agent/`) e do projeto (`rules/project/`) e nunca as substitui; em conflito, as regras prevalecem ([agent/boundaries-03]).</td><td class="ln">34</td><td class="code">[persona/engenheiro-01]: Esta persona se soma às regras do harness (`rules/agent/`) e do projeto (`rules/project/`) e nunca as substitui; em conflito, as regras prevalecem ([agent/boundaries-03]).</td></tr>
+<tr><td class="ln">35</td><td class="code">[persona/engenheiro-02]: Os passos pedem os testes antes do código.</td><td class="ln">35</td><td class="code">[persona/engenheiro-02]: Os passos pedem os testes antes do código.</td></tr>
+<tr><td class="ln">36</td><td class="code del">[persona/engenheiro-03]: O baseline usa só comandos estáveis, cuja saída a tarefa não muda.</td><td class="ln">36</td><td class="code add">[persona/engenheiro-03]: O baseline mede o que já existe e a tarefa toca (testes, lint e saídas dos arquivos alterados, referências aos removidos), com comandos estáveis e focados; nunca a entrega da tarefa.</td></tr>
+<tr><td class="ln">37</td><td class="code">[persona/engenheiro-04]: Nenhum passo deixa escolha de desenho para quem executa.</td><td class="ln">37</td><td class="code">[persona/engenheiro-04]: Nenhum passo deixa escolha de desenho para quem executa.</td></tr>
+<tr><td class="ln">38</td><td class="code"></td><td class="ln">38</td><td class="code"></td></tr>
+<tr><td class="ln">39</td><td class="code">## Limites</td><td class="ln">39</td><td class="code">## Limites</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">22037ad</td><td class="mono">2026-10-30</td><td>fix(skills): drop the test count summary from baselines that list tests</td></tr>
+<tr><td class="mono">9a19bae</td><td class="mono">2026-10-30</td><td>fix(task): keep the task delivery out of the baseline and the regression</td></tr>
+<tr><td class="mono">a1a39cf</td><td class="mono">2026-10-30</td><td>fix(task): collect the baseline in task start and refuse tasks without one</td></tr>
+<tr><td class="mono">f57d7e5</td><td class="mono">2026-10-30</td><td>fix(skills): guide the task baseline by what the task touches, never its delivery</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Decisão</th><th>Alternativa descartada</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td>2A: recusar na validação e ignorar na regressão as linhas com caminho <code>criar</code></td><td>Só validação e orientação</td><td>Destrava as tarefas já aprovadas sem ajuste</td></tr>
+<tr><td>3A: orientação por ação de &quot;Mudar&quot;</td><td>Exigir que o baseline cite os caminhos alterados ou removidos</td><td>A exigência recusaria casos legítimos como <code>cargo test -p vostok</code></td></tr>
+<tr><td>Conferir o caminho como escrito, só para <code>criar</code></td><td>Recusar também <code>alterar</code></td><td><code>bash -n arquivo</code> e similares são baseline legítimo</td></tr>
+<tr><td>Sem recusa em tarefa em execução com baseline coletado</td><td>Recusar sempre</td><td>O baseline não pode mudar depois de coletado e a recusa travaria qualquer ajuste</td></tr>
+<tr><td>Código de saída continua comparado</td><td>Ignorar tudo que cita o caminho</td><td>Evita esconder falhas reais</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>Depois da implementação, a regressão da SPEC-016 TASK-01 bloqueou pela contagem de testes de outra tarefa no mesmo arquivo: o resumo <code>test result</code> do baseline mudou com os testes novos. Por isso a orientação ganhou a regra de tirar esse resumo quando o baseline lista testes (commit 22037ad).</li>
+<li>Na TASK-02, o texto &quot;Nunca a entrega&quot; foi corrigido para minúscula para casar com o <code>grep</code> da Verificação.</li>
+<li>Divergência na spec: o CT-01 cita <code>vostok plan validate</code>, mas a validação que recusa é a do <code>vostok plan approve validate</code> (e <code>task approve</code>/<code>task adjust validate</code>); a tarefa foi escrita com o comando certo.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>A comparação é por trecho: um caminho curto (ex.: <code>LICENSE</code>) pode ignorar linhas sem relação.</li>
+<li>Comando que só devolve código de saída (<code>test -e src/x.rs</code>) continua bloqueando; fica para <code>--accept-regression</code>.</li>
+<li><code>apps/cli/src/commands/task.rs</code> também é alterado pela SPEC-016; as duas devem ser publicadas juntas.</li>
+<li>As skills e personas novas chegam aos projetos pelo <code>vostok update</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Referência</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td>Issue Ishtar-Sink/Vostok#6</td><td>Relato, reprodução e alternativas</td></tr>
+<tr><td><code>apps/cli/src/commands/task.rs</code> (<code>delivery_errors</code>, <code>baseline_errors</code>, <code>regression</code>)</td><td>Núcleo da recusa e da regressão</td></tr>
+<tr><td><code>apps/cli/src/commands/plan.rs</code> (<code>task_errors</code>, <code>baseline_errors</code>)</td><td>Recusa na validação do plano</td></tr>
+<tr><td><code>apps/cli/tests/task.rs</code> e <code>apps/cli/tests/plan.rs</code></td><td>Testes <code>baseline_delivery_*</code></td></tr>
+<tr><td><code>packages/harness/skills/default/approve-plan/SKILL.md</code></td><td>Orientação de <code>TASK_BASELINE</code></td></tr>
+<tr><td><code>packages/harness/personas/engenheiro.md</code></td><td>Regra [persona/engenheiro-03]</td></tr>
+<tr><td>Commits 9a19bae, f57d7e5, 22037ad</td><td>CLI, skills e regra do resumo de contagem</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-017, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

@@ -882,13 +882,17 @@ impl Tasks {
             other => other,
         };
         let file = self.find_task(spec, task)?;
-        let blockers = self.start_blockers(spec, task, &file)?;
+        let mut blockers = self.start_blockers(spec, task, &file)?;
+        if blockers.is_empty() {
+            blockers = self.created_conflicts(&file)?;
+        }
         if !blockers.is_empty() {
             bail!(
                 "a tarefa {task} não pode ser iniciada; nada foi alterado:\n{}",
                 blockers.join("\n")
             );
         }
+        let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
         let in_progress = &self.status.in_progress;
         frontmatter_set(&file, "status", in_progress)?;
         let approved_at = frontmatter_get(&file, "approved_at").unwrap_or_else(|_| "?".into());
@@ -898,8 +902,10 @@ impl Tasks {
             detail.push_str(&format!("; modelo: {model}"));
         }
         self.record_step(&file, "início", in_progress, &detail)?;
+        self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
         println!(
-            "Tarefa {task} iniciada: status '{in_progress}'. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline {spec} {task}"
+            "Tarefa {task} iniciada: status '{in_progress}'. Baseline de {task} coletado em {}: {baseline_detail}",
+            dir.display()
         );
         Ok(())
     }
@@ -954,14 +960,41 @@ impl Tasks {
         if status != *in_progress {
             bail!("a tarefa {task} está com status '{status}'; o baseline só é coletado com status '{in_progress}' (vostok task start)");
         }
-        let dir = self.evidence_dir(&file)?.join("baseline");
+        let conflicts = self.created_conflicts(&file)?;
+        if !conflicts.is_empty() {
+            bail!("{}", conflicts.join("\n"));
+        }
+        let (dir, detail) = self.collect_baseline(&file, task)?;
+        self.record_step(&file, "baseline", "coletado", &detail)?;
+        println!("Baseline de {task} coletado em {}: {detail}", dir.display());
+        Ok(())
+    }
+
+    /// Mensagens dos caminhos que a tarefa cria e que já existem no projeto.
+    fn created_conflicts(&self, file: &Path) -> Result<Vec<String>> {
+        let root = self.project_root()?;
+        Ok(self
+            .created_paths(file)?
+            .into_iter()
+            .filter(|path| root.join(path).exists())
+            .map(|path| {
+                format!(
+                    "'{path}' já existe, mas a tarefa o cria: o estado anterior já foi alterado; restaure o estado anterior antes de coletar o baseline"
+                )
+            })
+            .collect())
+    }
+
+    /// Executa e grava o baseline; não grava registro nem status.
+    fn collect_baseline(&self, file: &Path, task: &str) -> Result<(PathBuf, String)> {
+        let dir = self.evidence_dir(file)?.join("baseline");
         if dir.exists() {
             bail!(
                 "o baseline de {task} já foi coletado em {}; ele não é sobrescrito",
                 dir.display()
             );
         }
-        let content = read(&file)?;
+        let content = read(file)?;
         let commands = self.baseline_commands(&content)?;
         if commands.is_empty() {
             bail!("a tarefa {task} não tem comandos em 'Baseline'");
@@ -1000,9 +1033,7 @@ impl Tasks {
                 evidences.len()
             ));
         }
-        self.record_step(&file, "baseline", "coletado", &detail)?;
-        println!("Baseline de {task} coletado em {}: {detail}", dir.display());
-        Ok(())
+        Ok((dir, detail))
     }
 
     /// Comandos de "Baseline", sem os acentos graves.
@@ -1036,6 +1067,9 @@ impl Tasks {
     fn tests(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
+        if !self.evidence_dir(&file)?.join("baseline").is_dir() {
+            bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
+        }
         let block = verify_block(&self.subsection(&read(&file)?, "verify_subsection")?);
         if !has_text(&block) {
             bail!(

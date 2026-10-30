@@ -1292,6 +1292,112 @@ fn model_start_without_model_keeps_the_record() {
     assert!(!line.contains("modelo:"), "{line}");
 }
 
+// --- Baseline garantido no início (SPEC-016) ---
+
+const BASELINE_DIR: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/baseline";
+
+fn approved_task(baseline: &str) -> Project {
+    let project = Project::new();
+    let content = complete_task("pending", "Não se aplica.").replace(
+        "### Baseline\n\n- `true`\n",
+        &format!("### Baseline\n\n{baseline}\n"),
+    );
+    write(&project, TASK_PATH, &content);
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    project
+}
+
+fn in_progress_without_baseline() -> Project {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("in_progress", "Não se aplica."),
+    );
+    project
+}
+
+#[test]
+fn start_baseline_is_collected_by_the_start() {
+    let project = approved_task("- `true`\n- `echo antes`");
+    let output = success_stdout(&mut task(&project, &["start"]));
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nstatus: in_progress\n"), "{content}");
+    assert!(exists(&project, &format!("{BASELINE_DIR}/01.out")));
+    assert!(exists(&project, &format!("{BASELINE_DIR}/02.out")));
+    let start = content.find("| início |").expect("início");
+    let baseline = content.find("| baseline |").expect("baseline");
+    assert!(start < baseline, "{content}");
+    assert!(output.contains("Baseline de TASK-01 coletado"), "{output}");
+    assert!(output.contains("códigos de saída: 0, 0"), "{output}");
+}
+
+#[test]
+fn start_baseline_refuses_an_existing_created_path() {
+    let project = approved_task("- `true`");
+    write(&project, "novo.txt", "já existe");
+    let stderr = failure_stderr(&mut task(&project, &["start"]));
+    assert!(stderr.contains("'novo.txt'"), "{stderr}");
+    assert!(stderr.contains("a tarefa o cria"), "{stderr}");
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nstatus: approved\n"), "{content}");
+    assert!(!exists(&project, BASELINE_DIR));
+    assert!(!content.contains("| início |"), "{content}");
+}
+
+#[test]
+fn start_baseline_failure_keeps_the_task_approved() {
+    let project = approved_task("- `true`");
+    write(&project, "vostok/work/tasks/SPEC-001/evidence", "arquivo");
+    failure_stderr(&mut task(&project, &["start"]));
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nstatus: approved\n"), "{content}");
+    assert!(!content.contains("| início |"), "{content}");
+}
+
+#[test]
+fn start_baseline_legacy_task_still_collects() {
+    let project = task_before_baseline(&[("a.txt", "x")], "Não se aplica.");
+    task(&project, &["baseline"]).assert().success();
+    assert!(exists(&project, BASELINE_DIR));
+}
+
+#[test]
+fn start_baseline_legacy_task_refuses_an_existing_created_path() {
+    let project = in_progress_without_baseline();
+    write(&project, "novo.txt", "já existe");
+    let stderr = failure_stderr(&mut task(&project, &["baseline"]));
+    assert!(stderr.contains("'novo.txt'"), "{stderr}");
+    assert!(!exists(&project, BASELINE_DIR));
+}
+
+#[test]
+fn start_baseline_tests_refuse_a_task_without_baseline() {
+    let project = in_progress_without_baseline();
+    let stderr = failure_stderr(&mut task(&project, &["tests"]));
+    assert!(
+        stderr.contains(
+            "o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPEC-001 TASK-01"
+        ),
+        "{stderr}"
+    );
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nattempts: 0\n"), "{content}");
+    assert!(!exists(
+        &project,
+        "vostok/work/tasks/SPEC-001/evidence/TASK-01/validation/tests.out"
+    ));
+}
+
+#[test]
+fn start_baseline_second_baseline_is_refused() {
+    let project = approved_task("- `true`");
+    success_stdout(&mut task(&project, &["start"]));
+    let stderr = failure_stderr(&mut task(&project, &["baseline"]));
+    assert!(stderr.contains("já foi coletado"), "{stderr}");
+}
+
 // --- Status das tarefas (SPEC-014) ---
 
 fn status_task(project: &Project, id: &str, lines: &[&str]) {

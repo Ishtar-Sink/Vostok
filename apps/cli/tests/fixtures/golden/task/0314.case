@@ -39,7 +39,8 @@ Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o temp
 1
 @pre 12
 D estado.txt
-@post 415
-W ea47b5c2dbe0143de271f32ad12e62cb8c3a8968879881095ac571651a0f4526 packages/harness/work/tasks/SPEC-008/TASK-01.md
-W 829302bf71955837888396401d4e42f6b371aa6f3007b08c8422baf8cfac8378 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out
+@post 416
+W b9e9226ce7e061b747f8fa8ae8bad98ecda5be3f1774105a3a9e07df0e22799f packages/harness/work/tasks/SPEC-008/TASK-01.md
 W 9c1d8abb6fc800262693c6c8986db1377e1a4b78bcd50dac5d081b2952e290ef packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.diff
+W 829302bf71955837888396401d4e42f6b371aa6f3007b08c8422baf8cfac8378 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/regression/01.out
+

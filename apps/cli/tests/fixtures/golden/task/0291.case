@@ -22,8 +22,8 @@ TASK-02
 <OUTSIDE>
 @stdin 0
 
-@stdout 136
-Tarefa TASK-02 iniciada: status 'in_progress'. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline SPEC-008 TASK-02
+@stdout 186
+Tarefa TASK-02 iniciada: status 'in_progress'. Baseline de TASK-02 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-02/baseline: 1 comando(s); códigos de saída: 0
 
 @stderr 0
 
@@ -31,5 +31,7 @@ Tarefa TASK-02 iniciada: status 'in_progress'. Colete o baseline antes de mudar 
 0
 @pre 114
 W b1640b8145ebd461b76d33346d9cdc9e57402c3a0e05b4b6db6cda7425183f7d packages/harness/work/tasks/SPEC-008/TASK-01.md
-@post 114
-W 7255d94733d382875a43f186e06606082f5d7c911f059b181072688ea5e172d0 packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 252
+W 9452ab7f54f0f3f6ca6fbd08115e3723cc57b0f4621b5a556f4048b3a193efaf packages/harness/work/tasks/SPEC-008/TASK-02.md
+W dd117dfca230e7d6d9a892efbba9f47903a23a0f8966f3796f94a519d3c33e18 packages/harness/work/tasks/SPEC-008/evidence/TASK-02/baseline/01.out
+

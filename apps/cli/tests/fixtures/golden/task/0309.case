@@ -31,6 +31,7 @@ Testes de TASK-01 passaram. Saída: <ROOT>/packages/harness/work/tasks/SPEC-008/
 0
 @pre 8
 D .falha
-@post 256
-W 20e936b7f8a0860cbaf823da7f1af23ccec230ef84015c51a5549332ff314a56 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 257
+W 56d4fc588742053d41658328c880a5cefdab6293e7960c99ca8b388a381eb2c0 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out
+

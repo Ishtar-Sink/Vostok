@@ -29,8 +29,9 @@ Erro: o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPE
 
 @exit 1
 1
-@pre 183
+@pre 255
 W dd4a3ca5858c3f82c4ae554d6b35dd4890f2d478a04f0d0768a40b3e25aa74c4 .sem-baseline/TASK-01.md
 W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 .sem-baseline/TASK-02.md
+D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out
 @post 0
 

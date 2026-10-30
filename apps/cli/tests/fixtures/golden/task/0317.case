@@ -22,15 +22,14 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 139
-Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline: 1 comando(s); códigos de saída: 0
+@stdout 0
 
-@stderr 0
+@stderr 143
+Erro: o baseline de TASK-01 já foi coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline; ele não é sobrescrito
 
 @exit 1
-0
+1
 @pre 0
 
-@post 251
-W 110a389ef3012743bba78deaf4b6ea715f2cddb157451a148b609313bb2b4239 packages/harness/work/tasks/SPEC-008/TASK-01.md
-W dd117dfca230e7d6d9a892efbba9f47903a23a0f8966f3796f94a519d3c33e18 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out
+@post 0
+

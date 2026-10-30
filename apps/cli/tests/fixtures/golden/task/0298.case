@@ -32,6 +32,7 @@ Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evid
 @pre 53
 D .sem-baseline/TASK-01.md
 D .sem-baseline/TASK-02.md
-@post 251
-W 5aa4965ff3665dc1804ceca8e38025d52652090b7a77b8d6cb879efd4bc87312 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 252
+W ef75fc99973fa59960844fd2a55660eea30c6da6a2a4dbdf47a21030034a258b packages/harness/work/tasks/SPEC-008/TASK-01.md
 W dedcd640617a18ad5071e7dd66176265af14613d7c44549ea424ada3aea8ca7e packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out
+

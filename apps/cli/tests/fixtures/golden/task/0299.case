@@ -31,6 +31,7 @@ Testes de TASK-01 passaram. Saída: <ROOT>/packages/harness/work/tasks/SPEC-008/
 0
 @pre 0
 
-@post 256
-W eacaa4e836eadf2a359241712c51fde0913987180e2d5e792104b4d9af740cfb packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 257
+W b8f944e11fa909d37325bb05ead199e036b9b331172fed26bf51cc42af8bc41e packages/harness/work/tasks/SPEC-008/TASK-01.md
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/validation/tests.out
+

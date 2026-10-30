@@ -35,5 +35,6 @@ Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. A
 0
 @pre 0
 
-@post 114
-W 2cd0539ec72449823694627dad41cae3d374332e783acd2075dcd9719d6e9161 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@post 115
+W 6b5e49876e7d18d501f4bb72bfff227d65e8134a873993bc1c4545278e8125b2 packages/harness/work/tasks/SPEC-008/TASK-01.md
+

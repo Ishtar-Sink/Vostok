@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    bug, commit, context, finalize, init, memory, plan, rules, skill, spec, task, update,
+    bug, commit, context, finalize, init, memory, plan, rules, skill, spec, suggest, task, update,
 };
 
 #[derive(Debug, Parser)]
@@ -50,6 +50,9 @@ pub enum Command {
     /// Relato de defeitos do próprio harness.
     #[command(subcommand)]
     Bug(bug::BugCommand),
+    /// Sugestões de melhoria e de recurso do próprio harness.
+    #[command(subcommand)]
+    Suggest(suggest::SuggestCommand),
     /// Instala o harness no projeto.
     Init(init::InitArgs),
     /// Atualiza o harness instalado.
@@ -68,6 +71,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::Skill(command) => skill::run(command),
         Command::Finalize(command) => finalize::run(command),
         Command::Bug(command) => bug::run(command),
+        Command::Suggest(command) => suggest::run(command),
         Command::Init(args) => init::run(args),
         Command::Update => update::run(),
     }

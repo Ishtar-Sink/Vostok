@@ -1,0 +1,45 @@
+name: Recurso novo do harness
+description: Sugere um recurso novo para o próprio harness Vostok (CLI vostok, skills, regras, templates e configuração distribuídos).
+title: "[harness-feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use este modelo só para recursos novos do próprio harness Vostok: a CLI `vostok`, as skills padrão, as regras do agente, os templates e a configuração distribuídos. Sugestões para o código, as regras ou as skills customizadas do seu projeto não entram aqui.
+
+        A issue é pública: não cole dados privados. Troque caminhos, nomes, trechos de código e saídas do seu projeto por exemplos neutros e mascare segredos com `***`. No projeto, a skill `suggest-harness-feature` monta esta sugestão por você.
+  - type: textarea
+    id: version
+    attributes:
+      label: Versão
+      description: Saída de `vostok --version` e o sistema operacional (`uname -sr`).
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema ou necessidade
+      description: O que falta hoje e por que isso atrapalha.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Recurso proposto
+      description: O recurso desejado e como deveria funcionar.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Exemplo de uso
+      description: Um exemplo neutro de comando ou fluxo usando o recurso.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: Outras formas de resolver e por que ficaram de fora, ou "Nenhuma".
+    validations:
+      required: true

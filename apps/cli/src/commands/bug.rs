@@ -16,7 +16,7 @@ const TEMPLATE: &str = "bug/report.md";
 const TITLE_PREFIX: &str = "[harness-bug]";
 const FRONTMATTER_KEYS: [&str; 3] = ["issue", "title", "created_at"];
 /// Acima disso o navegador ou o GitHub podem cortar o link.
-const MAX_LINK: usize = 8000;
+pub(crate) const MAX_LINK: usize = 8000;
 
 #[derive(Debug, Subcommand)]
 pub enum BugCommand {
@@ -123,14 +123,14 @@ fn link(harness: &Harness, file: &str) -> Result<()> {
 }
 
 /// Conteúdo depois do front-matter.
-fn body_of(content: &str) -> &str {
+pub(crate) fn body_of(content: &str) -> &str {
     content
         .strip_prefix("---\n")
         .and_then(|rest| rest.find("\n---\n").map(|end| &rest[end + 5..]))
         .unwrap_or(content)
 }
 
-fn without_comments(text: &str) -> String {
+pub(crate) fn without_comments(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(start) = rest.find("<!--") {
@@ -148,7 +148,7 @@ fn without_comments(text: &str) -> String {
 }
 
 /// Texto da seção `heading` até a próxima seção `## `.
-fn section<'a>(body: &'a str, heading: &str) -> Option<&'a str> {
+pub(crate) fn section<'a>(body: &'a str, heading: &str) -> Option<&'a str> {
     let start = body
         .match_indices(heading)
         .find(|(index, _)| {
@@ -162,7 +162,7 @@ fn section<'a>(body: &'a str, heading: &str) -> Option<&'a str> {
 }
 
 /// Percent-encoding de URL: só os caracteres não reservados ficam como estão.
-fn percent_encode(text: &str) -> String {
+pub(crate) fn percent_encode(text: &str) -> String {
     let mut out = String::with_capacity(text.len() * 3);
     for byte in text.bytes() {
         if byte.is_ascii_alphanumeric() || b"-_.~".contains(&byte) {

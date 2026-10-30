@@ -10,6 +10,7 @@ pub mod plan;
 pub mod rules;
 pub mod skill;
 pub mod spec;
+pub mod suggest;
 pub mod task;
 pub mod update;
 

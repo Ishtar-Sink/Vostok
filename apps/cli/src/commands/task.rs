@@ -1144,7 +1144,8 @@ impl Tasks {
         let dir = evidence.join("validation/regression");
         clear_regression_outputs(&dir)?;
         let accepted = latest_acceptances(&dir);
-        let ignore = self.regression_ignore();
+        let mut ignore = self.regression_ignore();
+        ignore.extend(self.created_paths(&file)?);
 
         let root = self.project_root()?;
         let mut changed = String::new();
@@ -1945,7 +1946,12 @@ impl Tasks {
         let running = self.is_running(&status_of(file));
         errors.extend(self.change_errors(&content, upstream, running)?);
         errors.extend(self.done_errors(&content)?);
-        errors.extend(self.baseline_errors(&content)?);
+        let created = if running {
+            Vec::new()
+        } else {
+            self.created_paths(file)?
+        };
+        errors.extend(self.baseline_errors(&content, &created)?);
         errors.extend(self.evidence_errors(&content, names)?);
         Ok(errors
             .into_iter()
@@ -2088,7 +2094,7 @@ impl Tasks {
     }
 
     /// Cada item de "Baseline" é um comando no formato "- `comando`", e há ao menos um.
-    fn baseline_errors(&self, content: &str) -> Result<Vec<String>> {
+    fn baseline_errors(&self, content: &str, created: &[String]) -> Result<Vec<String>> {
         let text = self.subsection(content, "baseline_subsection")?;
         if text.is_empty() {
             return Ok(Vec::new());
@@ -2099,6 +2105,9 @@ impl Tasks {
         for item in text.lines().filter(|line| has_text(line)) {
             if is_baseline_item(item) {
                 count += 1;
+                if let Some(command) = baseline_command(item) {
+                    errors.extend(delivery_errors(&sub, command, created));
+                }
             } else {
                 errors.push(format!(
                     "'{sub}' com item fora do formato: {item} (use: - `comando`)"
@@ -2547,6 +2556,18 @@ fn is_baseline_item(line: &str) -> bool {
     line.strip_prefix("- ")
         .and_then(quoted_name)
         .is_some_and(|(_, rest)| rest.is_empty())
+}
+
+/// Um erro por caminho `criar` citado no comando de "Baseline": o baseline mede o que a tarefa
+/// não pode quebrar, não a entrega.
+pub(super) fn delivery_errors(sub: &str, command: &str, created: &[String]) -> Vec<String> {
+    created
+        .iter()
+        .filter(|path| command.contains(path.as_str()))
+        .map(|path| {
+            format!("'{sub}' com comando que cita '{path}', que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}")
+        })
+        .collect()
 }
 
 /// Comando de um item de "Baseline" ("- `comando`"); o comando pode ter crases.

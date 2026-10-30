@@ -1125,3 +1125,48 @@ fn waves_public_function_computes_the_waves() {
     assert_eq!(waves["TASK-02"], 2);
     assert_eq!(waves["TASK-03"], 1);
 }
+
+// --- Baseline sem a entrega (SPEC-017) ---
+
+const DELIVERY_MESSAGE: &str = "'Baseline' com comando que cita 'novo.txt', que a tarefa cria";
+
+fn set_baseline(task: &std::path::Path, command: &str) {
+    let text = std::fs::read_to_string(task).unwrap();
+    std::fs::write(
+        task,
+        text.replace(
+            "### Baseline\n\n- `true`",
+            &format!("### Baseline\n\n- `{command}`"),
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn baseline_delivery_is_refused_by_the_plan_validation() {
+    let project = Project::new();
+    let task = plan_with_evidence(&project, "Não se aplica.");
+    set_baseline(&task, "test -e novo.txt && echo existe");
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .failure()
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8(output).unwrap();
+    assert!(stderr.contains(DELIVERY_MESSAGE), "{stderr}");
+}
+
+#[test]
+fn baseline_delivery_other_commands_stay_valid_in_the_plan() {
+    let project = Project::new();
+    let task = plan_with_evidence(&project, "Não se aplica.");
+    set_baseline(&task, "cargo --version");
+    project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}

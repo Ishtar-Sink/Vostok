@@ -1664,3 +1664,97 @@ fn status_refuses_an_invalid_override() {
         "{stderr}"
     );
 }
+
+// --- Baseline sem a entrega (SPEC-017) ---
+
+const DELIVERY_COMMAND: &str = "test -e novo.txt && echo existe";
+
+fn with_delivery_baseline(status: &str) -> String {
+    complete_task(status, "Não se aplica.").replace(
+        "### Baseline\n\n- `true`",
+        &format!("### Baseline\n\n- `{DELIVERY_COMMAND}`"),
+    )
+}
+
+#[test]
+fn baseline_delivery_is_refused_by_the_task_validation() {
+    let project = Project::new();
+    write(&project, TASK_PATH, &with_delivery_baseline("pending"));
+    let output = nested(&project, "adjust", "validate")
+        .assert()
+        .failure()
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8(output).unwrap();
+    assert!(
+        stderr.contains("'Baseline' com comando que cita 'novo.txt', que a tarefa cria"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn baseline_delivery_running_task_is_not_refused() {
+    let project = Project::new();
+    write(&project, TASK_PATH, &with_delivery_baseline("in_progress"));
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/evidence/TASK-01/baseline/.keep",
+        "",
+    );
+    let output = nested(&project, "adjust", "validate").output().unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(!stderr.contains("que a tarefa cria"), "{stderr}");
+}
+
+const CREATED_BASELINE: &str = "for p in src/novo.rs LICENSE; do test -e \"$p\" && echo \"$p existe\" || echo \"$p ausente\"; done";
+
+/// Tarefa em execução que cria `src/novo.rs`, com `LICENSE` gravado e baseline já coletado.
+fn task_with_created_path() -> Project {
+    let project = Project::new();
+    write(&project, "LICENSE", "texto");
+    let text = complete_task("in_progress", "Não se aplica.")
+        .replace("- `novo.txt` (criar)", "- `src/novo.rs` (criar)")
+        .replace(
+            "### Baseline\n\n- `true`",
+            &format!("### Baseline\n\n- `{CREATED_BASELINE}`"),
+        );
+    write(&project, TASK_PATH, &text);
+    task(&project, &["baseline"]).assert().success();
+    project
+}
+
+#[test]
+fn baseline_delivery_created_path_is_not_a_regression() {
+    let project = task_with_created_path();
+    write(&project, "src/novo.rs", "fn main() {}");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+}
+
+#[test]
+fn baseline_delivery_other_lines_are_still_compared() {
+    let project = task_with_created_path();
+    write(&project, "src/novo.rs", "fn main() {}");
+    std::fs::remove_file(project.root().join("LICENSE")).unwrap();
+    task(&project, &["tests"]).assert().success();
+    let output = task(&project, &["regression"])
+        .assert()
+        .failure()
+        .get_output()
+        .clone();
+    let all = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(all.contains("LICENSE"), "{all}");
+}
+
+#[test]
+fn baseline_delivery_task_without_created_paths_is_unchanged() {
+    let project = running_task(&[("a.txt", "antes")]);
+    write(&project, "a.txt", "depois");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+}

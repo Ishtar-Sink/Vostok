@@ -10,7 +10,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
-use super::task::{evidence_item, evidence_name_problem, normalized_evidence_name};
+use super::task::{
+    delivery_errors, evidence_item, evidence_name_problem, normalized_evidence_name,
+};
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
@@ -1165,7 +1167,13 @@ impl Workspace {
         errors.extend(self.description_errors(&content)?);
         errors.extend(self.change_errors(&content, upstream)?);
         errors.extend(self.done_errors(&content)?);
-        errors.extend(self.baseline_errors(&content)?);
+        let created: Vec<String> = self
+            .change_items(&content)?
+            .into_iter()
+            .filter(|(action, _)| action == "criar")
+            .map(|(_, path)| path)
+            .collect();
+        errors.extend(self.baseline_errors(&content, &created)?);
         errors.extend(self.evidence_errors(&content)?);
         let covers = field(file, "covers").replace(['[', ']'], "");
         if sorted_list(&covers) != sorted_list(plan_covers) {
@@ -1314,7 +1322,7 @@ impl Workspace {
     }
 
     /// Cada item de "Baseline" é um comando no formato "- `comando`", e há ao menos um.
-    fn baseline_errors(&self, content: &str) -> Result<Vec<String>> {
+    fn baseline_errors(&self, content: &str, created: &[String]) -> Result<Vec<String>> {
         let sub = self.task_setting("baseline_subsection")?;
         let text = command_output(
             &self
@@ -1331,8 +1339,9 @@ impl Workspace {
                 .strip_prefix("- ")
                 .and_then(backticked)
                 .filter(|(_, rest)| rest.is_empty());
-            if command.is_some() {
+            if let Some((command, _)) = command {
                 count += 1;
+                errors.extend(delivery_errors(&sub, command, created));
             } else {
                 errors.push(format!(
                     "'{sub}' com item fora do formato: {item} (use: - `comando`)"

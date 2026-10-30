@@ -71,4 +71,4 @@ skills:
     - rules/project/development-methodology.md
   report-harness-bug: []
   validate-harness-bug: []
-  fix-harness-bug: []
+  triage-harness-issue: []

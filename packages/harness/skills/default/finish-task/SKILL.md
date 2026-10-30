@@ -3,7 +3,7 @@ name: finish-task
 description: "Finaliza uma tarefa em execução, em work/tasks/, só a pedido do usuário: executa os testes da Verificação, compara com o baseline para achar regressões, grava as evidências, confere os critérios de conclusão e marca a tarefa como done, e a spec como implemented na última tarefa. Bloqueia a tarefa depois do máximo de falhas ou numa regressão e a retoma com a decisão do usuário. Use quando o usuário pedir para finalizar, concluir, validar, testar ou revalidar uma tarefa em andamento, ou para retomar uma tarefa bloqueada."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok task load, vostok memory search, vostok task resume, vostok task tests, vostok task regression, vostok task evidence, vostok task persist, vostok task finish, vostok task status"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
@@ -92,7 +92,7 @@ Execute:
 vostok task tests <SPEC_ID> <TASK_ID>
 ```
 
-O `vostok task tests` executa o bloco `bash` de "Verificação" a partir da raiz do projeto e para no primeiro comando com falha. Se falhar:
+O `vostok task tests` executa o bloco `bash` de "Verificação" a partir da raiz do projeto e para no primeiro comando com falha. Se o comando recusar por tarefa sem baseline, ele mostra `vostok task baseline <SPEC_ID> <TASK_ID>`; isso só ocorre em tarefa iniciada antes da correção que coleta o baseline no `start`. Rode o comando mostrado; se ele recusar porque um caminho `criar` de "Mudar" já existe, **PARE** e responda com o template `blocker`. Se os testes falharem:
 
 1. Busque o erro na memória (`vostok memory search issue <trecho estável da mensagem>`), conforme [agent/anti-loop-01].
 2. Corrija o código e execute `vostok task tests` de novo.

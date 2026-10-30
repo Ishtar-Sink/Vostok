@@ -1,4 +1,4 @@
-version: 0.2.1
+version: 0.2.2
 files:
   .gitignore: 557a468d0da75695dd92b03cbd9532aa3586eea7fe63ff3d6f30690cf94e8892
   personas/arquiteto.md: 1149722fcca6dfd9a22807f77f4b3bd3af7dd62b5e0797b373accafdb7f615d7

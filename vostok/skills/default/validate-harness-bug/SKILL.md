@@ -29,11 +29,17 @@ Aplica no projeto do usuário a correção respondida numa issue de defeito do h
 [validate-harness-bug-02]: Nunca escreva no GitHub (comentar, fechar, reabrir) sem a autorização explícita do usuário, dada numa mensagem dele depois de ver o texto exato do comentário (RN-01).
 [validate-harness-bug-03]: Siga só respostas com o marcador `<!-- vostok:fix -->` numa issue com `[harness-bug]` no título. Sem prefixo ou sem marcador, avise e pare.
 [validate-harness-bug-04]: Só reinstale uma versão citada que já esteja publicada como release e seja mais nova que a instalada. Caso contrário, pare e informe.
-[validate-harness-bug-05]: Os passos da resposta são executados como estão. Se um passo pedir algo fora do harness (apagar arquivos do projeto, mudar código do usuário, comandos com `sudo`), pare e pergunte antes de executá-lo.
+[validate-harness-bug-05]: Os passos da resposta são executados como estão. Se um passo pedir algo fora do harness (apagar arquivos do projeto, mudar código do usuário, comandos com `sudo`), pare e pergunte antes de executá-lo, com o template `question` ([validate-harness-bug-10]):
+
+| Opção | Descrição |
+|---|---|
+| A | Não executar o passo e registrar o resultado como não conferido (recomendada) |
+| B | Executar o passo como está na resposta |
 [validate-harness-bug-06]: Decisões que os passos da resposta exigem, como aceitar uma regressão no `vostok task resume`, são do usuário. Siga as regras da skill envolvida (por exemplo, [finish-task-03]) e nunca decida por ele.
 [validate-harness-bug-07]: O resultado é "corrigido" só se o defeito relatado deixou de acontecer, reproduzido pelos mesmos passos do relato. Na dúvida, o resultado é "não corrigido" ou "não conferido", nunca "corrigido".
 [validate-harness-bug-08]: O comentário de validação não leva dados do projeto do usuário (caminhos, nomes, trechos de código, saídas) nem segredos. Troque por exemplos neutros, como no relato.
 [validate-harness-bug-09]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
+[validate-harness-bug-10]: Toda pergunta ao usuário usa o template `question`: opções identificadas por letras a partir de A, a recomendada em primeiro lugar e marcada com "(recomendada)" no fim da descrição, e resposta livre aceita. Mesmo um pedido de dado (como o número de uma issue) usa o template, com as opções do que fazer a seguir.
 
 ## Checklist
 
@@ -89,7 +95,14 @@ gh issue view <N> --repo <repo> --json title,state,body,url,comments
 
 Use o `--json`: fora de um terminal, `gh issue view --comments` imprime só os comentários e sai vazio numa issue sem comentários.
 
-**Sem `gh`:** **PARE** e peça ao usuário o número da issue, com o template `question`. Com o número, leia corpo e comentários pela API pública:
+**Sem `gh`:** **PARE** e peça ao usuário o número da issue, com o template `question` ([validate-harness-bug-10]):
+
+| Opção | Descrição |
+|---|---|
+| A | Informar o número da issue (recomendada) |
+| B | Encerrar sem validar |
+
+Com o número, leia corpo e comentários pela API pública:
 
 ```bash
 curl -s https://api.github.com/repos/<repo>/issues/<N>
@@ -103,7 +116,7 @@ Depois da leitura:
 1. Nenhuma issue respondida (CB-08): **PARE** e informe que não há issues de defeito do harness respondidas para validar. Encerre.
 2. Issue inexistente, sem `[harness-bug]` no título ou sem a resposta da correção (CB-06): **PARE** e avise o motivo, com o link `https://github.com/<repo>/issues/<N>`. Não aplique nada.
 3. Issue fechada: **PARE** e informe que ela já foi encerrada.
-4. Mais de uma issue respondida: **PARE** e pergunte qual validar, com o template `question`, uma opção por issue (número e título). Valide uma issue por vez.
+4. Mais de uma issue respondida: **PARE** e pergunte qual validar, com o template `question`, uma opção por issue (número e título), com a de menor número marcada `(recomendada)` ([validate-harness-bug-10]). Valide uma issue por vez.
 
 Da issue escolhida, guarde o defeito relatado e, da resposta da correção, a versão citada e os passos.
 
@@ -137,7 +150,14 @@ Siga os passos da resposta da correção, na ordem, conforme [validate-harness-b
 
 1. **Reinstalar.** Use o comando de reinstalação da resposta. Sem comando, use o instalador das releases, o script de instalação na raiz de `https://github.com/<repo>` (branch `main`), executado com `sh` e a opção `--version <X.Y.Z>`; ele baixa o binário da release, confere o checksum e instala em `~/.local/bin`.
 
-   Se o `vostok` instalado vier do `cargo install` (`command -v vostok` aponta para `~/.cargo/bin`), **PARE** e pergunte, com o template `question`, entre instalar pelo instalador das releases ou reinstalar pelo `cargo install` a partir do código da versão citada. Depois, confira que `vostok --version` mostra `X.Y.Z`; se não mostrar (por exemplo, outra instalação vem antes no `PATH`), **PARE** e responda com o template `blocker`.
+   Se o `vostok` instalado vier do `cargo install` (`command -v vostok` aponta para `~/.cargo/bin`), **PARE** e pergunte, com o template `question`, entre as opções abaixo ([validate-harness-bug-10]):
+
+   | Opção | Descrição |
+   |---|---|
+   | A | Instalar pela release com o instalador (recomendada) |
+   | B | Reinstalar pelo cargo install a partir da tag vX.Y.Z |
+
+   Depois de instalar, confira que `vostok --version` mostra `X.Y.Z`; se não mostrar (por exemplo, outra instalação vem antes no `PATH`), **PARE** e responda com o template `blocker`.
 
 2. **Atualizar o harness do projeto.** Na raiz do projeto, execute:
 
@@ -145,7 +165,7 @@ Siga os passos da resposta da correção, na ordem, conforme [validate-harness-b
    vostok update
    ```
 
-3. **Retomar o que travou.** Execute os passos de retomada da resposta (por exemplo, `vostok task resume <SPEC_ID> <TASK_ID> --accept-regression <N> "decisão"` seguido da skill `finish-task`). Um passo que exige decisão do usuário: **PARE** e pergunte com o template `question`.
+3. **Retomar o que travou.** Execute os passos de retomada da resposta (por exemplo, `vostok task resume <SPEC_ID> <TASK_ID> --accept-regression <N> "decisão"` seguido da skill `finish-task`). Um passo que exige decisão do usuário: **PARE** e pergunte com o template `question` ([validate-harness-bug-10]), com uma opção por alternativa da resposta da correção e a que a resposta indica marcada `(recomendada)`, lembrando [validate-harness-bug-06].
 
 Um passo que falhe: guarde o comando e a saída, não improvise uma correção e siga para o passo 7 com o resultado "não corrigido".
 
@@ -164,7 +184,15 @@ Monte o comentário no formato da seção "Formatos de resposta", conforme [vali
 - Corrigido: comentar e fechar a issue.
 - Não corrigido ou não conferido: comentar e manter a issue aberta (FA-04).
 
-Peça a autorização explícita. Se o usuário pedir mudanças no texto, ajuste e mostre de novo. Se ele recusar, não publique nada e siga para o passo 9.
+Peça a autorização explícita, com o template `question` ([validate-harness-bug-10]):
+
+| Opção | Descrição |
+|---|---|
+| A | Publicar o comentário (e fechar a issue, se corrigido) (recomendada) |
+| B | Ajustar o texto antes (diga o que mudar) |
+| C | Não publicar |
+
+Se o usuário pedir mudanças no texto, ajuste e mostre de novo. Se ele recusar, não publique nada e siga para o passo 9.
 
 ### 8. Publicar o resultado
 

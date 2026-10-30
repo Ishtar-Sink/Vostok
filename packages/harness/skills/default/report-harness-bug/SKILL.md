@@ -32,6 +32,7 @@ Transforma um defeito do próprio harness Vostok, encontrado no uso, num relato 
 [report-harness-bug-06]: O `vostok bug check` confere a forma do relato, não o conteúdo. Ele não substitui a neutralização nem a revisão do usuário.
 [report-harness-bug-07]: Use o `gh` só quando `gh auth status` terminar com sucesso. `gh` ausente ou sem autenticação segue pelo link do `vostok bug link`.
 [report-harness-bug-08]: Não faça commit nem stage do relato ([agent/boundaries-01], [agent/boundaries-02]).
+[report-harness-bug-09]: Toda pergunta ao usuário usa o template `question`: opções identificadas por letras a partir de A, a recomendada em primeiro lugar e marcada com "(recomendada)" no fim da descrição, e resposta livre aceita. Mesmo um pedido de dado (como o número de uma issue) usa o template, com as opções do que fazer a seguir.
 
 ## Checklist
 
@@ -69,7 +70,12 @@ Reúna o que se sabe do defeito: o comando ou a skill usada, o que aconteceu, o 
 | Regra de `rules/project/` ou skill de `skills/custom/` do usuário | Não |
 | Código, testes, dependências ou ferramentas do projeto | Não |
 
-Defeito do projeto: **PARE** e responda que a skill trata só de defeitos do harness Vostok, dizendo por que este não é ([report-harness-bug-01]). Na dúvida, pergunte com o template `question` antes de montar o relato.
+Defeito do projeto: **PARE** e responda que a skill trata só de defeitos do harness Vostok, dizendo por que este não é ([report-harness-bug-01]). Na dúvida, pergunte com o template `question` antes de montar o relato ([report-harness-bug-09]), marcando como recomendada a opção que a tabela acima indicar:
+
+| Opção | Descrição |
+|---|---|
+| A | Tratar como defeito do harness e montar o relato |
+| B | Tratar como defeito do projeto e encerrar sem relato |
 
 ### 3. Montar o relato
 
@@ -115,7 +121,7 @@ Mostre o relato inteiro, como está no arquivo, e o repositório de destino. **P
 
 | Opção | Descrição |
 |---|---|
-| A | Enviar o relato como está para `<harness.repository>`. |
+| A | Enviar o relato como está para `<harness.repository>` (recomendada). |
 | B | Ajustar o relato antes (diga o que mudar). |
 | C | Não enviar; o relato fica só em `vostok/work/bugs/`. |
 
@@ -145,7 +151,14 @@ O comando imprime o endereço da issue (`https://github.com/<repositório>/issue
 vostok bug link vostok/work/bugs/<arquivo>.md
 ```
 
-Mostre o link ao usuário para ele abrir no navegador e criar a issue. Se o comando avisar que o relato passa do limite do link, o link traz só o título: mostre também o corpo, para o usuário colar na issue. **PARE** e peça o número da issue criada. Com o número, confira a issue pela API pública (veja "Ler uma issue sem gh") e verifique se o título começa com `[harness-bug]`.
+Mostre o link ao usuário para ele abrir no navegador e criar a issue. Se o comando avisar que o relato passa do limite do link, o link traz só o título: mostre também o corpo, para o usuário colar na issue. **PARE** e peça o número da issue criada, com o template `question` ([report-harness-bug-09]):
+
+| Opção | Descrição |
+|---|---|
+| A | Informar o número da issue criada (recomendada) |
+| B | Deixar o número para depois; o relato fica com issue: null |
+
+Com o número, confira a issue pela API pública (veja "Ler uma issue sem gh") e verifique se o título começa com `[harness-bug]`.
 
 ### 7. Gravar o número da issue
 

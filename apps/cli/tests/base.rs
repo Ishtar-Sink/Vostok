@@ -90,7 +90,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 18, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 20, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))
@@ -157,6 +157,27 @@ fn create_spec_skill_creates_the_draft_without_refining() {
     assert!(catalog
         .lines()
         .any(|line| line.starts_with("| create-spec |")));
+}
+
+#[test]
+fn ct03_report_and_suggestion_skills_ask_with_the_question_template() {
+    for name in [
+        "report-harness-bug",
+        "validate-harness-bug",
+        "suggest-harness-improvement",
+        "suggest-harness-feature",
+    ] {
+        let file = format!("skills/default/{name}/SKILL.md");
+        let content = String::from_utf8(embedded::file(&file).unwrap().to_vec()).unwrap();
+        assert!(
+            content.contains("Toda pergunta ao usuário usa o template `question`"),
+            "{file} sem a regra das perguntas com o template `question`"
+        );
+        assert!(
+            content.contains("(recomendada)"),
+            "{file} sem opção marcada com (recomendada)"
+        );
+    }
 }
 
 #[test]

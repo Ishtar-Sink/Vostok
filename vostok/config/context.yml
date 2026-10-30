@@ -71,4 +71,10 @@ skills:
     - rules/project/development-methodology.md
   report-harness-bug: []
   validate-harness-bug: []
+  suggest-harness-improvement:
+    - config/main.yml
+    - templates/suggestion/improvement.md
+  suggest-harness-feature:
+    - config/main.yml
+    - templates/suggestion/feature.md
   triage-harness-issue: []

@@ -132,10 +132,11 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t
 
 ### 7. Editar o plano
 
-Aplique os ajustes nas seções "Visão geral", "Tarefas" e "Fatos de esforço":
+Aplique os ajustes nas seções "Visão geral", "Tarefas", "Componentes por tarefa" e "Fatos de esforço":
 
 - Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as dependências.
 - Toda tarefa tem uma linha na tabela de fatos, e toda linha de fatos tem uma tarefa.
+- Em planos com a seção "Componentes por tarefa", toda tarefa tem uma linha nela, e todo componente da spec fica em alguma tarefa. Os números de arquivos a criar e a alterar são recalculados pelo `vostok plan adjust record`.
 - Na coluna "Perfil" (ou "Nível", em planos antigos), deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula. Não mexa na seção "Perfis de execução".
 - Atualize a visão geral se a divisão ou a ordem do trabalho mudou.
 

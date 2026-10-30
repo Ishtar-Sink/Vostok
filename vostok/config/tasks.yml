@@ -213,3 +213,8 @@ profile_legacy:
   moderada: padrao
   complexa: julgamento
   critica: julgamento
+
+# Seções da spec cujos IDs uma tarefa pode cobrir sem obrigação, em todos os tipos de spec. Um ID
+# dessas seções no "Cobre" é aceito; um que não é coberto não é cobrado.
+coverage_optional:
+  - edge-cases

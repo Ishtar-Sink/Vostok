@@ -22,6 +22,14 @@ Documento para revisão. É removido quando o plano é aprovado.
 |---|---|---|---|---|---|---|---|
 #{PLAN_TASKS}
 
+## Componentes por tarefa
+
+Cada tarefa lista os caminhos de "Componentes afetados" da spec que ela assume.
+
+| ID | Componentes |
+|---|---|
+#{PLAN_COMPONENTS}
+
 ## Fatos de esforço
 
 | ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |

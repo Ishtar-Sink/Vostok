@@ -611,3 +611,223 @@ fn profile_task_profile_maps_the_old_levels() {
         );
     }
 }
+
+// --- Componentes por tarefa e cobertura (SPEC-014: RF-27, RF-28, RF-29, CT-17, CT-18) ---
+
+const COMPONENT_SPEC: &str = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n| RF-02 | Dois. |\n\n## Casos de teste\n\n| ID | Cenário | Passos | Resultado esperado | Requisitos |\n|---|---|---|---|---|\n| CT-01 | Caso. | Rodar. | Ok. | RF-01 |\n\n## Componentes afetados\n\n| Caminho | Ação | Motivo |\n|---|---|---|\n| `src/a.rs` | criar | Novo. |\n| `src/b.rs` | alterar | Muda. |\n| `src/c.rs` | remover | Sai. |\n| `docs/d.md` | alterar | Doc. |\n";
+
+/// Acrescenta a seção "Componentes por tarefa" logo depois da tabela de tarefas.
+fn with_components(plan: &str, rows: &str) -> String {
+    let section =
+        format!("## Componentes por tarefa\n\n| ID | Componentes |\n|---|---|\n{rows}\n\n");
+    plan.replacen(
+        "## Fatos de esforço",
+        &format!("{section}## Fatos de esforço"),
+        1,
+    )
+}
+
+const DASH_FACTS: &str =
+    "| TASK-01 | - | - | não | não | não |\n| TASK-02 | - | - | não | não | não |";
+
+fn two_tasks() -> String {
+    let rows = format!(
+        "{}\n{}",
+        profile_row("TASK-01", "desenvolvedor", "-", "RF-01, CT-01"),
+        profile_row("TASK-02", "desenvolvedor", "-", "RF-02")
+    );
+    profile_plan(&rows, DASH_FACTS)
+}
+
+fn component_project(rows: &str) -> Project {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &with_components(&two_tasks(), rows),
+    );
+    project
+}
+
+fn fact_line(plan: &str, id: &str) -> String {
+    let start = plan.find("## Fatos de esforço").unwrap();
+    plan[start..]
+        .lines()
+        .find(|line| line.starts_with(&format!("| {id} |")))
+        .unwrap()
+        .to_string()
+}
+
+fn validate_stderr(project: &Project) -> String {
+    failure_stderr(project.vostok().args(["plan", "validate", "SPEC-001"]))
+}
+
+#[test]
+fn components_score_computes_files_to_create_and_change() {
+    let project = component_project(
+        "| TASK-01 | `src/a.rs`, `src/b.rs`, `src/c.rs` |\n| TASK-02 | `docs/d.md` |",
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-01").starts_with("| TASK-01 | 1 | 2 |"),
+        "{plan}"
+    );
+    assert!(
+        fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 0 | 1 |"),
+        "{plan}"
+    );
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn components_repeated_path_in_a_task_counts_once() {
+    let project = component_project(
+        "| TASK-01 | `src/b.rs`, src/b.rs, `src/b.rs` |\n| TASK-02 | `docs/d.md` |",
+    );
+    let out = score(&project);
+    assert!(out.contains("`src/a.rs`"), "{out}");
+    assert!(fact_line(&plan_text(&project), "TASK-01").starts_with("| TASK-01 | 0 | 1 |"));
+}
+
+#[test]
+fn components_shared_by_two_tasks_count_for_both() {
+    let project = component_project("| TASK-01 | `src/b.rs` |\n| TASK-02 | `src/b.rs` |");
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(fact_line(&plan, "TASK-01").starts_with("| TASK-01 | 0 | 1 |"));
+    assert!(fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 0 | 1 |"));
+}
+
+#[test]
+fn components_outside_the_spec_are_refused() {
+    let project = component_project("| TASK-01 | `src/z.rs` |\n| TASK-02 | - |");
+    let expected = "TASK-01: componente `src/z.rs` não está nos componentes afetados da spec";
+    let stderr = failure_stderr(project.vostok().args(["plan", "score", "SPEC-001"]));
+    assert!(stderr.contains(expected), "{stderr}");
+    assert!(validate_stderr(&project).contains(expected));
+}
+
+#[test]
+fn components_without_task_are_listed_by_score_and_validate() {
+    let project =
+        component_project("| TASK-01 | `src/a.rs`, `src/b.rs`, `src/c.rs` |\n| TASK-02 | - |");
+    let out = score(&project);
+    assert!(
+        out.contains("Componentes da spec sem tarefa:\n- `docs/d.md`"),
+        "{out}"
+    );
+    assert!(fact_line(&plan_text(&project), "TASK-02").starts_with("| TASK-02 | 0 | 0 |"));
+    assert!(validate_stderr(&project).contains("componente da spec sem tarefa: `docs/d.md`"));
+}
+
+#[test]
+fn components_task_without_row_is_refused() {
+    let project =
+        component_project("| TASK-01 | `src/a.rs`, `src/b.rs`, `src/c.rs`, `docs/d.md` |");
+    assert!(validate_stderr(&project).contains(
+        "TASK-02: sem linha em 'Componentes por tarefa' (use - quando a tarefa não assume componente da spec)"
+    ));
+    let project = component_project(
+        "| TASK-01 | `src/a.rs`, `src/b.rs`, `src/c.rs` |\n| TASK-02 | `docs/d.md` |\n| TASK-09 | - |",
+    );
+    assert!(validate_stderr(&project).contains("componentes de uma tarefa inexistente: TASK-09"));
+}
+
+#[test]
+fn components_facts_different_from_computed_are_refused_by_validate() {
+    let project = Project::new();
+    let facts = "| TASK-01 | 0 | 0 | não | não | não |\n| TASK-02 | 0 | 1 | não | não | não |";
+    let rows = format!(
+        "{}\n{}",
+        profile_row("TASK-01", "desenvolvedor", "mecanica", "RF-01, CT-01"),
+        profile_row("TASK-02", "desenvolvedor", "mecanica", "RF-02")
+    );
+    let plan = with_components(
+        &profile_plan(&rows, facts),
+        "| TASK-01 | `src/a.rs`, `src/b.rs`, `src/c.rs` |\n| TASK-02 | `docs/d.md` |",
+    );
+    spec_and_plan(&project, "feature", COMPONENT_SPEC, &plan);
+    assert!(validate_stderr(&project).contains(
+        "TASK-01: arquivos a criar e a alterar diferentes dos calculados pelos componentes (execute vostok plan score)"
+    ));
+}
+
+#[test]
+fn components_legacy_plan_without_the_section_keeps_typed_facts() {
+    for plan in [
+        profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01, CT-01, RF-02"),
+            "| TASK-01 | 2 | 3 | não | não | não |",
+        ),
+        legacy_plan(
+            "| TASK-01 | Tarefa | Faz. | tarefa | simples | - | RF-01, CT-01, RF-02 |",
+            "| TASK-01 | 2 | 3 | não | não | não |",
+        ),
+    ] {
+        let project = Project::new();
+        spec_and_plan(&project, "feature", COMPONENT_SPEC, &plan);
+        score(&project);
+        let text = plan_text(&project);
+        assert!(
+            fact_line(&text, "TASK-01").starts_with("| TASK-01 | 2 | 3 |"),
+            "{text}"
+        );
+        assert!(!text.contains("Componentes por tarefa"));
+    }
+}
+
+const EDGE_SPEC: &str = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n\n## Casos de teste\n\n| ID | Cenário | Passos | Resultado esperado | Requisitos |\n|---|---|---|---|---|\n| CT-01 | Caso. | Rodar. | Ok. | RF-01 |\n\n## Casos de borda\n\n| ID | Situação | Comportamento esperado | Requisitos |\n|---|---|---|---|\n| CB-01 | Borda. | Trata. | RF-01 |\n| CB-02 | Outra. | Trata. | RF-01 |\n";
+
+fn coverage_plan(covers: &str) -> String {
+    profile_plan(
+        &profile_row("TASK-01", "desenvolvedor", "mecanica", covers),
+        "| TASK-01 | 0 | 1 | não | não | não |",
+    )
+}
+
+#[test]
+fn coverage_fix_and_feature_accept_cb_as_optional() {
+    for kind in ["fix", "feature"] {
+        let project = Project::new();
+        spec_and_plan(
+            &project,
+            kind,
+            EDGE_SPEC,
+            &coverage_plan("RF-01, CT-01, CB-01"),
+        );
+        project
+            .vostok()
+            .args(["plan", "validate", "SPEC-001"])
+            .assert()
+            .success();
+    }
+}
+
+#[test]
+fn coverage_missing_rf_or_ct_is_refused_for_fix_and_feature() {
+    for kind in ["fix", "feature"] {
+        let project = Project::new();
+        spec_and_plan(&project, kind, EDGE_SPEC, &coverage_plan("RF-01, CB-01"));
+        assert!(validate_stderr(&project).contains("CT-01 não é coberto por nenhuma tarefa"));
+        spec_and_plan(&project, kind, EDGE_SPEC, &coverage_plan("CT-01, CB-01"));
+        assert!(validate_stderr(&project).contains("RF-01 não é coberto por nenhuma tarefa"));
+    }
+}
+
+#[test]
+fn coverage_unknown_cb_is_refused() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        EDGE_SPEC,
+        &coverage_plan("RF-01, CT-01, CB-09"),
+    );
+    assert!(validate_stderr(&project).contains("a tarefa cobre CB-09, que não existe na spec"));
+}

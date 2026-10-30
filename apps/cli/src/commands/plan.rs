@@ -65,6 +65,7 @@ const APPROVE_USAGE: &str = "Uso: vostok plan approve create-tasks|validate|mark
 
 const TASKS_HEADING: &str = "Tarefas";
 const FACTS_HEADING: &str = "Fatos de esforço";
+const COMPONENTS_HEADING: &str = "Componentes por tarefa";
 const OVERVIEW_HEADING: &str = "Visão geral";
 const COMPONENT_ACTIONS: &str = "criar alterar remover";
 
@@ -382,9 +383,23 @@ impl Workspace {
 
     /// O plano com os perfis (ou níveis) calculados na coluna deles, ou os problemas que impedem o
     /// cálculo.
-    fn scored(&self, plan: &str) -> Result<std::result::Result<String, Vec<String>>> {
+    fn scored(
+        &self,
+        plan: &str,
+        spec: Option<&Path>,
+    ) -> Result<std::result::Result<String, Vec<String>>> {
+        let mut component_problems = Vec::new();
+        let mut plan = plan.to_string();
+        if let Some(spec) = spec {
+            if let Some(facts) = self.component_facts(&plan, spec)? {
+                plan = rewrite_file_facts(&plan, &facts.counts);
+                component_problems = facts.problems;
+            }
+        }
+        let plan = plan.as_str();
         let findings = self.analyze(plan)?;
-        let problems: Vec<String> = findings.iter().filter_map(Finding::problem).collect();
+        let mut problems = component_problems;
+        problems.extend(findings.iter().filter_map(Finding::problem));
         if !problems.is_empty() {
             return Ok(Err(problems));
         }
@@ -405,13 +420,23 @@ impl Workspace {
 
     /// IDs da spec que o plano precisa cobrir: primeira coluna das seções `coverage_<tipo>`.
     fn spec_ids(&self, spec: &Path) -> Result<Vec<String>> {
-        let content = read(spec)?;
         let sections = self
             .task_list(&format!("coverage_{}", field(spec, "type")))
             .unwrap_or_default();
+        self.ids_of_sections(spec, &sections)
+    }
+
+    /// IDs das seções de `coverage_optional`, que o plano pode cobrir sem obrigação.
+    fn optional_ids(&self, spec: &Path) -> Result<Vec<String>> {
+        let sections = self.task_list("coverage_optional").unwrap_or_default();
+        self.ids_of_sections(spec, &sections)
+    }
+
+    fn ids_of_sections(&self, spec: &Path, sections: &[String]) -> Result<Vec<String>> {
+        let content = read(spec)?;
         let mut ids = Vec::new();
         for section in sections {
-            let heading = self.section_heading(&section)?;
+            let heading = self.section_heading(section)?;
             let text = markdown_section(&content, &heading).unwrap_or_default();
             ids.extend(
                 markdown_table_rows(&text)
@@ -421,6 +446,87 @@ impl Workspace {
             );
         }
         Ok(ids)
+    }
+
+    /// `(caminho, ação)` dos componentes afetados da spec, sem crases.
+    fn spec_components(&self, spec: &Path) -> Result<Vec<(String, String)>> {
+        let heading = self.section_heading("affected-components")?;
+        let text = markdown_section(&read(spec)?, &heading).unwrap_or_default();
+        Ok(markdown_table_rows(&text)
+            .iter()
+            .map(|row| {
+                (
+                    markdown_cell(row, 1).replace('`', "").trim().to_string(),
+                    markdown_cell(row, 2),
+                )
+            })
+            .filter(|(path, _)| !path.is_empty() && path != "-")
+            .collect())
+    }
+
+    /// Fatos de arquivos calculados pelos componentes de cada tarefa; `None` sem a seção no plano.
+    fn component_facts(&self, plan: &str, spec: &Path) -> Result<Option<ComponentFacts>> {
+        if markdown_section(plan, COMPONENTS_HEADING).is_none() {
+            return Ok(None);
+        }
+        let components = self.spec_components(spec)?;
+        let task_ids: Vec<String> = table_rows(plan, TASKS_HEADING)
+            .iter()
+            .map(|row| markdown_cell(row, 1))
+            .collect();
+        let mut rows: HashMap<String, String> = HashMap::new();
+        let mut order = Vec::new();
+        for row in table_rows(plan, COMPONENTS_HEADING) {
+            let id = markdown_cell(&row, 1);
+            if !rows.contains_key(&id) {
+                order.push(id.clone());
+            }
+            rows.insert(id, markdown_cell(&row, 2));
+        }
+        let mut facts = ComponentFacts::default();
+        let mut cited = HashSet::new();
+        for id in &task_ids {
+            let Some(cell) = rows.get(id) else {
+                facts.problems.push(format!(
+                    "{id}: sem linha em '{COMPONENTS_HEADING}' (use - quando a tarefa não assume componente da spec)"
+                ));
+                continue;
+            };
+            let paths: BTreeSet<String> = cell
+                .split(',')
+                .map(|path| path.replace('`', "").trim().to_string())
+                .filter(|path| !path.is_empty() && path != "-")
+                .collect();
+            let (mut create, mut change) = (0, 0);
+            for path in paths {
+                match components.iter().find(|(known, _)| *known == path) {
+                    Some((_, action)) => {
+                        cited.insert(path);
+                        if action == "criar" {
+                            create += 1;
+                        } else {
+                            change += 1;
+                        }
+                    }
+                    None => facts.problems.push(format!(
+                        "{id}: componente `{path}` não está nos componentes afetados da spec"
+                    )),
+                }
+            }
+            facts.counts.insert(id.clone(), (create, change));
+        }
+        for id in order.iter().filter(|id| !task_ids.contains(id)) {
+            facts
+                .problems
+                .push(format!("componentes de uma tarefa inexistente: {id}"));
+        }
+        let mut seen = HashSet::new();
+        facts.orphans = components
+            .into_iter()
+            .map(|(path, _)| path)
+            .filter(|path| !cited.contains(path) && seen.insert(path.clone()))
+            .collect();
+        Ok(Some(facts))
     }
 
     fn plan_errors(&self, plan: &str, spec: &Path) -> Result<Vec<String>> {
@@ -433,11 +539,40 @@ impl Workspace {
             errors.push(format!("a seção '{OVERVIEW_HEADING}' está vazia"));
         }
         let scale = Columns::of(plan).scale();
+        let components = self.component_facts(plan, spec)?;
+        let analyzed = match &components {
+            Some(facts) => rewrite_file_facts(plan, &facts.counts),
+            None => plan.to_string(),
+        };
         errors.extend(
-            self.analyze(plan)?
+            self.analyze(&analyzed)?
                 .into_iter()
                 .filter_map(|finding| finding.into_error(scale)),
         );
+        if let Some(facts) = components {
+            errors.extend(facts.problems);
+            errors.extend(
+                facts
+                    .orphans
+                    .iter()
+                    .map(|path| format!("componente da spec sem tarefa: `{path}`")),
+            );
+            for row in table_rows(plan, FACTS_HEADING) {
+                let cells: Vec<&str> = row.split('|').collect();
+                let id = markdown_cell(&row, 1);
+                let (Some(&(create, change)), true) = (facts.counts.get(&id), cells.len() == 8)
+                else {
+                    continue;
+                };
+                if blank_trim(cells[2]) != create.to_string()
+                    || blank_trim(cells[3]) != change.to_string()
+                {
+                    errors.push(format!(
+                        "{id}: arquivos a criar e a alterar diferentes dos calculados pelos componentes (execute vostok plan score)"
+                    ));
+                }
+            }
+        }
         errors.extend(self.coverage_errors(plan, spec)?);
         Ok(errors)
     }
@@ -458,6 +593,7 @@ impl Workspace {
             .filter(|id| !id.is_empty() && id != "-")
             .collect();
         let ids = self.spec_ids(spec)?;
+        let optional = self.optional_ids(spec)?;
         let mut errors: Vec<String> = ids
             .iter()
             .filter(|id| !id.is_empty() && !covered.contains(id))
@@ -467,7 +603,7 @@ impl Workspace {
         errors.extend(
             unique
                 .into_iter()
-                .filter(|id| !ids.contains(id))
+                .filter(|id| !ids.contains(id) && !optional.contains(id))
                 .map(|id| format!("a tarefa cobre {id}, que não existe na spec")),
         );
         Ok(errors)
@@ -595,7 +731,12 @@ impl Workspace {
             Scale::Levels => ("os níveis", "Níveis de esforço"),
             Scale::Profiles => ("os perfis", "Perfis de execução"),
         };
-        let content = match self.scored(&original)? {
+        let spec = if markdown_section(&original, COMPONENTS_HEADING).is_some() {
+            Some(self.find_spec(spec_id)?)
+        } else {
+            None
+        };
+        let content = match self.scored(&original, spec.as_deref())? {
             Ok(content) => content,
             Err(problems) => {
                 return Err(problems_message(
@@ -610,6 +751,16 @@ impl Workspace {
             "{success} gravados no plano de {spec_id}: {}",
             plan.display()
         );
+        if let Some(spec) = spec {
+            if let Some(facts) = self.component_facts(&content, &spec)? {
+                if !facts.orphans.is_empty() {
+                    println!("Componentes da spec sem tarefa:");
+                    for path in facts.orphans {
+                        println!("- `{path}`");
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -668,7 +819,7 @@ impl Workspace {
         let plan = self.plan_to_adjust(spec_id)?;
         let spec = self.find_spec(spec_id)?;
         let header = format!("o plano de {spec_id} tem problemas; nenhum ajuste registrado:");
-        let content = match self.scored(&read(&plan)?)? {
+        let content = match self.scored(&read(&plan)?, Some(&spec))? {
             Ok(content) => content,
             Err(problems) => return Err(problems_message(header, &problems)),
         };
@@ -1255,6 +1406,14 @@ fn print_renames(header: &str, renames: &[String]) {
 enum Scale {
     Levels,
     Profiles,
+}
+
+/// Arquivos a criar e a alterar de cada tarefa, calculados pelos componentes.
+#[derive(Default)]
+struct ComponentFacts {
+    counts: HashMap<String, (i64, i64)>,
+    problems: Vec<String>,
+    orphans: Vec<String>,
 }
 
 /// Nomes das colunas da tabela de tarefas, lidos do cabeçalho.
@@ -1930,6 +2089,47 @@ fn rewrite_levels(plan: &str, levels: &HashMap<String, String>, columns: &Column
             if let Some(level) = levels.get(blank_trim(cells.get(1).map_or("", |c| c))) {
                 if cells.len() == expected {
                     cells[column] = format!(" {level} ");
+                    out.push(cells.join("|"));
+                    continue;
+                }
+            }
+        }
+        out.push(raw.to_string());
+    }
+    join_lines(&out)
+}
+
+/// Grava os arquivos a criar e a alterar calculados nas células 2 e 3 da tabela de fatos.
+fn rewrite_file_facts(plan: &str, counts: &HashMap<String, (i64, i64)>) -> String {
+    let heading = format!("## {FACTS_HEADING}");
+    let mut in_code = false;
+    let mut inside = false;
+    let mut header = false;
+    let mut out = Vec::new();
+    for raw in file_lines(plan) {
+        let plain = raw.strip_suffix('\r').unwrap_or(raw);
+        if is_fence(plain) {
+            in_code = !in_code;
+        }
+        if !in_code && plain == heading {
+            inside = true;
+            out.push(raw.to_string());
+            continue;
+        }
+        if !in_code && inside && plain.starts_with("## ") {
+            inside = false;
+        }
+        if inside && plain.starts_with('|') {
+            if !header || is_separator_row(plain) {
+                header = true;
+                out.push(raw.to_string());
+                continue;
+            }
+            let mut cells: Vec<String> = plain.split('|').map(str::to_string).collect();
+            if cells.len() == 8 {
+                if let Some((create, change)) = counts.get(blank_trim(&cells[1])) {
+                    cells[2] = format!(" {create} ");
+                    cells[3] = format!(" {change} ");
                     out.push(cells.join("|"));
                     continue;
                 }

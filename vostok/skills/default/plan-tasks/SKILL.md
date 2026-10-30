@@ -19,7 +19,7 @@ Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido quando aprovado pela skill `approve-plan`.
 - **Plano atualizado:** plano com `spec_hash` igual ao `approved_hash` da spec. Com hash diferente, o plano está **desatualizado** e é recriado.
 - **Tarefa:** uma unidade de trabalho entregável sozinha, com ID `TASK-NN` sequencial a partir de `TASK-01`.
-- **Fatos de esforço:** o que o agente sabe sobre a tarefa: arquivos a criar e a alterar e se ela muda um contrato público, depende de inferência ou cobre um risco alto.
+- **Fatos de esforço:** o que se sabe sobre a tarefa: arquivos a criar e a alterar, que o `vostok plan score` calcula pelos componentes da tarefa, e se ela muda um contrato público, depende de inferência ou cobre um risco alto, que o agente informa.
 - **Perfil:** o que a tarefa exige do modelo (`mecanica`, `padrao` ou `julgamento`), calculado pelo comando a partir dos fatos, pelo que a tarefa faz. Nunca indica um modelo.
 - **Persona:** o nome da persona que executa a tarefa, como `desenvolvedor`, ou `-`.
 
@@ -30,7 +30,7 @@ Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas 
 [plan-tasks-03]: O planejamento de uma spec nunca altera o plano de outra.
 [plan-tasks-04]: Nunca preencha a coluna "Perfil" à mão. Só o `vostok plan score` a grava.
 [plan-tasks-05]: Nunca edite o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" do plano.
-[plan-tasks-06]: Todo ID da spec que precisa de cobertura (RF e CT; PQ em `study`; S em `analysis`) é coberto por pelo menos uma tarefa.
+[plan-tasks-06]: Todo ID da spec que precisa de cobertura (RF e CT em `feature`, `improvement` e `fix`; PQ em `study`; S em `analysis`) é coberto por pelo menos uma tarefa. CB pode ser citado em "Cobre" como cobertura opcional.
 [plan-tasks-07]: Não crie arquivos de tarefa. Eles só existem depois que o usuário aprova o plano (skill `approve-plan`).
 
 ## Checklist
@@ -92,6 +92,7 @@ Leia a spec aprovada inteira e o plano criado. Substitua as variáveis `#{...}`:
 
 - **`#{PLAN_OVERVIEW}`:** um ou dois parágrafos em prosa: como o trabalho foi dividido, a ordem sugerida e o que pode ser feito em paralelo.
 - **`#{PLAN_TASKS}`:** uma linha por tarefa, na [tabela de tarefas](#tabela-de-tarefas).
+- **`#{PLAN_COMPONENTS}`:** uma linha por tarefa, na [tabela de componentes](#tabela-de-componentes), com os caminhos de "Componentes afetados" da spec que ela assume, ou `-`. Todo componente da spec fica em pelo menos uma tarefa.
 - **`#{PLAN_FACTS}`:** uma linha por tarefa, na [tabela de fatos](#tabela-de-fatos).
 
 Para dividir o trabalho:
@@ -119,7 +120,7 @@ Execute:
 vostok plan validate <SPEC_ID>
 ```
 
-O comando lista os problemas sem alterar nada. Corrija-os, execute o `vostok plan score` de novo se mudou fatos ou tarefas e valide outra vez. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada, como "componente da spec sem tarefa". Corrija-os, execute o `vostok plan score` de novo se mudou fatos ou tarefas e valide outra vez. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 ### 7. Responder ao usuário
 
@@ -142,13 +143,22 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 | TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | RF-02, CT-02 |
 ```
 
-### Tabela de fatos
+### Tabela de componentes
 
-Arquivos a criar e a alterar são números inteiros; os demais campos são `sim` ou `não`.
+Uma linha por tarefa, com os caminhos separados por vírgula, ou `-` quando a tarefa não assume componente da spec.
 
 ```markdown
-| TASK-01 | 1 | 2 | não | não | não |
-| TASK-02 | 0 | 3 | sim | não | sim |
+| TASK-01 | `src/a.rs`, `src/b.rs` |
+| TASK-02 | - |
+```
+
+### Tabela de fatos
+
+Deixe `-` em "Arquivos a criar" e "Arquivos a alterar": o `vostok plan score` os calcula pelos componentes da tarefa. Informe só os demais campos, `sim` ou `não`.
+
+```markdown
+| TASK-01 | - | - | não | não | não |
+| TASK-02 | - | - | sim | não | sim |
 ```
 
 ### Resumo do plano

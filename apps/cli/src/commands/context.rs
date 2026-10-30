@@ -1,5 +1,6 @@
 //! Comandos `context`: carregamento de contexto para o agente.
-//! Reproduzem `load-context.sh`, `load-extra-context.sh` e `lib/context.sh`.
+//! Reproduzem `load-context.sh`, `load-extra-context.sh` e `lib/context.sh`. Com `--persona`, o
+//! contexto carregado é seguido das personas pedidas.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,15 +9,23 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::harness::Harness;
-use crate::support::{config_get, config_list, exit_failure, fail};
+use crate::support::{config_get, config_list, exit_failure, fail, is_kebab_case};
+
+const PERSONAS_DIR: &str = "personas";
+const PERSONA_USAGE: &str = "Uso: vostok context load --persona <nome>";
+const PERSONA_WITH_PATHS: &str = "Uso: vostok context load [--skill <nome>] [--persona <nome>]...; --persona não se combina com caminhos";
 
 #[derive(Debug, Subcommand)]
 pub enum ContextCommand {
-    /// Carrega o contexto obrigatório; com caminhos ou `--skill`, o contexto adicional.
+    /// Carrega o contexto obrigatório; com caminhos ou `--skill`, o contexto adicional; com
+    /// `--persona`, também a persona.
     Load {
         /// Skill cuja entrada do mapa `skills` do `config/context.yml` é carregada.
         #[arg(long)]
         skill: Option<String>,
+        /// Persona de `personas/` carregada depois do contexto; repetível, na ordem dada.
+        #[arg(long = "persona", value_name = "NOME")]
+        personas: Vec<String>,
         /// Arquivos ou pastas, relativos à raiz do harness.
         paths: Vec<String>,
     },
@@ -24,17 +33,68 @@ pub enum ContextCommand {
 
 pub fn run(command: ContextCommand) -> Result<()> {
     let harness = Harness::from_current_dir()?;
-    let ContextCommand::Load { skill, paths } = command;
+    let ContextCommand::Load {
+        skill,
+        personas,
+        paths,
+    } = command;
+    if !personas.is_empty() && !paths.is_empty() {
+        fail(PERSONA_WITH_PATHS);
+    }
+    let persona_files = persona_files(&harness, &personas);
     let printer = Printer::new(&harness);
     let complete = match skill {
         Some(skill) => load_skill(&harness, &printer, &skill)?,
         None if paths.is_empty() => load_required(&harness, &printer)?,
         None => load_paths(&printer, &paths)?,
     };
+    if complete && !persona_files.is_empty() {
+        printer.header("Persona");
+        for file in &persona_files {
+            printer.path(file);
+        }
+    }
     if !complete {
         exit_failure();
     }
     Ok(())
+}
+
+/// Caminhos absolutos das personas pedidas, na ordem dada; recusa nome vazio ou inexistente.
+fn persona_files(harness: &Harness, names: &[String]) -> Vec<String> {
+    let root = harness.root.to_string_lossy().into_owned();
+    names
+        .iter()
+        .map(|name| {
+            if name.is_empty() {
+                fail(PERSONA_USAGE);
+            }
+            let path = format!("{root}/{PERSONAS_DIR}/{name}.md");
+            if !is_kebab_case(name) || !Path::new(&path).is_file() {
+                let mut available: Vec<String> =
+                    fs::read_dir(harness.root.join(PERSONAS_DIR))
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .filter_map(|entry| {
+                            let file = entry.file_name().to_string_lossy().into_owned();
+                            file.strip_suffix(".md").map(str::to_string)
+                        })
+                        .collect();
+                available.sort_unstable();
+                if available.is_empty() {
+                    fail(format!(
+                        "Persona '{name}' não existe; nenhuma persona instalada em {PERSONAS_DIR}/; execute `vostok update`"
+                    ));
+                }
+                fail(format!(
+                    "Persona '{name}' não existe; as disponíveis são: {}",
+                    available.join(", ")
+                ));
+            }
+            path
+        })
+        .collect()
 }
 
 /// Contexto obrigatório: cada item de `required`. Um item ausente só gera aviso.

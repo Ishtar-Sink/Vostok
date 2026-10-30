@@ -7,6 +7,18 @@ use std::fs;
 
 use common::golden::assert_group;
 use common::{failure_stderr, Project};
+use vostok::embedded;
+
+const PERSONAS: [&str; 8] = [
+    "coordenador",
+    "planejador",
+    "arquiteto",
+    "engenheiro",
+    "desenvolvedor",
+    "qa-lead",
+    "ui-ux-designer",
+    "qa",
+];
 
 #[test]
 fn golden_context() {
@@ -217,4 +229,194 @@ fn rules_validate_reports_a_rule_before_the_purpose() {
     assert!(String::from_utf8(output).unwrap().contains(
         "rules/project/extra.md:3: falta a frase de propósito antes da primeira regra\n"
     ));
+}
+
+#[test]
+fn rf09_every_persona_has_the_fixed_structure() {
+    for name in PERSONAS {
+        let bytes = embedded::file(&format!("personas/{name}.md"))
+            .unwrap_or_else(|| panic!("persona {name} ausente"));
+        let text = String::from_utf8(bytes.to_vec()).expect("UTF-8");
+        assert!(
+            text.starts_with(&format!("---\nname: {name}\ntitle: ")),
+            "{name}: front-matter"
+        );
+        assert!(text.contains("\ndescription: \""), "{name}: description");
+        assert!(text.contains("\n# Persona: "), "{name}: título");
+        let mut last = 0;
+        for section in [
+            "## Responsabilidade",
+            "## Quando atua",
+            "## Entradas",
+            "## Saídas",
+            "## Regras",
+            "## Limites",
+            "## Ao terminar",
+        ] {
+            let at = text
+                .find(section)
+                .unwrap_or_else(|| panic!("{name}: falta {section}"));
+            assert!(at > last, "{name}: {section} fora de ordem");
+            last = at;
+        }
+        assert!(
+            text.contains(&format!("[persona/{name}-01]:")),
+            "{name}: regra 01"
+        );
+        assert!(
+            !text.contains("packages/harness"),
+            "{name}: cita packages/harness"
+        );
+    }
+}
+
+#[test]
+fn rf09_only_the_eight_personas_are_embedded() {
+    let found: Vec<String> = embedded::files()
+        .into_iter()
+        .filter(|file| file.starts_with("personas/"))
+        .collect();
+    let mut expected: Vec<String> = PERSONAS
+        .iter()
+        .map(|n| format!("personas/{n}.md"))
+        .collect();
+    expected.sort();
+    assert_eq!(found, expected);
+}
+
+fn position(text: &str, needle: &str) -> usize {
+    text.find(needle)
+        .unwrap_or_else(|| panic!("falta '{needle}' em:\n{text}"))
+}
+
+#[test]
+fn ct06_context_load_persona_prints_the_required_context_and_the_persona() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args(["context", "load", "--persona", "arquiteto"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("UTF-8");
+    let required = position(&text, "# Contexto obrigatório do harness");
+    let header = position(&text, "# Persona\n");
+    let file = position(&text, "--- arquivo: personas/arquiteto.md ---");
+    assert!(required < header && header < file);
+    assert!(text.contains("## Responsabilidade"));
+}
+
+#[test]
+fn ct06_context_load_rejects_an_unknown_persona() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args(["context", "load", "--persona", "nao-existe"])
+        .assert()
+        .failure()
+        .code(1)
+        .get_output()
+        .clone();
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("UTF-8"),
+        "Persona 'nao-existe' não existe; as disponíveis são: arquiteto, coordenador, desenvolvedor, engenheiro, planejador, qa, qa-lead, ui-ux-designer\n"
+    );
+}
+
+#[test]
+fn context_load_rejects_an_empty_persona_name() {
+    let project = Project::new();
+    let stderr = failure_stderr(project.vostok().args(["context", "load", "--persona", ""]));
+    assert_eq!(stderr, "Uso: vostok context load --persona <nome>\n");
+}
+
+#[test]
+fn context_load_without_installed_personas_points_to_update() {
+    let project = Project::new();
+    fs::remove_dir_all(project.harness().join("personas")).expect("remover personas");
+    let stderr =
+        failure_stderr(
+            project
+                .vostok()
+                .args(["context", "load", "--persona", "arquiteto"]),
+        );
+    assert_eq!(
+        stderr,
+        "Persona 'arquiteto' não existe; nenhuma persona instalada em personas/; execute `vostok update`\n"
+    );
+}
+
+#[test]
+fn context_load_with_skill_and_persona_prints_the_skill_context_and_the_persona() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args([
+            "context",
+            "load",
+            "--skill",
+            "refine-spec",
+            "--persona",
+            "planejador",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("UTF-8");
+    assert!(text.contains("# Contexto adicional"));
+    assert!(!text.contains("# Contexto obrigatório do harness"));
+    assert!(
+        position(&text, "# Persona\n") < position(&text, "--- arquivo: personas/planejador.md ---")
+    );
+}
+
+#[test]
+fn context_load_prints_several_personas_in_the_given_order() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args([
+            "context",
+            "load",
+            "--persona",
+            "engenheiro",
+            "--persona",
+            "arquiteto",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("UTF-8");
+    assert!(position(&text, "personas/engenheiro.md") < position(&text, "personas/arquiteto.md"));
+}
+
+#[test]
+fn context_load_rejects_persona_with_paths() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args([
+            "context",
+            "load",
+            "--persona",
+            "arquiteto",
+            "config/skills.yml",
+        ])
+        .assert()
+        .failure()
+        .code(1)
+        .get_output()
+        .clone();
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("UTF-8"),
+        "Uso: vostok context load [--skill <nome>] [--persona <nome>]...; --persona não se combina com caminhos\n"
+    );
 }

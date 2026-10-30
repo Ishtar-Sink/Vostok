@@ -10,6 +10,7 @@ const TOP_LEVEL: &[&str] = &[
     ".gitignore",
     "config",
     "context",
+    "personas",
     "rules",
     "skills",
     "templates",

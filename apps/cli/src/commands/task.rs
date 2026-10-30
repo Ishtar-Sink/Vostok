@@ -319,6 +319,31 @@ impl Tasks {
             .collect()
     }
 
+    /// Subpasta de `baseline/` com a saída das evidências automáticas; sem a chave (projetos
+    /// antigos) ou vazia, nada é gravado nem comparado.
+    fn evidence_baseline_dir(&self) -> Option<String> {
+        self.cfg("evidence_baseline_dir")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    }
+
+    /// `(nome, comando)` das evidências automáticas de "Evidências", pela leitura do `evidence`.
+    fn automatic_evidences(&self, content: &str) -> Result<Vec<(String, String)>> {
+        let automatic = self.cfg("evidence_automatic")?;
+        let text = self.subsection(content, "evidence_subsection")?;
+        Ok(text
+            .lines()
+            .filter(|line| has_text(line) && !is_indented(line))
+            .filter_map(evidence_item)
+            .filter(|(name, kind, _)| *kind == automatic && is_valid_evidence_name(name))
+            .filter_map(|(name, _, rest)| {
+                let command = rest.strip_prefix('`')?.strip_suffix('`')?;
+                (!command.is_empty()).then(|| (name.to_string(), command.to_string()))
+            })
+            .collect())
+    }
+
     /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.
     fn evidence_fields(&self) -> Option<EvidenceFields> {
         Some(EvidenceFields {
@@ -806,7 +831,8 @@ impl Tasks {
                 dir.display()
             );
         }
-        let commands = self.baseline_commands(&read(&file)?)?;
+        let content = read(&file)?;
+        let commands = self.baseline_commands(&content)?;
         if commands.is_empty() {
             bail!("a tarefa {task} não tem comandos em 'Baseline'");
         }
@@ -816,16 +842,34 @@ impl Tasks {
         for command in &commands {
             results.push(recorded_run(command, &root)?);
         }
+        // Evidências automáticas: a saída de antes da mudança; o código de saída não impede a coleta.
+        let mut evidences = Vec::new();
+        if let Some(evidence_dir) = self.evidence_baseline_dir() {
+            for (name, command) in self.automatic_evidences(&content)? {
+                evidences.push((evidence_dir.clone(), name, recorded_run(&command, &root)?.1));
+            }
+        }
         fs::create_dir_all(&dir)?;
         for (index, (_, output)) in results.iter().enumerate() {
             fs::write(dir.join(output_name(index + 1)), output)?;
+        }
+        for (evidence_dir, name, output) in &evidences {
+            let target = dir.join(evidence_dir);
+            fs::create_dir_all(&target)?;
+            fs::write(target.join(name), output)?;
         }
         let codes = results
             .iter()
             .map(|(code, _)| code.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let detail = format!("{} comando(s); códigos de saída: {codes}", commands.len());
+        let mut detail = format!("{} comando(s); códigos de saída: {codes}", commands.len());
+        if !evidences.is_empty() {
+            detail.push_str(&format!(
+                "; {} evidência(s) automática(s) gravada(s) para comparação",
+                evidences.len()
+            ));
+        }
         self.record_step(&file, "baseline", "coletado", &detail)?;
         println!("Baseline de {task} coletado em {}: {detail}", dir.display());
         Ok(())
@@ -1036,6 +1080,11 @@ impl Tasks {
 
         fs::create_dir_all(&dir)?;
         let root = self.project_root()?;
+        let ignore = self.regression_ignore();
+        let baseline_dir = self
+            .evidence_baseline_dir()
+            .map(|sub| dir.join("baseline").join(sub));
+        let mut same: Vec<(String, String)> = Vec::new();
         let mut missing = String::new();
         let mut failed = String::new();
         for item in &items {
@@ -1054,6 +1103,20 @@ impl Tasks {
                 // A saída só vira evidência se o comando terminar sem erro; com erro, ela vai para a mensagem.
                 let (code, output) = shell_output(command, &root)?;
                 if code == 0 {
+                    if let Some(recorded) = baseline_dir
+                        .as_ref()
+                        .and_then(|base| fs::read(base.join(name)).ok())
+                    {
+                        let before = recorded
+                            .splitn(3, |byte| *byte == b'\n')
+                            .nth(2)
+                            .unwrap_or_default();
+                        if recorded_exit_code(&recorded) == Some(0)
+                            && without_ignored(before, &ignore) == without_ignored(&output, &ignore)
+                        {
+                            same.push((name.to_string(), command.to_string()));
+                        }
+                    }
                     fs::write(&target, output)?;
                 } else {
                     failed.push_str(&format!(
@@ -1082,6 +1145,7 @@ impl Tasks {
                 "evidência manual sem arquivo",
             )?;
             print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
+            print_same_as_baseline(&same);
             return Ok(());
         }
         frontmatter_set(&file, "evidence_result", "passed")?;
@@ -1090,13 +1154,22 @@ impl Tasks {
             .and_then(Path::file_name)
             .unwrap_or_default()
             .to_string_lossy();
-        let detail = format!("{} evidência(s) em {folder}/{task}/", items.len());
+        let mut detail = format!("{} evidência(s) em {folder}/{task}/", items.len());
+        if !same.is_empty() {
+            let names: Vec<&str> = same.iter().map(|(name, _)| name.as_str()).collect();
+            detail.push_str(&format!(
+                "; {} igual(is) ao baseline: {}",
+                same.len(),
+                names.join(", ")
+            ));
+        }
         self.record_step(&file, "evidências", "passed", &detail)?;
         println!(
             "Evidências de {task} gravadas em {}: {} item(ns). Resultado: passed.",
             dir.display(),
             items.len()
         );
+        print_same_as_baseline(&same);
         Ok(())
     }
 
@@ -2415,6 +2488,19 @@ pub(crate) fn renamed_evidence(
         }
     }
     (lines.join("\n"), warnings)
+}
+
+/// Aviso das evidências automáticas com a mesma saída do baseline; nada quando não há nenhuma.
+fn print_same_as_baseline(same: &[(String, String)]) {
+    if same.is_empty() {
+        return;
+    }
+    println!(
+        "Aviso: evidência(s) com a mesma saída do baseline, que não comprovam a mudança da tarefa:"
+    );
+    for (name, command) in same {
+        println!("- {name}: `{command}`");
+    }
 }
 
 /// Avisos das trocas de nome de evidência, depois do cabeçalho; nada quando não há troca.

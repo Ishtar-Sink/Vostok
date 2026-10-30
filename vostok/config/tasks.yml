@@ -165,6 +165,11 @@ regression_ignore:
   - finished in
   - "Time:"
 
+# Subpasta de `baseline/` com a saída das evidências automáticas antes da mudança, gravada pelo
+# vostok task baseline. O vostok task evidence avisa quando a saída final de uma evidência é igual à
+# do baseline: ela não comprova a mudança. Vazia ou ausente, nada é gravado nem comparado.
+evidence_baseline_dir: evidence
+
 # --- Perfil de execução ---
 # O perfil diz o que a tarefa exige do modelo e nunca indica um modelo. O último de `profile_levels`
 # (julgamento) vale só quando os fatos batem com uma das combinações de `profile_judgment`. Sem

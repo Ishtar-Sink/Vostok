@@ -110,6 +110,18 @@ const REGRESSION_DIR: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/valida
 
 /// Tarefa em execução com um comando `cat <arquivo>` no baseline para cada arquivo, já coletado.
 fn running_task(files: &[(&str, &str)]) -> Project {
+    running_task_with_evidence(files, "Não se aplica.")
+}
+
+/// Como `running_task`, com o texto dado na subseção "Evidências" antes de coletar o baseline.
+fn running_task_with_evidence(files: &[(&str, &str)], evidence: &str) -> Project {
+    let project = task_before_baseline(files, evidence);
+    task(&project, &["baseline"]).assert().success();
+    project
+}
+
+/// Como `running_task_with_evidence`, mas sem coletar o baseline.
+fn task_before_baseline(files: &[(&str, &str)], evidence: &str) -> Project {
     let project = Project::new();
     let baseline: String = files
         .iter()
@@ -122,7 +134,7 @@ fn running_task(files: &[(&str, &str)]) -> Project {
         &project,
         TASK_PATH,
         &format!(
-            "---\nid: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\nstatus: in_progress\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Baseline\n\n{baseline}\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\nNão se aplica.\n\n### Concluída quando\n\n- [x] Pronto.\n\n  > Como comprovar: ver.\n\n## Descrição\n\nTexto.\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n"
+            "---\nid: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\nstatus: in_progress\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Baseline\n\n{baseline}\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n{evidence}\n\n### Concluída quando\n\n- [x] Pronto.\n\n  > Como comprovar: ver.\n\n## Descrição\n\nTexto.\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n"
         ),
     );
     write(
@@ -130,7 +142,6 @@ fn running_task(files: &[(&str, &str)]) -> Project {
         "vostok/work/tasks/SPEC-001/TASK-02.md",
         "---\nid: TASK-02\nstatus: pending\n---\n",
     );
-    task(&project, &["baseline"]).assert().success();
     project
 }
 
@@ -532,6 +543,120 @@ fn evidence_subitems_are_ignored_when_recording() {
         "vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt",
     );
     assert_eq!(evidence, "a\n");
+}
+
+// --- Evidências que só passam com a mudança (SPEC-014) ---
+
+/// Remove a linha `evidence_baseline_dir:` da configuração, como num projeto antigo.
+fn without_evidence_baseline(project: &Project) {
+    let path = "vostok/config/tasks.yml";
+    let content: String = read(project, path)
+        .lines()
+        .filter(|line| !line.starts_with("evidence_baseline_dir:"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(project, path, &content);
+}
+
+const AUTOMATIC_EVIDENCE: &str = "- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha `a`.\n  - Falha: arquivo ausente.";
+
+fn evidence_baseline_file(project: &Project, name: &str) -> String {
+    read(project, &format!("{EVIDENCE_DIR}/baseline/evidence/{name}"))
+}
+
+#[test]
+fn evidence_baseline_records_the_automatic_evidence_output() {
+    let evidence = format!("{AUTOMATIC_EVIDENCE}\n- `tela.png` (manual): print");
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], &evidence);
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ cat valor.txt\nexit: 0\na\n"
+    );
+    assert!(!exists(
+        &project,
+        &format!("{EVIDENCE_DIR}/baseline/evidence/tela.png")
+    ));
+    let registro = read(&project, TASK_PATH);
+    assert!(
+        registro.contains("1 evidência(s) automática(s) gravada(s) para comparação"),
+        "{registro}"
+    );
+}
+
+#[test]
+fn evidence_baseline_same_output_warns_and_passes() {
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], AUTOMATIC_EVIDENCE);
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        output.contains("Aviso: evidência(s) com a mesma saída do baseline, que não comprovam a mudança da tarefa:"),
+        "{output}"
+    );
+    assert!(output.contains("- saida.txt: `cat valor.txt`"), "{output}");
+    assert!(read(&project, TASK_PATH).contains("evidence_result: passed"));
+    assert_eq!(read(&project, &format!("{EVIDENCE_DIR}/saida.txt")), "a\n");
+}
+
+#[test]
+fn evidence_baseline_changed_output_does_not_warn() {
+    let evidence = AUTOMATIC_EVIDENCE.replace("valor.txt", "outro.txt");
+    let project = task_before_baseline(&[("valor.txt", "a\n")], &evidence);
+    write(&project, "outro.txt", "a\n");
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "outro.txt", "b\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(output.contains("Resultado: passed."), "{output}");
+    assert!(!output.contains("Aviso:"), "{output}");
+}
+
+#[test]
+fn evidence_baseline_command_that_failed_before_does_not_warn() {
+    let evidence = AUTOMATIC_EVIDENCE.replace("valor.txt", "novo.txt");
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], &evidence);
+    assert!(evidence_baseline_file(&project, "saida.txt").contains("exit: 1"));
+    write(&project, "novo.txt", "a\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(output.contains("Resultado: passed."), "{output}");
+    assert!(!output.contains("Aviso:"), "{output}");
+}
+
+#[test]
+fn evidence_baseline_ignored_lines_count_as_equal() {
+    let evidence = AUTOMATIC_EVIDENCE.replace("valor.txt", "tempo.txt");
+    let project = running_task_with_evidence(&[("tempo.txt", "ok\nDuration: 1s\n")], &evidence);
+    write(&project, "tempo.txt", "ok\nDuration: 2s\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(output.contains("Aviso:"), "{output}");
+    assert!(output.contains("- saida.txt: `cat tempo.txt`"), "{output}");
+}
+
+#[test]
+fn evidence_baseline_without_the_key_records_nothing() {
+    let project = task_before_baseline(&[("valor.txt", "a\n")], AUTOMATIC_EVIDENCE);
+    without_evidence_baseline(&project);
+    let output = stdout(&mut task(&project, &["baseline"]));
+    assert!(
+        output
+            .trim_end()
+            .ends_with("1 comando(s); códigos de saída: 0"),
+        "{output}"
+    );
+    assert!(!exists(
+        &project,
+        &format!("{EVIDENCE_DIR}/baseline/evidence")
+    ));
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(output.contains("Resultado: passed."), "{output}");
+    assert!(!output.contains("Aviso:"), "{output}");
 }
 
 // --- Persistência das evidências no projeto (SPEC-009) ---

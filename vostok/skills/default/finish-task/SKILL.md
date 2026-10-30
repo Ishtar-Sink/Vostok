@@ -117,6 +117,7 @@ O comando grava a saída de cada evidência automática e confere as manuais:
 
 - Evidência automática com erro: corrija a causa no código da tarefa e execute `vostok task evidence` de novo. Se o erro estiver no próprio comando da evidência, **PARE** e responda com o template `blocker`: mudar a evidência é um ajuste (skill `adjust-task`).
 - Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo comando. Com os arquivos, execute `vostok task evidence` de novo.
+- Evidência com a mesma saída do baseline: o comando grava e avisa. Ela não comprova a mudança da tarefa; siga para o passo seguinte e cite o aviso em "Pendências" da resposta, sugerindo ajustar a evidência com a skill `adjust-task`.
 
 ### 6. Persistir as evidências
 

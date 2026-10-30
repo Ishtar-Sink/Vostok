@@ -91,7 +91,7 @@ Antes de mudar qualquer arquivo, execute:
 vostok task baseline <SPEC_ID> <TASK_ID>
 ```
 
-O `vostok task baseline` executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Se o comando recusar, **PARE** e responda com o template `blocker`.
+O `vostok task baseline` executa cada comando de "Baseline" a partir da raiz do projeto e grava o resultado. Um código de saída diferente de zero não impede a coleta: ele é o estado anterior, e a `finish-task` compara com ele. Ele grava também a saída das evidências automáticas, para o `vostok task evidence` avisar quando uma evidência não muda com a tarefa. Se o comando recusar, **PARE** e responda com o template `blocker`.
 
 ### 6. Implementar os testes
 

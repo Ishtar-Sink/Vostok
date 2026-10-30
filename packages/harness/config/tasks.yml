@@ -29,6 +29,11 @@ regression_ignore:
 # Pasta das evidências e do baseline de cada tarefa, relativa a `paths.tasks`/<SPEC_ID>.
 evidence_dir: evidence
 
+# Subpasta de `baseline/` com a saída das evidências automáticas antes da mudança, gravada pelo
+# vostok task baseline. O vostok task evidence avisa quando a saída final de uma evidência é igual à
+# do baseline: ela não comprova a mudança. Vazia ou ausente, nada é gravado nem comparado.
+evidence_baseline_dir: evidence
+
 # Seção do arquivo da tarefa com uma linha por etapa da execução, escrita só pelos scripts.
 record_section: Registro de execução
 

@@ -90,7 +90,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 17, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 18, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))
@@ -132,6 +132,31 @@ fn ct13_skills_and_skill_templates_call_vostok() {
     let template =
         String::from_utf8(embedded::file("templates/skill/skill.md").unwrap().to_vec()).unwrap();
     assert!(template.contains("\nvostok context load --skill #{SKILL_NAME}\n"));
+}
+
+#[test]
+fn create_spec_skill_creates_the_draft_without_refining() {
+    let skill = String::from_utf8(
+        embedded::file("skills/default/create-spec/SKILL.md")
+            .expect("create-spec embutida")
+            .to_vec(),
+    )
+    .unwrap();
+    assert!(skill.starts_with("---\nname: create-spec\n"));
+    assert!(skill.contains("vostok spec new \""));
+    assert!(skill.contains("vostok spec list"));
+    for forbidden in [
+        "vostok spec refine",
+        "vostok spec mark-refined",
+        "vostok spec approve",
+    ] {
+        assert!(!skill.contains(forbidden), "{forbidden}");
+    }
+    let catalog =
+        String::from_utf8(embedded::file("context/skill-catalog.md").unwrap().to_vec()).unwrap();
+    assert!(catalog
+        .lines()
+        .any(|line| line.starts_with("| create-spec |")));
 }
 
 #[test]

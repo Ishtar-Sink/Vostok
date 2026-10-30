@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-018 · Documento técnico · Regressão que ainda mede a entrega da tarefa</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-018 · aprovada em 2026-10-30 · concluída em 2026-10-30</p>
+    <h1>Regressão que ainda mede a entrega da tarefa</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>A regressão da tarefa passou a ignorar o comando de Baseline inteiro (saída e código de saída) quando ele cita um caminho de entrega: um caminho <code>criar</code> ou uma pasta-pai dele que a tarefa cria. A validação do plano e da tarefa recusa também comandos sobre pastas novas. Ambas usam a mesma função de citação por caminho inteiro. É a continuação da SPEC-017, cuja correção por filtro de linhas não cobria comandos sem o caminho na saída.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Componente</th><th>Papel</th></tr>
+</thead>
+<tbody>
+<tr><td><code>cites_path</code> (task.rs)</td><td>Decide se um comando cita um caminho inteiro, delimitado, não parte de outro nome</td></tr>
+<tr><td><code>new_folders</code> (task.rs)</td><td>Pastas-pai dos caminhos <code>criar</code> que não existem no disco; usada na validação</td></tr>
+<tr><td><code>untracked_folders</code> (task.rs)</td><td>Pastas-pai dos caminhos <code>criar</code> sem arquivo rastreado no <code>HEAD</code>; usada na regressão</td></tr>
+<tr><td><code>delivery_errors</code> (task.rs)</td><td>Recusa o caminho <code>criar</code> exato e as pastas novas, com mensagem própria</td></tr>
+<tr><td><code>regression</code> (task.rs)</td><td>Ignora o comando que cita caminho de entrega e o lista</td></tr>
+<tr><td><code>baseline_errors</code> e <code>task_errors</code> (plan.rs)</td><td>Passam as pastas novas à validação do plano</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<p>Na TASK-01, os testes <code>delivery_command_*</code> foram escritos antes do código. <code>cites_path</code> exige delimitadores dos dois lados do caminho, com <code>/</code> final opcional. <code>regression</code> calcula os caminhos de entrega (caminhos <code>criar</code> mais pastas sem rastreio no <code>HEAD</code>; fora de um repositório git, só os caminhos exatos), executa o comando e grava a saída como antes, mas o tira das diferenças e das aceitações. A saída e o registro de execução informam a quantidade de ignorados, e a saída lista cada um. O filtro de linhas da SPEC-017 permanece para comandos que não citam entrega. O teste <code>baseline_delivery_other_lines_are_still_compared</code> foi trocado por <code>delivery_command_cited_command_is_ignored_entirely</code>, pois o comportamento que ele garantia deixou de valer. A skill local <code>triage-harness-issue</code> passou a aceitar spec de continuação quando a validação do autor diz &quot;não corrigido&quot;.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>O <code>vostok task regression</code> não compara um comando de &quot;Baseline&quot; que cita um caminho de entrega da tarefa: nem a saída nem o código de saída contam como diferença, mesmo sem o caminho na saída.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>Caminho de entrega na regressão: cada caminho <code>criar</code> de &quot;Mudar&quot; e cada pasta-pai dele, abaixo da raiz do projeto, sem nenhum arquivo rastreado no <code>HEAD</code> do git; fora de um repositório git, só os caminhos <code>criar</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>A saída do <code>vostok task regression</code> e a linha do &quot;Registro de execução&quot; informam a quantidade de comandos ignorados por medirem a entrega, e a saída lista cada um (<code>- [N] comando: ignorado, mede a entrega da tarefa (&#39;&lt;caminho&gt;&#39;)</code>).</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>A validação das tarefas recusa comando de &quot;Baseline&quot; que cita uma pasta-pai de um caminho <code>criar</code> que não existe no projeto no momento da validação, com a mensagem <code>&#39;Baseline&#39; com comando que cita &#39;&lt;pasta&gt;&#39;, pasta que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: &lt;comando&gt;</code>; a recusa do caminho <code>criar</code> exato continua com a mensagem atual.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-05</td><td>Citação por caminho inteiro: o caminho (com ou sem <code>/</code> final) só conta quando não vem colado a outro caractere de nome (letra, número, <code>_</code>, <code>-</code>, <code>.</code>, <code>/</code> seguido de nome) dos dois lados, tanto na validação quanto na regressão.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>Comandos que não citam caminho de entrega são comparados como na 0.2.2, inclusive o filtro de linhas da SPEC-017 e as aceitações por <code>--accept-regression</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Roteiro da issue</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Pasta nova</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Pasta existente continua comparada</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Sem git</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Validação da pasta nova</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Validação da tarefa</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Citação por caminho inteiro</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-08</td><td>Sem caminho de entrega</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-01</td><td>Pasta-pai já existente (ex.: <code>src</code> com outros arquivos rastreados)</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-02</td><td>Projeto sem git</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-03</td><td><code>for p in src/novo.rs LICENSE</code> (cita um <code>criar</code>)</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-04</td><td>Caminho como parte de outro nome (<code>src/exemplo.rs.bak</code>, <code>src/modulos</code>)</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-05</td><td>Tarefa em execução com baseline coletado</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-06</td><td>Pasta criada por uma dependência já concluída e commitada</td><td><span class="chip">TASK-01</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/plan.rs</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+123</span><span class="tag remover">−11</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1145,9 +1145,14 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1145</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td><td class="ln">1145</td><td class="code">        clear_regression_outputs(&amp;dir)?;</td></tr>
+<tr><td class="ln">1146</td><td class="code">        let accepted = latest_acceptances(&amp;dir);</td><td class="ln">1146</td><td class="code">        let accepted = latest_acceptances(&amp;dir);</td></tr>
+<tr><td class="ln">1147</td><td class="code">        let mut ignore = self.regression_ignore();</td><td class="ln">1147</td><td class="code">        let mut ignore = self.regression_ignore();</td></tr>
+<tr><td class="ln">1148</td><td class="code del">        ignore.extend(self.created_paths(&amp;file)?);</td><td class="ln">1148</td><td class="code add">        let created = self.created_paths(&amp;file)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1149</td><td class="code add">        ignore.extend(created.clone());</td></tr>
+<tr><td class="ln">1149</td><td class="code"></td><td class="ln">1150</td><td class="code"></td></tr>
+<tr><td class="ln">1150</td><td class="code">        let root = self.project_root()?;</td><td class="ln">1151</td><td class="code">        let root = self.project_root()?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1152</td><td class="code add">        let mut delivery = created;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1153</td><td class="code add">        delivery.extend(untracked_folders(&amp;root, &amp;delivery.clone()));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1154</td><td class="code add">        let mut ignored = String::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1155</td><td class="code add">        let mut ignored_count = 0;</td></tr>
+<tr><td class="ln">1151</td><td class="code">        let mut changed = String::new();</td><td class="ln">1156</td><td class="code">        let mut changed = String::new();</td></tr>
+<tr><td class="ln">1152</td><td class="code">        let mut equal = 0;</td><td class="ln">1157</td><td class="code">        let mut equal = 0;</td></tr>
+<tr><td class="ln">1153</td><td class="code">        let mut accepted_count = 0;</td><td class="ln">1158</td><td class="code">        let mut accepted_count = 0;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1157,6 +1162,13 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1157</td><td class="code">            let (code, output) = recorded_run(command, &amp;root)?;</td><td class="ln">1162</td><td class="code">            let (code, output) = recorded_run(command, &amp;root)?;</td></tr>
+<tr><td class="ln">1158</td><td class="code">            let current = dir.join(&amp;name);</td><td class="ln">1163</td><td class="code">            let current = dir.join(&amp;name);</td></tr>
+<tr><td class="ln">1159</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td><td class="ln">1164</td><td class="code">            fs::write(&amp;current, &amp;output)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1165</td><td class="code add">            if let Some(path) = delivery.iter().find(|path| cites_path(command, path)) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1166</td><td class="code add">                ignored_count += 1;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1167</td><td class="code add">                ignored.push_str(&amp;format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1168</td><td class="code add">                    &quot;- [{number}] {command}: ignorado, mede a entrega da tarefa (&#39;{path}&#39;)\n&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1169</td><td class="code add">                ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1170</td><td class="code add">                continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1171</td><td class="code add">            }</td></tr>
+<tr><td class="ln">1160</td><td class="code">            let previous = base.join(&amp;name);</td><td class="ln">1172</td><td class="code">            let previous = base.join(&amp;name);</td></tr>
+<tr><td class="ln">1161</td><td class="code">            match fs::read(&amp;previous) {</td><td class="ln">1173</td><td class="code">            match fs::read(&amp;previous) {</td></tr>
+<tr><td class="ln">1162</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td><td class="ln">1174</td><td class="code">                Err(_) =&gt; changed.push_str(&amp;format!(&quot;- {command}: sem resultado no baseline\n&quot;)),</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1198,13 +1210,19 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1198</td><td class="code">        if changed.is_empty() {</td><td class="ln">1210</td><td class="code">        if changed.is_empty() {</td></tr>
+<tr><td class="ln">1199</td><td class="code">            frontmatter_set(&amp;file, &quot;status&quot;, &amp;self.status.validating)?;</td><td class="ln">1211</td><td class="code">            frontmatter_set(&amp;file, &quot;status&quot;, &amp;self.status.validating)?;</td></tr>
+<tr><td class="ln">1200</td><td class="code">            frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;passed&quot;)?;</td><td class="ln">1212</td><td class="code">            frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;passed&quot;)?;</td></tr>
+<tr><td class="ln">1201</td><td class="code del">            let detail = if accepted_count == 0 {</td><td class="ln">1213</td><td class="code add">            let mut detail = if accepted_count == 0 {</td></tr>
+<tr><td class="ln">1202</td><td class="code">                format!(&quot;{equal} comando(s) iguais ao baseline&quot;)</td><td class="ln">1214</td><td class="code">                format!(&quot;{equal} comando(s) iguais ao baseline&quot;)</td></tr>
+<tr><td class="ln">1203</td><td class="code">            } else {</td><td class="ln">1215</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">1204</td><td class="code">                format!(&quot;{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário&quot;)</td><td class="ln">1216</td><td class="code">                format!(&quot;{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário&quot;)</td></tr>
+<tr><td class="ln">1205</td><td class="code">            };</td><td class="ln">1217</td><td class="code">            };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1218</td><td class="code add">            if ignored_count &gt; 0 {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1219</td><td class="code add">                detail.push_str(&amp;format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1220</td><td class="code add">                    &quot;; {ignored_count} ignorado(s) por medir a entrega&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1221</td><td class="code add">                ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1222</td><td class="code add">            }</td></tr>
+<tr><td class="ln">1206</td><td class="code">            self.record_step(&amp;file, &quot;regressão&quot;, &quot;passed&quot;, &amp;detail)?;</td><td class="ln">1223</td><td class="code">            self.record_step(&amp;file, &quot;regressão&quot;, &quot;passed&quot;, &amp;detail)?;</td></tr>
+<tr><td class="ln">1207</td><td class="code">            println!(&quot;Sem regressão em {task}: {detail}.&quot;);</td><td class="ln">1224</td><td class="code">            println!(&quot;Sem regressão em {task}: {detail}.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1225</td><td class="code add">            print!(&quot;{ignored}&quot;);</td></tr>
+<tr><td class="ln">1208</td><td class="code">            return Ok(());</td><td class="ln">1226</td><td class="code">            return Ok(());</td></tr>
+<tr><td class="ln">1209</td><td class="code">        }</td><td class="ln">1227</td><td class="code">        }</td></tr>
+<tr><td class="ln">1210</td><td class="code">        frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;failed&quot;)?;</td><td class="ln">1228</td><td class="code">        frontmatter_set(&amp;file, &quot;regression_result&quot;, &quot;failed&quot;)?;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1216,7 +1234,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1216</td><td class="code">            &quot;comandos diferentes do baseline; bloqueada&quot;,</td><td class="ln">1234</td><td class="code">            &quot;comandos diferentes do baseline; bloqueada&quot;,</td></tr>
+<tr><td class="ln">1217</td><td class="code">        )?;</td><td class="ln">1235</td><td class="code">        )?;</td></tr>
+<tr><td class="ln">1218</td><td class="code">        print!(</td><td class="ln">1236</td><td class="code">        print!(</td></tr>
+<tr><td class="ln">1219</td><td class="code del">            &quot;Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression &lt;N&gt; \&quot;decisão\&quot;\n&quot;,</td><td class="ln">1237</td><td class="code add">            &quot;{ignored}Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression &lt;N&gt; \&quot;decisão\&quot;\n&quot;,</td></tr>
+<tr><td class="ln">1220</td><td class="code">            dir.display()</td><td class="ln">1238</td><td class="code">            dir.display()</td></tr>
+<tr><td class="ln">1221</td><td class="code">        );</td><td class="ln">1239</td><td class="code">        );</td></tr>
+<tr><td class="ln">1222</td><td class="code">        bail!(&quot;a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário&quot;)</td><td class="ln">1240</td><td class="code">        bail!(&quot;a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário&quot;)</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1951,7 +1969,8 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1951</td><td class="code">        } else {</td><td class="ln">1969</td><td class="code">        } else {</td></tr>
+<tr><td class="ln">1952</td><td class="code">            self.created_paths(file)?</td><td class="ln">1970</td><td class="code">            self.created_paths(file)?</td></tr>
+<tr><td class="ln">1953</td><td class="code">        };</td><td class="ln">1971</td><td class="code">        };</td></tr>
+<tr><td class="ln">1954</td><td class="code del">        errors.extend(self.baseline_errors(&amp;content, &amp;created)?);</td><td class="ln">1972</td><td class="code add">        let folders = new_folders(&amp;self.project_root()?, &amp;created);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1973</td><td class="code add">        errors.extend(self.baseline_errors(&amp;content, &amp;created, &amp;folders)?);</td></tr>
+<tr><td class="ln">1955</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td><td class="ln">1974</td><td class="code">        errors.extend(self.evidence_errors(&amp;content, names)?);</td></tr>
+<tr><td class="ln">1956</td><td class="code">        Ok(errors</td><td class="ln">1975</td><td class="code">        Ok(errors</td></tr>
+<tr><td class="ln">1957</td><td class="code">            .into_iter()</td><td class="ln">1976</td><td class="code">            .into_iter()</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2094,7 +2113,12 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2094</td><td class="code">    }</td><td class="ln">2113</td><td class="code">    }</td></tr>
+<tr><td class="ln">2095</td><td class="code"></td><td class="ln">2114</td><td class="code"></td></tr>
+<tr><td class="ln">2096</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td><td class="ln">2115</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td></tr>
+<tr><td class="ln">2097</td><td class="code del">    fn baseline_errors(&amp;self, content: &amp;str, created: &amp;[String]) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">2116</td><td class="code add">    fn baseline_errors(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2117</td><td class="code add">        &amp;self,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2118</td><td class="code add">        content: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2119</td><td class="code add">        created: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2120</td><td class="code add">        folders: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2121</td><td class="code add">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">2098</td><td class="code">        let text = self.subsection(content, &quot;baseline_subsection&quot;)?;</td><td class="ln">2122</td><td class="code">        let text = self.subsection(content, &quot;baseline_subsection&quot;)?;</td></tr>
+<tr><td class="ln">2099</td><td class="code">        if text.is_empty() {</td><td class="ln">2123</td><td class="code">        if text.is_empty() {</td></tr>
+<tr><td class="ln">2100</td><td class="code">            return Ok(Vec::new());</td><td class="ln">2124</td><td class="code">            return Ok(Vec::new());</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2106,7 +2130,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2106</td><td class="code">            if is_baseline_item(item) {</td><td class="ln">2130</td><td class="code">            if is_baseline_item(item) {</td></tr>
+<tr><td class="ln">2107</td><td class="code">                count += 1;</td><td class="ln">2131</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln">2108</td><td class="code">                if let Some(command) = baseline_command(item) {</td><td class="ln">2132</td><td class="code">                if let Some(command) = baseline_command(item) {</td></tr>
+<tr><td class="ln">2109</td><td class="code del">                    errors.extend(delivery_errors(&amp;sub, command, created));</td><td class="ln">2133</td><td class="code add">                    errors.extend(delivery_errors(&amp;sub, command, created, folders));</td></tr>
+<tr><td class="ln">2110</td><td class="code">                }</td><td class="ln">2134</td><td class="code">                }</td></tr>
+<tr><td class="ln">2111</td><td class="code">            } else {</td><td class="ln">2135</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">2112</td><td class="code">                errors.push(format!(</td><td class="ln">2136</td><td class="code">                errors.push(format!(</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2558,15 +2582,103 @@ fn is_baseline_item(line: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln">2558</td><td class="code">        .is_some_and(|(_, rest)| rest.is_empty())</td><td class="ln">2582</td><td class="code">        .is_some_and(|(_, rest)| rest.is_empty())</td></tr>
+<tr><td class="ln">2559</td><td class="code">}</td><td class="ln">2583</td><td class="code">}</td></tr>
+<tr><td class="ln">2560</td><td class="code"></td><td class="ln">2584</td><td class="code"></td></tr>
+<tr><td class="ln">2561</td><td class="code del">/// Um erro por caminho `criar` citado no comando de &quot;Baseline&quot;: o baseline mede o que a tarefa</td><td class="ln">2585</td><td class="code add">/// Um erro por caminho `criar` citado no comando de &quot;Baseline&quot; e por pasta nova citada: o baseline</td></tr>
+<tr><td class="ln">2562</td><td class="code del">/// não pode quebrar, não a entrega.</td><td class="ln">2586</td><td class="code add">/// mede o que a tarefa não pode quebrar, não a entrega.</td></tr>
+<tr><td class="ln">2563</td><td class="code del">pub(super) fn delivery_errors(sub: &amp;str, command: &amp;str, created: &amp;[String]) -&gt; Vec&lt;String&gt; {</td><td class="ln">2587</td><td class="code add">pub(super) fn delivery_errors(</td></tr>
+<tr><td class="ln">2564</td><td class="code del">    created</td><td class="ln">2588</td><td class="code add">    sub: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2589</td><td class="code add">    command: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2590</td><td class="code add">    created: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2591</td><td class="code add">    folders: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2592</td><td class="code add">) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2593</td><td class="code add">    let cited: Vec&lt;&amp;String&gt; = created</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2594</td><td class="code add">        .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2595</td><td class="code add">        .filter(|path| cites_path(command, path))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2596</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2597</td><td class="code add">    let mut errors: Vec&lt;String&gt; = cited</td></tr>
+<tr><td class="ln">2565</td><td class="code">        .iter()</td><td class="ln">2598</td><td class="code">        .iter()</td></tr>
+<tr><td class="ln">2566</td><td class="code del">        .filter(|path| command.contains(path.as_str()))</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">2567</td><td class="code">        .map(|path| {</td><td class="ln">2599</td><td class="code">        .map(|path| {</td></tr>
+<tr><td class="ln">2568</td><td class="code">            format!(&quot;&#39;{sub}&#39; com comando que cita &#39;{path}&#39;, que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}&quot;)</td><td class="ln">2600</td><td class="code">            format!(&quot;&#39;{sub}&#39; com comando que cita &#39;{path}&#39;, que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}&quot;)</td></tr>
+<tr><td class="ln">2569</td><td class="code">        })</td><td class="ln">2601</td><td class="code">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2602</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2603</td><td class="code add">    errors.extend(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2604</td><td class="code add">        folders</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2605</td><td class="code add">            .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2606</td><td class="code add">            .filter(|folder| cites_path(command, folder))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2607</td><td class="code add">            .filter(|folder| !cited.iter().any(|path| path.starts_with(&amp;format!(&quot;{folder}/&quot;))))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2608</td><td class="code add">            .map(|folder| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2609</td><td class="code add">                format!(&quot;&#39;{sub}&#39; com comando que cita &#39;{folder}&#39;, pasta que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2610</td><td class="code add">            }),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2611</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2612</td><td class="code add">    errors</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2613</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2614</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2615</td><td class="code add">fn is_name_char(character: char) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2616</td><td class="code add">    character.is_alphanumeric() || matches!(character, &#39;_&#39; | &#39;-&#39; | &#39;.&#39; | &#39;/&#39;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2617</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2618</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2619</td><td class="code add">/// O comando cita o caminho inteiro, sem estar colado a outro nome de arquivo ou pasta.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2620</td><td class="code add">pub(super) fn cites_path(command: &amp;str, path: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2621</td><td class="code add">    let path = path.trim_end_matches(&#39;/&#39;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2622</td><td class="code add">    if path.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2623</td><td class="code add">        return false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2624</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2625</td><td class="code add">    command.match_indices(path).any(|(start, found)| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2626</td><td class="code add">        let before = command[..start].chars().next_back();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2627</td><td class="code add">        let mut after = command[start + found.len()..].chars();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2628</td><td class="code add">        let ends = match after.next() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2629</td><td class="code add">            None =&gt; true,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2630</td><td class="code add">            Some(&#39;/&#39;) =&gt; after.next().is_none_or(|next| !is_name_char(next)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2631</td><td class="code add">            Some(next) =&gt; !is_name_char(next),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2632</td><td class="code add">        };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2633</td><td class="code add">        before.is_none_or(|character| !is_name_char(character)) &amp;&amp; ends</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2634</td><td class="code add">    })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2635</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2636</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2637</td><td class="code add">/// Pastas-pai dos caminhos `criar`, sem repetição e em ordem, de `a/b/c.rs`: `a` e `a/b`.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2638</td><td class="code add">fn parent_folders(created: &amp;[String]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2639</td><td class="code add">    let mut folders: Vec&lt;String&gt; = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2640</td><td class="code add">    for path in created {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2641</td><td class="code add">        let parts: Vec&lt;&amp;str&gt; = path.trim_end_matches(&#39;/&#39;).split(&#39;/&#39;).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2642</td><td class="code add">        for end in 1..parts.len() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2643</td><td class="code add">            let folder = parts[..end].join(&quot;/&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2644</td><td class="code add">            if !folders.contains(&amp;folder) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2645</td><td class="code add">                folders.push(folder);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2646</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2647</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2648</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2649</td><td class="code add">    folders</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2650</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2651</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2652</td><td class="code add">/// Pastas-pai dos caminhos `criar` que ainda não existem sob a raiz do projeto.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2653</td><td class="code add">pub(super) fn new_folders(root: &amp;Path, created: &amp;[String]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2654</td><td class="code add">    parent_folders(created)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2655</td><td class="code add">        .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2656</td><td class="code add">        .filter(|folder| !root.join(folder).exists())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2657</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2658</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2659</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2660</td><td class="code add">/// Pastas-pai dos caminhos `criar` sem nenhum arquivo rastreado no `HEAD`; fora do git, nenhuma.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2661</td><td class="code add">fn untracked_folders(root: &amp;Path, created: &amp;[String]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2662</td><td class="code add">    let inside = Command::new(&quot;git&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2663</td><td class="code add">        .arg(&quot;-C&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2664</td><td class="code add">        .arg(root)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2665</td><td class="code add">        .args([&quot;rev-parse&quot;, &quot;--is-inside-work-tree&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2666</td><td class="code add">        .output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2667</td><td class="code add">        .is_ok_and(|output| output.status.success());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2668</td><td class="code add">    if !inside {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2669</td><td class="code add">        return Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2670</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2671</td><td class="code add">    parent_folders(created)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2672</td><td class="code add">        .into_iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2673</td><td class="code add">        .filter(|folder| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2674</td><td class="code add">            Command::new(&quot;git&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2675</td><td class="code add">                .arg(&quot;-C&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2676</td><td class="code add">                .arg(root)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2677</td><td class="code add">                .args([&quot;ls-tree&quot;, &quot;-r&quot;, &quot;--name-only&quot;, &quot;HEAD&quot;, &quot;--&quot;, folder])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2678</td><td class="code add">                .output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2679</td><td class="code add">                .map(|output| !output.status.success() || output.stdout.is_empty())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2680</td><td class="code add">                .unwrap_or(false)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2681</td><td class="code add">        })</td></tr>
+<tr><td class="ln">2570</td><td class="code">        .collect()</td><td class="ln">2682</td><td class="code">        .collect()</td></tr>
+<tr><td class="ln">2571</td><td class="code">}</td><td class="ln">2683</td><td class="code">}</td></tr>
+<tr><td class="ln">2572</td><td class="code"></td><td class="ln">2684</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/plan.rs</b><span class="tag criar">+10</span><span class="tag remover">−4</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -11,7 +11,7 @@ use anyhow::{bail, Context, Result};</td></tr>
+<tr><td class="ln">11</td><td class="code">use clap::Subcommand;</td><td class="ln">11</td><td class="code">use clap::Subcommand;</td></tr>
+<tr><td class="ln">12</td><td class="code"></td><td class="ln">12</td><td class="code"></td></tr>
+<tr><td class="ln">13</td><td class="code">use super::task::{</td><td class="ln">13</td><td class="code">use super::task::{</td></tr>
+<tr><td class="ln">14</td><td class="code del">    delivery_errors, evidence_item, evidence_name_problem, normalized_evidence_name,</td><td class="ln">14</td><td class="code add">    delivery_errors, evidence_item, evidence_name_problem, new_folders, normalized_evidence_name,</td></tr>
+<tr><td class="ln">15</td><td class="code">};</td><td class="ln">15</td><td class="code">};</td></tr>
+<tr><td class="ln">16</td><td class="code">use crate::harness::Harness;</td><td class="ln">16</td><td class="code">use crate::harness::Harness;</td></tr>
+<tr><td class="ln">17</td><td class="code">use crate::support::{</td><td class="ln">17</td><td class="code">use crate::support::{</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1173,7 +1173,8 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1173</td><td class="code">            .filter(|(action, _)| action == &quot;criar&quot;)</td><td class="ln">1173</td><td class="code">            .filter(|(action, _)| action == &quot;criar&quot;)</td></tr>
+<tr><td class="ln">1174</td><td class="code">            .map(|(_, path)| path)</td><td class="ln">1174</td><td class="code">            .map(|(_, path)| path)</td></tr>
+<tr><td class="ln">1175</td><td class="code">            .collect();</td><td class="ln">1175</td><td class="code">            .collect();</td></tr>
+<tr><td class="ln">1176</td><td class="code del">        errors.extend(self.baseline_errors(&amp;content, &amp;created)?);</td><td class="ln">1176</td><td class="code add">        let folders = new_folders(&amp;self.harness.path(&quot;root&quot;)?, &amp;created);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1177</td><td class="code add">        errors.extend(self.baseline_errors(&amp;content, &amp;created, &amp;folders)?);</td></tr>
+<tr><td class="ln">1177</td><td class="code">        errors.extend(self.evidence_errors(&amp;content)?);</td><td class="ln">1178</td><td class="code">        errors.extend(self.evidence_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">1178</td><td class="code">        let covers = field(file, &quot;covers&quot;).replace([&#39;[&#39;, &#39;]&#39;], &quot;&quot;);</td><td class="ln">1179</td><td class="code">        let covers = field(file, &quot;covers&quot;).replace([&#39;[&#39;, &#39;]&#39;], &quot;&quot;);</td></tr>
+<tr><td class="ln">1179</td><td class="code">        if sorted_list(&amp;covers) != sorted_list(plan_covers) {</td><td class="ln">1180</td><td class="code">        if sorted_list(&amp;covers) != sorted_list(plan_covers) {</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1322,7 +1323,12 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1322</td><td class="code">    }</td><td class="ln">1323</td><td class="code">    }</td></tr>
+<tr><td class="ln">1323</td><td class="code"></td><td class="ln">1324</td><td class="code"></td></tr>
+<tr><td class="ln">1324</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td><td class="ln">1325</td><td class="code">    /// Cada item de &quot;Baseline&quot; é um comando no formato &quot;- `comando`&quot;, e há ao menos um.</td></tr>
+<tr><td class="ln">1325</td><td class="code del">    fn baseline_errors(&amp;self, content: &amp;str, created: &amp;[String]) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">1326</td><td class="code add">    fn baseline_errors(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1327</td><td class="code add">        &amp;self,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1328</td><td class="code add">        content: &amp;str,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1329</td><td class="code add">        created: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1330</td><td class="code add">        folders: &amp;[String],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1331</td><td class="code add">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">1326</td><td class="code">        let sub = self.task_setting(&quot;baseline_subsection&quot;)?;</td><td class="ln">1332</td><td class="code">        let sub = self.task_setting(&quot;baseline_subsection&quot;)?;</td></tr>
+<tr><td class="ln">1327</td><td class="code">        let text = command_output(</td><td class="ln">1333</td><td class="code">        let text = command_output(</td></tr>
+<tr><td class="ln">1328</td><td class="code">            &amp;self</td><td class="ln">1334</td><td class="code">            &amp;self</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1341,7 +1347,7 @@ impl Workspace {</td></tr>
+<tr><td class="ln">1341</td><td class="code">                .filter(|(_, rest)| rest.is_empty());</td><td class="ln">1347</td><td class="code">                .filter(|(_, rest)| rest.is_empty());</td></tr>
+<tr><td class="ln">1342</td><td class="code">            if let Some((command, _)) = command {</td><td class="ln">1348</td><td class="code">            if let Some((command, _)) = command {</td></tr>
+<tr><td class="ln">1343</td><td class="code">                count += 1;</td><td class="ln">1349</td><td class="code">                count += 1;</td></tr>
+<tr><td class="ln">1344</td><td class="code del">                errors.extend(delivery_errors(&amp;sub, command, created));</td><td class="ln">1350</td><td class="code add">                errors.extend(delivery_errors(&amp;sub, command, created, folders));</td></tr>
+<tr><td class="ln">1345</td><td class="code">            } else {</td><td class="ln">1351</td><td class="code">            } else {</td></tr>
+<tr><td class="ln">1346</td><td class="code">                errors.push(format!(</td><td class="ln">1352</td><td class="code">                errors.push(format!(</td></tr>
+<tr><td class="ln">1347</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td><td class="ln">1353</td><td class="code">                    &quot;&#39;{sub}&#39; com item fora do formato: {item} (use: - `comando`)&quot;</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+150</span><span class="tag remover">−12</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1733,22 +1733,12 @@ fn baseline_delivery_created_path_is_not_a_regression() {</td></tr>
+<tr><td class="ln">1733</td><td class="code">}</td><td class="ln">1733</td><td class="code">}</td></tr>
+<tr><td class="ln">1734</td><td class="code"></td><td class="ln">1734</td><td class="code"></td></tr>
+<tr><td class="ln">1735</td><td class="code">#[test]</td><td class="ln">1735</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">1736</td><td class="code del">fn baseline_delivery_other_lines_are_still_compared() {</td><td class="ln">1736</td><td class="code add">fn delivery_command_cited_command_is_ignored_entirely() {</td></tr>
+<tr><td class="ln">1737</td><td class="code">    let project = task_with_created_path();</td><td class="ln">1737</td><td class="code">    let project = task_with_created_path();</td></tr>
+<tr><td class="ln">1738</td><td class="code">    write(&amp;project, &quot;src/novo.rs&quot;, &quot;fn main() {}&quot;);</td><td class="ln">1738</td><td class="code">    write(&amp;project, &quot;src/novo.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln">1739</td><td class="code">    std::fs::remove_file(project.root().join(&quot;LICENSE&quot;)).unwrap();</td><td class="ln">1739</td><td class="code">    std::fs::remove_file(project.root().join(&quot;LICENSE&quot;)).unwrap();</td></tr>
+<tr><td class="ln">1740</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td><td class="ln">1740</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln">1741</td><td class="code del">    let output = task(&amp;project, &amp;[&quot;regression&quot;])</td><td class="ln">1741</td><td class="code add">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().success();</td></tr>
+<tr><td class="ln">1742</td><td class="code del">        .assert()</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1743</td><td class="code del">        .failure()</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1744</td><td class="code del">        .get_output()</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1745</td><td class="code del">        .clone();</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1746</td><td class="code del">    let all = format!(</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1747</td><td class="code del">        &quot;{}{}&quot;,</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1748</td><td class="code del">        String::from_utf8_lossy(&amp;output.stdout),</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1749</td><td class="code del">        String::from_utf8_lossy(&amp;output.stderr)</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1750</td><td class="code del">    );</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1751</td><td class="code del">    assert!(all.contains(&quot;LICENSE&quot;), &quot;{all}&quot;);</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">1752</td><td class="code">}</td><td class="ln">1742</td><td class="code">}</td></tr>
+<tr><td class="ln">1753</td><td class="code"></td><td class="ln">1743</td><td class="code"></td></tr>
+<tr><td class="ln">1754</td><td class="code">#[test]</td><td class="ln">1744</td><td class="code">#[test]</td></tr>
+<tr class="hunk"><td colspan="4">@@ -1758,3 +1748,151 @@ fn baseline_delivery_task_without_created_paths_is_unchanged() {</td></tr>
+<tr><td class="ln">1758</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td><td class="ln">1748</td><td class="code">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln">1759</td><td class="code">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td><td class="ln">1749</td><td class="code">    task(&amp;project, &amp;[&quot;regression&quot;]).assert().failure();</td></tr>
+<tr><td class="ln">1760</td><td class="code">}</td><td class="ln">1750</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1751</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1752</td><td class="code add">// --- Comando de baseline que mede a entrega (SPEC-018) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1753</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1754</td><td class="code add">fn git(root: &amp;std::path::Path, args: &amp;[&amp;str]) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1755</td><td class="code add">    let status = std::process::Command::new(&quot;git&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1756</td><td class="code add">        .arg(&quot;-C&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1757</td><td class="code add">        .arg(root)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1758</td><td class="code add">        .args(args)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1759</td><td class="code add">        .envs(git_identity())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1760</td><td class="code add">        .output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1761</td><td class="code add">        .unwrap()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1762</td><td class="code add">        .status;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1763</td><td class="code add">    assert!(status.success(), &quot;git {args:?}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1764</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1765</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1766</td><td class="code add">fn git_identity() -&gt; [(&amp;&#39;static str, &amp;&#39;static str); 4] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1767</td><td class="code add">    [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1768</td><td class="code add">        (&quot;GIT_AUTHOR_NAME&quot;, &quot;T&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1769</td><td class="code add">        (&quot;GIT_AUTHOR_EMAIL&quot;, &quot;t@t&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1770</td><td class="code add">        (&quot;GIT_COMMITTER_NAME&quot;, &quot;T&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1771</td><td class="code add">        (&quot;GIT_COMMITTER_EMAIL&quot;, &quot;t@t&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1772</td><td class="code add">    ]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1773</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1774</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1775</td><td class="code add">/// Tarefa em execução que cria `created` e tem `baseline` como único comando, sem coletar o baseline.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1776</td><td class="code add">fn delivery_task(created: &amp;str, baseline: &amp;str, files: &amp;[(&amp;str, &amp;str)]) -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1777</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1778</td><td class="code add">    for (name, content) in files {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1779</td><td class="code add">        write(&amp;project, name, content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1780</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1781</td><td class="code add">    let text = complete_task(&quot;in_progress&quot;, &quot;Não se aplica.&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1782</td><td class="code add">        .replace(&quot;- `novo.txt` (criar)&quot;, &amp;format!(&quot;- `{created}` (criar)&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1783</td><td class="code add">        .replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1784</td><td class="code add">            &quot;### Baseline\n\n- `true`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1785</td><td class="code add">            &amp;format!(&quot;### Baseline\n\n- `{baseline}`&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1786</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1787</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;text);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1788</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1789</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1790</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1791</td><td class="code add">fn init_git(project: &amp;Project) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1792</td><td class="code add">    git(project.root(), &amp;[&quot;init&quot;, &quot;-q&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1793</td><td class="code add">    git(project.root(), &amp;[&quot;add&quot;, &quot;-A&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1794</td><td class="code add">    git(project.root(), &amp;[&quot;commit&quot;, &quot;-qm&quot;, &quot;base&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1795</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1796</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1797</td><td class="code add">fn regression_output(project: &amp;Project) -&gt; (bool, String) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1798</td><td class="code add">    let output = task(project, &amp;[&quot;regression&quot;]).output().unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1799</td><td class="code add">    (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1800</td><td class="code add">        output.status.success(),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1801</td><td class="code add">        format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1802</td><td class="code add">            &quot;{}{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1803</td><td class="code add">            String::from_utf8_lossy(&amp;output.stdout),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1804</td><td class="code add">            String::from_utf8_lossy(&amp;output.stderr)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1805</td><td class="code add">        ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1806</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1807</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1808</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1809</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1810</td><td class="code add">fn delivery_command_issue_roadmap_does_not_block() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1811</td><td class="code add">    let command = &quot;test -e src/exemplo.rs &amp;&amp; echo existe || echo ausente&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1812</td><td class="code add">    let project = delivery_task(&quot;src/exemplo.rs&quot;, command, &amp;[]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1813</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1814</td><td class="code add">    write(&amp;project, &quot;src/exemplo.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1815</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1816</td><td class="code add">    let (ok, all) = regression_output(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1817</td><td class="code add">    assert!(ok, &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1818</td><td class="code add">    assert!(all.contains(&quot;ignorado(s) por medir a entrega&quot;), &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1819</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1820</td><td class="code add">        all.contains(&amp;format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1821</td><td class="code add">            &quot;- [1] {command}: ignorado, mede a entrega da tarefa (&#39;src/exemplo.rs&#39;)&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1822</td><td class="code add">        )),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1823</td><td class="code add">        &quot;{all}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1824</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1825</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1826</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1827</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1828</td><td class="code add">fn delivery_command_new_folder_does_not_block() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1829</td><td class="code add">    let command = &quot;test -e src/modulo &amp;&amp; echo existe || echo ausente&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1830</td><td class="code add">    let project = delivery_task(&quot;src/modulo/a.rs&quot;, command, &amp;[(&quot;README.md&quot;, &quot;x&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1831</td><td class="code add">    init_git(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1832</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1833</td><td class="code add">    write(&amp;project, &quot;src/modulo/a.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1834</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1835</td><td class="code add">    let (ok, all) = regression_output(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1836</td><td class="code add">    assert!(ok, &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1837</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1838</td><td class="code add">        all.contains(&quot;ignorado, mede a entrega da tarefa (&#39;src/modulo&#39;)&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1839</td><td class="code add">        &quot;{all}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1840</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1841</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1842</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1843</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1844</td><td class="code add">fn delivery_command_existing_folder_is_still_compared() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1845</td><td class="code add">    let project = delivery_task(&quot;src/novo.rs&quot;, &quot;ls src&quot;, &amp;[(&quot;src/velho.rs&quot;, &quot;x&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1846</td><td class="code add">    init_git(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1847</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1848</td><td class="code add">    write(&amp;project, &quot;src/novo.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1849</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1850</td><td class="code add">    let (ok, all) = regression_output(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1851</td><td class="code add">    assert!(!ok, &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1852</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1853</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1854</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1855</td><td class="code add">fn delivery_command_without_git_only_exact_paths() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1856</td><td class="code add">    let command = &quot;test -e src/modulo &amp;&amp; echo existe || echo ausente&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1857</td><td class="code add">    let project = delivery_task(&quot;src/modulo/a.rs&quot;, command, &amp;[(&quot;README.md&quot;, &quot;x&quot;)]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1858</td><td class="code add">    task(&amp;project, &amp;[&quot;baseline&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1859</td><td class="code add">    write(&amp;project, &quot;src/modulo/a.rs&quot;, &quot;fn main() {}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1860</td><td class="code add">    task(&amp;project, &amp;[&quot;tests&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1861</td><td class="code add">    let (ok, all) = regression_output(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1862</td><td class="code add">    assert!(!ok, &quot;{all}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1863</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1864</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1865</td><td class="code add">fn pending_delivery_task(created: &amp;str, baselines: &amp;[&amp;str]) -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1866</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1867</td><td class="code add">    let items: String = baselines.iter().map(|c| format!(&quot;- `{c}`\n&quot;)).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1868</td><td class="code add">    let text = complete_task(&quot;pending&quot;, &quot;Não se aplica.&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1869</td><td class="code add">        .replace(&quot;- `novo.txt` (criar)&quot;, &amp;format!(&quot;- `{created}` (criar)&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1870</td><td class="code add">        .replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1871</td><td class="code add">            &quot;### Baseline\n\n- `true`\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1872</td><td class="code add">            &amp;format!(&quot;### Baseline\n\n{items}&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1873</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1874</td><td class="code add">    write(&amp;project, TASK_PATH, &amp;text);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1875</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1876</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1877</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1878</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1879</td><td class="code add">fn delivery_command_new_folder_is_refused_by_the_task_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1880</td><td class="code add">    let project = pending_delivery_task(&quot;src/modulo/a.rs&quot;, &amp;[&quot;test -e src/modulo &amp;&amp; echo existe&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1881</td><td class="code add">    let stderr = failure_stderr(&amp;mut nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1882</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1883</td><td class="code add">        stderr.contains(&quot;&#39;Baseline&#39; com comando que cita &#39;src/modulo&#39;, pasta que a tarefa cria&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1884</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1885</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1886</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1887</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1888</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1889</td><td class="code add">fn delivery_command_lookalike_names_do_not_count() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1890</td><td class="code add">    let project = pending_delivery_task(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1891</td><td class="code add">        &quot;src/modulo/a.rs&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1892</td><td class="code add">        &amp;[&quot;test -e src/modulos&quot;, &quot;cat src/exemplo.rs.bak&quot;],</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1893</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1894</td><td class="code add">    let output = nested(&amp;project, &quot;adjust&quot;, &quot;validate&quot;).output().unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1895</td><td class="code add">    let stderr = String::from_utf8(output.stderr).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1896</td><td class="code add">    assert!(!stderr.contains(&quot;que a tarefa cria&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1897</td><td class="code add">    assert!(!stderr.contains(&quot;pasta que a tarefa cria&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1898</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/plan.rs</b><span class="tag criar">+31</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1170,3 +1170,34 @@ fn baseline_delivery_other_commands_stay_valid_in_the_plan() {</td></tr>
+<tr><td class="ln">1170</td><td class="code">        .assert()</td><td class="ln">1170</td><td class="code">        .assert()</td></tr>
+<tr><td class="ln">1171</td><td class="code">        .success();</td><td class="ln">1171</td><td class="code">        .success();</td></tr>
+<tr><td class="ln">1172</td><td class="code">}</td><td class="ln">1172</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1173</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1174</td><td class="code add">// --- Comando de baseline que mede a entrega (SPEC-018) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1175</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1176</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1177</td><td class="code add">fn delivery_command_new_folder_is_refused_by_the_plan_validation() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1178</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1179</td><td class="code add">    let task = plan_with_evidence(&amp;project, &quot;Não se aplica.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1180</td><td class="code add">    let text = std::fs::read_to_string(&amp;task).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1181</td><td class="code add">    std::fs::write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1182</td><td class="code add">        &amp;task,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1183</td><td class="code add">        text.replace(&quot;- `novo.txt` (criar)&quot;, &quot;- `src/modulo/a.rs` (criar)&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1184</td><td class="code add">            .replace(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1185</td><td class="code add">                &quot;### Baseline\n\n- `true`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1186</td><td class="code add">                &quot;### Baseline\n\n- `test -e src/modulo &amp;&amp; echo existe`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1187</td><td class="code add">            ),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1188</td><td class="code add">    )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1189</td><td class="code add">    .unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1190</td><td class="code add">    let output = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1191</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1192</td><td class="code add">        .args([&quot;plan&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1193</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1194</td><td class="code add">        .failure()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1195</td><td class="code add">        .get_output()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1196</td><td class="code add">        .stderr</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1197</td><td class="code add">        .clone();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1198</td><td class="code add">    let stderr = String::from_utf8(output).unwrap();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1199</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1200</td><td class="code add">        stderr.contains(&quot;&#39;Baseline&#39; com comando que cita &#39;src/modulo&#39;, pasta que a tarefa cria&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1201</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1202</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1203</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">f4b231c</td><td class="mono">2026-10-30</td><td>fix(task): ignore the whole baseline command that measures the task delivery</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Decisão</th><th>Alternativa descartada</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td>Ignorar o comando inteiro (decisão do usuário)</td><td>Manter o filtro de linhas</td><td>O roteiro da issue não cita o caminho na saída</td></tr>
+<tr><td>Pasta nova na regressão = pasta-pai sem arquivo rastreado no <code>HEAD</code></td><td>Gravar a lista de pastas no baseline</td><td>As tarefas planejadas na 0.2.1 não têm essa lista; o git responde para todas</td></tr>
+<tr><td>Pasta nova na validação = pasta-pai inexistente no disco</td><td>Usar o git também</td><td>Na validação a tarefa ainda não executou</td></tr>
+<tr><td>Citação por caminho inteiro</td><td>Substring</td><td>Com pastas curtas como <code>src</code>, substring pegaria nomes como <code>resource</code></td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>A falha veio do refinamento da SPEC-017: a inferência H previu que o caso sem caminho na saída continuaria bloqueando, mas não virou critério de aceite. Todo caso previsto como &quot;continua falhando&quot; deve virar critério ou ser descartado de forma explícita.</li>
+<li>O baseline da própria tarefa já usou a regra nova de tirar o resumo de contagem e não teve regressão; o início da tarefa na 0.2.2 coletou o baseline no mesmo comando.</li>
+<li>Houve um ajuste na tarefa, que corrigiu a contagem dos testes de validação em &quot;Concluída quando&quot;.</li>
+<li>Não houve entradas de memória no período.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>No comando <code>for p in src/novo.rs LICENSE</code>, a linha de <code>LICENSE</code> deixa de ser comparada (custo aceito).</li>
+<li>Fora de um repositório git, pastas novas não são detectadas na regressão; vale só o caminho exato.</li>
+<li>Tarefa finalizada depois do commit: a pasta nova já tem arquivo rastreado e volta a ser comparada.</li>
+<li>Comandos que medem a entrega sem citar caminho (por exemplo, contagem de arquivos) seguem cobertos só pela orientação da skill <code>approve-plan</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<div class="tw"><table>
+<thead>
+<tr><th>Referência</th><th>Motivo</th></tr>
+</thead>
+<tbody>
+<tr><td><code>apps/cli/src/commands/task.rs</code></td><td>Regressão, <code>cites_path</code>, <code>new_folders</code>, <code>untracked_folders</code> e <code>delivery_errors</code></td></tr>
+<tr><td><code>apps/cli/src/commands/plan.rs</code></td><td>Passagem das pastas novas na validação do plano</td></tr>
+<tr><td><code>apps/cli/tests/task.rs</code></td><td>Testes <code>delivery_command_*</code> da regressão e da validação da tarefa</td></tr>
+<tr><td><code>apps/cli/tests/plan.rs</code></td><td>Teste da recusa de pasta nova no plano</td></tr>
+<tr><td>Commit <code>f4b231c</code></td><td>Mudança de código da correção</td></tr>
+<tr><td>Commit <code>f9a025f</code></td><td>Skill local de triagem aceitando spec de continuação</td></tr>
+<tr><td>SPEC-017 (arquivada)</td><td>Correção anterior e a inferência H que originou a lacuna</td></tr>
+<tr><td>Issue #6 de Ishtar-Sink/Vostok</td><td>Roteiro do autor e validação &quot;não corrigido&quot;</td></tr>
+</tbody>
+</table></div>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-018, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-015 · Documento técnico · Componentes afetados prontos para o paralelismo do plano</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-015 · aprovada em 2026-10-30 · concluída em 2026-10-30</p>
+    <h1>Componentes afetados prontos para o paralelismo do plano</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>A validação da spec refinada ganhou a função <code>component_errors</code>, chamada pela <code>refined_errors</code>, que já alimenta o <code>spec validate</code>, o <code>spec adjust validate</code>, o <code>spec approve validate</code> e o <code>spec approve approve</code>. Duas regras determinísticas recusam pastas contendo outros caminhos citados e pastas existentes com <code>alterar</code>. Em paralelo, as skills <code>refine-spec</code> e <code>adjust-spec</code> e a referência <code>sections.md</code> orientam o agente a detalhar e corrigir sozinho. Sem crates novas nem rede.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/spec.rs</code>: <code>component_errors</code> aplica as duas regras por linha da tabela de componentes; <code>is_cited_path</code> decide quais trechos entre crases contam como caminho citado.</li>
+<li><code>apps/cli/tests/spec.rs</code>: 10 testes novos, um por regra, caso de borda e ponto de reuso (ajuste e aprovação).</li>
+<li><code>refine-spec/references/sections.md</code>, <code>refine-spec/SKILL.md</code> e <code>adjust-spec/SKILL.md</code>: orientação e passos de correção, no pacote do harness e nas cópias instaladas em <code>vostok/skills/default/</code>, mais o <code>.manifest</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li><strong>TASK-01:</strong> regra de pasta que contém caminho citado (outro componente ou caminho entre crases no corpo, até três, em ordem alfabética, com <code>...</code> quando há mais) e regra de pasta existente com <code>alterar</code>. A barra final é normalizada; o próprio caminho e caminhos que só compartilham prefixo (<code>apps/webapp</code> para <code>apps/web</code>) não contam; arquivo existente, linha <code>-</code>, pasta <code>criar</code> e pasta <code>remover</code> seguem aceitos. Quando as duas regras se aplicam ao mesmo componente, só a primeira aparece. Os testes conferem o texto exato das mensagens.</li>
+<li><strong>TASK-02:</strong> o <code>sections.md</code> explica granularidade, pontos de integração e o efeito no cálculo de paralelismo do plano; a <code>refine-spec</code> (2.2.0) trata componente agrupado como lacuna resolvida por inferência e manda corrigir as recusas sem perguntar; a <code>adjust-spec</code> (1.3.0) faz o mesmo no ajuste. As cópias instaladas foram atualizadas junto com o <code>.manifest</code>.</li>
+<li>As duas tarefas rodaram na mesma onda, em paralelo, com subagentes <code>vostok-desenvolvedor</code> no Sonnet, sem arquivo em comum.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>O <code>vostok spec validate</code> deve recusar um componente cujo caminho é uma pasta que contém outro caminho citado na spec, seja outro componente da tabela, seja um caminho entre crases no corpo da spec, citando até três caminhos de dentro.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>O <code>vostok spec validate</code> deve recusar um componente com ação <code>alterar</code> cujo caminho é uma pasta existente, pedindo os arquivos ou as subpastas que mudam.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>Uma pasta com ação <code>criar</code> sem outro caminho citado dentro dela e uma pasta com ação <code>remover</code> devem continuar aceitas.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>As regras do RF-01 e do RF-02 devem valer em todo lugar que já usa a validação da refinada: <code>vostok spec validate</code>, <code>vostok spec adjust validate</code>, <code>vostok spec approve validate</code> e <code>vostok spec approve approve</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Pasta que contém caminho citado</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Pasta que contém outro componente</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Pasta existente com alterar</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Pasta nova e remoção de pasta</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Mesma regra no ajuste e na aprovação</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Casos de borda</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-05</td><td><code>refine-spec/references/sections.md</code> deve orientar que os caminhos de &quot;Componentes afetados&quot; fiquem no nível em que o trabalho pode ser dividido (por módulo, contexto ou feature), com os pontos de integração compartilhados (registro de rotas, menu, configuração comum) em linhas próprias, e explicar que o plano usa esses caminhos para calcular o que roda em paralelo.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-06</td><td>A <code>refine-spec</code> deve tratar, no passo de análise, um componente que agrupa partes que a spec descreve como independentes como lacuna resolvida por inferência a partir da investigação, e, no passo de validação, corrigir os componentes recusados pelo RF-01 ou pelo RF-02 detalhando os caminhos, sem perguntar ao usuário.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-07</td><td>A <code>adjust-spec</code> deve corrigir da mesma forma os componentes recusados pela validação do ajuste.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Orientação nas skills</td><td><span class="chip">TASK-02</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/spec.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/spec.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/refine-spec/references/sections.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/refine-spec/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/adjust-spec/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/skills/default/refine-spec/references/sections.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/skills/default/refine-spec/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">vostok/skills/default/adjust-spec/SKILL.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/spec.rs</b><span class="tag criar">+109</span><span class="tag remover">−20</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -2,7 +2,7 @@</td></tr>
+<tr><td class="ln">2</td><td class="code">//! Reproduzem `create-new-spec.sh`, `list-specs.sh`, `create-refined-spec.sh`, `adjust-spec.sh` e</td><td class="ln">2</td><td class="code">//! Reproduzem `create-new-spec.sh`, `list-specs.sh`, `create-refined-spec.sh`, `adjust-spec.sh` e</td></tr>
+<tr><td class="ln">3</td><td class="code">//! `approve-spec.sh`, com as mesmas mensagens, recusas e códigos de saída (SPEC-005, RN-03).</td><td class="ln">3</td><td class="code">//! `approve-spec.sh`, com as mesmas mensagens, recusas e códigos de saída (SPEC-005, RN-03).</td></tr>
+<tr><td class="ln">4</td><td class="code"></td><td class="ln">4</td><td class="code"></td></tr>
+<tr><td class="ln">5</td><td class="code del">use std::collections::HashMap;</td><td class="ln">5</td><td class="code add">use std::collections::{BTreeSet, HashMap};</td></tr>
+<tr><td class="ln">6</td><td class="code">use std::fs;</td><td class="ln">6</td><td class="code">use std::fs;</td></tr>
+<tr><td class="ln">7</td><td class="code">use std::io::{self, BufRead, IsTerminal, Write};</td><td class="ln">7</td><td class="code">use std::io::{self, BufRead, IsTerminal, Write};</td></tr>
+<tr><td class="ln">8</td><td class="code">use std::path::{Component, Path, PathBuf};</td><td class="ln">8</td><td class="code">use std::path::{Component, Path, PathBuf};</td></tr>
+<tr class="hunk"><td colspan="4">@@ -665,30 +665,119 @@ fn refined_errors(specs: &amp;Specs, file: &amp;Path) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">665</td><td class="code">    }</td><td class="ln">665</td><td class="code">    }</td></tr>
+<tr><td class="ln">666</td><td class="code"></td><td class="ln">666</td><td class="code"></td></tr>
+<tr><td class="ln">667</td><td class="code">    if has(&quot;affected-components&quot;) {</td><td class="ln">667</td><td class="code">    if has(&quot;affected-components&quot;) {</td></tr>
+<tr><td class="ln">668</td><td class="code del">        let root = specs.project_root()?.display().to_string();</td><td class="ln">668</td><td class="code add">        errors.extend(component_errors(</td></tr>
+<tr><td class="ln">669</td><td class="code del">        for row in rows_of(&quot;affected-components&quot;)? {</td><td class="ln">669</td><td class="code add">            &amp;content,</td></tr>
+<tr><td class="ln">670</td><td class="code del">            let path = markdown_cell(&amp;row, 1).replace(&#39;`&#39;, &quot;&quot;);</td><td class="ln">670</td><td class="code add">            &amp;specs.project_root()?.display().to_string(),</td></tr>
+<tr><td class="ln">671</td><td class="code del">            let action = markdown_cell(&amp;row, 2);</td><td class="ln">671</td><td class="code add">            &amp;rows_of(&quot;affected-components&quot;)?,</td></tr>
+<tr><td class="ln">672</td><td class="code del">            if path == &quot;-&quot; {</td><td class="ln">672</td><td class="code add">        ));</td></tr>
+<tr><td class="ln">673</td><td class="code del">                continue;</td><td class="ln">673</td><td class="code add">    }</td></tr>
+<tr><td class="ln">674</td><td class="code del">            }</td><td class="ln">674</td><td class="code add">    Ok(errors)</td></tr>
+<tr><td class="ln">675</td><td class="code del">            if !format!(&quot; {COMPONENT_ACTIONS} &quot;).contains(&amp;format!(&quot; {action} &quot;)) {</td><td class="ln">675</td><td class="code add">}</td></tr>
+<tr><td class="ln">676</td><td class="code del">                errors.push(format!(</td><td class="ln">676</td><td class="code add"></td></tr>
+<tr><td class="ln">677</td><td class="code del">                    &quot;ação inválida para &#39;{path}&#39;: &#39;{action}&#39; (use: {COMPONENT_ACTIONS})&quot;</td><td class="ln">677</td><td class="code add">fn component_errors(content: &amp;str, root: &amp;str, rows: &amp;[String]) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln">678</td><td class="code del">                ));</td><td class="ln">678</td><td class="code add">    let components: Vec&lt;(String, String)&gt; = rows</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">679</td><td class="code add">        .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">680</td><td class="code add">        .map(|row| {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">681</td><td class="code add">            (</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">682</td><td class="code add">                markdown_cell(row, 1).replace(&#39;`&#39;, &quot;&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">683</td><td class="code add">                markdown_cell(row, 2),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">684</td><td class="code add">            )</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">685</td><td class="code add">        })</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">686</td><td class="code add">        .filter(|(path, _)| path != &quot;-&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">687</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">688</td><td class="code add">    let mut cited = backticked_paths(content);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">689</td><td class="code add">    cited.extend(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">690</td><td class="code add">        components</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">691</td><td class="code add">            .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">692</td><td class="code add">            .map(|(path, _)| trim_trailing_slashes(path).to_string()),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">693</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">694</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">695</td><td class="code add">    let mut errors = Vec::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">696</td><td class="code add">    for (path, action) in &amp;components {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">697</td><td class="code add">        if !format!(&quot; {COMPONENT_ACTIONS} &quot;).contains(&amp;format!(&quot; {action} &quot;)) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">698</td><td class="code add">            errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">699</td><td class="code add">                &quot;ação inválida para &#39;{path}&#39;: &#39;{action}&#39; (use: {COMPONENT_ACTIONS})&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">700</td><td class="code add">            ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">701</td><td class="code add">            continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">702</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">703</td><td class="code add">        let exists = Path::new(&amp;format!(&quot;{root}/{path}&quot;)).exists();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">704</td><td class="code add">        if action == &quot;criar&quot; &amp;&amp; exists {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">705</td><td class="code add">            errors.push(format!(&quot;&#39;{path}&#39; já existe; use a ação &#39;alterar&#39;&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">706</td><td class="code add">        } else if action != &quot;criar&quot; &amp;&amp; !exists {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">707</td><td class="code add">            errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">708</td><td class="code add">                &quot;&#39;{path}&#39; não existe em {root}; use a ação &#39;criar&#39; ou corrija o caminho&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">709</td><td class="code add">            ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">710</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">711</td><td class="code add">        let folder = trim_trailing_slashes(path);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">712</td><td class="code add">        if folder.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">713</td><td class="code add">            continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">714</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">715</td><td class="code add">        let inner = inner_paths(folder, &amp;cited);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">716</td><td class="code add">        if action != &quot;remover&quot; &amp;&amp; !inner.is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">717</td><td class="code add">            errors.push(folder_with_cited_paths_error(folder, &amp;inner));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">718</td><td class="code add">        } else if action == &quot;alterar&quot; &amp;&amp; Path::new(&amp;format!(&quot;{root}/{folder}&quot;)).is_dir() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">719</td><td class="code add">            errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">720</td><td class="code add">                &quot;&#39;{folder}&#39; é uma pasta; com a ação &#39;alterar&#39;, liste os arquivos ou as subpastas que mudam&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">721</td><td class="code add">            ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">722</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">723</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">724</td><td class="code add">    errors</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">725</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">726</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">727</td><td class="code add">/// Caminhos entre crases (fechadas, sem espaço, com `/`) fora de blocos de código.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">728</td><td class="code add">fn backticked_paths(content: &amp;str) -&gt; BTreeSet&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">729</td><td class="code add">    let mut paths = BTreeSet::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">730</td><td class="code add">    let mut in_code = false;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">731</td><td class="code add">    for line in content.lines() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">732</td><td class="code add">        if line.trim_start().starts_with(&quot;```&quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">733</td><td class="code add">            in_code = !in_code;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">734</td><td class="code add">            continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">735</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">736</td><td class="code add">        if in_code {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">737</td><td class="code add">            continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">738</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">739</td><td class="code add">        let parts: Vec&lt;&amp;str&gt; = line.split(&#39;`&#39;).collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">740</td><td class="code add">        for (index, part) in parts.iter().enumerate() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">741</td><td class="code add">            if index % 2 == 0 || index &gt;= parts.len() - 1 {</td></tr>
+<tr><td class="ln">679</td><td class="code">                continue;</td><td class="ln">742</td><td class="code">                continue;</td></tr>
+<tr><td class="ln">680</td><td class="code">            }</td><td class="ln">743</td><td class="code">            }</td></tr>
+<tr><td class="ln">681</td><td class="code del">            let exists = Path::new(&amp;format!(&quot;{root}/{path}&quot;)).exists();</td><td class="ln">744</td><td class="code add">            let path = trim_trailing_slashes(part);</td></tr>
+<tr><td class="ln">682</td><td class="code del">            if action == &quot;criar&quot; &amp;&amp; exists {</td><td class="ln">745</td><td class="code add">            if is_cited_path(path) {</td></tr>
+<tr><td class="ln">683</td><td class="code del">                errors.push(format!(&quot;&#39;{path}&#39; já existe; use a ação &#39;alterar&#39;&quot;));</td><td class="ln">746</td><td class="code add">                paths.insert(path.to_string());</td></tr>
+<tr><td class="ln">684</td><td class="code del">            } else if action != &quot;criar&quot; &amp;&amp; !exists {</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">685</td><td class="code del">                errors.push(format!(</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">686</td><td class="code del">                    &quot;&#39;{path}&#39; não existe em {root}; use a ação &#39;criar&#39; ou corrija o caminho&quot;</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">687</td><td class="code del">                ));</td><td class="ln"></td><td class="code empty"></td></tr>
+<tr><td class="ln">688</td><td class="code">            }</td><td class="ln">747</td><td class="code">            }</td></tr>
+<tr><td class="ln">689</td><td class="code">        }</td><td class="ln">748</td><td class="code">        }</td></tr>
+<tr><td class="ln">690</td><td class="code">    }</td><td class="ln">749</td><td class="code">    }</td></tr>
+<tr><td class="ln">691</td><td class="code del">    Ok(errors)</td><td class="ln">750</td><td class="code add">    paths</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">751</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">752</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">753</td><td class="code add">/// Caminho citado: sem espaço, com `/` e sem marcadores de molde como `&lt;modulo&gt;` ou `*.ts` (RN-02).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">754</td><td class="code add">fn is_cited_path(path: &amp;str) -&gt; bool {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">755</td><td class="code add">    !path.is_empty()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">756</td><td class="code add">        &amp;&amp; path.contains(&#39;/&#39;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">757</td><td class="code add">        &amp;&amp; !path.contains(|c: char| c.is_whitespace() || &quot;&lt;&gt;*{}&quot;.contains(c))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">758</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">759</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">760</td><td class="code add">fn trim_trailing_slashes(path: &amp;str) -&gt; &amp;str {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">761</td><td class="code add">    path.trim_end_matches(&#39;/&#39;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">762</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">763</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">764</td><td class="code add">/// Até quatro caminhos citados dentro da pasta; o quarto só indica que há mais.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">765</td><td class="code add">fn inner_paths(folder: &amp;str, cited: &amp;BTreeSet&lt;String&gt;) -&gt; Vec&lt;String&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">766</td><td class="code add">    let prefix = format!(&quot;{folder}/&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">767</td><td class="code add">    cited</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">768</td><td class="code add">        .iter()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">769</td><td class="code add">        .filter(|path| path.starts_with(&amp;prefix))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">770</td><td class="code add">        .take(4)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">771</td><td class="code add">        .cloned()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">772</td><td class="code add">        .collect()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">773</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">774</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">775</td><td class="code add">fn folder_with_cited_paths_error(folder: &amp;str, inner: &amp;[String]) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">776</td><td class="code add">    let more = if inner.len() &gt; 3 { &quot;, ...&quot; } else { &quot;&quot; };</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">777</td><td class="code add">    let list = inner[..inner.len().min(3)].join(&quot;, &quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">778</td><td class="code add">    format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">779</td><td class="code add">        &quot;&#39;{folder}&#39; contém caminhos citados na spec ({list}{more}); liste os caminhos específicos no lugar da pasta&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">780</td><td class="code add">    )</td></tr>
+<tr><td class="ln">692</td><td class="code">}</td><td class="ln">781</td><td class="code">}</td></tr>
+<tr><td class="ln">693</td><td class="code"></td><td class="ln">782</td><td class="code"></td></tr>
+<tr><td class="ln">694</td><td class="code">fn is_requirement_id(value: &amp;str) -&gt; bool {</td><td class="ln">783</td><td class="code">fn is_requirement_id(value: &amp;str) -&gt; bool {</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/spec.rs</b><span class="tag criar">+208</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -124,3 +124,211 @@ fn approve_unknown_spec_fails() {</td></tr>
+<tr><td class="ln">124</td><td class="code">        &quot;{stderr}&quot;</td><td class="ln">124</td><td class="code">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln">125</td><td class="code">    );</td><td class="ln">125</td><td class="code">    );</td></tr>
+<tr><td class="ln">126</td><td class="code">}</td><td class="ln">126</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">127</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">128</td><td class="code add">// --- Componentes afetados prontos para o plano (SPEC-015) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">129</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">130</td><td class="code add">fn refined_with_components(project: &amp;Project, components: &amp;str, contracts: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">131</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">132</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">133</td><td class="code add">        .args([&quot;spec&quot;, &quot;new&quot;, &quot;Exemplo&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">134</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">135</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">136</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">137</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">138</td><td class="code add">        .args([&quot;spec&quot;, &quot;refine&quot;, &quot;SPEC-001&quot;, &quot;improvement&quot;])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">139</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">140</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">141</td><td class="code add">    let file = project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">142</td><td class="code add">        .harness()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">143</td><td class="code add">        .join(&quot;work/specs/refined/SPEC-001-exemplo.md&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">144</td><td class="code add">    let content = fs::read_to_string(&amp;file).expect(&quot;spec refinada&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">    let content = content</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add">        .replace(&quot;#{AFFECTED_COMPONENTS}&quot;, components)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">147</td><td class="code add">        .replace(&quot;#{CONTRACTS}&quot;, contracts);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">148</td><td class="code add">    fs::write(&amp;file, content).expect(&quot;grava a spec refinada&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">149</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">150</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">151</td><td class="code add">fn existing(project: &amp;Project, paths: &amp;[&amp;str]) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">152</td><td class="code add">    for path in paths {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">153</td><td class="code add">        let full = project.root().join(path);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">154</td><td class="code add">        if path.ends_with(&#39;/&#39;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">155</td><td class="code add">            fs::create_dir_all(&amp;full).expect(&quot;cria a pasta&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">156</td><td class="code add">        } else {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">157</td><td class="code add">            fs::create_dir_all(full.parent().expect(&quot;pasta-pai&quot;)).expect(&quot;cria a pasta-pai&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">            fs::write(&amp;full, &quot;&quot;).expect(&quot;cria o arquivo&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">160</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">161</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">162</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">163</td><td class="code add">fn component_row(path: &amp;str, action: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">164</td><td class="code add">    format!(&quot;| `{path}` | {action} | Motivo. |&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">165</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">166</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">167</td><td class="code add">fn validate_stderr(project: &amp;Project) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">168</td><td class="code add">    failure_stderr(project.vostok().args([&quot;spec&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;]))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">169</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">170</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">171</td><td class="code add">const FOLDER_ALTER_MESSAGE: &amp;str =</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">172</td><td class="code add">    &quot;&#39;apps/cli/src&#39; é uma pasta; com a ação &#39;alterar&#39;, liste os arquivos ou as subpastas que mudam&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">173</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">174</td><td class="code add">fn alter_folder_project() -&gt; Project {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">175</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">176</td><td class="code add">    existing(&amp;project, &amp;[&quot;apps/cli/src/main.rs&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">177</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">178</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">179</td><td class="code add">        &amp;component_row(&quot;apps/cli/src&quot;, &quot;alterar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">180</td><td class="code add">        &quot;Sem caminhos.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">181</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">182</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">183</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">184</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">185</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">186</td><td class="code add">fn components_folder_with_a_cited_path_is_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">187</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">188</td><td class="code add">    existing(&amp;project, &amp;[&quot;apps/web/src/billing.ts&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">189</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">190</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">191</td><td class="code add">        &amp;component_row(&quot;apps/web&quot;, &quot;alterar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">192</td><td class="code add">        &quot;O arquivo `apps/web/src/billing.ts` muda.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">193</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">194</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">195</td><td class="code add">    assert!(stderr.lines().any(|line| line == &quot;&#39;apps/web&#39; contém caminhos citados na spec (apps/web/src/billing.ts); liste os caminhos específicos no lugar da pasta&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">196</td><td class="code add">    assert!(!stderr.contains(&quot;&#39;apps/web&#39; é uma pasta&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">197</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">198</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">199</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">200</td><td class="code add">fn components_folder_that_contains_another_component_is_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">201</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">202</td><td class="code add">    let rows = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">203</td><td class="code add">        &quot;{}\n{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">204</td><td class="code add">        component_row(&quot;apps/server&quot;, &quot;criar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">205</td><td class="code add">        component_row(&quot;apps/server/src/notes&quot;, &quot;criar&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">206</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">207</td><td class="code add">    refined_with_components(&amp;project, &amp;rows, &quot;Sem caminhos.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">208</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">209</td><td class="code add">    assert!(stderr.lines().any(|line| line == &quot;&#39;apps/server&#39; contém caminhos citados na spec (apps/server/src/notes); liste os caminhos específicos no lugar da pasta&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">210</td><td class="code add">    assert!(!stderr.contains(&quot;&#39;apps/server/src/notes&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">211</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">212</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">213</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">214</td><td class="code add">fn components_existing_folder_with_alter_is_refused() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">215</td><td class="code add">    let project = alter_folder_project();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">216</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">217</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">218</td><td class="code add">        stderr.lines().any(|line| line == FOLDER_ALTER_MESSAGE),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">219</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">220</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">221</td><td class="code add">    assert!(!stderr.contains(&quot;contém caminhos citados&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">222</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">223</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">224</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">225</td><td class="code add">fn components_new_folder_and_removed_folder_stay_accepted() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">226</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">227</td><td class="code add">    existing(&amp;project, &amp;[&quot;apps/antigo/legado.ts&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">228</td><td class="code add">    let rows = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">229</td><td class="code add">        &quot;{}\n{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">230</td><td class="code add">        component_row(&quot;apps/novo&quot;, &quot;criar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">231</td><td class="code add">        component_row(&quot;apps/antigo&quot;, &quot;remover&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">232</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">233</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">234</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">235</td><td class="code add">        &amp;rows,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">236</td><td class="code add">        &quot;O arquivo `apps/antigo/legado.ts` sai junto.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">237</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">238</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">239</td><td class="code add">    assert!(!stderr.contains(&quot;&#39;apps/novo&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">240</td><td class="code add">    assert!(!stderr.contains(&quot;&#39;apps/antigo&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">241</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">242</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">243</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">244</td><td class="code add">fn components_message_lists_three_cited_paths_in_alphabetical_order() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">245</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">246</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">247</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">248</td><td class="code add">        &amp;component_row(&quot;apps/web&quot;, &quot;criar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">249</td><td class="code add">        &quot;`apps/web/e.ts` `apps/web/b.ts` `apps/web/d.ts` `apps/web/a.ts` `apps/web/c.ts` `apps/web/a.ts`&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">250</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">251</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">252</td><td class="code add">    assert!(stderr.contains(&quot;&#39;apps/web&#39; contém caminhos citados na spec (apps/web/a.ts, apps/web/b.ts, apps/web/c.ts, ...); liste os caminhos específicos no lugar da pasta&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">253</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">254</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">255</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">256</td><td class="code add">fn components_adjust_and_approve_validation_use_the_same_rules() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">257</td><td class="code add">    let project = alter_folder_project();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">258</td><td class="code add">    let adjust = failure_stderr(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">259</td><td class="code add">        project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">260</td><td class="code add">            .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">261</td><td class="code add">            .args([&quot;spec&quot;, &quot;adjust&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;]),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">262</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">263</td><td class="code add">    assert!(adjust.contains(FOLDER_ALTER_MESSAGE), &quot;{adjust}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">264</td><td class="code add">    let line = format!(&quot;validação: {FOLDER_ALTER_MESSAGE}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">265</td><td class="code add">    let validate = failure_stderr(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">266</td><td class="code add">        project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">267</td><td class="code add">            .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">268</td><td class="code add">            .args([&quot;spec&quot;, &quot;approve&quot;, &quot;validate&quot;, &quot;SPEC-001&quot;]),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">269</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">270</td><td class="code add">    assert!(validate.contains(&amp;line), &quot;{validate}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">271</td><td class="code add">    let approve = failure_stderr(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">272</td><td class="code add">        project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">273</td><td class="code add">            .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">274</td><td class="code add">            .args([&quot;spec&quot;, &quot;approve&quot;, &quot;approve&quot;, &quot;SPEC-001&quot;]),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">275</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">276</td><td class="code add">    assert!(approve.contains(&quot;nada foi alterado&quot;), &quot;{approve}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">277</td><td class="code add">    assert!(approve.contains(&amp;line), &quot;{approve}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">278</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">279</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">280</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">281</td><td class="code add">fn components_trailing_slash_is_treated_as_the_folder() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">282</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">283</td><td class="code add">    existing(&amp;project, &amp;[&quot;apps/web/a.ts&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">284</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">285</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">286</td><td class="code add">        &amp;component_row(&quot;apps/web/&quot;, &quot;alterar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">287</td><td class="code add">        &quot;Muda `apps/web/a.ts`.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">288</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">289</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">290</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">291</td><td class="code add">        stderr.contains(&quot;&#39;apps/web&#39; contém caminhos citados na spec (apps/web/a.ts)&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">292</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">293</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">294</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">295</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">296</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">297</td><td class="code add">fn components_own_path_and_prefix_lookalike_do_not_count() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">298</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">299</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">300</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">301</td><td class="code add">        &amp;component_row(&quot;apps/web&quot;, &quot;criar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">302</td><td class="code add">        &quot;A pasta `apps/web` nasce aqui; `apps/web/` também é citada; `apps/webapp/x.ts` é outra coisa.&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">303</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">304</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">305</td><td class="code add">    assert!(!stderr.contains(&quot;contém caminhos citados&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">306</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">307</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">308</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">309</td><td class="code add">fn components_existing_file_with_alter_and_dash_row_stay_accepted() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">310</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">311</td><td class="code add">    existing(&amp;project, &amp;[&quot;apps/cli/Cargo.toml&quot;]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">312</td><td class="code add">    let rows = format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">313</td><td class="code add">        &quot;{}\n| - | - | - |&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">314</td><td class="code add">        component_row(&quot;apps/cli/Cargo.toml&quot;, &quot;alterar&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">315</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">316</td><td class="code add">    refined_with_components(&amp;project, &amp;rows, &quot;Sem caminhos.&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">317</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">318</td><td class="code add">    assert!(!stderr.contains(&quot;é uma pasta&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">319</td><td class="code add">    assert!(!stderr.contains(&quot;contém caminhos citados&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">320</td><td class="code add">    assert!(!stderr.contains(&quot;ação inválida para &#39;-&#39;&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">321</td><td class="code add">    assert!(!stderr.contains(&quot;&#39;-&#39; não existe&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">322</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">323</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">324</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">325</td><td class="code add">fn components_cited_paths_with_spaces_templates_or_in_code_blocks_do_not_count() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">326</td><td class="code add">    let project = Project::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">327</td><td class="code add">    refined_with_components(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">328</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">329</td><td class="code add">        &amp;component_row(&quot;apps/web&quot;, &quot;criar&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">330</td><td class="code add">        &quot;Comando `apps/web/a b.ts` com espaço, moldes `apps/web/&lt;modulo&gt;` e `apps/web/*.ts`.\n```\n`apps/web/x.ts`\n```&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">331</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">332</td><td class="code add">    let stderr = validate_stderr(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">333</td><td class="code add">    assert!(!stderr.contains(&quot;contém caminhos citados&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">334</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/refine-spec/references/sections.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -53,7 +53,7 @@ Como preencher cada seção. As seções de cada tipo e a ordem delas estão em</td></tr>
+<tr><td class="ln">53</td><td class="code">| Fluxos | Fluxo principal em passos numerados. Fluxos alternativos como `FA-01`, cada um com o passo em que se desvia. |</td><td class="ln">53</td><td class="code">| Fluxos | Fluxo principal em passos numerados. Fluxos alternativos como `FA-01`, cada um com o passo em que se desvia. |</td></tr>
+<tr><td class="ln">54</td><td class="code">| Casos de borda | Situações fora do fluxo principal, com `CB-01`, o comportamento esperado e os requisitos relacionados. |</td><td class="ln">54</td><td class="code">| Casos de borda | Situações fora do fluxo principal, com `CB-01`, o comportamento esperado e os requisitos relacionados. |</td></tr>
+<tr><td class="ln">55</td><td class="code">| Contratos e interfaces | Assinaturas exatas em blocos de código: comandos e argumentos, formatos de arquivo, campos de front-matter e configuração. |</td><td class="ln">55</td><td class="code">| Contratos e interfaces | Assinaturas exatas em blocos de código: comandos e argumentos, formatos de arquivo, campos de front-matter e configuração. |</td></tr>
+<tr><td class="ln">56</td><td class="code del">| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. O script confere que `alterar` e `remover` apontam para caminhos existentes, e que `criar` aponta para um caminho que ainda não existe. |</td><td class="ln">56</td><td class="code add">| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. Escreva os caminhos no nível em que o trabalho pode ser dividido (por módulo, contexto ou feature): não cite a pasta inteira de um módulo que agrupa partes independentes, e liste os pontos de integração compartilhados (registro de rotas, menu, configuração comum) em linhas próprias. O plano usa esses caminhos para calcular o que roda em paralelo: componentes grossos demais fazem as tarefas de módulo assumirem os mesmos caminhos e a onda vira sequencial. O script confere que `alterar` e `remover` apontam para caminhos existentes, que `criar` aponta para um caminho que ainda não existe, que uma pasta não contém outro caminho citado na spec e que uma pasta existente não usa a ação `alterar`. |</td></tr>
+<tr><td class="ln">57</td><td class="code">| Casos de teste | Com `CT-01`: cenário, passos, resultado esperado e requisitos cobertos. Todo `RF` aparece em ao menos um caso de teste. |</td><td class="ln">57</td><td class="code">| Casos de teste | Com `CT-01`: cenário, passos, resultado esperado e requisitos cobertos. Todo `RF` aparece em ao menos um caso de teste. |</td></tr>
+<tr><td class="ln">58</td><td class="code"></td><td class="ln">58</td><td class="code"></td></tr>
+<tr><td class="ln">59</td><td class="code">## Seções de estudo (study)</td><td class="ln">59</td><td class="code">## Seções de estudo (study)</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/refine-spec/SKILL.md</b><span class="tag criar">+4</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3,7 +3,7 @@ name: refine-spec</td></tr>
+<tr><td class="ln">3</td><td class="code">description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.</td><td class="ln">3</td><td class="code">description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.</td></tr>
+<tr><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td></tr>
+<tr><td class="ln">5</td><td class="code">metadata:</td><td class="ln">5</td><td class="code">metadata:</td></tr>
+<tr><td class="ln">6</td><td class="code del">  version: &quot;2.1.1&quot;</td><td class="ln">6</td><td class="code add">  version: &quot;2.2.0&quot;</td></tr>
+<tr><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td></tr>
+<tr><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined&quot;</td><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined&quot;</td></tr>
+<tr><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/refined.md templates/spec/sections&quot;</td><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/refined.md templates/spec/sections&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -102,6 +102,7 @@ Leia só o necessário para preencher as seções do tipo. Não altere nenhum ar</td></tr>
+<tr><td class="ln">102</td><td class="code">|---|---|</td><td class="ln">102</td><td class="code">|---|---|</td></tr>
+<tr><td class="ln">103</td><td class="code">| Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |</td><td class="ln">103</td><td class="code">| Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |</td></tr>
+<tr><td class="ln">104</td><td class="code">| Há uma interpretação claramente dominante e de baixo impacto | Inferência |</td><td class="ln">104</td><td class="code">| Há uma interpretação claramente dominante e de baixo impacto | Inferência |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">105</td><td class="code add">| Um componente de &quot;Componentes afetados&quot; agrupa partes que a spec descreve como independentes | Inferência: detalhe os caminhos no lugar do componente, a partir da investigação do passo 3; só pergunte se a divisão muda o escopo da spec |</td></tr>
+<tr><td class="ln">105</td><td class="code">| Conflito entre trechos da spec | Pergunta, sempre |</td><td class="ln">106</td><td class="code">| Conflito entre trechos da spec | Pergunta, sempre |</td></tr>
+<tr><td class="ln">106</td><td class="code">| O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |</td><td class="ln">107</td><td class="code">| O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |</td></tr>
+<tr><td class="ln">107</td><td class="code"></td><td class="ln">108</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -141,6 +142,8 @@ vostok spec validate &lt;SPEC_ID&gt;</td></tr>
+<tr><td class="ln">141</td><td class="code"></td><td class="ln">142</td><td class="code"></td></tr>
+<tr><td class="ln">142</td><td class="code">O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td><td class="ln">143</td><td class="code">O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td></tr>
+<tr><td class="ln">143</td><td class="code"></td><td class="ln">144</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do passo 3 mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário; só pergunte se a divisão muda o escopo da spec.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add"></td></tr>
+<tr><td class="ln">144</td><td class="code">Com a refinada válida, execute:</td><td class="ln">147</td><td class="code">Com a refinada válida, execute:</td></tr>
+<tr><td class="ln">145</td><td class="code"></td><td class="ln">148</td><td class="code"></td></tr>
+<tr><td class="ln">146</td><td class="code">```bash</td><td class="ln">149</td><td class="code">```bash</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/adjust-spec/SKILL.md</b><span class="tag criar">+3</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3,7 +3,7 @@ name: adjust-spec</td></tr>
+<tr><td class="ln">3</td><td class="code">description: &quot;Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada.&quot;</td><td class="ln">3</td><td class="code">description: &quot;Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada.&quot;</td></tr>
+<tr><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td></tr>
+<tr><td class="ln">5</td><td class="code">metadata:</td><td class="ln">5</td><td class="code">metadata:</td></tr>
+<tr><td class="ln">6</td><td class="code del">  version: &quot;1.2.0&quot;</td><td class="ln">6</td><td class="code add">  version: &quot;1.3.0&quot;</td></tr>
+<tr><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td></tr>
+<tr><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record&quot;</td><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record&quot;</td></tr>
+<tr><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/sections&quot;</td><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/sections&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -155,6 +155,8 @@ vostok spec adjust validate &lt;SPEC_ID&gt;</td></tr>
+<tr><td class="ln">155</td><td class="code"></td><td class="ln">155</td><td class="code"></td></tr>
+<tr><td class="ln">156</td><td class="code">O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td><td class="ln">156</td><td class="code">O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td></tr>
+<tr><td class="ln">157</td><td class="code"></td><td class="ln">157</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do projeto mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário e sem nova rodada ([adjust-spec-05]); o que for acrescentado ou trocado além do pedido entra no &quot;Registro de decisões&quot; como inferência ([adjust-spec-06]).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add"></td></tr>
+<tr><td class="ln">158</td><td class="code">### 9. Registrar o ajuste</td><td class="ln">160</td><td class="code">### 9. Registrar o ajuste</td></tr>
+<tr><td class="ln">159</td><td class="code"></td><td class="ln">161</td><td class="code"></td></tr>
+<tr><td class="ln">160</td><td class="code">Execute, com um item por ajuste no resumo, separados por `; `:</td><td class="ln">162</td><td class="code">Execute, com um item por ajuste no resumo, separados por `; `:</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/skills/default/refine-spec/references/sections.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -53,7 +53,7 @@ Como preencher cada seção. As seções de cada tipo e a ordem delas estão em</td></tr>
+<tr><td class="ln">53</td><td class="code">| Fluxos | Fluxo principal em passos numerados. Fluxos alternativos como `FA-01`, cada um com o passo em que se desvia. |</td><td class="ln">53</td><td class="code">| Fluxos | Fluxo principal em passos numerados. Fluxos alternativos como `FA-01`, cada um com o passo em que se desvia. |</td></tr>
+<tr><td class="ln">54</td><td class="code">| Casos de borda | Situações fora do fluxo principal, com `CB-01`, o comportamento esperado e os requisitos relacionados. |</td><td class="ln">54</td><td class="code">| Casos de borda | Situações fora do fluxo principal, com `CB-01`, o comportamento esperado e os requisitos relacionados. |</td></tr>
+<tr><td class="ln">55</td><td class="code">| Contratos e interfaces | Assinaturas exatas em blocos de código: comandos e argumentos, formatos de arquivo, campos de front-matter e configuração. |</td><td class="ln">55</td><td class="code">| Contratos e interfaces | Assinaturas exatas em blocos de código: comandos e argumentos, formatos de arquivo, campos de front-matter e configuração. |</td></tr>
+<tr><td class="ln">56</td><td class="code del">| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. O script confere que `alterar` e `remover` apontam para caminhos existentes, e que `criar` aponta para um caminho que ainda não existe. |</td><td class="ln">56</td><td class="code add">| Componentes afetados | Um caminho por linha, com a ação `criar`, `alterar` ou `remover` e o motivo. Escreva os caminhos no nível em que o trabalho pode ser dividido (por módulo, contexto ou feature): não cite a pasta inteira de um módulo que agrupa partes independentes, e liste os pontos de integração compartilhados (registro de rotas, menu, configuração comum) em linhas próprias. O plano usa esses caminhos para calcular o que roda em paralelo: componentes grossos demais fazem as tarefas de módulo assumirem os mesmos caminhos e a onda vira sequencial. O script confere que `alterar` e `remover` apontam para caminhos existentes, que `criar` aponta para um caminho que ainda não existe, que uma pasta não contém outro caminho citado na spec e que uma pasta existente não usa a ação `alterar`. |</td></tr>
+<tr><td class="ln">57</td><td class="code">| Casos de teste | Com `CT-01`: cenário, passos, resultado esperado e requisitos cobertos. Todo `RF` aparece em ao menos um caso de teste. |</td><td class="ln">57</td><td class="code">| Casos de teste | Com `CT-01`: cenário, passos, resultado esperado e requisitos cobertos. Todo `RF` aparece em ao menos um caso de teste. |</td></tr>
+<tr><td class="ln">58</td><td class="code"></td><td class="ln">58</td><td class="code"></td></tr>
+<tr><td class="ln">59</td><td class="code">## Seções de estudo (study)</td><td class="ln">59</td><td class="code">## Seções de estudo (study)</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/skills/default/refine-spec/SKILL.md</b><span class="tag criar">+4</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3,7 +3,7 @@ name: refine-spec</td></tr>
+<tr><td class="ln">3</td><td class="code">description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.</td><td class="ln">3</td><td class="code">description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.</td></tr>
+<tr><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td></tr>
+<tr><td class="ln">5</td><td class="code">metadata:</td><td class="ln">5</td><td class="code">metadata:</td></tr>
+<tr><td class="ln">6</td><td class="code del">  version: &quot;2.1.1&quot;</td><td class="ln">6</td><td class="code add">  version: &quot;2.2.0&quot;</td></tr>
+<tr><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td></tr>
+<tr><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined&quot;</td><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined&quot;</td></tr>
+<tr><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/refined.md templates/spec/sections&quot;</td><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/refined.md templates/spec/sections&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -102,6 +102,7 @@ Leia só o necessário para preencher as seções do tipo. Não altere nenhum ar</td></tr>
+<tr><td class="ln">102</td><td class="code">|---|---|</td><td class="ln">102</td><td class="code">|---|---|</td></tr>
+<tr><td class="ln">103</td><td class="code">| Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |</td><td class="ln">103</td><td class="code">| Afeta escopo, arquitetura, critérios de aceite, custo ou prazo | Pergunta |</td></tr>
+<tr><td class="ln">104</td><td class="code">| Há uma interpretação claramente dominante e de baixo impacto | Inferência |</td><td class="ln">104</td><td class="code">| Há uma interpretação claramente dominante e de baixo impacto | Inferência |</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">105</td><td class="code add">| Um componente de &quot;Componentes afetados&quot; agrupa partes que a spec descreve como independentes | Inferência: detalhe os caminhos no lugar do componente, a partir da investigação do passo 3; só pergunte se a divisão muda o escopo da spec |</td></tr>
+<tr><td class="ln">105</td><td class="code">| Conflito entre trechos da spec | Pergunta, sempre |</td><td class="ln">106</td><td class="code">| Conflito entre trechos da spec | Pergunta, sempre |</td></tr>
+<tr><td class="ln">106</td><td class="code">| O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |</td><td class="ln">107</td><td class="code">| O rascunho contradiz uma decisão ativa da memória | Pergunta, sempre, citando o ID da decisão |</td></tr>
+<tr><td class="ln">107</td><td class="code"></td><td class="ln">108</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -141,6 +142,8 @@ vostok spec validate &lt;SPEC_ID&gt;</td></tr>
+<tr><td class="ln">141</td><td class="code"></td><td class="ln">142</td><td class="code"></td></tr>
+<tr><td class="ln">142</td><td class="code">O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td><td class="ln">143</td><td class="code">O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td></tr>
+<tr><td class="ln">143</td><td class="code"></td><td class="ln">144</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">145</td><td class="code add">Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do passo 3 mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário; só pergunte se a divisão muda o escopo da spec.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">146</td><td class="code add"></td></tr>
+<tr><td class="ln">144</td><td class="code">Com a refinada válida, execute:</td><td class="ln">147</td><td class="code">Com a refinada válida, execute:</td></tr>
+<tr><td class="ln">145</td><td class="code"></td><td class="ln">148</td><td class="code"></td></tr>
+<tr><td class="ln">146</td><td class="code">```bash</td><td class="ln">149</td><td class="code">```bash</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">vostok/skills/default/adjust-spec/SKILL.md</b><span class="tag criar">+3</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3,7 +3,7 @@ name: adjust-spec</td></tr>
+<tr><td class="ln">3</td><td class="code">description: &quot;Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada.&quot;</td><td class="ln">3</td><td class="code">description: &quot;Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada.&quot;</td></tr>
+<tr><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td><td class="ln">4</td><td class="code">allowed-tools: Read Edit Bash(vostok *)</td></tr>
+<tr><td class="ln">5</td><td class="code">metadata:</td><td class="ln">5</td><td class="code">metadata:</td></tr>
+<tr><td class="ln">6</td><td class="code del">  version: &quot;1.2.0&quot;</td><td class="ln">6</td><td class="code add">  version: &quot;1.3.0&quot;</td></tr>
+<tr><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td><td class="ln">7</td><td class="code">  author: &quot;Victor Batalha&quot;</td></tr>
+<tr><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record&quot;</td><td class="ln">8</td><td class="code">  scripts: &quot;vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record&quot;</td></tr>
+<tr><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/sections&quot;</td><td class="ln">9</td><td class="code">  templates: &quot;templates/spec/sections&quot;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -155,6 +155,8 @@ vostok spec adjust validate &lt;SPEC_ID&gt;</td></tr>
+<tr><td class="ln">155</td><td class="code"></td><td class="ln">155</td><td class="code"></td></tr>
+<tr><td class="ln">156</td><td class="code">O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td><td class="ln">156</td><td class="code">O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.</td></tr>
+<tr><td class="ln">157</td><td class="code"></td><td class="ln">157</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">158</td><td class="code add">Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do projeto mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário e sem nova rodada ([adjust-spec-05]); o que for acrescentado ou trocado além do pedido entra no &quot;Registro de decisões&quot; como inferência ([adjust-spec-06]).</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">159</td><td class="code add"></td></tr>
+<tr><td class="ln">158</td><td class="code">### 9. Registrar o ajuste</td><td class="ln">160</td><td class="code">### 9. Registrar o ajuste</td></tr>
+<tr><td class="ln">159</td><td class="code"></td><td class="ln">161</td><td class="code"></td></tr>
+<tr><td class="ln">160</td><td class="code">Execute, com um item por ajuste no resumo, separados por `; `:</td><td class="ln">162</td><td class="code">Execute, com um item por ajuste no resumo, separados por `; `:</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">30ced02</td><td class="mono">2026-10-30</td><td>feat(skills): guide affected components to the level the plan can split</td></tr>
+<tr><td class="mono">bde4fcb</td><td class="mono">2026-10-30</td><td>feat(spec): refuse affected components too coarse for the plan&#39;s parallelism</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<ul>
+<li><strong>Erro, não aviso:</strong> as regras viraram erros da validação para o agente corrigir antes de marcar a spec como refinada; a aprovação não pergunta nada. Descartado: avisos e pergunta ao usuário na aprovação, a pedido do usuário, para evitar interferência quando o agente já consegue criar a spec certa.</li>
+<li><strong>Regras estruturais:</strong> pasta que contém caminho citado e pasta existente com <code>alterar</code>. Descartados: coluna &quot;Requisitos&quot; na tabela de componentes e heurística de &quot;módulos sem relação&quot;, por mudarem o formato ou dependerem de interpretação.</li>
+<li>**Pasta <code>criar</code> e <code>remover</code> aceitas:** criar um módulo novo e remover um inteiro são operações legítimas.</li>
+<li>**Moldes ignorados em <code>is_cited_path</code>:** no teste do fluxo, moldes como <code>apps/server/src/modules/&lt;modulo&gt;</code> entravam na mensagem de recusa. Trechos com <code>&lt;</code>, <code>&gt;</code>, <code>*</code>, <code>{</code> e <code>}</code> deixaram de contar. É divergência da regra de negócio original (RN-02), registrada na tarefa porque a spec já estava planejada.</li>
+<li><strong>Plano fora do escopo:</strong> permitir que o plano detalhe caminhos dentro de um componente foi descartado, pois perderia a rastreabilidade aos componentes aprovados.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>O teste do fluxo num projeto temporário (módulos independentes billing, notes e reports, com um rascunho dizendo &quot;vamos mexer em apps/server e apps/web&quot;) mostrou o comportamento esperado: um agente novo, sem dica, listou 9 caminhos por módulo e camada, com os 3 pontos de integração em linhas próprias, e o <code>spec validate</code> passou na primeira rodada. Numa cópia com <code>apps/server</code> e <code>apps/web</code> em <code>alterar</code>, as duas linhas foram recusadas com a mensagem da regra de pasta que contém caminhos.</li>
+<li>O mesmo teste revelou o problema dos moldes entre crases, corrigido no ajuste 2 da TASK-01.</li>
+<li>Ajuste 1 da TASK-01: a asserção da linha <code>-</code> foi trocada por mensagens específicas, porque a mensagem de tabela vazia também cita <code>&#39;-&#39;</code>.</li>
+<li>Rodar as duas tarefas em paralelo funcionou porque não tinham arquivo em comum; o issue de origem (#4, triado pela skill <code>triage-harness-issue</code>) já descrevia o efeito no plano, o que deu critério claro para as regras.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>Fora do escopo, para o futuro: no plano, os arquivos de integração (rotas, menu) alterados por todos os módulos fazem as tarefas de módulo virarem sequenciais se cada uma registrar a própria rota. O caminho é uma tarefa só de integração, dependente dos módulos, que a <code>plan-tasks</code> ainda não orienta explicitamente.</li>
+<li>Specs refinadas antes desta melhoria com pasta em <code>alterar</code> passam a ser recusadas na aprovação; o <code>adjust-spec</code> corrige sem pergunta.</li>
+<li>Só caminhos entre crases, sem espaço, com <code>/</code> e sem marcadores de molde contam como citados; um exemplo em crases na prosa pode disparar a recusa, e a saída é tirar das crases ou trocar pelos caminhos específicos.</li>
+<li>A validação não alcança specs já aprovadas, planejadas ou arquivadas.</li>
+<li>A versão publicada será a 0.2.1.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/spec.rs</code> (<code>component_errors</code>, <code>is_cited_path</code>): onde as regras e a definição de caminho citado vivem.</li>
+<li><code>apps/cli/tests/spec.rs</code>: os 10 testes que fixam o texto das mensagens e os casos de borda.</li>
+<li><code>packages/harness/skills/default/refine-spec/references/sections.md</code>: a orientação de granularidade lida pelo agente.</li>
+<li><code>packages/harness/skills/default/refine-spec/SKILL.md</code> e <code>packages/harness/skills/default/adjust-spec/SKILL.md</code>: os passos de correção sem pergunta.</li>
+<li><code>packages/harness/skills/default/plan-tasks/SKILL.md</code> ([plan-tasks-09]): a regra de paralelismo que motivou a melhoria.</li>
+<li>SPEC-014 (TASK-07 e TASK-08): o cálculo de arquivos por tarefa e arquivos em comum por onda.</li>
+<li>Issue https://github.com/Ishtar-Sink/Vostok/issues/4: relato, proposta e alternativas.</li>
+<li>Commits <code>bde4fcb</code> (regras e testes) e <code>30ced02</code> (orientação nas skills): o diff completo de cada tarefa.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-015, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

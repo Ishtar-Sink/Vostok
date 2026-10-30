@@ -13,6 +13,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
 
 use crate::harness::Harness;
+use crate::models;
 use crate::support::{
     config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
     frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection,
@@ -41,6 +42,9 @@ pub enum TaskCommand {
     Start {
         spec_id: Option<String>,
         task_id: Option<String>,
+        /// Modelo escolhido pelo Coordenador, gravado no registro de execução.
+        #[arg(long, value_name = "MODELO")]
+        model: Option<String>,
     },
     /// Coleta o baseline.
     Baseline {
@@ -179,9 +183,13 @@ pub fn run(command: TaskCommand) -> Result<()> {
         }
         TaskCommand::Approve(command) => tasks.run_approve(command),
         TaskCommand::Adjust(command) => tasks.run_adjust(command),
-        TaskCommand::Start { spec_id, task_id } => {
+        TaskCommand::Start {
+            spec_id,
+            task_id,
+            model,
+        } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
-            tasks.start(&spec, &task)
+            tasks.start(&spec, &task, model.as_deref())
         }
         TaskCommand::Baseline { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
@@ -448,9 +456,18 @@ impl Tasks {
                 file.display()
             )
         })?;
+        let profile = models::task_profile(&self.harness, &file);
+        let info = models::for_profile(&self.harness, &profile)?;
+        if info.tool.is_none() {
+            eprintln!("{}", models::tool_warning());
+        }
         print!(
-            "---\n{}\n---\n\n## {section}\n{}\n",
+            "---\n{}\n---\n\n## Modelo\n\n- Perfil: {}\n- Descrição: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n\n## {section}\n{}\n",
             trim_newlines(&front_matter.join("\n")),
+            info.profile,
+            info.description,
+            info.tool.as_deref().unwrap_or("não configurada"),
+            info.model,
             trim_newlines(&execution)
         );
         Ok(())
@@ -750,7 +767,13 @@ impl Tasks {
 
     // --- start e baseline ---
 
-    fn start(&self, spec: &str, task: &str) -> Result<()> {
+    fn start(&self, spec: &str, task: &str, model: Option<&str>) -> Result<()> {
+        let model = match model.map(str::trim) {
+            Some(value) if value.is_empty() || value.contains(['\n', '\r']) => {
+                bail!("informe o modelo em --model")
+            }
+            other => other,
+        };
         let file = self.find_task(spec, task)?;
         let blockers = self.start_blockers(spec, task, &file)?;
         if !blockers.is_empty() {
@@ -762,12 +785,12 @@ impl Tasks {
         let in_progress = &self.status.in_progress;
         frontmatter_set(&file, "status", in_progress)?;
         let approved_at = frontmatter_get(&file, "approved_at").unwrap_or_else(|_| "?".into());
-        self.record_step(
-            &file,
-            "início",
-            in_progress,
-            &format!("aprovada em {approved_at}"),
-        )?;
+        let mut detail = format!("aprovada em {approved_at}");
+        if let Some(model) = model {
+            frontmatter_put(&file, "model", model)?;
+            detail.push_str(&format!("; modelo: {model}"));
+        }
+        self.record_step(&file, "início", in_progress, &detail)?;
         println!(
             "Tarefa {task} iniciada: status '{in_progress}'. Colete o baseline antes de mudar qualquer arquivo: vostok task baseline {spec} {task}"
         );

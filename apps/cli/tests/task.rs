@@ -1160,3 +1160,134 @@ fn change_in_execution_does_not_relax_a_pending_task() {
     let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
     assert!(refused.contains("'novo.txt' já existe"), "{refused}");
 }
+
+// --- Perfil e modelo da tarefa (SPEC-014) ---
+
+fn task_with_profile(line: &str) -> Project {
+    let project = Project::new();
+    let content = complete_task("pending", "Não se aplica.").replace("effort: simples", line);
+    write(&project, TASK_PATH, &content);
+    project
+}
+
+fn set_overrides(project: &Project, overrides: &str) {
+    let path = "vostok/config/models.yml";
+    let content =
+        read(project, path).replace("overrides:\n", &format!("overrides:\n{overrides}\n"));
+    write(project, path, &content);
+}
+
+fn load_output(project: &Project) -> String {
+    success_stdout(&mut task(project, &["load"]))
+}
+
+#[test]
+fn model_load_shows_profile_description_and_reserve_alias() {
+    let project = task_with_profile("profile: julgamento");
+    let output = load_output(&project);
+    for expected in [
+        "## Modelo",
+        "- Perfil: julgamento",
+        "- Descrição: Desenho, ambiguidade e decisões amplas; prefere o modelo mais capaz.",
+        "- Ferramenta: claude-code",
+        "- Apelido de reserva: opus",
+    ] {
+        assert!(output.contains(expected), "{expected}\n{output}");
+    }
+    assert!(output.find("## Modelo").unwrap() < output.find("## Execução").unwrap());
+}
+
+#[test]
+fn model_load_maps_the_old_effort_level() {
+    let project = task_with_profile("effort: moderada");
+    let output = load_output(&project);
+    assert!(output.contains("- Perfil: padrao"), "{output}");
+    assert!(output.contains("- Apelido de reserva: sonnet"), "{output}");
+}
+
+#[test]
+fn model_load_uses_the_project_override() {
+    let project = task_with_profile("profile: julgamento");
+    set_overrides(&project, "  julgamento:\n    claude-code: sonnet");
+    let output = load_output(&project);
+    assert!(output.contains("- Apelido de reserva: sonnet"), "{output}");
+}
+
+#[test]
+fn model_load_refuses_an_invalid_override() {
+    let project = task_with_profile("profile: julgamento");
+    set_overrides(&project, "  julgamento:\n    claude-code: \"Opus 4!\"");
+    let stderr = failure_stderr(&mut task(&project, &["load"]));
+    assert!(
+        stderr.contains(
+            "apelido inválido em config/models.yml (overrides.julgamento.claude-code): 'Opus 4!'"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn model_load_without_tool_shows_the_session_model() {
+    let project = task_with_profile("profile: julgamento");
+    let main = read(&project, "vostok/config/main.yml");
+    let main: String = main
+        .lines()
+        .map(|line| {
+            if line.starts_with("  tool:") {
+                "  tool: \"\"".to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    write(&project, "vostok/config/main.yml", &main);
+    let mut command = task(&project, &["load"]);
+    let assert = command.assert().success();
+    let output = assert.get_output();
+    let stdout = String::from_utf8(output.stdout.clone()).unwrap();
+    let stderr = String::from_utf8(output.stderr.clone()).unwrap();
+    assert!(stdout.contains("- Ferramenta: não configurada"), "{stdout}");
+    assert!(
+        stdout.contains("- Apelido de reserva: modelo da sessão"),
+        "{stdout}"
+    );
+    assert!(
+        stderr.contains("Aviso: harness.tool vazio ou desconhecido"),
+        "{stderr}"
+    );
+}
+
+fn started_task(extra: &[&str]) -> Project {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", "Não se aplica."),
+    );
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    let mut args = vec!["start"];
+    args.extend_from_slice(extra);
+    success_stdout(&mut task(&project, &args));
+    project
+}
+
+#[test]
+fn model_start_records_the_chosen_model() {
+    let project = started_task(&["--model", "sonnet"]);
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nmodel: sonnet\n"), "{content}");
+    let line = content.lines().find(|l| l.contains("| início |")).unwrap();
+    assert!(line.ends_with("; modelo: sonnet |"), "{line}");
+}
+
+#[test]
+fn model_start_without_model_keeps_the_record() {
+    let project = started_task(&[]);
+    let content = read(&project, TASK_PATH);
+    assert!(!content.contains("\nmodel:"), "{content}");
+    let line = content.lines().find(|l| l.contains("| início |")).unwrap();
+    assert!(!line.contains("modelo:"), "{line}");
+}

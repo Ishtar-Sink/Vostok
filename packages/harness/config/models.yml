@@ -1,0 +1,21 @@
+# Apelido de reserva de cada perfil de execução por ferramenta, usado quando ela não permite listar ou
+# escolher o modelo. O que cada perfil exige está em `profile_descriptions` de `config/tasks.yml`.
+# `profiles` é atualizado a cada versão do harness: o vostok lê os valores do binário instalado, não os
+# desta cópia. Para trocar um apelido no projeto, use `overrides`.
+profiles:
+  mecanica:
+    fallback:
+      claude-code: haiku
+  padrao:
+    fallback:
+      claude-code: sonnet
+  julgamento:
+    fallback:
+      claude-code: opus
+
+# Apelidos do projeto, que prevalecem sobre os de `profiles`: o perfil e, recuada, a ferramenta.
+# Apelido: letras minúsculas, números, '.', '-' e '_', começando por letra, com sufixo opcional entre
+# colchetes (ex.: sonnet, opus[1m]). O vostok confere o formato, não se o modelo existe. Ex.:
+#   julgamento:
+#     claude-code: sonnet
+overrides:

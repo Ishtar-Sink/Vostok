@@ -15,25 +15,27 @@ files:
   rules/agent/responses.md: fef824a431f2e1861c07d34069cf37fd846b0ddf9aca3cdfd8293dd56ca2fa37
   rules/agent/rule-suggestions.md: 5170f5242eabc020d73d1adb86e8f30301f05006ab859b29300284d2b25a45c8
   rules/agent/template-usage.md: 5d0049d44b4ddf6c04bc0f22d85dd759e8871413adb13d12afbddc59d0782d6d
-  skills/default/adjust-plan/SKILL.md: 916510eb0e9ad1c8393b519a3c9367f44a141ef69206b22a8a7cd26e997c62ed
+  skills/default/adjust-plan/SKILL.md: bb7c0071378563c50114c0cd97dc69bc4eaeec37d2d1e3ede65c138c339e6a31
   skills/default/adjust-rules/SKILL.md: c7641a99c2758b90d635834eb3600691e7ec1e855a4f5cf2003bc8aecb98ad94
-  skills/default/adjust-spec/SKILL.md: 6a137364ce59ac8c6d7cafddccd16002d71854c8fa859712d2f25ff3766a0642
-  skills/default/adjust-task/SKILL.md: 75936727cd26eaa0399c893ad7d3cf9111121ff1f554048eead4c5a80d438141
+  skills/default/adjust-spec/SKILL.md: f26644ddae9b966eaa9eae47961968d31f786c2b24ac77de046a2fd08f64d32f
+  skills/default/adjust-task/SKILL.md: 1d927629d40fd8bbc509f195f3fb60011b6f71e1e29fb3d71824c9a385887fb5
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: a34a81db008a240d67fb82fa275250398df323529e337c23acc1d5dd79f09495
+  skills/default/approve-plan/SKILL.md: 799185ce3d92b134e30af7e04c4ca6f5bd3c8c9f6b5323f273c362168e3708e2
   skills/default/approve-spec/SKILL.md: ffdbd013691a23bc934692ae96a6fee5bbd7804b402c14706b8863791f141c2e
   skills/default/approve-task/SKILL.md: 914da3dc41374b955c1b9db5ea3ca800752d75f4dadf976c35bc9f8744c36d27
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
-  skills/default/execute-task/SKILL.md: 129e3d969e0be3621830e2f579e3a0d23667ff84698830e70c986407469d31ac
+  skills/default/execute-task/SKILL.md: 44eaf44fb17e81c808a17271d6cd31bc0b59ec89f5065a841801e15c633798a8
   skills/default/finalize-spec/SKILL.md: 3973462a7b840f582be5e1f08c8e6140c36d9de2e575f011b57dde3a6b37f37d
-  skills/default/finish-task/SKILL.md: c5752d681dcfc0da04975c90e7190b99ac46c8248d0dbb85ef1cc14b1607c3fb
+  skills/default/finish-task/SKILL.md: c340ee69e78058da8501a981184fef9a1ec4aa3dda7354a31db3abce9dc7fd6f
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
-  skills/default/plan-tasks/SKILL.md: 45fcbebc16f9ffc1d3e19f65978ff37e535f178d0f14cacea8dd33378aac9b3b
-  skills/default/refine-spec/SKILL.md: 4ed6eb057fb51e33cb922ef20d8ced2ff117624f4f441e97b10c33fad254f9e4
+  skills/default/plan-tasks/SKILL.md: d466b68978f593ec60311d570f44c820f71bd26486bb8f1133034f414bbe0886
+  skills/default/refine-spec/SKILL.md: a15872fd2f0332f9680ed61b4e9695a5e32b129acf5f538a8364f5c0f2c9b03c
   skills/default/refine-spec/references/sections.md: 396087e3f4706de15d00c8a8dbd0e3b55f6142a265150925cc58a6a7acb21b44
-  skills/default/report-harness-bug/SKILL.md: b0a06a1f08087f6be22a9e22a4106dfc65db5d94042a22c8f798ad25dd988534
-  skills/default/validate-harness-bug/SKILL.md: bffd1944a82360087ee40c1590566b18d180852ee8315fa92c9068619b8db676
+  skills/default/report-harness-bug/SKILL.md: 99d9f81600f39e3938adc61be5a4956f9a211e8aa75e1dc77e5aafe856f6878b
+  skills/default/suggest-harness-feature/SKILL.md: 13ce5662b39c639f116f4949e576c9fd96a542848031f6000d2967d1ac66bff4
+  skills/default/suggest-harness-improvement/SKILL.md: d686b0bc388b3606e19b3bd568faa6714b84e1efd70bab7f13fe133a7d66ad4e
+  skills/default/validate-harness-bug/SKILL.md: e802ea98d5434d2bb3d0b832c3119c948db649dfc3c62e5e0372e1ee1f419671
   templates/bug/report.md: ffb178247760a7d7995ccc37293737eeb6f23f915f4c0b479f7a2e58fb4c8bb0
   templates/finalize/content.md: 51619b1d7d495c7a3f21963f36c56b38c4c81db8a7c4701c8b0735ff27d8c991
   templates/finalize/evidence-item.html: 42b06c8c07c17e07d49ae5bdfb1ba345766b304e9db156b3ebb56596ba38f41a
@@ -44,7 +46,7 @@ files:
   templates/memory/file.md: b7d729ae0b90f6b9a247359c7218a0b45590a8b13336bae370d3381d5d08ec0a
   templates/memory/issue.md: c2c3c539046f99bb139ba108e764196410c000327d13bdf77bc78a650f661f9f
   templates/memory/knowledge.md: 24db52f748583d9ad0633437c40b4b2b70797d5af93650f50cc1b380ef624c43
-  templates/plan/plan.md: b5d05ec17dca3b2af72cba1c09e4e57453500bf256bd2ea2a895cba50ce9aea3
+  templates/plan/plan.md: 638a4c6a6a48e3bd7b5c4310874598ca27a7e24a26fef6ead94a7012e7362657
   templates/responses/blocker.md: 59726756202f3c4b22c228446be5a0ebe766c0fd0fe09d4c9cc58f370fef7753
   templates/responses/completion.md: 60a3119f4d7a0cfb5174392748cc3670b949a9f68c49afb9e5e1a68e813b76a0
   templates/responses/decision-conflict.md: ef16fd54a8ce2a1bbcfe6c9cf2dc31174d3287db23fc694a3f7e4ffc83afa0db

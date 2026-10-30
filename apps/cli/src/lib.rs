@@ -5,5 +5,6 @@ pub mod commands;
 pub mod embedded;
 pub mod harness;
 pub mod manifest;
+pub mod models;
 pub mod routing;
 pub mod support;

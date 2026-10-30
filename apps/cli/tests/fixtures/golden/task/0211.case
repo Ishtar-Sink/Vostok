@@ -20,7 +20,7 @@ TASK-02
 <OUTSIDE>
 @stdin 0
 
-@stdout 798
+@stdout 917
 ---
 id: TASK-02
 spec: SPEC-008
@@ -41,6 +41,13 @@ tests_result: null
 regression_result: null
 evidence_result: null
 ---
+
+## Modelo
+
+- Perfil: complexa
+- Descrição: -
+- Ferramenta: não configurada
+- Apelido de reserva: modelo da sessão
 
 ## Execução
 
@@ -77,7 +84,8 @@ true
 
   > Como comprovar: o arquivo `nao/existe/novo.sh` existe.
 
-@stderr 0
+@stderr 151
+Aviso: harness.tool vazio ou desconhecido em config/main.yml; use claude-code, codex, cursor, gemini-cli ou copilot para receber o apelido de reserva.
 
 @exit 1
 0

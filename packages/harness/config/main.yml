@@ -16,6 +16,8 @@ paths:
   bugs: ./work/bugs          # relatos de defeitos do próprio harness (skill report-harness-bug)
 
 # Repositório das issues de defeitos do próprio harness (skills report-harness-bug e
-# validate-harness-bug e subcomando `vostok bug link`).
+# validate-harness-bug e subcomando `vostok bug link`) e ferramenta de IA em uso no projeto, que
+# escolhe o apelido de reserva de `config/models.yml`. Vazio: o vostok informa "modelo da sessão".
 harness:
   repository: Ishtar-Sink/Vostok
+  tool: claude-code   # claude-code | codex | cursor | gemini-cli | copilot

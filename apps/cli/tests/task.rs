@@ -1733,22 +1733,12 @@ fn baseline_delivery_created_path_is_not_a_regression() {
 }
 
 #[test]
-fn baseline_delivery_other_lines_are_still_compared() {
+fn delivery_command_cited_command_is_ignored_entirely() {
     let project = task_with_created_path();
     write(&project, "src/novo.rs", "fn main() {}");
     std::fs::remove_file(project.root().join("LICENSE")).unwrap();
     task(&project, &["tests"]).assert().success();
-    let output = task(&project, &["regression"])
-        .assert()
-        .failure()
-        .get_output()
-        .clone();
-    let all = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(all.contains("LICENSE"), "{all}");
+    task(&project, &["regression"]).assert().success();
 }
 
 #[test]
@@ -1757,4 +1747,152 @@ fn baseline_delivery_task_without_created_paths_is_unchanged() {
     write(&project, "a.txt", "depois");
     task(&project, &["tests"]).assert().success();
     task(&project, &["regression"]).assert().failure();
+}
+
+// --- Comando de baseline que mede a entrega (SPEC-018) ---
+
+fn git(root: &std::path::Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .envs(git_identity())
+        .output()
+        .unwrap()
+        .status;
+    assert!(status.success(), "git {args:?}");
+}
+
+fn git_identity() -> [(&'static str, &'static str); 4] {
+    [
+        ("GIT_AUTHOR_NAME", "T"),
+        ("GIT_AUTHOR_EMAIL", "t@t"),
+        ("GIT_COMMITTER_NAME", "T"),
+        ("GIT_COMMITTER_EMAIL", "t@t"),
+    ]
+}
+
+/// Tarefa em execução que cria `created` e tem `baseline` como único comando, sem coletar o baseline.
+fn delivery_task(created: &str, baseline: &str, files: &[(&str, &str)]) -> Project {
+    let project = Project::new();
+    for (name, content) in files {
+        write(&project, name, content);
+    }
+    let text = complete_task("in_progress", "Não se aplica.")
+        .replace("- `novo.txt` (criar)", &format!("- `{created}` (criar)"))
+        .replace(
+            "### Baseline\n\n- `true`",
+            &format!("### Baseline\n\n- `{baseline}`"),
+        );
+    write(&project, TASK_PATH, &text);
+    project
+}
+
+fn init_git(project: &Project) {
+    git(project.root(), &["init", "-q"]);
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", "base"]);
+}
+
+fn regression_output(project: &Project) -> (bool, String) {
+    let output = task(project, &["regression"]).output().unwrap();
+    (
+        output.status.success(),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ),
+    )
+}
+
+#[test]
+fn delivery_command_issue_roadmap_does_not_block() {
+    let command = "test -e src/exemplo.rs && echo existe || echo ausente";
+    let project = delivery_task("src/exemplo.rs", command, &[]);
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "src/exemplo.rs", "fn main() {}");
+    task(&project, &["tests"]).assert().success();
+    let (ok, all) = regression_output(&project);
+    assert!(ok, "{all}");
+    assert!(all.contains("ignorado(s) por medir a entrega"), "{all}");
+    assert!(
+        all.contains(&format!(
+            "- [1] {command}: ignorado, mede a entrega da tarefa ('src/exemplo.rs')"
+        )),
+        "{all}"
+    );
+}
+
+#[test]
+fn delivery_command_new_folder_does_not_block() {
+    let command = "test -e src/modulo && echo existe || echo ausente";
+    let project = delivery_task("src/modulo/a.rs", command, &[("README.md", "x")]);
+    init_git(&project);
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "src/modulo/a.rs", "fn main() {}");
+    task(&project, &["tests"]).assert().success();
+    let (ok, all) = regression_output(&project);
+    assert!(ok, "{all}");
+    assert!(
+        all.contains("ignorado, mede a entrega da tarefa ('src/modulo')"),
+        "{all}"
+    );
+}
+
+#[test]
+fn delivery_command_existing_folder_is_still_compared() {
+    let project = delivery_task("src/novo.rs", "ls src", &[("src/velho.rs", "x")]);
+    init_git(&project);
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "src/novo.rs", "fn main() {}");
+    task(&project, &["tests"]).assert().success();
+    let (ok, all) = regression_output(&project);
+    assert!(!ok, "{all}");
+}
+
+#[test]
+fn delivery_command_without_git_only_exact_paths() {
+    let command = "test -e src/modulo && echo existe || echo ausente";
+    let project = delivery_task("src/modulo/a.rs", command, &[("README.md", "x")]);
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "src/modulo/a.rs", "fn main() {}");
+    task(&project, &["tests"]).assert().success();
+    let (ok, all) = regression_output(&project);
+    assert!(!ok, "{all}");
+}
+
+fn pending_delivery_task(created: &str, baselines: &[&str]) -> Project {
+    let project = Project::new();
+    let items: String = baselines.iter().map(|c| format!("- `{c}`\n")).collect();
+    let text = complete_task("pending", "Não se aplica.")
+        .replace("- `novo.txt` (criar)", &format!("- `{created}` (criar)"))
+        .replace(
+            "### Baseline\n\n- `true`\n",
+            &format!("### Baseline\n\n{items}"),
+        );
+    write(&project, TASK_PATH, &text);
+    project
+}
+
+#[test]
+fn delivery_command_new_folder_is_refused_by_the_task_validation() {
+    let project = pending_delivery_task("src/modulo/a.rs", &["test -e src/modulo && echo existe"]);
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        stderr.contains("'Baseline' com comando que cita 'src/modulo', pasta que a tarefa cria"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn delivery_command_lookalike_names_do_not_count() {
+    let project = pending_delivery_task(
+        "src/modulo/a.rs",
+        &["test -e src/modulos", "cat src/exemplo.rs.bak"],
+    );
+    let output = nested(&project, "adjust", "validate").output().unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(!stderr.contains("que a tarefa cria"), "{stderr}");
+    assert!(!stderr.contains("pasta que a tarefa cria"), "{stderr}");
 }

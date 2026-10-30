@@ -1170,3 +1170,34 @@ fn baseline_delivery_other_commands_stay_valid_in_the_plan() {
         .assert()
         .success();
 }
+
+// --- Comando de baseline que mede a entrega (SPEC-018) ---
+
+#[test]
+fn delivery_command_new_folder_is_refused_by_the_plan_validation() {
+    let project = Project::new();
+    let task = plan_with_evidence(&project, "Não se aplica.");
+    let text = std::fs::read_to_string(&task).unwrap();
+    std::fs::write(
+        &task,
+        text.replace("- `novo.txt` (criar)", "- `src/modulo/a.rs` (criar)")
+            .replace(
+                "### Baseline\n\n- `true`",
+                "### Baseline\n\n- `test -e src/modulo && echo existe`",
+            ),
+    )
+    .unwrap();
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .failure()
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8(output).unwrap();
+    assert!(
+        stderr.contains("'Baseline' com comando que cita 'src/modulo', pasta que a tarefa cria"),
+        "{stderr}"
+    );
+}

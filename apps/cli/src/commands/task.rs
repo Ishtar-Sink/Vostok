@@ -1145,9 +1145,14 @@ impl Tasks {
         clear_regression_outputs(&dir)?;
         let accepted = latest_acceptances(&dir);
         let mut ignore = self.regression_ignore();
-        ignore.extend(self.created_paths(&file)?);
+        let created = self.created_paths(&file)?;
+        ignore.extend(created.clone());
 
         let root = self.project_root()?;
+        let mut delivery = created;
+        delivery.extend(untracked_folders(&root, &delivery.clone()));
+        let mut ignored = String::new();
+        let mut ignored_count = 0;
         let mut changed = String::new();
         let mut equal = 0;
         let mut accepted_count = 0;
@@ -1157,6 +1162,13 @@ impl Tasks {
             let (code, output) = recorded_run(command, &root)?;
             let current = dir.join(&name);
             fs::write(&current, &output)?;
+            if let Some(path) = delivery.iter().find(|path| cites_path(command, path)) {
+                ignored_count += 1;
+                ignored.push_str(&format!(
+                    "- [{number}] {command}: ignorado, mede a entrega da tarefa ('{path}')\n"
+                ));
+                continue;
+            }
             let previous = base.join(&name);
             match fs::read(&previous) {
                 Err(_) => changed.push_str(&format!("- {command}: sem resultado no baseline\n")),
@@ -1198,13 +1210,19 @@ impl Tasks {
         if changed.is_empty() {
             frontmatter_set(&file, "status", &self.status.validating)?;
             frontmatter_set(&file, "regression_result", "passed")?;
-            let detail = if accepted_count == 0 {
+            let mut detail = if accepted_count == 0 {
                 format!("{equal} comando(s) iguais ao baseline")
             } else {
                 format!("{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário")
             };
+            if ignored_count > 0 {
+                detail.push_str(&format!(
+                    "; {ignored_count} ignorado(s) por medir a entrega"
+                ));
+            }
             self.record_step(&file, "regressão", "passed", &detail)?;
             println!("Sem regressão em {task}: {detail}.");
+            print!("{ignored}");
             return Ok(());
         }
         frontmatter_set(&file, "regression_result", "failed")?;
@@ -1216,7 +1234,7 @@ impl Tasks {
             "comandos diferentes do baseline; bloqueada",
         )?;
         print!(
-            "Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression <N> \"decisão\"\n",
+            "{ignored}Comandos com resultado diferente do baseline (saídas em {}):\n{changed}Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume {spec} {task} --accept-regression <N> \"decisão\"\n",
             dir.display()
         );
         bail!("a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário")
@@ -1951,7 +1969,8 @@ impl Tasks {
         } else {
             self.created_paths(file)?
         };
-        errors.extend(self.baseline_errors(&content, &created)?);
+        let folders = new_folders(&self.project_root()?, &created);
+        errors.extend(self.baseline_errors(&content, &created, &folders)?);
         errors.extend(self.evidence_errors(&content, names)?);
         Ok(errors
             .into_iter()
@@ -2094,7 +2113,12 @@ impl Tasks {
     }
 
     /// Cada item de "Baseline" é um comando no formato "- `comando`", e há ao menos um.
-    fn baseline_errors(&self, content: &str, created: &[String]) -> Result<Vec<String>> {
+    fn baseline_errors(
+        &self,
+        content: &str,
+        created: &[String],
+        folders: &[String],
+    ) -> Result<Vec<String>> {
         let text = self.subsection(content, "baseline_subsection")?;
         if text.is_empty() {
             return Ok(Vec::new());
@@ -2106,7 +2130,7 @@ impl Tasks {
             if is_baseline_item(item) {
                 count += 1;
                 if let Some(command) = baseline_command(item) {
-                    errors.extend(delivery_errors(&sub, command, created));
+                    errors.extend(delivery_errors(&sub, command, created, folders));
                 }
             } else {
                 errors.push(format!(
@@ -2558,14 +2582,102 @@ fn is_baseline_item(line: &str) -> bool {
         .is_some_and(|(_, rest)| rest.is_empty())
 }
 
-/// Um erro por caminho `criar` citado no comando de "Baseline": o baseline mede o que a tarefa
-/// não pode quebrar, não a entrega.
-pub(super) fn delivery_errors(sub: &str, command: &str, created: &[String]) -> Vec<String> {
-    created
+/// Um erro por caminho `criar` citado no comando de "Baseline" e por pasta nova citada: o baseline
+/// mede o que a tarefa não pode quebrar, não a entrega.
+pub(super) fn delivery_errors(
+    sub: &str,
+    command: &str,
+    created: &[String],
+    folders: &[String],
+) -> Vec<String> {
+    let cited: Vec<&String> = created
         .iter()
-        .filter(|path| command.contains(path.as_str()))
+        .filter(|path| cites_path(command, path))
+        .collect();
+    let mut errors: Vec<String> = cited
+        .iter()
         .map(|path| {
             format!("'{sub}' com comando que cita '{path}', que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}")
+        })
+        .collect();
+    errors.extend(
+        folders
+            .iter()
+            .filter(|folder| cites_path(command, folder))
+            .filter(|folder| !cited.iter().any(|path| path.starts_with(&format!("{folder}/"))))
+            .map(|folder| {
+                format!("'{sub}' com comando que cita '{folder}', pasta que a tarefa cria; o baseline mede o que a tarefa não pode quebrar, não a entrega: {command}")
+            }),
+    );
+    errors
+}
+
+fn is_name_char(character: char) -> bool {
+    character.is_alphanumeric() || matches!(character, '_' | '-' | '.' | '/')
+}
+
+/// O comando cita o caminho inteiro, sem estar colado a outro nome de arquivo ou pasta.
+pub(super) fn cites_path(command: &str, path: &str) -> bool {
+    let path = path.trim_end_matches('/');
+    if path.is_empty() {
+        return false;
+    }
+    command.match_indices(path).any(|(start, found)| {
+        let before = command[..start].chars().next_back();
+        let mut after = command[start + found.len()..].chars();
+        let ends = match after.next() {
+            None => true,
+            Some('/') => after.next().is_none_or(|next| !is_name_char(next)),
+            Some(next) => !is_name_char(next),
+        };
+        before.is_none_or(|character| !is_name_char(character)) && ends
+    })
+}
+
+/// Pastas-pai dos caminhos `criar`, sem repetição e em ordem, de `a/b/c.rs`: `a` e `a/b`.
+fn parent_folders(created: &[String]) -> Vec<String> {
+    let mut folders: Vec<String> = Vec::new();
+    for path in created {
+        let parts: Vec<&str> = path.trim_end_matches('/').split('/').collect();
+        for end in 1..parts.len() {
+            let folder = parts[..end].join("/");
+            if !folders.contains(&folder) {
+                folders.push(folder);
+            }
+        }
+    }
+    folders
+}
+
+/// Pastas-pai dos caminhos `criar` que ainda não existem sob a raiz do projeto.
+pub(super) fn new_folders(root: &Path, created: &[String]) -> Vec<String> {
+    parent_folders(created)
+        .into_iter()
+        .filter(|folder| !root.join(folder).exists())
+        .collect()
+}
+
+/// Pastas-pai dos caminhos `criar` sem nenhum arquivo rastreado no `HEAD`; fora do git, nenhuma.
+fn untracked_folders(root: &Path, created: &[String]) -> Vec<String> {
+    let inside = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if !inside {
+        return Vec::new();
+    }
+    parent_folders(created)
+        .into_iter()
+        .filter(|folder| {
+            Command::new("git")
+                .arg("-C")
+                .arg(root)
+                .args(["ls-tree", "-r", "--name-only", "HEAD", "--", folder])
+                .output()
+                .map(|output| !output.status.success() || output.stdout.is_empty())
+                .unwrap_or(false)
         })
         .collect()
 }

@@ -11,7 +11,7 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use super::task::{
-    delivery_errors, evidence_item, evidence_name_problem, normalized_evidence_name,
+    delivery_errors, evidence_item, evidence_name_problem, new_folders, normalized_evidence_name,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -1173,7 +1173,8 @@ impl Workspace {
             .filter(|(action, _)| action == "criar")
             .map(|(_, path)| path)
             .collect();
-        errors.extend(self.baseline_errors(&content, &created)?);
+        let folders = new_folders(&self.harness.path("root")?, &created);
+        errors.extend(self.baseline_errors(&content, &created, &folders)?);
         errors.extend(self.evidence_errors(&content)?);
         let covers = field(file, "covers").replace(['[', ']'], "");
         if sorted_list(&covers) != sorted_list(plan_covers) {
@@ -1322,7 +1323,12 @@ impl Workspace {
     }
 
     /// Cada item de "Baseline" é um comando no formato "- `comando`", e há ao menos um.
-    fn baseline_errors(&self, content: &str, created: &[String]) -> Result<Vec<String>> {
+    fn baseline_errors(
+        &self,
+        content: &str,
+        created: &[String],
+        folders: &[String],
+    ) -> Result<Vec<String>> {
         let sub = self.task_setting("baseline_subsection")?;
         let text = command_output(
             &self
@@ -1341,7 +1347,7 @@ impl Workspace {
                 .filter(|(_, rest)| rest.is_empty());
             if let Some((command, _)) = command {
                 count += 1;
-                errors.extend(delivery_errors(&sub, command, created));
+                errors.extend(delivery_errors(&sub, command, created, folders));
             } else {
                 errors.push(format!(
                     "'{sub}' com item fora do formato: {item} (use: - `comando`)"

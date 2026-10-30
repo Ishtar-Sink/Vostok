@@ -22,7 +22,7 @@ use crate::support::{
 pub enum PlanCommand {
     /// Cria o plano de uma spec aprovada.
     Create { spec_id: String },
-    /// Calcula e grava os níveis de esforço.
+    /// Calcula e grava os perfis de execução (ou os níveis, em planos antigos).
     Score { spec_id: String },
     /// Valida o plano.
     Validate { spec_id: String },
@@ -67,6 +67,25 @@ const TASKS_HEADING: &str = "Tarefas";
 const FACTS_HEADING: &str = "Fatos de esforço";
 const OVERVIEW_HEADING: &str = "Visão geral";
 const COMPONENT_ACTIONS: &str = "criar alterar remover";
+
+const PROFILE_COLUMN: &str = "Perfil";
+const LEVEL_COLUMN: &str = "Nível";
+const PERSONA_COLUMN: &str = "Persona";
+const ID_COLUMN: &str = "ID";
+const TITLE_COLUMN: &str = "Título";
+const TYPE_COLUMN: &str = "Tipo";
+const DEPENDS_COLUMN: &str = "Dependências";
+const COVERS_COLUMN: &str = "Cobre";
+const LEGACY_COLUMNS: [&str; 7] = [
+    ID_COLUMN,
+    TITLE_COLUMN,
+    "Descrição",
+    TYPE_COLUMN,
+    LEVEL_COLUMN,
+    DEPENDS_COLUMN,
+    COVERS_COLUMN,
+];
+const JUDGMENT_FACTS: [&str; 3] = ["public_contract", "inference", "high_risk"];
 
 pub fn run(command: PlanCommand) -> Result<()> {
     let workspace = Workspace::new(Harness::from_current_dir()?);
@@ -270,13 +289,18 @@ impl Workspace {
 
     // --- Análise do plano ---
 
-    fn effort(&self) -> Result<Effort> {
+    /// Níveis, limites e pesos da escala do plano: `effort_*` nos planos antigos, `profile_*` nos novos.
+    fn effort(&self, scale: Scale) -> Result<Effort> {
+        let prefix = match scale {
+            Scale::Levels => "effort",
+            Scale::Profiles => "profile",
+        };
         let levels = self
-            .task_list("effort_levels")?
+            .task_list(&format!("{prefix}_levels"))?
             .into_iter()
             .map(|level| {
                 let limit = self
-                    .task_setting(&format!("effort_limits.{level}"))
+                    .task_setting(&format!("{prefix}_limits.{level}"))
                     .ok()
                     .filter(|limit| !limit.is_empty() && limit != "-")
                     .map(|limit| limit.parse().unwrap_or(0));
@@ -285,11 +309,22 @@ impl Workspace {
             .collect();
         let weight = |name: &str| -> Result<i64> {
             Ok(self
-                .task_setting(&format!("effort_weights.{name}"))?
+                .task_setting(&format!("{prefix}_weights.{name}"))?
                 .parse()
                 .unwrap_or(0))
         };
+        let cap = |name: &str| -> Option<i64> {
+            match scale {
+                Scale::Levels => None,
+                Scale::Profiles => self
+                    .task_setting(&format!("profile_caps.{name}"))
+                    .ok()?
+                    .parse()
+                    .ok(),
+            }
+        };
         Ok(Effort {
+            scale,
             levels,
             types: self.task_list("task_types")?,
             id_prefix: self.task_setting("id.prefix")?,
@@ -301,15 +336,52 @@ impl Workspace {
                 contract: weight("public_contract")?,
                 inference: weight("inference")?,
                 risk: weight("high_risk")?,
+                files_cap: cap("files"),
+                ids_cap: cap("ids"),
+                judgment: self.judgment(scale)?,
             },
         })
     }
 
-    fn analyze(&self, plan: &str) -> Result<Vec<Finding>> {
-        Ok(Analyzer::new(self.effort()?).run(plan))
+    /// Combinações de fatos que levam ao último perfil; vazio nos planos antigos ou sem a chave.
+    fn judgment(&self, scale: Scale) -> Result<Vec<Vec<String>>> {
+        if scale == Scale::Levels {
+            return Ok(Vec::new());
+        }
+        let mut combinations = Vec::new();
+        for item in self.task_list("profile_judgment").unwrap_or_default() {
+            let facts: Vec<String> = item
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .split(',')
+                .map(|fact| fact.trim().to_string())
+                .filter(|fact| !fact.is_empty())
+                .collect();
+            if let Some(unknown) = facts
+                .iter()
+                .find(|fact| !JUDGMENT_FACTS.contains(&fact.as_str()))
+            {
+                bail!(
+                    "profile_judgment: fato desconhecido \"{unknown}\" (use public_contract, inference ou high_risk)"
+                );
+            }
+            combinations.push(facts);
+        }
+        Ok(combinations)
     }
 
-    /// O plano com os níveis calculados na coluna "Nível", ou os problemas que impedem o cálculo.
+    /// Perfil equivalente de cada nível antigo (`profile_legacy`); vazio sem a chave.
+    fn profile_legacy(&self) -> HashMap<String, String> {
+        config_map(&self.harness.config_file("tasks.yml"), "profile_legacy")
+    }
+
+    fn analyze(&self, plan: &str) -> Result<Vec<Finding>> {
+        let columns = Columns::of(plan);
+        Ok(Analyzer::new(self.effort(columns.scale())?, columns).run(plan))
+    }
+
+    /// O plano com os perfis (ou níveis) calculados na coluna deles, ou os problemas que impedem o
+    /// cálculo.
     fn scored(&self, plan: &str) -> Result<std::result::Result<String, Vec<String>>> {
         let findings = self.analyze(plan)?;
         let problems: Vec<String> = findings.iter().filter_map(Finding::problem).collect();
@@ -323,7 +395,7 @@ impl Workspace {
                 Finding::Problem(_) => None,
             })
             .collect();
-        Ok(Ok(rewrite_levels(plan, &levels)))
+        Ok(Ok(rewrite_levels(plan, &levels, &Columns::of(plan))))
     }
 
     fn plan_is_outdated(&self, plan: &Path, spec: &Path) -> Result<bool> {
@@ -360,10 +432,11 @@ impl Workspace {
         if overview.trim().is_empty() {
             errors.push(format!("a seção '{OVERVIEW_HEADING}' está vazia"));
         }
+        let scale = Columns::of(plan).scale();
         errors.extend(
             self.analyze(plan)?
                 .into_iter()
-                .filter_map(|finding| finding.into_error()),
+                .filter_map(|finding| finding.into_error(scale)),
         );
         errors.extend(self.coverage_errors(plan, spec)?);
         Ok(errors)
@@ -371,10 +444,13 @@ impl Workspace {
 
     fn coverage_errors(&self, plan: &str, spec: &Path) -> Result<Vec<String>> {
         let tasks = markdown_section(plan, TASKS_HEADING).unwrap_or_default();
+        let column = Columns::of(plan).index(COVERS_COLUMN);
         let covered: Vec<String> = markdown_table_rows(&tasks)
             .iter()
             .flat_map(|row| {
-                markdown_cell(row, 7)
+                column
+                    .map(|column| markdown_cell(row, column))
+                    .unwrap_or_default()
                     .split(',')
                     .map(|id| id.trim().to_string())
                     .collect::<Vec<_>>()
@@ -456,17 +532,22 @@ impl Workspace {
         let history =
             read(&self.section_template(&self.spec_setting("adjustment_history_section")?)?)?;
         let now = utc_now();
-        let values = HashMap::from([
+        let mut values = HashMap::from([
             ("SPEC_ID", spec_id.to_string()),
             ("SPEC_TITLE", field(&spec, "title")),
             ("SPEC_HASH", approved),
             ("DATETIME", now),
-            ("EFFORT_LEVELS", self.effort_level_rows()?),
             (
                 "ADJUSTMENT_HISTORY",
                 history.trim_end_matches('\n').to_string(),
             ),
         ]);
+        if self.task_list("effort_levels").is_ok() {
+            values.insert("EFFORT_LEVELS", self.effort_level_rows()?);
+        }
+        if self.task_list("profile_levels").is_ok() {
+            values.insert("PROFILE_LEVELS", self.profile_rows()?);
+        }
         if let Some(dir) = plan.parent() {
             fs::create_dir_all(dir)
                 .with_context(|| format!("não foi possível criar {}", dir.display()))?;
@@ -489,6 +570,18 @@ impl Workspace {
         Ok(rows.join("\n"))
     }
 
+    fn profile_rows(&self) -> Result<String> {
+        let rows = self
+            .task_list("profile_levels")?
+            .iter()
+            .map(|profile| {
+                let description = self.task_setting(&format!("profile_descriptions.{profile}"))?;
+                Ok(format!("| {profile} | {description} |"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(rows.join("\n"))
+    }
+
     fn missing_plan_for_planning(spec_id: &str) -> String {
         format!(
             "a spec {spec_id} não tem plano de tarefas. Crie-o com: vostok plan create {spec_id}"
@@ -497,11 +590,16 @@ impl Workspace {
 
     fn score(&self, spec_id: &str) -> Result<()> {
         let plan = self.existing_plan(spec_id, Self::missing_plan_for_planning(spec_id))?;
-        let content = match self.scored(&read(&plan)?)? {
+        let original = read(&plan)?;
+        let (failure, success) = match Columns::of(&original).scale() {
+            Scale::Levels => ("os níveis", "Níveis de esforço"),
+            Scale::Profiles => ("os perfis", "Perfis de execução"),
+        };
+        let content = match self.scored(&original)? {
             Ok(content) => content,
             Err(problems) => {
                 return Err(problems_message(
-                    format!("não foi possível calcular os níveis de {spec_id}; nada foi alterado:"),
+                    format!("não foi possível calcular {failure} de {spec_id}; nada foi alterado:"),
                     &problems,
                 ))
             }
@@ -509,7 +607,7 @@ impl Workspace {
         let content = frontmatter_put(&content, "updated_at", &utc_now())?;
         write(&plan, &self.with_stored_hash(&content)?)?;
         println!(
-            "Níveis de esforço gravados no plano de {spec_id}: {}",
+            "{success} gravados no plano de {spec_id}: {}",
             plan.display()
         );
         Ok(())
@@ -646,7 +744,7 @@ impl Workspace {
 
         // As tarefas são montadas em memória e gravadas juntas: ou todas existem, ou nenhuma.
         let mut files = Vec::new();
-        for task in plan_tasks(&read(&plan)?) {
+        for task in plan_tasks(&read(&plan)?, &self.profile_legacy()) {
             let depends = as_list(&task.depends);
             let blocked_by = if depends.is_empty() {
                 "-".to_string()
@@ -659,6 +757,8 @@ impl Workspace {
                 ("TASK_TITLE", task.title.clone()),
                 ("TASK_TITLE_YAML", yaml_escape(&task.title)),
                 ("TASK_EFFORT", task.effort.clone()),
+                ("TASK_PROFILE", task.profile.clone()),
+                ("TASK_PERSONA", task.persona.clone()),
                 ("TASK_DEPENDS", depends),
                 ("TASK_COVERS", as_list(&task.covers)),
                 ("TASK_TYPE", task.kind.clone()),
@@ -761,7 +861,7 @@ impl Workspace {
                 "as tarefas de {spec_id} ainda não foram criadas; execute: vostok plan approve create-tasks {spec_id}"
             )]);
         }
-        let mut tasks = plan_tasks(plan);
+        let mut tasks = plan_tasks(plan, &self.profile_legacy());
         let ids: Vec<String> = tasks.iter().map(|task| task.id.clone()).collect();
         let upstream = self.upstream_paths(&dir, &tasks)?;
         if tasks.is_empty() {
@@ -1147,7 +1247,74 @@ fn print_renames(header: &str, renames: &[String]) {
     }
 }
 
-// --- Análise do plano: níveis de esforço, tabelas e dependências ---
+// --- Análise do plano: perfis de execução, níveis antigos, tabelas e dependências ---
+
+/// Escala do plano: níveis de esforço (planos antigos, com a coluna "Nível") ou perfis de execução
+/// (com a coluna "Perfil").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Scale {
+    Levels,
+    Profiles,
+}
+
+/// Nomes das colunas da tabela de tarefas, lidos do cabeçalho.
+struct Columns {
+    names: Vec<String>,
+}
+
+impl Columns {
+    /// Colunas do plano. Sem a coluna "Perfil", o plano é antigo e vale o formato fixo de antes.
+    fn of(plan: &str) -> Self {
+        let names = task_header(plan);
+        if names.iter().any(|name| name == PROFILE_COLUMN) {
+            return Self { names };
+        }
+        Self {
+            names: LEGACY_COLUMNS.iter().map(|name| name.to_string()).collect(),
+        }
+    }
+
+    /// Posição da célula em `line.split('|')`.
+    fn index(&self, name: &str) -> Option<usize> {
+        self.names
+            .iter()
+            .position(|known| known == name)
+            .map(|position| position + 1)
+    }
+
+    fn cells(&self) -> usize {
+        self.names.len() + 2
+    }
+
+    fn scale(&self) -> Scale {
+        if self.index(PROFILE_COLUMN).is_some() {
+            Scale::Profiles
+        } else {
+            Scale::Levels
+        }
+    }
+
+    /// Coluna com o perfil ou o nível gravado.
+    fn level_index(&self) -> Option<usize> {
+        match self.scale() {
+            Scale::Profiles => self.index(PROFILE_COLUMN),
+            Scale::Levels => self.index(LEVEL_COLUMN),
+        }
+    }
+}
+
+/// Cabeçalho da tabela de tarefas; sem ele, as colunas do formato antigo.
+fn task_header(plan: &str) -> Vec<String> {
+    let section = markdown_section(plan, TASKS_HEADING).unwrap_or_default();
+    let Some(line) = section.lines().find(|line| line.starts_with('|')) else {
+        return LEGACY_COLUMNS.iter().map(|name| name.to_string()).collect();
+    };
+    let cells: Vec<&str> = line.split('|').collect();
+    cells[1..cells.len().saturating_sub(1).max(1)]
+        .iter()
+        .map(|cell| cell.trim().to_string())
+        .collect()
+}
 
 struct Weights {
     create: i64,
@@ -1156,10 +1323,34 @@ struct Weights {
     contract: i64,
     inference: i64,
     risk: i64,
+    files_cap: Option<i64>,
+    ids_cap: Option<i64>,
+    judgment: Vec<Vec<String>>,
 }
 
-/// Níveis com o limite de pontuação (o último não tem), tipos aceitos, formato do ID e pesos.
+/// Fatos de esforço de uma tarefa, como gravados no plano.
+struct Facts {
+    create: i64,
+    change: i64,
+    contract: bool,
+    inference: bool,
+    risk: bool,
+}
+
+impl Facts {
+    fn has(&self, name: &str) -> bool {
+        match name {
+            "public_contract" => self.contract,
+            "inference" => self.inference,
+            "high_risk" => self.risk,
+            _ => false,
+        }
+    }
+}
+
+/// Níveis com o limite de pontuação, tipos aceitos, formato do ID e pesos.
 struct Effort {
+    scale: Scale,
     levels: Vec<(String, Option<i64>)>,
     types: Vec<String>,
     id_prefix: String,
@@ -1168,13 +1359,51 @@ struct Effort {
 }
 
 impl Effort {
+    /// Primeiro nível cujo limite cobre o total; sem limite que cubra, o último nível (planos
+    /// antigos) ou o penúltimo (perfis, em que o último só vem das combinações de julgamento).
     fn level_for(&self, total: i64) -> String {
+        let fallback = match self.scale {
+            Scale::Levels => self.levels.last(),
+            Scale::Profiles => self
+                .levels
+                .len()
+                .checked_sub(2)
+                .and_then(|index| self.levels.get(index))
+                .or(self.levels.last()),
+        };
         self.levels
             .iter()
             .find(|(_, limit)| limit.is_some_and(|limit| total <= limit))
-            .or(self.levels.last())
+            .or(fallback)
             .map(|(level, _)| level.clone())
             .unwrap_or_default()
+    }
+
+    fn computed(&self, facts: &Facts, covered: i64) -> String {
+        let weights = &self.weights;
+        let judged = weights
+            .judgment
+            .iter()
+            .any(|combination| combination.iter().all(|fact| facts.has(fact)));
+        if self.scale == Scale::Profiles && judged {
+            return self
+                .levels
+                .last()
+                .map(|(level, _)| level.clone())
+                .unwrap_or_default();
+        }
+        let capped = |points: i64, cap: Option<i64>| cap.map_or(points, |cap| points.min(cap));
+        let files = capped(
+            facts.create * weights.create + facts.change * weights.change,
+            weights.files_cap,
+        );
+        let ids = capped(covered * weights.ids, weights.ids_cap);
+        let total = files
+            + ids
+            + i64::from(facts.contract) * weights.contract
+            + i64::from(facts.inference) * weights.inference
+            + i64::from(facts.risk) * weights.risk;
+        self.level_for(total)
     }
 
     fn is_task_id(&self, id: &str) -> bool {
@@ -1207,8 +1436,12 @@ impl Finding {
         }
     }
 
-    /// Problema para a validação: inclui o nível gravado diferente do calculado.
-    fn into_error(self) -> Option<String> {
+    /// Problema para a validação: inclui o nível ou perfil gravado diferente do calculado.
+    fn into_error(self, scale: Scale) -> Option<String> {
+        let name = match scale {
+            Scale::Levels => "nível",
+            Scale::Profiles => "perfil",
+        };
         match self {
             Finding::Problem(problem) => Some(problem),
             Finding::Level {
@@ -1217,7 +1450,7 @@ impl Finding {
                 stored,
             } => (computed != stored).then(|| {
                 format!(
-                    "{id}: nível \"{stored}\" diferente do calculado \"{computed}\" (execute vostok plan score)"
+                    "{id}: {name} \"{stored}\" diferente do calculado \"{computed}\" (execute vostok plan score)"
                 )
             }),
         }
@@ -1227,6 +1460,7 @@ impl Finding {
 /// Analisa as tabelas de tarefas e de fatos de esforço do plano.
 struct Analyzer {
     effort: Effort,
+    columns: Columns,
     findings: Vec<Finding>,
     order: Vec<String>,
     tasks: HashSet<String>,
@@ -1234,14 +1468,15 @@ struct Analyzer {
     depends: HashMap<String, Vec<String>>,
     covered: HashMap<String, i64>,
     facts: Vec<String>,
-    scores: HashMap<String, i64>,
+    task_facts: HashMap<String, Facts>,
     invalid: HashSet<String>,
 }
 
 impl Analyzer {
-    fn new(effort: Effort) -> Self {
+    fn new(effort: Effort, columns: Columns) -> Self {
         Self {
             effort,
+            columns,
             findings: Vec::new(),
             order: Vec::new(),
             tasks: HashSet::new(),
@@ -1249,7 +1484,7 @@ impl Analyzer {
             depends: HashMap::new(),
             covered: HashMap::new(),
             facts: Vec::new(),
-            scores: HashMap::new(),
+            task_facts: HashMap::new(),
             invalid: HashSet::new(),
         }
     }
@@ -1275,13 +1510,28 @@ impl Analyzer {
         if id == "-" {
             return;
         }
-        if cells.len() != 9 {
+        if cells.len() != self.columns.cells() {
             let columns = cells.len() as i64 - 2;
+            let expected = self.columns.names.len();
             self.problem(format!(
-                "linha da tabela de tarefas com {columns} colunas (esperado 7): {line}"
+                "linha da tabela de tarefas com {columns} colunas (esperado {expected}): {line}"
             ));
             return;
         }
+        let cell = |index: Option<usize>| {
+            index
+                .and_then(|index| cells.get(index))
+                .map_or("", |cell| blank_trim(cell))
+                .to_string()
+        };
+        let kind = cell(self.columns.index(TYPE_COLUMN));
+        let stored = cell(self.columns.level_index());
+        let depends = cell(self.columns.index(DEPENDS_COLUMN));
+        let covers = cell(self.columns.index(COVERS_COLUMN));
+        let persona = self
+            .columns
+            .index(PERSONA_COLUMN)
+            .map(|index| cell(Some(index)));
         if !self.effort.is_task_id(&id) {
             self.problem(format!("ID de tarefa inválido: \"{id}\""));
         }
@@ -1289,15 +1539,18 @@ impl Analyzer {
             self.problem(format!("ID de tarefa repetido: {id}"));
         }
         self.order.push(id.clone());
-        let kind = blank_trim(cells[4]);
-        if !self.effort.types.iter().any(|known| known == kind) {
+        if !self.effort.types.contains(&kind) {
             let types = self.effort.types_text();
             self.problem(format!("{id}: tipo inválido \"{kind}\" (use: {types})"));
         }
-        self.stored
-            .insert(id.clone(), blank_trim(cells[5]).to_string());
-        self.depends.insert(id.clone(), id_list(cells[6]));
-        let covered = id_list(cells[7]).len() as i64;
+        if let Some(persona) = persona.filter(|persona| !is_persona(persona)) {
+            self.problem(format!(
+                "{id}: persona inválida \"{persona}\" (use o nome da persona em minúsculas, com hífens, ou -)"
+            ));
+        }
+        self.stored.insert(id.clone(), stored);
+        self.depends.insert(id.clone(), id_list(&depends));
+        let covered = id_list(&covers).len() as i64;
         self.covered.insert(id, covered);
     }
 
@@ -1319,20 +1572,14 @@ impl Analyzer {
         } else {
             self.facts.push(id.clone());
         }
-        let weights = &self.effort.weights;
-        let (create, change, contract, inference, risk) = (
-            weights.create,
-            weights.change,
-            weights.contract,
-            weights.inference,
-            weights.risk,
-        );
-        let score = self.number(cells[2], &id, "Arquivos a criar") * create
-            + self.number(cells[3], &id, "Arquivos a alterar") * change
-            + self.yes_no(cells[4], &id, "Contrato público") * contract
-            + self.yes_no(cells[5], &id, "Inferência") * inference
-            + self.yes_no(cells[6], &id, "Risco alto") * risk;
-        self.scores.insert(id, score);
+        let facts = Facts {
+            create: self.number(cells[2], &id, "Arquivos a criar"),
+            change: self.number(cells[3], &id, "Arquivos a alterar"),
+            contract: self.yes_no(cells[4], &id, "Contrato público") == 1,
+            inference: self.yes_no(cells[5], &id, "Inferência") == 1,
+            risk: self.yes_no(cells[6], &id, "Risco alto") == 1,
+        };
+        self.task_facts.insert(id, facts);
     }
 
     fn number(&mut self, cell: &str, id: &str, name: &str) -> i64 {
@@ -1375,9 +1622,11 @@ impl Analyzer {
             if self.invalid.contains(&id) {
                 continue;
             }
-            let total = self.scores[&id] + self.covered[&id] * self.effort.weights.ids;
+            let computed = self
+                .effort
+                .computed(&self.task_facts[&id], self.covered[&id]);
             self.findings.push(Finding::Level {
-                computed: self.effort.level_for(total),
+                computed,
                 stored: self.stored[&id].clone(),
                 id,
             });
@@ -1492,13 +1741,54 @@ struct PlanTask {
     id: String,
     title: String,
     kind: String,
+    persona: String,
     effort: String,
+    profile: String,
     depends: String,
     covers: String,
 }
 
-/// Tarefas do plano. Como no `read` do bash com tabulação, colunas vazias não ocupam posição.
-fn plan_tasks(plan: &str) -> Vec<PlanTask> {
+/// Tarefas do plano, com o perfil equivalente (`legacy`) nos planos antigos.
+fn plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTask> {
+    let columns = Columns::of(plan);
+    match columns.scale() {
+        Scale::Levels => legacy_plan_tasks(plan, legacy),
+        Scale::Profiles => table_rows(plan, TASKS_HEADING)
+            .iter()
+            .filter_map(|row| {
+                let cells: Vec<&str> = row.split('|').collect();
+                if cells.len() != columns.cells() || blank_trim(cells[1]) == "-" {
+                    return None;
+                }
+                let cell = |name: &str| {
+                    columns
+                        .index(name)
+                        .and_then(|index| cells.get(index))
+                        .map_or("", |cell| blank_trim(cell))
+                        .to_string()
+                };
+                let persona = Some(cell(PERSONA_COLUMN))
+                    .filter(|persona| !persona.is_empty())
+                    .unwrap_or_else(|| "-".to_string());
+                let profile = cell(PROFILE_COLUMN);
+                Some(PlanTask {
+                    id: cell(ID_COLUMN),
+                    title: cell(TITLE_COLUMN),
+                    kind: cell(TYPE_COLUMN),
+                    persona,
+                    effort: profile.clone(),
+                    profile,
+                    depends: cell(DEPENDS_COLUMN),
+                    covers: cell(COVERS_COLUMN),
+                })
+            })
+            .collect(),
+    }
+}
+
+/// Tarefas de um plano antigo. Como no `read` do bash com tabulação, colunas vazias não ocupam
+/// posição.
+fn legacy_plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTask> {
     table_rows(plan, TASKS_HEADING)
         .iter()
         .filter_map(|row| {
@@ -1515,16 +1805,82 @@ fn plan_tasks(plan: &str) -> Vec<PlanTask> {
             let id = next();
             let title = next();
             let _description = next();
+            let kind = next();
+            let effort = next();
             Some(PlanTask {
                 id,
                 title,
-                kind: next(),
-                effort: next(),
+                kind,
+                persona: "-".to_string(),
+                profile: legacy
+                    .get(&effort)
+                    .cloned()
+                    .unwrap_or_else(|| effort.clone()),
+                effort,
                 depends: next(),
                 covers: next(),
             })
         })
         .collect()
+}
+
+/// `-` ou um nome em minúsculas, com dígitos e hífens entre as partes.
+fn is_persona(value: &str) -> bool {
+    value == "-"
+        || value.split('-').all(|part| {
+            !part.is_empty()
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        })
+}
+
+/// Perfil de execução de uma tarefa: `profile` do front-matter ou, nas tarefas antigas, o perfil
+/// equivalente de `effort`. `None` quando a tarefa não tem nenhum dos dois.
+pub fn task_profile(harness: &Harness, file: &Path) -> Option<String> {
+    let legacy = config_map(&harness.config_file("tasks.yml"), "profile_legacy");
+    profile_from(&field(file, "profile"), &field(file, "effort"), &legacy)
+}
+
+fn profile_from(profile: &str, effort: &str, legacy: &HashMap<String, String>) -> Option<String> {
+    let value = [profile, effort]
+        .into_iter()
+        .map(str::trim)
+        .find(|value| !value.is_empty() && *value != "null")?;
+    Some(
+        legacy
+            .get(value)
+            .cloned()
+            .unwrap_or_else(|| value.to_string()),
+    )
+}
+
+/// Pares `filho: valor` de uma chave de primeiro nível da configuração; vazio sem a chave.
+fn config_map(path: &Path, key: &str) -> HashMap<String, String> {
+    let content = fs::read_to_string(path).unwrap_or_default();
+    let header = format!("{key}:");
+    let mut lines = content.lines();
+    if !lines.any(|line| line.trim_end() == header) {
+        return HashMap::new();
+    }
+    let mut map = HashMap::new();
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if !line.starts_with([' ', '\t']) {
+            break;
+        }
+        if let Some((name, value)) = trimmed.split_once(':') {
+            let value = value.split(" #").next().unwrap_or("").trim();
+            map.insert(
+                name.trim().to_string(),
+                value.trim_matches(['"', '\'']).to_string(),
+            );
+        }
+    }
+    map
 }
 
 fn table_rows(content: &str, heading: &str) -> Vec<String> {
@@ -1540,8 +1896,12 @@ fn id_list(cell: &str) -> Vec<String> {
     text.split_whitespace().map(str::to_string).collect()
 }
 
-/// Grava o nível calculado na coluna "Nível" de cada tarefa.
-fn rewrite_levels(plan: &str, levels: &HashMap<String, String>) -> String {
+/// Grava o perfil (ou nível) calculado na coluna dele, em cada tarefa.
+fn rewrite_levels(plan: &str, levels: &HashMap<String, String>, columns: &Columns) -> String {
+    let Some(column) = columns.level_index() else {
+        return plan.to_string();
+    };
+    let expected = columns.cells();
     let heading = format!("## {TASKS_HEADING}");
     let mut in_code = false;
     let mut inside = false;
@@ -1568,8 +1928,8 @@ fn rewrite_levels(plan: &str, levels: &HashMap<String, String>) -> String {
             }
             let mut cells: Vec<String> = plain.split('|').map(str::to_string).collect();
             if let Some(level) = levels.get(blank_trim(cells.get(1).map_or("", |c| c))) {
-                if cells.len() == 9 {
-                    cells[5] = format!(" {level} ");
+                if cells.len() == expected {
+                    cells[column] = format!(" {level} ");
                     out.push(cells.join("|"));
                     continue;
                 }
@@ -1995,4 +2355,48 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
     };
     let year = year_of_era + era * 400 + i64::from(month <= 2);
     (year, month, day)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn profile_from_maps_the_old_levels() {
+        let legacy: HashMap<String, String> = [
+            ("simples", "mecanica"),
+            ("moderada", "padrao"),
+            ("complexa", "julgamento"),
+            ("critica", "julgamento"),
+        ]
+        .into_iter()
+        .map(|(level, profile)| (level.to_string(), profile.to_string()))
+        .collect();
+        assert_eq!(
+            profile_from("", "simples", &legacy).as_deref(),
+            Some("mecanica")
+        );
+        assert_eq!(
+            profile_from("null", "moderada", &legacy).as_deref(),
+            Some("padrao")
+        );
+        assert_eq!(
+            profile_from("", "complexa", &legacy).as_deref(),
+            Some("julgamento")
+        );
+        assert_eq!(
+            profile_from("", "critica", &legacy).as_deref(),
+            Some("julgamento")
+        );
+        assert_eq!(
+            profile_from("padrao", "simples", &legacy).as_deref(),
+            Some("padrao")
+        );
+        assert_eq!(
+            profile_from("", "simples", &HashMap::new()).as_deref(),
+            Some("simples")
+        );
+        assert_eq!(profile_from("", "", &legacy), None);
+        assert_eq!(profile_from("null", "null", &legacy), None);
+    }
 }

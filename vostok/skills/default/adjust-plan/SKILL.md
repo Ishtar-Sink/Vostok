@@ -10,7 +10,7 @@ metadata:
 
 # Ajustar plano
 
-Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando o plano válido, com os níveis recalculados e cada ajuste registrado no histórico.
+Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando o plano válido, com os perfis recalculados e cada ajuste registrado no histórico.
 
 ## Termos
 
@@ -27,7 +27,7 @@ Aplica ao plano de tarefas certo todos os ajustes que o usuário pediu, deixando
 
 [adjust-plan-01]: Só ajuste planos existentes e atualizados. Nunca edite a spec nem arquivos de tarefa.
 [adjust-plan-02]: Nunca edite um plano sem ter certeza de que é o correto. Na dúvida, pergunte (passo 2).
-[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Nível", a seção "Níveis de esforço" nem o "Histórico de ajustes". Só os comandos os alteram.
+[adjust-plan-03]: Nunca edite à mão o front-matter, a coluna "Perfil" (ou "Nível", em planos antigos), a seção "Perfis de execução" nem o "Histórico de ajustes". Só os comandos os alteram.
 [adjust-plan-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-plan-05]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-plan-06]: Não amplie o pedido. O que não foi pedido e for necessário para o plano continuar coerente (renumerar dependências, redistribuir cobertura) é inferência e aparece na resposta.
@@ -136,7 +136,7 @@ Aplique os ajustes nas seções "Visão geral", "Tarefas" e "Fatos de esforço":
 
 - Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as dependências.
 - Toda tarefa tem uma linha na tabela de fatos, e toda linha de fatos tem uma tarefa.
-- Na coluna "Nível", deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula.
+- Na coluna "Perfil" (ou "Nível", em planos antigos), deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula. Não mexa na seção "Perfis de execução".
 - Atualize a visão geral se a divisão ou a ordem do trabalho mudou.
 
 ### 8. Validar
@@ -147,7 +147,7 @@ Execute:
 vostok plan adjust validate <SPEC_ID>
 ```
 
-O comando lista os problemas sem alterar nada. Diferenças de nível são resolvidas pelo `vostok plan adjust record`; corrija os demais e execute de novo. Se falhar pela segunda vez com outros problemas, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Diferenças de perfil são resolvidas pelo `vostok plan adjust record`; corrija os demais e execute de novo. Se falhar pela segunda vez com outros problemas, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
@@ -157,7 +157,7 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 vostok plan adjust record <SPEC_ID> "TASK-02 dividida em TASK-02 e TASK-03; TASK-05 removida"
 ```
 
-O comando recalcula os níveis, valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
+O comando recalcula os perfis, valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
 

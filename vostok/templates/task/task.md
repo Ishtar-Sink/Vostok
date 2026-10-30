@@ -2,11 +2,12 @@
 id: #{TASK_ID}
 spec: #{SPEC_ID}
 title: "#{TASK_TITLE_YAML}"
-effort: #{TASK_EFFORT}
+profile: #{TASK_PROFILE}
+persona: #{TASK_PERSONA}
 depends_on: [#{TASK_DEPENDS}]
 covers: [#{TASK_COVERS}]
 type: #{TASK_TYPE}
-labels: [#{SPEC_ID}, #{TASK_EFFORT}]
+labels: [#{SPEC_ID}, #{TASK_PROFILE}]
 status: #{TASK_STATUS}
 content_hash: null
 adjustments: 0
@@ -68,8 +69,8 @@ evidence_result: null
 - **Descrição:** #{TASK_CARD_DESCRIPTION}
 - **Critérios de aceite:**
 #{TASK_CARD_CRITERIA}
-- **Rótulos:** #{SPEC_ID}, #{TASK_EFFORT}
-- **Estimativa:** #{TASK_EFFORT}
+- **Rótulos:** #{SPEC_ID}, #{TASK_PROFILE}
+- **Estimativa:** #{TASK_PROFILE}
 - **Bloqueada por:** #{TASK_BLOCKED_BY}
 
 ## Registro de execução

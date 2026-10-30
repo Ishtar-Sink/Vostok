@@ -104,26 +104,35 @@ fn plan_outside_a_harness_fails() {
 
 const SUBITEMS: &str = "  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.";
 
-/// Spec aprovada (com hashes válidos), plano e TASK-01 com a subseção "Evidências" dada.
-fn plan_with_evidence(project: &Project, evidence: &str) -> std::path::PathBuf {
+/// Grava a spec aprovada SPEC-001 (com hashes válidos) e o plano dela, com os corpos dados.
+fn spec_and_plan(project: &Project, kind: &str, spec_body: &str, plan_body: &str) {
     use vostok::support::sha256_hex;
-    let write = |relative: &str, content: &str| {
-        let path = project.root().join(relative);
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, content).unwrap();
-    };
-    let spec_body = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Entregar. |\n";
     let spec_hash = sha256_hex(spec_body.as_bytes());
-    write(
+    write_file(
+        project,
         "vostok/work/specs/refined/SPEC-001-exemplo.md",
-        &format!("---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: approved\ntype: improvement\nupdated_at: null\ncontent_hash: {spec_hash}\napproved_hash: {spec_hash}\n---\n{spec_body}"),
+        &format!("---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: approved\ntype: {kind}\nupdated_at: null\ncontent_hash: {spec_hash}\napproved_hash: {spec_hash}\n---\n{spec_body}"),
     );
-    let plan_body = "\n# Plano\n\n## Visão geral\n\nUma tarefa.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n\n## Fatos de esforço\n\n| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|\n| TASK-01 | 0 | 1 | não | não | não |\n";
     let plan_hash = sha256_hex(plan_body.as_bytes());
-    write(
+    write_file(
+        project,
         "vostok/work/plans/SPEC-001.md",
         &format!("---\nspec: SPEC-001\nspec_hash: {spec_hash}\ncontent_hash: {plan_hash}\n---\n{plan_body}"),
     );
+}
+
+fn write_file(project: &Project, relative: &str, content: &str) {
+    let path = project.root().join(relative);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, content).unwrap();
+}
+
+/// Spec aprovada (com hashes válidos), plano e TASK-01 com a subseção "Evidências" dada.
+fn plan_with_evidence(project: &Project, evidence: &str) -> std::path::PathBuf {
+    let write = |relative: &str, content: &str| write_file(project, relative, content);
+    let spec_body = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Entregar. |\n";
+    let plan_body = "\n# Plano\n\n## Visão geral\n\nUma tarefa.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n\n## Fatos de esforço\n\n| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|\n| TASK-01 | 0 | 1 | não | não | não |\n";
+    spec_and_plan(project, "improvement", spec_body, plan_body);
     let task = project.root().join("vostok/work/tasks/SPEC-001/TASK-01.md");
     write(
         "vostok/work/tasks/SPEC-001/TASK-01.md",
@@ -236,5 +245,369 @@ fn evidence_name_ambiguous_or_reserved_is_refused_by_the_plan_validation() {
         assert!(refused.contains(name), "{refused}");
         assert!(refused.contains("TASK-01:"), "{refused}");
         assert_eq!(std::fs::read_to_string(&task).unwrap(), before);
+    }
+}
+
+// --- Perfis de execução (SPEC-014: RF-17, RF-21, RF-26, CT-12, CT-16) ---
+
+const FACTS_HEADER: &str = "| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|";
+
+const PROFILE_SPEC: &str = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n| RF-02 | Dois. |\n| RF-03 | Três. |\n| RF-04 | Quatro. |\n| RF-05 | Cinco. |\n| RF-06 | Seis. |\n| RF-07 | Sete. |\n| RF-08 | Oito. |\n| RF-09 | Nove. |\n| RF-10 | Dez. |\n| RF-11 | Onze. |\n| RF-12 | Doze. |\n\n## Casos de teste\n\n| ID | Cenário | Passos | Resultado esperado | Requisitos |\n|---|---|---|---|---|\n| CT-01 | Caso. | Rodar. | Ok. | RF-01 |\n";
+
+/// Corpo de plano no formato novo, com as colunas "Persona" e "Perfil".
+fn profile_plan(rows: &str, facts: &str) -> String {
+    format!("\n# Plano\n\n## Visão geral\n\nUm plano.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Cobre |\n|---|---|---|---|---|---|---|---|\n{rows}\n\n## Fatos de esforço\n\n{FACTS_HEADER}\n{facts}\n")
+}
+
+/// Corpo de plano no formato antigo, com a coluna "Nível".
+fn legacy_plan(rows: &str, facts: &str) -> String {
+    format!("\n# Plano\n\n## Visão geral\n\nUm plano.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n{rows}\n\n## Fatos de esforço\n\n{FACTS_HEADER}\n{facts}\n")
+}
+
+fn profile_row(id: &str, persona: &str, profile: &str, covers: &str) -> String {
+    format!("| {id} | Tarefa {id} | Faz. | tarefa | {persona} | {profile} | - | {covers} |")
+}
+
+fn plan_text(project: &Project) -> String {
+    std::fs::read_to_string(project.root().join("vostok/work/plans/SPEC-001.md")).unwrap()
+}
+
+fn score(project: &Project) -> String {
+    let output = project
+        .vostok()
+        .args(["plan", "score", "SPEC-001"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).unwrap()
+}
+
+/// Perfil gravado na linha da tarefa de um plano no formato novo.
+fn stored_profile(plan: &str, id: &str) -> String {
+    let row = plan
+        .lines()
+        .find(|line| line.starts_with(&format!("| {id} |")))
+        .unwrap_or_else(|| panic!("{id} ausente: {plan}"));
+    row.split('|').nth(6).unwrap().trim().to_string()
+}
+
+fn tasks_section(plan: &str) -> String {
+    let start = plan.find("## Tarefas").unwrap();
+    let end = plan.find("## Fatos de esforço").unwrap();
+    plan[start..end].to_string()
+}
+
+/// Plano novo com uma tarefa por caso `(fatos, IDs cobertos)`; devolve o perfil calculado de cada uma.
+fn scored_profiles(cases: &[(&str, &str)]) -> Vec<String> {
+    let project = Project::new();
+    let ids: Vec<String> = (1..=cases.len()).map(|n| format!("TASK-{n:02}")).collect();
+    let rows: Vec<String> = cases
+        .iter()
+        .zip(&ids)
+        .map(|((_, covers), id)| profile_row(id, "desenvolvedor", "-", covers))
+        .collect();
+    let facts: Vec<String> = cases
+        .iter()
+        .zip(&ids)
+        .map(|((facts, _), id)| format!("| {id} | {facts} |"))
+        .collect();
+    spec_and_plan(
+        &project,
+        "feature",
+        PROFILE_SPEC,
+        &profile_plan(&rows.join("\n"), &facts.join("\n")),
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    ids.iter().map(|id| stored_profile(&plan, id)).collect()
+}
+
+#[test]
+fn profile_small_task_with_many_ids_stays_at_most_padrao() {
+    let profiles = scored_profiles(&[(
+        "0 | 2 | não | não | não",
+        "RF-01, RF-02, RF-03, RF-04, RF-05, RF-06, RF-07, RF-08, RF-09, RF-10, RF-11, CT-01",
+    )]);
+    assert_eq!(profiles, ["padrao"]);
+}
+
+#[test]
+fn profile_public_contract_alone_stays_padrao() {
+    let profiles = scored_profiles(&[("0 | 3 | sim | não | não", "RF-12")]);
+    assert_eq!(profiles, ["padrao"]);
+}
+
+#[test]
+fn profile_judgment_needs_risk_with_contract_or_inference() {
+    let profiles = scored_profiles(&[
+        ("0 | 1 | sim | não | sim", "RF-01"),
+        ("0 | 1 | não | sim | sim", "RF-02"),
+        ("0 | 1 | não | não | sim", "RF-03"),
+        ("2 | 4 | sim | sim | não", "RF-04, RF-05"),
+    ]);
+    assert_eq!(profiles, ["julgamento", "julgamento", "padrao", "padrao"]);
+}
+
+#[test]
+fn profile_limits_follow_the_configuration() {
+    let profiles = scored_profiles(&[
+        ("0 | 1 | não | não | não", "RF-01"),
+        ("1 | 0 | não | não | não", "RF-02"),
+        ("1 | 0 | não | não | não", "RF-03, RF-04"),
+        ("0 | 2 | não | sim | não", "RF-05, RF-06"),
+        ("0 | 3 | sim | não | não", "-"),
+        ("6 | 9 | não | não | sim", "RF-07"),
+    ]);
+    assert_eq!(
+        profiles,
+        ["mecanica", "mecanica", "padrao", "padrao", "padrao", "padrao"]
+    );
+}
+
+#[test]
+fn profile_score_is_the_same_in_two_runs() {
+    let project = Project::new();
+    let rows = [
+        profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+        profile_row("TASK-02", "desenvolvedor", "-", "RF-02, RF-03"),
+    ];
+    let facts = "| TASK-01 | 0 | 1 | sim | não | sim |\n| TASK-02 | 1 | 2 | não | não | não |";
+    spec_and_plan(
+        &project,
+        "feature",
+        PROFILE_SPEC,
+        &profile_plan(&rows.join("\n"), facts),
+    );
+    score(&project);
+    let first = tasks_section(&plan_text(&project));
+    score(&project);
+    let second = tasks_section(&plan_text(&project));
+    assert_eq!(first, second);
+    assert!(first.contains("| julgamento |"), "{first}");
+}
+
+#[test]
+fn profile_different_from_the_computed_is_refused_by_validate() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        PROFILE_SPEC,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "mecanica", "RF-01"),
+            "| TASK-01 | 0 | 3 | sim | não | não |",
+        ),
+    );
+    let stderr = failure_stderr(project.vostok().args(["plan", "validate", "SPEC-001"]));
+    assert!(
+        stderr.contains(
+            "TASK-01: perfil \"mecanica\" diferente do calculado \"padrao\" (execute vostok plan score)"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn profile_score_prints_the_profiles_message() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        PROFILE_SPEC,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+            "| TASK-01 | 0 | 1 | não | não | não |",
+        ),
+    );
+    let stdout = score(&project);
+    assert!(
+        stdout.contains("Perfis de execução gravados no plano de SPEC-001:"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn profile_plan_create_uses_the_profile_columns() {
+    let project = Project::new();
+    spec_and_plan(&project, "feature", PROFILE_SPEC, "");
+    std::fs::remove_file(project.root().join("vostok/work/plans/SPEC-001.md")).unwrap();
+    project
+        .vostok()
+        .args(["plan", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let plan = plan_text(&project);
+    assert!(
+        plan.contains(
+            "| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Cobre |\n|---|---|---|---|---|---|---|---|"
+        ),
+        "{plan}"
+    );
+    assert!(plan.contains("## Perfis de execução"), "{plan}");
+    for profile in ["mecanica", "padrao", "julgamento"] {
+        assert!(plan.contains(&format!("| {profile} |")), "{plan}");
+    }
+    assert!(!plan.contains("Nível"), "{plan}");
+}
+
+const LEGACY_SPEC_ONE: &str =
+    "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n";
+
+#[test]
+fn profile_legacy_plan_with_levels_stays_valid() {
+    let project = Project::new();
+    let spec = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n| RF-02 | Dois. |\n| RF-03 | Três. |\n";
+    spec_and_plan(
+        &project,
+        "improvement",
+        spec,
+        &legacy_plan(
+            "| TASK-01 | Tarefa | Faz. | tarefa | moderada | - | RF-01, RF-02, RF-03 |",
+            "| TASK-01 | 0 | 2 | não | não | não |",
+        ),
+    );
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+    let stdout = score(&project);
+    assert!(
+        stdout.contains("Níveis de esforço gravados no plano de SPEC-001:"),
+        "{stdout}"
+    );
+    assert!(
+        plan_text(&project).contains("| tarefa | moderada |"),
+        "{}",
+        plan_text(&project)
+    );
+}
+
+#[test]
+fn profile_legacy_plan_creates_tasks_with_the_equivalent_profile() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &legacy_plan(
+            "| TASK-01 | Tarefa | Faz. | tarefa | complexa | - | RF-01 |",
+            "| TASK-01 | 0 | 2 | sim | não | sim |",
+        ),
+    );
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let task =
+        std::fs::read_to_string(project.root().join("vostok/work/tasks/SPEC-001/TASK-01.md"))
+            .unwrap();
+    assert!(task.contains("\nprofile: julgamento\n"), "{task}");
+    assert!(task.contains("\npersona: -\n"), "{task}");
+    assert!(
+        task.contains("\nlabels: [SPEC-001, julgamento]\n"),
+        "{task}"
+    );
+}
+
+#[test]
+fn profile_new_plan_creates_tasks_with_profile_and_persona() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+            "| TASK-01 | 0 | 2 | sim | não | não |",
+        ),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let task =
+        std::fs::read_to_string(project.root().join("vostok/work/tasks/SPEC-001/TASK-01.md"))
+            .unwrap();
+    assert!(task.contains("\nprofile: padrao\n"), "{task}");
+    assert!(task.contains("\npersona: desenvolvedor\n"), "{task}");
+    assert!(!task.contains("\neffort:"), "{task}");
+}
+
+#[test]
+fn profile_invalid_persona_is_refused() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        PROFILE_SPEC,
+        &profile_plan(
+            &profile_row("TASK-01", "Dev Ops", "mecanica", "RF-01"),
+            "| TASK-01 | 0 | 1 | não | não | não |",
+        ),
+    );
+    let stderr = failure_stderr(project.vostok().args(["plan", "validate", "SPEC-001"]));
+    assert!(
+        stderr.contains(
+            "TASK-01: persona inválida \"Dev Ops\" (use o nome da persona em minúsculas, com hífens, ou -)"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn profile_legacy_task_with_effort_still_loads() {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        &format!("- `saida.txt` (automática): `echo ok`\n{SUBITEMS}"),
+    );
+    project
+        .vostok()
+        .args(["task", "load", "SPEC-001", "TASK-01"])
+        .assert()
+        .success();
+    project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn profile_task_profile_maps_the_old_levels() {
+    use vostok::commands::plan::task_profile;
+    use vostok::harness::Harness;
+    let project = Project::new();
+    let cases = [
+        ("effort: simples\n", Some("mecanica")),
+        ("effort: moderada\n", Some("padrao")),
+        ("effort: complexa\n", Some("julgamento")),
+        ("effort: critica\n", Some("julgamento")),
+        ("profile: padrao\n", Some("padrao")),
+        ("", None),
+    ];
+    let harness = Harness::locate(project.root()).unwrap();
+    for (index, (line, expected)) in cases.iter().enumerate() {
+        let relative = format!("tarefas/TASK-{:02}.md", index + 1);
+        write_file(
+            &project,
+            &relative,
+            &format!(
+                "---\nid: TASK-{:02}\n{line}status: pending\n---\n\n# Tarefa\n",
+                index + 1
+            ),
+        );
+        let file = project.root().join(&relative);
+        assert_eq!(
+            task_profile(&harness, &file).as_deref(),
+            *expected,
+            "{line}"
+        );
     }
 }

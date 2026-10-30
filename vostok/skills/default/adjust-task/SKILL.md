@@ -28,7 +28,7 @@ Aplica à tarefa certa todos os ajustes que o usuário pediu, deixando a tarefa 
 [adjust-task-01]: Não ajuste tarefas `done`. Nunca edite a spec, o plano nem outras tarefas.
 [adjust-task-02]: Nunca edite uma tarefa sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os comandos os alteram.
-[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `effort` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
+[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `profile` (ou `effort`, nas tarefas antigas), `persona` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
 [adjust-task-05]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-task-06]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-task-07]: Não amplie o pedido. O que não foi pedido e for necessário para a tarefa continuar coerente (um passo que cita o arquivo removido de "Mudar") é inferência e aparece na resposta.
@@ -115,7 +115,7 @@ Classifique cada ajuste:
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe | Pergunta |
 | Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
-| Muda `covers`, `depends_on`, `effort` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
+| Muda `covers`, `depends_on`, `profile` (ou `effort`, nas tarefas antigas), `persona` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
 | Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec planejada só muda num novo ciclo. |
 
 Sem perguntas, vá para o passo 7.

@@ -18,8 +18,8 @@ Documento para revisão. É removido quando o plano é aprovado.
 
 ## Tarefas
 
-| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |
-|---|---|---|---|---|---|---|
+| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Cobre |
+|---|---|---|---|---|---|---|---|
 #{PLAN_TASKS}
 
 ## Fatos de esforço
@@ -28,10 +28,10 @@ Documento para revisão. É removido quando o plano é aprovado.
 |---|---|---|---|---|---|
 #{PLAN_FACTS}
 
-## Níveis de esforço
+## Perfis de execução
 
-| Nível | Descrição |
+| Perfil | Descrição |
 |---|---|
-#{EFFORT_LEVELS}
+#{PROFILE_LEVELS}
 
 #{ADJUSTMENT_HISTORY}

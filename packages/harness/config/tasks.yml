@@ -42,9 +42,10 @@ task_types:
 plan_template: plan/plan.md
 task_template: task/task.md
 
-# --- Nível de esforço ---
-# O nível é uma sugestão e nunca indica um modelo. A pontuação de uma tarefa é a soma dos fatos
-# ponderados; o nível é o primeiro de `effort_levels` cujo limite é maior ou igual à pontuação.
+# --- Níveis antigos (v0.1.x) ---
+# Os níveis só valem para planos com a coluna "Nível", feitos antes dos perfis de execução. O nível é
+# uma sugestão e nunca indica um modelo. A pontuação de uma tarefa é a soma dos fatos ponderados; o
+# nível é o primeiro de `effort_levels` cujo limite é maior ou igual à pontuação.
 # O último nível não tem limite.
 effort_levels:
   - simples
@@ -71,6 +72,50 @@ effort_weights:
   public_contract: 4    # muda um contrato ou interface pública
   inference: 2          # depende de inferência
   high_risk: 4          # cobre um risco de impacto alto
+
+# --- Perfil de execução ---
+# O perfil diz o que a tarefa exige do modelo e nunca indica um modelo. O último de `profile_levels`
+# (julgamento) vale só quando os fatos batem com uma das combinações de `profile_judgment`. Sem
+# combinação, a pontuação soma os fatos ponderados, com teto em `profile_caps` para arquivos e IDs, e o
+# perfil é o primeiro de `profile_levels` cujo limite é maior ou igual à pontuação; acima de todos os
+# limites, o penúltimo (padrao). Assim, quantidade sozinha nunca leva a julgamento.
+profile_levels:
+  - mecanica
+  - padrao
+  - julgamento
+
+profile_limits:
+  mecanica: 3
+
+# Julgamento exige todos os fatos de pelo menos uma combinação (nomes de `profile_weights`).
+profile_judgment:
+  - [high_risk, public_contract]
+  - [high_risk, inference]
+
+profile_descriptions:
+  mecanica: "Passos diretos e repetitivos; prefere modelo rápido."
+  padrao: "Implementação com decisões locais; prefere modelo intermediário."
+  julgamento: "Desenho, ambiguidade e decisões amplas; prefere o modelo mais capaz."
+
+profile_weights:
+  files_create: 2       # arquivos a criar
+  files_change: 1       # arquivos a alterar
+  ids_covered: 1        # IDs da spec cobertos (coluna "Cobre" do plano)
+  public_contract: 4    # muda um contrato ou interface pública
+  inference: 4          # depende de inferência
+  high_risk: 4          # cobre um risco de impacto alto
+
+# Teto de pontos dos arquivos (criar e alterar somados) e dos IDs cobertos.
+profile_caps:
+  files: 4
+  ids: 2
+
+# Perfil equivalente de cada nível antigo, para planos e tarefas da v0.1.x.
+profile_legacy:
+  simples: mecanica
+  moderada: padrao
+  complexa: julgamento
+  critica: julgamento
 
 # Seções da spec cujos IDs cada tarefa precisa cobrir, por tipo de spec (chaves de `sections_<tipo>` em specs.yml).
 coverage_feature:

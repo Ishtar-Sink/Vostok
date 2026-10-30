@@ -11,7 +11,7 @@ metadata:
 
 # Planejar tarefas
 
-Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas e rastreáveis, com um nível de esforço sugerido para cada uma. O plano é só um documento de revisão.
+Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas e rastreáveis, com a persona e o perfil de execução de cada uma. O plano é só um documento de revisão.
 
 ## Termos
 
@@ -20,15 +20,16 @@ Propõe, a partir de uma spec aprovada, um plano de tarefas pequenas, ordenadas 
 - **Plano atualizado:** plano com `spec_hash` igual ao `approved_hash` da spec. Com hash diferente, o plano está **desatualizado** e é recriado.
 - **Tarefa:** uma unidade de trabalho entregável sozinha, com ID `TASK-NN` sequencial a partir de `TASK-01`.
 - **Fatos de esforço:** o que o agente sabe sobre a tarefa: arquivos a criar e a alterar e se ela muda um contrato público, depende de inferência ou cobre um risco alto.
-- **Nível:** sugestão de esforço (`simples`, `moderada`, `complexa` ou `critica`), calculado pelo comando a partir dos fatos. Nunca indica um modelo.
+- **Perfil:** o que a tarefa exige do modelo (`mecanica`, `padrao` ou `julgamento`), calculado pelo comando a partir dos fatos, pelo que a tarefa faz. Nunca indica um modelo.
+- **Persona:** o nome da persona que executa a tarefa, como `desenvolvedor`, ou `-`.
 
 ## Regras
 
 [plan-tasks-01]: Só planeje specs com status `approved`.
 [plan-tasks-02]: Nunca altere um plano atualizado. Um pedido para planejar uma spec que já tem plano atualizado é informado e para; ajustes são feitos pela skill `adjust-plan` só quando o usuário pedir.
 [plan-tasks-03]: O planejamento de uma spec nunca altera o plano de outra.
-[plan-tasks-04]: Nunca preencha a coluna "Nível" à mão. Só o `vostok plan score` a grava.
-[plan-tasks-05]: Nunca edite o front-matter, a seção "Níveis de esforço" nem o "Histórico de ajustes" do plano.
+[plan-tasks-04]: Nunca preencha a coluna "Perfil" à mão. Só o `vostok plan score` a grava.
+[plan-tasks-05]: Nunca edite o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" do plano.
 [plan-tasks-06]: Todo ID da spec que precisa de cobertura (RF e CT; PQ em `study`; S em `analysis`) é coberto por pelo menos uma tarefa.
 [plan-tasks-07]: Não crie arquivos de tarefa. Eles só existem depois que o usuário aprova o plano (skill `approve-plan`).
 
@@ -41,7 +42,7 @@ Copie e marque o progresso:
 - [ ] 2. Identificar a spec
 - [ ] 3. Criar o plano
 - [ ] 4. Preencher o plano
-- [ ] 5. Calcular os níveis
+- [ ] 5. Calcular os perfis
 - [ ] 6. Validar
 - [ ] 7. Responder ao usuário
 ```
@@ -100,7 +101,7 @@ Para dividir o trabalho:
 - Prefira mais tarefas simples a poucas complexas. Uma tarefa com muitos arquivos ou muitos IDs cobertos provavelmente deve ser dividida.
 - As dependências formam uma ordem sem ciclos: uma tarefa só depende das que precisam existir antes dela.
 
-### 5. Calcular os níveis
+### 5. Calcular os perfis
 
 Execute:
 
@@ -108,7 +109,7 @@ Execute:
 vostok plan score <SPEC_ID>
 ```
 
-O comando grava o nível de cada tarefa na coluna "Nível". Se ele recusar por fato inválido, corrija a tabela de fatos e execute de novo.
+O comando grava o perfil de cada tarefa na coluna "Perfil". Se ele recusar por fato inválido, corrija a tabela de fatos e execute de novo.
 
 ### 6. Validar
 
@@ -126,7 +127,7 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o caminho do plano e o [resumo do plano](#resumo-do-plano). Se o plano foi recriado, informe o aviso do comando.
 - **Verificação:** os comandos executados e o resultado.
-- **Pendências:** informe que o plano pode ser ajustado (skill `adjust-plan`) ou aprovado (skill `approve-plan`), e que o nível é só uma sugestão de esforço.
+- **Pendências:** informe que o plano pode ser ajustado (skill `adjust-plan`) ou aprovado (skill `approve-plan`), e que o perfil é a sugestão de modelo da tarefa.
 
 ## Formatos de resposta
 
@@ -134,11 +135,11 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 
 ### Tabela de tarefas
 
-`Tipo` é `tarefa`, `historia` ou `bug`. Sem dependências, use `-`. Deixe `-` em "Nível": o `vostok plan score` o preenche.
+`Tipo` é `tarefa`, `historia` ou `bug`. Em "Persona", o nome da persona que executa a tarefa (como `desenvolvedor`) ou `-`. Sem dependências, use `-`. Deixe `-` em "Perfil": o `vostok plan score` o preenche.
 
 ```markdown
-| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | - | - | RF-01, CT-01 |
-| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | - | TASK-01 | RF-02, CT-02 |
+| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | RF-01, CT-01 |
+| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | RF-02, CT-02 |
 ```
 
 ### Tabela de fatos
@@ -152,14 +153,14 @@ Arquivos a criar e a alterar são números inteiros; os demais campos são `sim`
 
 ### Resumo do plano
 
-A visão geral em prosa, a tabela de tarefas com os níveis gravados e a descrição de cada nível usado, lida da seção "Níveis de esforço" do plano.
+A visão geral em prosa, a tabela de tarefas com os perfis gravados e a descrição de cada perfil usado, lida da seção "Perfis de execução" do plano.
 
 ```markdown
 Visão geral do plano.
 
-| ID | Título | Nível | Dependências | Cobre |
-|---|---|---|---|---|
-| TASK-01 | Título curto | simples | - | RF-01, CT-01 |
+| ID | Título | Persona | Perfil | Dependências | Cobre |
+|---|---|---|---|---|---|
+| TASK-01 | Título curto | desenvolvedor | mecanica | - | RF-01, CT-01 |
 
-- **simples:** descrição do nível.
+- **mecanica:** descrição do perfil.
 ```

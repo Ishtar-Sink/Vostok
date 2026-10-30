@@ -37,6 +37,8 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [plan-tasks-05]: Nunca edite o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" do plano.
 [plan-tasks-06]: Todo ID da spec que precisa de cobertura (RF e CT em `feature`, `improvement` e `fix`; PQ em `study`; S em `analysis`) é coberto por pelo menos uma tarefa. CB pode ser citado em "Cobre" como cobertura opcional.
 [plan-tasks-07]: Não crie arquivos de tarefa. Eles só existem depois que o usuário aprova o plano (skill `approve-plan`).
+[plan-tasks-08]: Indique na coluna "Persona" a persona que executa cada tarefa, pela [tabela de personas](#tabela-de-personas).
+[plan-tasks-09]: Divida o trabalho para permitir paralelismo, mesmo que o usuário execute em sequência: dependência só quando uma tarefa precisa do resultado de outra, e tarefas que podem rodar juntas não dividem arquivos sem necessidade (RF-15).
 
 ## Checklist
 
@@ -106,6 +108,8 @@ Para dividir o trabalho:
 - Use os "Componentes afetados", os "Fluxos" e os "Casos de teste" da spec para agrupar mudanças relacionadas. Uma tarefa não mistura partes independentes.
 - Prefira mais tarefas simples a poucas complexas. Uma tarefa com muitos arquivos ou muitos IDs cobertos provavelmente deve ser dividida.
 - As dependências formam uma ordem sem ciclos: uma tarefa só depende das que precisam existir antes dela.
+- Separe as frentes independentes em tarefas sem dependência entre si, para caberem na mesma onda.
+- Evite que duas tarefas sem dependência entre si mudem o mesmo arquivo; quando for inevitável, diga na visão geral quais tarefas o Coordenador vai sequenciar.
 
 ### 5. Calcular os perfis
 
@@ -148,6 +152,17 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 ```markdown
 | TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | - | RF-01, CT-01 |
 | TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | - | RF-02, CT-02 |
+```
+
+### Tabela de personas
+
+```markdown
+| Persona | Quando usar |
+|---|---|
+| desenvolvedor | Implementação de código, configuração e testes. Padrão. |
+| ui-ux-designer | Tarefa com interface: telas, componentes visuais ou textos de interface. |
+| arquiteto | Estudo, desenho ou documento técnico, sem código de produção. |
+| qa | Tarefa só de testes, validação ou evidências. |
 ```
 
 ### Tabela de componentes

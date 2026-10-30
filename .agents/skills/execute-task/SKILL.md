@@ -1,6 +1,6 @@
 ---
 name: execute-task
-description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa por pedido. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa, ou citar um ID como TASK-03 para execução."
+description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa ou uma onda por pedido; numa onda, o Coordenador dispara um subagente por tarefa, com a persona e o modelo dela. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa ou uma onda, citar um ID como TASK-03 para execução ou pedir para executar a onda N."
 allowed-tools: Read Edit Write Glob Grep Bash
 ---
 

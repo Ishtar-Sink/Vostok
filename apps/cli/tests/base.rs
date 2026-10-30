@@ -206,6 +206,37 @@ fn ct13_skills_and_skill_templates_call_vostok() {
 }
 
 #[test]
+fn ct11_execute_task_runs_a_task_or_a_wave() {
+    let expected = [
+        (
+            "skills/default/execute-task/SKILL.md",
+            vec![
+                "vostok task status",
+                "vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>",
+                "subagente",
+                "Mudar",
+                "em sequência",
+                "no máximo 6 subagentes",
+            ],
+        ),
+        (
+            "skills/default/plan-tasks/SKILL.md",
+            vec!["Persona", "mesmo que o usuário execute em sequência"],
+        ),
+        (
+            "skills/default/approve-plan/SKILL.md",
+            vec!["mesma onda", "perfil"],
+        ),
+    ];
+    for (file, snippets) in expected {
+        let content = String::from_utf8(embedded::file(file).unwrap().to_vec()).unwrap();
+        for snippet in snippets {
+            assert!(content.contains(snippet), "{file} sem `{snippet}`");
+        }
+    }
+}
+
+#[test]
 fn create_spec_skill_creates_the_draft_without_refining() {
     let skill = String::from_utf8(
         embedded::file("skills/default/create-spec/SKILL.md")

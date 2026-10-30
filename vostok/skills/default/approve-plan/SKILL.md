@@ -35,6 +35,8 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 [approve-plan-05]: O detalhamento segue o plano e a spec. Não acrescente escopo, tarefas nem cobertura.
 [approve-plan-06]: A "Execução" é escrita para um agente sem outro contexto: caminhos exatos, passos na ordem e comandos que possam ser executados.
 [approve-plan-07]: O "Resumo executivo" usa linguagem de negócio, sem nomes de arquivos, funções ou comandos.
+[approve-plan-08]: Detalhe cada tarefa para o modelo do perfil dela: em `mecanica`, passos quase mecânicos, com o texto-alvo e os caminhos exatos; em `padrao`, as decisões locais já tomadas; em `julgamento`, as alternativas e os critérios de escolha.
+[approve-plan-09]: Nos "Detalhes técnicos", cite os arquivos que a tarefa divide com outras da mesma onda, para o Coordenador executá-las em sequência.
 
 ## Checklist
 
@@ -124,7 +126,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 **Descrição** (para pessoas):
 
 - **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, esforço (o nível), risco e o que a tarefa bloqueia ou desbloqueia.
-- **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos e as referências da spec (RF, CT e decisões).
+- **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.
 - **`#{TASK_CARD_DESCRIPTION}`:** uma ou duas frases sobre o que a tarefa entrega, pronta para o card.
 - **`#{TASK_CARD_CRITERIA}`:** checklist de critérios de aceite, cada item como `  - [ ] critério`, indentado sob "Critérios de aceite".
 

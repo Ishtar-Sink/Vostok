@@ -27,6 +27,8 @@ pub enum TaskCommand {
         spec_id: Option<String>,
         task_id: Option<String>,
     },
+    /// Imprime as tabelas das tarefas e das ondas de uma spec.
+    Status { spec_id: Option<String> },
     /// Confere os critérios de conclusão.
     CheckDone {
         spec_id: Option<String>,
@@ -144,6 +146,7 @@ const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>"
 const APPROVE_USAGE: &str =
     "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
+const STATUS_USAGE: &str = "Uso: vostok task status <SPEC_ID>";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
 const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
 
@@ -175,6 +178,13 @@ pub fn run(command: TaskCommand) -> Result<()> {
         TaskCommand::Load { spec_id, task_id } => {
             let (spec, task) = filled(spec_id, task_id, LOAD_USAGE)?;
             tasks.load(&spec, &task)
+        }
+        TaskCommand::Status { spec_id } => {
+            let spec = spec_id
+                .filter(|spec| !spec.is_empty())
+                .ok_or_else(|| usage(STATUS_USAGE))?;
+            print!("{}", tasks.status_report(&spec)?);
+            Ok(())
         }
         TaskCommand::CheckDone { spec_id, task_id } => {
             let (spec, task) = filled(spec_id, task_id, CHECK_DONE_USAGE)?;
@@ -238,6 +248,22 @@ pub fn run(command: TaskCommand) -> Result<()> {
             };
             tasks.persist(&spec, &task, &options)
         }
+    }
+}
+
+/// Status de uma onda a partir dos status das suas tarefas.
+fn wave_status(statuses: &[String], status: &Statuses) -> String {
+    let any = |name: &String| statuses.contains(name);
+    if statuses.iter().all(|s| *s == status.done) {
+        status.done.clone()
+    } else if any(&status.blocked) {
+        status.blocked.clone()
+    } else if any(&status.in_progress) || any(&status.validating) || any(&status.done) {
+        status.in_progress.clone()
+    } else if statuses.iter().all(|s| *s == status.approved) {
+        status.approved.clone()
+    } else {
+        status.pending.clone()
     }
 }
 
@@ -471,6 +497,87 @@ impl Tasks {
             trim_newlines(&execution)
         );
         Ok(())
+    }
+
+    fn status_report(&self, spec: &str) -> Result<String> {
+        if !is_spec_id(spec) {
+            bail!("ID de spec inválido: '{spec}'");
+        }
+        let dir = self.tasks_root.join(spec);
+        let prefix = format!("{}-", self.cfg("id.prefix")?);
+        let files: Vec<PathBuf> = if dir.is_dir() {
+            markdown_files(&dir)?
+                .into_iter()
+                .filter(|file| task_id_of(file).starts_with(&prefix))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        if files.is_empty() {
+            bail!("a spec {spec} não tem tarefas em {}", dir.display());
+        }
+        let field = |file: &Path, key: &str| {
+            let value = frontmatter_get(file, key).unwrap_or_default();
+            if matches!(value.as_str(), "" | "-" | "null") {
+                "-".to_string()
+            } else {
+                value
+            }
+        };
+        let graph: Vec<(String, Vec<String>)> = files
+            .iter()
+            .map(|file| (task_id_of(file), dependencies_of(file)))
+            .collect();
+        let computed = crate::commands::plan::waves(&graph);
+        let mut text = format!(
+            "### Tarefas da {spec}\n\n| ID | Título | Persona | Perfil | Modelo | Onda | Status |\n|---|---|---|---|---|---|---|\n"
+        );
+        let mut waves: Vec<(String, String, String)> = Vec::new();
+        for file in &files {
+            let id = task_id_of(file);
+            let profile = models::task_profile(&self.harness, file);
+            let status = status_of(file);
+            let model = match field(file, "model").as_str() {
+                "-" if status == self.status.pending || status == self.status.approved => {
+                    models::for_profile(&self.harness, &profile)?.model
+                }
+                "-" => "-".to_string(),
+                model => model.to_string(),
+            };
+            let wave = match field(file, "wave").as_str() {
+                "-" => computed
+                    .get(&id)
+                    .map_or("-".to_string(), |wave| wave.to_string()),
+                wave => wave.to_string(),
+            };
+            text.push_str(&format!(
+                "| {id} | {} | {} | {profile} | {model} | {wave} | {status} |\n",
+                escape_pipes(&frontmatter_get(file, "title").unwrap_or_default()),
+                escape_pipes(&field(file, "persona")),
+            ));
+            waves.push((wave, id, status));
+        }
+        if models::harness_tool(&self.harness).is_none() {
+            eprintln!("{}", models::tool_warning());
+        }
+        let mut keys: Vec<String> = waves.iter().map(|(wave, _, _)| wave.clone()).collect();
+        keys.sort_by_key(|wave| wave.parse::<u64>().map_or((1, 0), |n| (0, n)));
+        keys.dedup();
+        text.push_str(&format!(
+            "\n### Ondas da {spec}\n\n| Onda | Tarefas | Status |\n|---|---|---|\n"
+        ));
+        for key in keys {
+            let members: Vec<&(String, String, String)> =
+                waves.iter().filter(|(wave, _, _)| *wave == key).collect();
+            let ids: Vec<&str> = members.iter().map(|(_, id, _)| id.as_str()).collect();
+            let statuses: Vec<String> = members.iter().map(|(_, _, s)| s.clone()).collect();
+            text.push_str(&format!(
+                "| {key} | {} | {} |\n",
+                ids.join(", "),
+                wave_status(&statuses, &self.status)
+            ));
+        }
+        Ok(text)
     }
 
     fn check_done(&self, spec: &str, task: &str) -> Result<String> {
@@ -3286,6 +3393,30 @@ mod tests {
         assert_eq!(civil_from_days(0), (1970, 1, 1));
         assert_eq!(civil_from_days(20_727), (2026, 10, 1));
         assert_eq!(civil_from_days(11_016), (2000, 2, 29));
+    }
+
+    #[test]
+    fn wave_status_follows_the_task_statuses() {
+        let status = Statuses {
+            pending: "pending".into(),
+            approved: "approved".into(),
+            in_progress: "in_progress".into(),
+            validating: "validating".into(),
+            blocked: "blocked".into(),
+            done: "done".into(),
+        };
+        let of = |list: &[&str]| {
+            let list: Vec<String> = list.iter().map(|s| s.to_string()).collect();
+            wave_status(&list, &status)
+        };
+        assert_eq!(of(&["done", "done"]), "done");
+        assert_eq!(of(&["done", "blocked", "pending"]), "blocked");
+        assert_eq!(of(&["approved", "in_progress"]), "in_progress");
+        assert_eq!(of(&["approved", "validating"]), "in_progress");
+        assert_eq!(of(&["done", "pending"]), "in_progress");
+        assert_eq!(of(&["approved", "approved"]), "approved");
+        assert_eq!(of(&["approved", "pending"]), "pending");
+        assert_eq!(of(&["pending", "pending"]), "pending");
     }
 
     #[test]

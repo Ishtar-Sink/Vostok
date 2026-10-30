@@ -1291,3 +1291,270 @@ fn model_start_without_model_keeps_the_record() {
     let line = content.lines().find(|l| l.contains("| início |")).unwrap();
     assert!(!line.contains("modelo:"), "{line}");
 }
+
+// --- Status das tarefas (SPEC-014) ---
+
+fn status_task(project: &Project, id: &str, lines: &[&str]) {
+    let content = format!("---\nid: {id}\n{}\n---\n", lines.join("\n"));
+    write(
+        project,
+        &format!("vostok/work/tasks/SPEC-001/{id}.md"),
+        &content,
+    );
+}
+
+fn status_run(project: &Project) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "status", "SPEC-001"]);
+    command
+}
+
+#[test]
+fn status_without_spec_shows_the_usage() {
+    let project = Project::new();
+    let stderr = failure_stderr(project.vostok().args(["task", "status"]));
+    assert_eq!(stderr, "Erro: Uso: vostok task status <SPEC_ID>\n");
+}
+
+#[test]
+fn status_rejects_an_invalid_spec_id() {
+    let project = Project::new();
+    let stderr = failure_stderr(project.vostok().args(["task", "status", "../SPEC-1"]));
+    assert_eq!(stderr, "Erro: ID de spec inválido: '../SPEC-1'\n");
+}
+
+#[test]
+fn status_of_a_spec_without_tasks_is_refused() {
+    let project = Project::new();
+    let stderr = failure_stderr(project.vostok().args(["task", "status", "SPEC-404"]));
+    assert!(
+        stderr.starts_with("Erro: a spec SPEC-404 não tem tarefas em "),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn status_prints_the_tasks_and_waves_tables() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &[
+            "title: \"Primeira\"",
+            "persona: desenvolvedor",
+            "profile: mecanica",
+            "wave: 1",
+            "status: done",
+        ],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &[
+            "title: \"Segunda\"",
+            "persona: arquiteto",
+            "profile: julgamento",
+            "model: sonnet",
+            "wave: 1",
+            "status: in_progress",
+        ],
+    );
+    status_task(
+        &project,
+        "TASK-03",
+        &[
+            "title: \"Terceira\"",
+            "persona: qa",
+            "profile: padrao",
+            "wave: 2",
+            "status: approved",
+        ],
+    );
+    status_task(
+        &project,
+        "TASK-04",
+        &[
+            "title: \"Quarta | com barra\"",
+            "effort: critica",
+            "wave: 2",
+            "status: approved",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    let expected = "### Tarefas da SPEC-001
+
+| ID | Título | Persona | Perfil | Modelo | Onda | Status |
+|---|---|---|---|---|---|---|
+| TASK-01 | Primeira | desenvolvedor | mecanica | - | 1 | done |
+| TASK-02 | Segunda | arquiteto | julgamento | sonnet | 1 | in_progress |
+| TASK-03 | Terceira | qa | padrao | sonnet | 2 | approved |
+| TASK-04 | Quarta \\| com barra | - | julgamento | opus | 2 | approved |
+
+### Ondas da SPEC-001
+
+| Onda | Tarefas | Status |
+|---|---|---|
+| 1 | TASK-01, TASK-02 | in_progress |
+| 2 | TASK-03, TASK-04 | approved |
+";
+    assert_eq!(output, expected);
+}
+
+#[test]
+fn status_tasks_without_wave_use_the_dependencies() {
+    let project = Project::new();
+    status_task(&project, "TASK-01", &["title: \"A\"", "status: done"]);
+    status_task(
+        &project,
+        "TASK-02",
+        &["title: \"B\"", "depends_on: [TASK-01]", "status: pending"],
+    );
+    status_task(
+        &project,
+        "TASK-03",
+        &["title: \"C\"", "depends_on: [TASK-02]", "status: pending"],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    for (id, tail) in [
+        ("TASK-01", "| 1 | done |"),
+        ("TASK-02", "| 2 | pending |"),
+        ("TASK-03", "| 3 | pending |"),
+    ] {
+        let row = output
+            .lines()
+            .find(|l| l.starts_with(&format!("| {id} |")))
+            .unwrap();
+        assert!(row.ends_with(tail), "{row}");
+    }
+    for row in [
+        "| 1 | TASK-01 | done |",
+        "| 2 | TASK-02 | pending |",
+        "| 3 | TASK-03 | pending |",
+    ] {
+        assert!(output.contains(row), "{output}");
+    }
+}
+
+#[test]
+fn status_tasks_in_a_dependency_cycle_go_to_the_dash_wave() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "depends_on: [TASK-02]", "status: pending"],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &["title: \"B\"", "depends_on: [TASK-01]", "status: pending"],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    for id in ["TASK-01", "TASK-02"] {
+        let row = output
+            .lines()
+            .find(|l| l.starts_with(&format!("| {id} |")))
+            .unwrap();
+        assert!(row.ends_with("| - | pending |"), "{row}");
+    }
+    assert!(
+        output
+            .trim_end()
+            .ends_with("| - | TASK-01, TASK-02 | pending |"),
+        "{output}"
+    );
+}
+
+#[test]
+fn status_model_is_shown_only_when_recorded_or_suggested() {
+    let project = Project::new();
+    for (id, status) in [
+        ("TASK-01", "done"),
+        ("TASK-02", "in_progress"),
+        ("TASK-03", "pending"),
+        ("TASK-04", "approved"),
+    ] {
+        status_task(
+            &project,
+            id,
+            &[
+                "title: \"T\"",
+                "profile: padrao",
+                "wave: 1",
+                &format!("status: {status}"),
+            ],
+        );
+    }
+    let output = success_stdout(&mut status_run(&project));
+    for (id, model) in [
+        ("TASK-01", "-"),
+        ("TASK-02", "-"),
+        ("TASK-03", "sonnet"),
+        ("TASK-04", "sonnet"),
+    ] {
+        let row = output
+            .lines()
+            .find(|l| l.starts_with(&format!("| {id} |")))
+            .unwrap();
+        assert!(row.contains(&format!("| padrao | {model} | 1 |")), "{row}");
+    }
+}
+
+#[test]
+fn status_without_tool_shows_the_session_model() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &[
+            "title: \"Primeira\"",
+            "profile: padrao",
+            "wave: 1",
+            "status: approved",
+        ],
+    );
+    let main = read(&project, "vostok/config/main.yml");
+    let main: String = main
+        .lines()
+        .map(|line| {
+            if line.starts_with("  tool:") {
+                "  tool: \"\"".to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+    write(&project, "vostok/config/main.yml", &main);
+    let mut command = status_run(&project);
+    let assert = command.assert().success();
+    let output = assert.get_output();
+    let stdout = String::from_utf8(output.stdout.clone()).unwrap();
+    let stderr = String::from_utf8(output.stderr.clone()).unwrap();
+    assert!(stdout.contains("| modelo da sessão |"), "{stdout}");
+    assert!(
+        stderr.contains("Aviso: harness.tool vazio ou desconhecido"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn status_refuses_an_invalid_override() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &[
+            "title: \"Primeira\"",
+            "profile: julgamento",
+            "wave: 1",
+            "status: approved",
+        ],
+    );
+    set_overrides(&project, "  julgamento:\n    claude-code: \"Opus 4!\"");
+    let stderr = failure_stderr(&mut status_run(&project));
+    assert!(
+        stderr.contains("apelido inválido em config/models.yml"),
+        "{stderr}"
+    );
+}

@@ -145,6 +145,11 @@ fn task_before_baseline(files: &[(&str, &str)], evidence: &str) -> Project {
     project
 }
 
+/// Saída gravada numa evidência, sem o cabeçalho do log (até a primeira linha em branco).
+fn log_body(text: &str) -> &str {
+    text.split_once("\n\n").map_or(text, |(_, body)| body)
+}
+
 fn write(project: &Project, relative: &str, content: &str) {
     let path = project.root().join(relative);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -542,7 +547,7 @@ fn evidence_subitems_are_ignored_when_recording() {
         &project,
         "vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt",
     );
-    assert_eq!(evidence, "a\n");
+    assert_eq!(log_body(&evidence), "a\n");
 }
 
 // --- Evidências que só passam com a mudança (SPEC-014) ---
@@ -595,7 +600,10 @@ fn evidence_baseline_same_output_warns_and_passes() {
     );
     assert!(output.contains("- saida.txt: `cat valor.txt`"), "{output}");
     assert!(read(&project, TASK_PATH).contains("evidence_result: passed"));
-    assert_eq!(read(&project, &format!("{EVIDENCE_DIR}/saida.txt")), "a\n");
+    assert_eq!(
+        log_body(&read(&project, &format!("{EVIDENCE_DIR}/saida.txt"))),
+        "a\n"
+    );
 }
 
 #[test]
@@ -777,11 +785,11 @@ fn personal_paths_become_a_tilde_only_in_the_copy() {
     let project = validated_task("/Users/fulano/x e /home/beltrano/y\n");
     task(&project, &["persist"]).assert().success();
     assert_eq!(
-        read(&project, &format!("{PERSIST_DIR}/saida.txt")),
+        log_body(&read(&project, &format!("{PERSIST_DIR}/saida.txt"))),
         "~/x e ~/y\n"
     );
     assert_eq!(
-        read(&project, &format!("{EVIDENCE_DIR}/saida.txt")),
+        log_body(&read(&project, &format!("{EVIDENCE_DIR}/saida.txt"))),
         "/Users/fulano/x e /home/beltrano/y\n"
     );
 }
@@ -790,7 +798,8 @@ fn personal_paths_become_a_tilde_only_in_the_copy() {
 fn sensitive_data_blocks_the_copy_until_the_user_decides() {
     let project = validated_task("token: sk-abcdefghijklmnopqrstuvwx\n");
     let refused = failure_stderr(&mut task(&project, &["persist"]));
-    assert!(refused.contains("- saida.txt:1: segredo"), "{refused}");
+    // A linha 6 é a primeira da saída, depois das 5 linhas do cabeçalho do log.
+    assert!(refused.contains("- saida.txt:6: segredo"), "{refused}");
     assert!(
         refused.contains("- validation/regression/01.out:3: segredo"),
         "{refused}"
@@ -812,7 +821,7 @@ fn sensitive_data_blocks_the_copy_until_the_user_decides() {
     .assert()
     .success();
     assert_eq!(
-        read(&project, &format!("{PERSIST_DIR}/saida.txt")),
+        log_body(&read(&project, &format!("{PERSIST_DIR}/saida.txt"))),
         "token: [REDIGIDO]\n"
     );
     assert!(guide(&project).contains("redigido por decisão do usuário"));
@@ -847,7 +856,7 @@ fn ips_emails_and_cpfs_block_but_loopback_does_not() {
         let project = validated_task(value);
         let refused = failure_stderr(&mut task(&project, &["persist"]));
         assert!(
-            refused.contains(&format!("saida.txt:1: {kind}")),
+            refused.contains(&format!("saida.txt:6: {kind}")),
             "{value}: {refused}"
         );
     }
@@ -2184,7 +2193,7 @@ fn verify_label_evidence_is_copied_without_running_again() {
         "{output}"
     );
     assert_eq!(
-        read(&project, &format!("{EVIDENCE_DIR}/saida.txt")),
+        log_body(&read(&project, &format!("{EVIDENCE_DIR}/saida.txt"))),
         "rodou\n"
     );
     assert_eq!(counter_lines(&project), 1);
@@ -2350,4 +2359,160 @@ fn regression_reuses_nothing_without_passed_tests() {
     task(&project, &["tests"]).assert().failure();
     task(&project, &["regression"]).assert().success();
     assert_eq!(counter_lines(&project), 3);
+}
+
+// --- Evidência como log, Espera, diff e leitura do próprio texto (SPEC-020) ---
+
+fn automatic(name: &str, command: &str, expect: Option<&str>) -> String {
+    let mut item = format!("- `{name}` (automática): `{command}`\n  - Prova: o comando roda.\n  - Trecho: a saída.\n  - Falha: saída ausente.");
+    if let Some(text) = expect {
+        item.push_str(&format!("\n  - Espera: `{text}`"));
+    }
+    item
+}
+
+fn diff_item(name: &str, path: &str) -> String {
+    format!("- `{name}` (diff): `{path}`\n  - Prova: a mudança.\n  - Trecho: as linhas novas.\n  - Falha: diff vazio.")
+}
+
+/// Projeto git com `a.txt` commitado, tarefa em execução e a evidência dada.
+fn git_task(evidence: &str) -> Project {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], evidence);
+    git(project.root(), &["init", "-q"]);
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", "inicial"]);
+    project
+}
+
+#[test]
+fn evidence_log_starts_with_the_command_date_commit_and_exit_code() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", None),
+    );
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    let lines: Vec<&str> = log.lines().collect();
+    assert_eq!(lines[0], "$ echo ola", "{log}");
+    assert!(
+        lines[1].starts_with("# data: 20") && lines[1].ends_with('Z'),
+        "{log}"
+    );
+    assert_eq!(lines[2], "# commit: -", "{log}");
+    assert_eq!(lines[3], "# código de saída: 0", "{log}");
+    assert_eq!(lines[4], "", "{log}");
+    assert_eq!(lines[5], "ola", "{log}");
+}
+
+#[test]
+fn evidence_log_cites_the_commit_and_uncommitted_changes() {
+    let project = git_task(&automatic("saida.txt", "echo ola", None));
+    write(&project, "a.txt", "dois\n");
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    let commit = log.lines().nth(2).unwrap();
+    assert!(
+        commit.starts_with("# commit: ") && commit.ends_with(" (com mudanças não commitadas)"),
+        "{log}"
+    );
+}
+
+#[test]
+fn evidence_log_of_the_verification_has_the_labeled_command() {
+    let project = labeled_task("# evidência: saida.txt\necho um", &from_verify("saida.txt"));
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(log.starts_with("$ echo um\n# data: "), "{log}");
+    assert!(log.contains("# código de saída: 0\n\num\n"), "{log}");
+}
+
+#[test]
+fn evidence_expect_present_passes() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola mundo", Some("ola")),
+    );
+    task(&project, &["evidence"]).assert().success();
+}
+
+#[test]
+fn evidence_expect_missing_fails_with_the_evidence_and_the_text() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", Some("tchau")),
+    );
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("- saida.txt: texto esperado não encontrado: tchau"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn evidence_expect_does_not_look_at_the_header() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "true", Some("código de saída")),
+    );
+    task(&project, &["evidence"]).assert().failure();
+}
+
+#[test]
+fn evidence_diff_of_a_changed_file() {
+    let project = git_task(&diff_item("a.diff", "a.txt"));
+    write(&project, "a.txt", "dois\n");
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/a.diff"));
+    assert!(log.contains("-um\n+dois"), "{log}");
+}
+
+#[test]
+fn evidence_diff_of_a_new_untracked_file() {
+    let project = git_task(&diff_item("novo.diff", "novo.txt"));
+    write(&project, "novo.txt", "linha nova\n");
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/novo.diff"));
+    assert!(log.contains("+linha nova"), "{log}");
+}
+
+#[test]
+fn evidence_diff_without_changes_fails() {
+    let project = git_task(&diff_item("a.diff", "a.txt"));
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(stderr.contains("sem diferença em a.txt"), "{stderr}");
+}
+
+#[test]
+fn evidence_diff_outside_git_fails() {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &diff_item("a.diff", "a.txt"));
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(stderr.contains("fora de um repositório git"), "{stderr}");
+}
+
+#[test]
+fn evidence_reads_of_a_changed_path_are_refused() {
+    let stderr = refused(
+        "true",
+        &automatic("leitura.txt", "grep -n x novo.txt", None),
+    );
+    assert!(
+        stderr.contains("a evidência leitura.txt só lê 'novo.txt', que a tarefa muda"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn evidence_reads_of_other_files_are_accepted() {
+    let project = validated_labels(
+        "true",
+        &automatic("leitura.txt", "grep -n x README.md", None),
+    );
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+}
+
+#[test]
+fn evidence_diff_item_is_accepted_by_the_validation() {
+    let project = validated_labels("true", &diff_item("novo.diff", "novo.txt"));
+    success_stdout(&mut nested(&project, "adjust", "validate"));
 }

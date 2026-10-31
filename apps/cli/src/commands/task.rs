@@ -185,6 +185,10 @@ const VERIFY_TRAP: &str = "trap 'echo \"comando com falha (código $?): $BASH_CO
 /// Rótulo e tipo de evidência da verificação para projetos sem as chaves em `config/tasks.yml`.
 const DEFAULT_VERIFY_LABEL: &str = "# evidência:";
 const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
+const DEFAULT_EVIDENCE_DIFF: &str = "diff";
+const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
+/// Primeiras palavras de um comando que só lê arquivos: como evidência, não comprovam comportamento.
+const READING_COMMANDS: [&str; 6] = ["grep", "sed", "cat", "head", "tail", "awk"];
 
 /// Roteiro fixo do briefing; `<SPEC_ID>` e `<TASK_ID>` são trocados pelos IDs da tarefa.
 const BRIEF_ROUTE: &str = "1. Confira no registro abaixo a linha `baseline` e não mude nada sem ela.
@@ -428,6 +432,42 @@ impl Tasks {
             .unwrap_or_else(|_| DEFAULT_EVIDENCE_FROM_VERIFY.to_string())
     }
 
+    /// Tipo da evidência que grava o diff de um caminho (`evidence_diff`).
+    fn evidence_diff(&self) -> String {
+        self.cfg("evidence_diff")
+            .unwrap_or_else(|_| DEFAULT_EVIDENCE_DIFF.to_string())
+    }
+
+    /// Texto esperado na saída de cada evidência, pelo subitem `evidence_expect_field`.
+    fn evidence_expectations(&self, text: &str) -> HashMap<String, String> {
+        let field = self
+            .cfg("evidence_expect_field")
+            .unwrap_or_else(|_| DEFAULT_EVIDENCE_EXPECT.to_string());
+        let from_verify = self.evidence_from_verify();
+        let mut current: Option<String> = None;
+        let mut expectations = HashMap::new();
+        for line in text.lines().filter(|line| has_text(line)) {
+            if !is_indented(line) {
+                current = verify_evidence_name(line, &from_verify)
+                    .or_else(|| evidence_item(line).map(|(name, _, _)| name))
+                    .map(str::to_string);
+                continue;
+            }
+            let value = line
+                .trim()
+                .strip_prefix("- ")
+                .and_then(|rest| rest.strip_prefix(field.as_str()))
+                .and_then(|rest| rest.strip_prefix(": "))
+                .map(|rest| rest.trim().trim_matches('`'));
+            if let (Some(name), Some(value)) = (&current, value) {
+                if !value.is_empty() {
+                    expectations.insert(name.clone(), value.to_string());
+                }
+            }
+        }
+        expectations
+    }
+
     /// Rótulos do bloco da "Verificação" da tarefa.
     fn labels_of(&self, content: &str) -> Result<Vec<VerifyLabel>> {
         let block = verify_block(&self.subsection(content, "verify_subsection")?);
@@ -451,12 +491,21 @@ impl Tasks {
     }
 
     /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.
+    /// O subitem do texto esperado vale mesmo sem estar em `evidence_optional_fields`, que o
+    /// `vostok update` não completa em projetos antigos.
     fn evidence_fields(&self) -> Option<EvidenceFields> {
+        let mut optional = self
+            .cfg_list("evidence_optional_fields")
+            .unwrap_or_default();
+        let expect = self
+            .cfg("evidence_expect_field")
+            .unwrap_or_else(|_| DEFAULT_EVIDENCE_EXPECT.to_string());
+        if !optional.contains(&expect) {
+            optional.push(expect);
+        }
         Some(EvidenceFields {
             required: self.cfg_list("evidence_fields").ok()?,
-            optional: self
-                .cfg_list("evidence_optional_fields")
-                .unwrap_or_default(),
+            optional,
         })
     }
 
@@ -1461,7 +1510,8 @@ impl Tasks {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
         let dir = self.evidence_dir(&file)?;
-        let text = self.subsection(&read(&file)?, "evidence_subsection")?;
+        let content = read(&file)?;
+        let text = self.subsection(&content, "evidence_subsection")?;
         let items: Vec<&str> = text
             .lines()
             .filter(|line| has_text(line) && !is_indented(line))
@@ -1488,15 +1538,25 @@ impl Tasks {
         let mut missing = String::new();
         let mut failed = String::new();
         let from_verify = self.evidence_from_verify();
+        let diff = self.evidence_diff();
+        let expectations = self.evidence_expectations(&text);
+        let block = verify_block(&self.subsection(&content, "verify_subsection")?);
+        let labeled: HashMap<String, String> = labeled_commands(&block, &self.verify_label())
+            .into_iter()
+            .collect();
+        // Saída de cada evidência gravada, sem o cabeçalho, para conferir o texto esperado.
+        let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
         for item in &items {
             if let Some(name) = verify_evidence_name(item, &from_verify) {
                 if !is_valid_evidence_name(name) {
                     bail!("nome de evidência inválido: '{name}'");
                 }
-                if !self.copy_verify_output(&file, name)? {
-                    failed.push_str(&format!(
+                let command = labeled.get(name).map_or("", String::as_str);
+                match self.copy_verify_output(&file, name, command, &root)? {
+                    Some(output) => outputs.push((name.to_string(), output)),
+                    None => failed.push_str(&format!(
                         "- {name}: a evidência {name} vem da verificação; execute vostok task tests\n"
-                    ));
+                    )),
                 }
                 continue;
             }
@@ -1506,7 +1566,27 @@ impl Tasks {
                 bail!("nome de evidência inválido: '{name}'");
             }
             let target = dir.join(name);
-            if kind == automatic {
+            if kind == diff {
+                let path = rest
+                    .strip_prefix('`')
+                    .and_then(|rest| rest.strip_suffix('`'))
+                    .filter(|path| !path.is_empty())
+                    .ok_or_else(|| anyhow!("evidência diff sem caminho: {item}"))?;
+                match path_diff(path, &root)? {
+                    Ok((command, output)) => {
+                        let mut log = log_header(&command, 0, &root);
+                        log.extend_from_slice(&output);
+                        fs::write(&target, log)?;
+                        outputs.push((name.to_string(), output));
+                    }
+                    Err(problem) => {
+                        failed.push_str(&format!("- {name}: {problem}\n"));
+                        if target.exists() {
+                            fs::remove_file(&target)?;
+                        }
+                    }
+                }
+            } else if kind == automatic {
                 let command = rest
                     .strip_prefix('`')
                     .and_then(|rest| rest.strip_suffix('`'))
@@ -1529,7 +1609,10 @@ impl Tasks {
                             same.push((name.to_string(), command.to_string()));
                         }
                     }
-                    fs::write(&target, output)?;
+                    let mut log = log_header(command, code, &root);
+                    log.extend_from_slice(&output);
+                    fs::write(&target, log)?;
+                    outputs.push((name.to_string(), output));
                 } else {
                     failed.push_str(&format!(
                         "- {name}: `{command}` terminou com erro\n{}\n",
@@ -1544,6 +1627,15 @@ impl Tasks {
             }
         }
 
+        for (name, output) in &outputs {
+            if let Some(expected) = expectations.get(name) {
+                if !String::from_utf8_lossy(output).contains(expected.as_str()) {
+                    failed.push_str(&format!(
+                        "- {name}: texto esperado não encontrado: {expected}\n"
+                    ));
+                }
+            }
+        }
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
             bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
@@ -1585,20 +1677,30 @@ impl Tasks {
         Ok(())
     }
 
-    /// Copia para a evidência a saída do rótulo `name` gravada pelo `tests`, que só vale com os
-    /// testes aprovados (RN-04). Sem ela, apaga a evidência antiga e devolve `false`.
-    fn copy_verify_output(&self, file: &Path, name: &str) -> Result<bool> {
+    /// Grava na evidência, como log do comando rotulado, a saída do rótulo `name` gravada pelo
+    /// `tests`, que só vale com os testes aprovados (RN-04), e devolve a saída. Sem ela, apaga a
+    /// evidência antiga e devolve `None`.
+    fn copy_verify_output(
+        &self,
+        file: &Path,
+        name: &str,
+        command: &str,
+        root: &Path,
+    ) -> Result<Option<Vec<u8>>> {
         let target = self.evidence_dir(file)?.join(name);
         let tests_passed = frontmatter_get(file, "tests_result").unwrap_or_default() == "passed";
         let output = self.verify_dir(file)?.join(name);
         if tests_passed && output.is_file() {
-            fs::copy(&output, &target)?;
-            return Ok(true);
+            let output = fs::read(&output)?;
+            let mut log = log_header(command, 0, root);
+            log.extend_from_slice(&output);
+            fs::write(&target, log)?;
+            return Ok(Some(output));
         }
         if target.exists() {
             fs::remove_file(&target)?;
         }
-        Ok(false)
+        Ok(None)
     }
 
     // --- finish e resume ---
@@ -2413,6 +2515,11 @@ impl Tasks {
         // Nome final de cada item, com o nome escrito quando ele tem caminho.
         let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
         let from_verify = self.evidence_from_verify();
+        let diff = self.evidence_diff();
+        let changed: Vec<String> = change_items(&self.subsection(content, "change_subsection")?)
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
         let mut verify_names = Vec::new();
         for item in text
             .lines()
@@ -2425,8 +2532,23 @@ impl Tasks {
                 if !is_valid_evidence_name(name) {
                     errors.push(format!("'{sub}' com nome de evidência inválido: `{name}` (o nome é só o nome do arquivo, sem caminho, sem começar por '.' e diferente de 'baseline' e 'validation'): {item}"));
                 }
+            } else if is_diff_evidence(item, &diff) {
+                count += 1;
+                let name = evidence_item(item).map_or("", |(name, _, _)| name);
+                finals.push((name, None));
+                errors.extend(
+                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                );
             } else if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
+                if let Some((name, _, rest)) =
+                    evidence_item(item).filter(|_| is_automatic_evidence(item, &automatic))
+                {
+                    let command = rest.trim_matches('`');
+                    if let Some(path) = read_of_changed_path(command, &changed) {
+                        errors.push(format!("'{sub}': a evidência {name} só lê '{path}', que a tarefa muda; use - `{name}.diff` ({diff}): `{path}` ou uma evidência de comportamento"));
+                    }
+                }
                 let name = evidence_item(item).map_or("", |(name, _, _)| name);
                 match normalized_evidence_name(item) {
                     Some(normalized) if names == EvidenceNames::Normalizable => {
@@ -2441,7 +2563,7 @@ impl Tasks {
                     }
                 }
             } else {
-                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}) ou - `arquivo` ({manual}): descrição)"));
+                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}), - `arquivo` ({diff}): `caminho` ou - `arquivo` ({manual}): descrição)"));
             }
         }
         errors.extend(self.label_errors(content, &verify_names)?);
@@ -3142,6 +3264,88 @@ fn verify_evidence_name<'a>(line: &'a str, from_verify: &str) -> Option<&'a str>
     let (name, rest) = quoted_name(line.strip_prefix("- ")?)?;
     let kind = rest.strip_prefix(" (")?.strip_suffix(')')?;
     (kind == from_verify).then_some(name)
+}
+
+/// Item "- `arquivo` (diff): `caminho`".
+fn is_diff_evidence(line: &str, diff: &str) -> bool {
+    evidence_kind_and_rest(line, diff)
+        .and_then(quoted_name)
+        .is_some_and(|(_, rest)| rest.is_empty())
+}
+
+/// Caminho de "Mudar" que um comando de leitura (`grep`, `sed`, `cat`...) cita, se houver.
+fn read_of_changed_path<'a>(command: &str, changed: &'a [String]) -> Option<&'a str> {
+    let first = command.split_whitespace().next()?;
+    if !READING_COMMANDS.contains(&first) {
+        return None;
+    }
+    changed
+        .iter()
+        .find(|path| cites_path(command, path))
+        .map(String::as_str)
+}
+
+/// Cabeçalho do log de uma evidência: o comando, a data, o commit (com a marca de mudanças não
+/// commitadas) e o código de saída, seguido de uma linha em branco.
+fn log_header(command: &str, code: i32, root: &Path) -> Vec<u8> {
+    let commit = git_text(root, &["rev-parse", "--short", "HEAD"]).map_or_else(
+        || "-".to_string(),
+        |hash| {
+            let dirty =
+                git_text(root, &["status", "--porcelain"]).is_some_and(|out| !out.is_empty());
+            if dirty {
+                format!("{hash} (com mudanças não commitadas)")
+            } else {
+                hash
+            }
+        },
+    );
+    format!(
+        "$ {command}\n# data: {}\n# commit: {commit}\n# código de saída: {code}\n\n",
+        utc_now()
+    )
+    .into_bytes()
+}
+
+/// Saída de um comando `git` sem erro, sem os espaços das pontas.
+fn git_text(root: &Path, args: &[&str]) -> Option<String> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Diff de `path` contra o `HEAD`, ou do conteúdo inteiro quando o arquivo não é rastreado: o
+/// comando usado e a saída, ou o problema que impede o diff.
+fn path_diff(path: &str, root: &Path) -> Result<std::result::Result<(String, Vec<u8>), String>> {
+    if git_text(root, &["rev-parse", "--is-inside-work-tree"]).is_none() {
+        return Ok(Err(format!(
+            "fora de um repositório git; sem diff de {path}"
+        )));
+    }
+    let tracked = git_text(root, &["ls-files", "--error-unmatch", "--", path]).is_some();
+    let command = if tracked {
+        format!("git diff HEAD -- {}", shell_quoted(path))
+    } else {
+        format!("git diff --no-index -- /dev/null {}", shell_quoted(path))
+    };
+    // Com `--no-index`, o código 1 indica que há diferença.
+    let (code, output) = shell_output(&command, root)?;
+    if code > 1 || (tracked && code != 0) {
+        return Ok(Err(format!(
+            "`{command}` terminou com erro (código {code})"
+        )));
+    }
+    if output.is_empty() {
+        return Ok(Err(format!("sem diferença em {path}")));
+    }
+    Ok(Ok((command, output)))
 }
 
 /// Rótulo da "Verificação": o nome do arquivo, o índice da linha do rótulo no bloco e quantas

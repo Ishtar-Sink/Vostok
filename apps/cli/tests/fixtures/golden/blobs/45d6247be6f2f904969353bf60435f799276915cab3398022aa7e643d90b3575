@@ -1,0 +1,7 @@
+$ echo ok; ls AGENTS.md
+# data: 2026-10-31T12:00:00Z
+# commit: 1690604 (com mudanças não commitadas)
+# código de saída: 0
+
+ok
+AGENTS.md

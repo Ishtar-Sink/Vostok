@@ -176,6 +176,10 @@ evidence_manual: manual
 verify_label: "# evidência:"
 # Tipo da evidência sem comando ("- `arquivo` (automática, da verificação)"), copiada da saída do rótulo.
 evidence_from_verify: "automática, da verificação"
+# Tipo da evidência que grava o diff de um caminho ("- `arquivo` (diff): `caminho`"), inclusive de arquivo novo.
+evidence_diff: diff
+# Subitem opcional com um texto que o vostok task evidence procura na saída da evidência.
+evidence_expect_field: Espera
 evidence_none: Não se aplica.
 
 # Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a
@@ -187,6 +191,7 @@ evidence_fields:
   - Falha
 evidence_optional_fields:
   - Artefato
+  - Espera
 
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples

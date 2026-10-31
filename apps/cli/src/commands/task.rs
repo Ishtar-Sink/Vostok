@@ -1201,6 +1201,22 @@ impl Tasks {
         Ok(())
     }
 
+    /// Saída gravada de cada comando rotulado, pelo texto do comando, só com os testes aprovados.
+    fn labeled_outputs(&self, file: &Path, content: &str) -> Result<HashMap<String, Vec<u8>>> {
+        let mut outputs = HashMap::new();
+        if frontmatter_get(file, "tests_result").unwrap_or_default() != "passed" {
+            return Ok(outputs);
+        }
+        let block = verify_block(&self.subsection(content, "verify_subsection")?);
+        let dir = self.verify_dir(file)?;
+        for (name, command) in labeled_commands(&block, &self.verify_label()) {
+            if let Ok(output) = fs::read(dir.join(&name)) {
+                outputs.insert(command, output);
+            }
+        }
+        Ok(outputs)
+    }
+
     /// Pasta com a saída de cada comando rotulado da "Verificação".
     fn verify_dir(&self, file: &Path) -> Result<PathBuf> {
         Ok(self.evidence_dir(file)?.join("validation/verify"))
@@ -1331,7 +1347,9 @@ impl Tasks {
         if !base.is_dir() {
             bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
         }
-        let commands = self.baseline_commands(&read(&file)?)?;
+        let content = read(&file)?;
+        let commands = self.baseline_commands(&content)?;
+        let reused = self.labeled_outputs(&file, &content)?;
         let dir = evidence.join("validation/regression");
         clear_regression_outputs(&dir)?;
         let accepted = latest_acceptances(&dir);
@@ -1350,7 +1368,15 @@ impl Tasks {
         for (index, command) in commands.iter().enumerate() {
             let number = index + 1;
             let name = output_name(number);
-            let (code, output) = recorded_run(command, &root)?;
+            // Comando idêntico a um rotulado da Verificação aprovada: usa a saída já gravada.
+            let (code, output) = match reused.get(command.trim()) {
+                Some(saved) => {
+                    let mut record = format!("$ {command}\nexit: 0\n").into_bytes();
+                    record.extend_from_slice(saved);
+                    (0, record)
+                }
+                None => recorded_run(command, &root)?,
+            };
             let current = dir.join(&name);
             fs::write(&current, &output)?;
             if let Some(path) = delivery.iter().find(|path| cites_path(command, path)) {
@@ -3140,6 +3166,20 @@ fn verify_labels(block: &str, label: &str) -> Vec<VerifyLabel> {
                 line: index,
                 command_lines: command_lines_after(&lines, index),
             })
+        })
+        .collect()
+}
+
+/// `(arquivo, comando)` de cada rótulo com comando; um comando em várias linhas não é reaproveitado
+/// pela regressão, cujos comandos têm uma linha só, e fica com as linhas unidas por `\n`.
+fn labeled_commands(block: &str, label: &str) -> Vec<(String, String)> {
+    let lines: Vec<&str> = block.lines().collect();
+    verify_labels(block, label)
+        .into_iter()
+        .filter(|item| item.command_lines > 0 && is_valid_evidence_name(&item.name))
+        .map(|item| {
+            let command = lines[item.line + 1..=item.line + item.command_lines].join("\n");
+            (item.name, command.trim().to_string())
         })
         .collect()
 }

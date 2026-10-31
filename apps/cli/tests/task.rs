@@ -2307,3 +2307,47 @@ fn verify_label_with_an_invalid_name_is_refused() {
         "{stderr}"
     );
 }
+
+// --- Regressão que reaproveita a saída da Verificação (SPEC-020) ---
+
+const COUNTED: &str = "echo x >> contador.txt && cat valor.txt";
+
+/// Tarefa em execução cujo único comando de Baseline incrementa `contador.txt`, com a
+/// Verificação informada e o baseline já coletado (contador em 1).
+fn reused_task(verification: &str) -> Project {
+    let project = task_before_baseline(&[("valor.txt", "a\n")], &from_verify("saida.txt"));
+    let content = read(&project, TASK_PATH).replace("- `cat valor.txt`", &format!("- `{COUNTED}`"));
+    write(&project, TASK_PATH, &content);
+    set_verification(&project, verification);
+    task(&project, &["baseline"]).assert().success();
+    project
+}
+
+#[test]
+fn regression_reuses_the_output_of_an_identical_labeled_command() {
+    let project = reused_task(&format!("# evidência: saida.txt\n  {COUNTED}  "));
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(counter_lines(&project), 2);
+    let stdout = success_stdout(&mut task(&project, &["regression"]));
+    assert!(
+        stdout.contains("1 comando(s) iguais ao baseline"),
+        "{stdout}"
+    );
+    assert_eq!(counter_lines(&project), 2);
+}
+
+#[test]
+fn regression_reuses_nothing_for_a_different_command() {
+    let project = reused_task("# evidência: saida.txt\necho x >> contador.txt &&  cat valor.txt");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    assert_eq!(counter_lines(&project), 3);
+}
+
+#[test]
+fn regression_reuses_nothing_without_passed_tests() {
+    let project = reused_task(&format!("# evidência: saida.txt\n{COUNTED}\nfalse"));
+    task(&project, &["tests"]).assert().failure();
+    task(&project, &["regression"]).assert().success();
+    assert_eq!(counter_lines(&project), 3);
+}

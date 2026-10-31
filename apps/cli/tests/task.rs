@@ -2087,3 +2087,223 @@ fn max_subagents_is_shown_and_invalid_values_warn() {
         "{out}"
     );
 }
+
+// --- Rótulos de evidência na Verificação (SPEC-020) ---
+
+const VERIFY_DIR: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/validation/verify";
+
+fn from_verify(name: &str) -> String {
+    format!("- `{name}` (automática, da verificação)\n  - Prova: o comando roda.\n  - Trecho: a saída.\n  - Falha: saída ausente.")
+}
+
+/// Tarefa em execução, com o baseline coletado, as evidências dadas e a Verificação informada.
+fn labeled_task(verification: &str, evidence: &str) -> Project {
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], evidence);
+    set_verification(&project, verification);
+    project
+}
+
+fn counter_lines(project: &Project) -> usize {
+    read(project, "contador.txt").lines().count()
+}
+
+#[test]
+fn verify_label_records_each_labeled_output_running_the_block_once() {
+    let evidence = format!(
+        "{}\n{}",
+        from_verify("primeira.txt"),
+        from_verify("segunda.txt")
+    );
+    let project = labeled_task(
+        "echo rodou >> contador.txt\n# evidência: primeira.txt\necho um\necho fora\n# evidência: segunda.txt\necho dois >&2",
+        &evidence,
+    );
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(
+        read(&project, &format!("{VERIFY_DIR}/primeira.txt")),
+        "um\n"
+    );
+    assert_eq!(
+        read(&project, &format!("{VERIFY_DIR}/segunda.txt")),
+        "dois\n"
+    );
+    assert_eq!(counter_lines(&project), 1);
+    let output = read(&project, &format!("{EVIDENCE_DIR}/validation/tests.out"));
+    assert_eq!(output, "um\nfora\ndois\n");
+}
+
+#[test]
+fn verify_label_clears_old_outputs_before_running() {
+    let project = labeled_task("# evidência: saida.txt\necho um", &from_verify("saida.txt"));
+    write(&project, &format!("{VERIFY_DIR}/antiga.txt"), "velha\n");
+    task(&project, &["tests"]).assert().success();
+    assert!(!exists(&project, &format!("{VERIFY_DIR}/antiga.txt")));
+    assert_eq!(read(&project, &format!("{VERIFY_DIR}/saida.txt")), "um\n");
+}
+
+#[test]
+fn verify_label_covers_a_command_continued_with_backslash() {
+    let project = labeled_task(
+        "# evidência: saida.txt\necho um \\\n  dois \\\n  tres\necho fora",
+        &from_verify("saida.txt"),
+    );
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(
+        read(&project, &format!("{VERIFY_DIR}/saida.txt")),
+        "um dois tres\n"
+    );
+}
+
+#[test]
+fn verify_label_keeps_the_exit_code_of_the_labeled_command() {
+    let project = labeled_task(
+        "# evidência: saida.txt\nbash -c 'exit 3'\necho depois",
+        &from_verify("saida.txt"),
+    );
+    task(&project, &["tests"]).assert().failure();
+    let output = read(&project, &format!("{EVIDENCE_DIR}/validation/tests.out"));
+    assert!(!output.contains("depois"), "{output}");
+    assert!(
+        output.contains("comando com falha (código 3): bash -c 'exit 3'"),
+        "{output}"
+    );
+    assert!(read(&project, TASK_PATH).contains("tests_result: failed"));
+}
+
+#[test]
+fn verify_label_evidence_is_copied_without_running_again() {
+    let project = labeled_task(
+        "# evidência: saida.txt\necho rodou >> contador.txt && cat contador.txt",
+        &from_verify("saida.txt"),
+    );
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let output = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        output.contains("1 item(ns). Resultado: passed."),
+        "{output}"
+    );
+    assert_eq!(
+        read(&project, &format!("{EVIDENCE_DIR}/saida.txt")),
+        "rodou\n"
+    );
+    assert_eq!(counter_lines(&project), 1);
+    assert!(read(&project, TASK_PATH).contains("evidence_result: passed"));
+}
+
+#[test]
+fn verify_label_evidence_fails_when_the_tests_failed() {
+    let project = labeled_task(
+        "false\n# evidência: saida.txt\necho um",
+        &from_verify("saida.txt"),
+    );
+    task(&project, &["tests"]).assert().failure();
+    assert!(!exists(&project, &format!("{VERIFY_DIR}/saida.txt")));
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("a evidência saida.txt vem da verificação; execute vostok task tests"),
+        "{stderr}"
+    );
+    assert!(!exists(&project, &format!("{EVIDENCE_DIR}/saida.txt")));
+}
+
+#[test]
+fn verify_label_evidence_fails_without_the_label_output() {
+    let project = labeled_task("# evidência: saida.txt\necho um", &from_verify("saida.txt"));
+    task(&project, &["tests"]).assert().success();
+    std::fs::remove_file(project.root().join(format!("{VERIFY_DIR}/saida.txt"))).unwrap();
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("a evidência saida.txt vem da verificação; execute vostok task tests"),
+        "{stderr}"
+    );
+}
+
+/// Tarefa pendente e completa com a Verificação e as evidências informadas.
+fn validated_labels(verification: &str, evidence: &str) -> Project {
+    let project = task_with_evidence("pending", evidence);
+    set_verification(&project, verification);
+    project
+}
+
+fn refused(verification: &str, evidence: &str) -> String {
+    let project = validated_labels(verification, evidence);
+    failure_stderr(&mut nested(&project, "adjust", "validate"))
+}
+
+#[test]
+fn verify_label_with_its_evidence_is_accepted() {
+    let project = validated_labels(
+        "# evidência: saida.txt\ncargo test \\\n  --test task",
+        &from_verify("saida.txt"),
+    );
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+}
+
+#[test]
+fn verify_label_without_evidence_is_refused() {
+    let stderr = refused(
+        "# evidência: orfao.txt\necho um",
+        "- `notas.md` (manual): conferir a tela.",
+    );
+    assert!(
+        stderr.contains("rótulo `# evidência: orfao.txt` sem a evidência `orfao.txt` (automática, da verificação)"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn verify_label_evidence_without_label_is_refused() {
+    let stderr = refused("echo um", &from_verify("saida.txt"));
+    assert!(
+        stderr.contains("evidência `saida.txt` (automática, da verificação) sem o rótulo `# evidência: saida.txt`"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn verify_label_without_a_command_is_refused() {
+    for verification in [
+        "# evidência: saida.txt\n\necho um",
+        "# evidência: saida.txt\n# comentário\necho um",
+        "echo um\n# evidência: saida.txt",
+    ] {
+        let stderr = refused(verification, &from_verify("saida.txt"));
+        assert!(
+            stderr.contains("rótulo `# evidência: saida.txt` sem comando na linha seguinte"),
+            "{verification}\n{stderr}"
+        );
+    }
+}
+
+#[test]
+fn verify_label_repeated_is_refused() {
+    let stderr = refused(
+        "# evidência: saida.txt\necho um\n# evidência: saida.txt\necho dois",
+        &from_verify("saida.txt"),
+    );
+    assert!(
+        stderr.contains("rótulo `# evidência: saida.txt` repetido"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn verify_label_with_an_invalid_name_is_refused() {
+    let stderr = refused(
+        "# evidência: ../fora.txt\necho um",
+        "- `notas.md` (manual): conferir a tela.",
+    );
+    assert!(
+        stderr.contains("rótulo `# evidência: ../fora.txt` com nome de arquivo inválido"),
+        "{stderr}"
+    );
+    let stderr = refused(
+        "# evidência:\necho um",
+        "- `notas.md` (manual): conferir a tela.",
+    );
+    assert!(
+        stderr.contains("rótulo `# evidência:` sem o nome do arquivo"),
+        "{stderr}"
+    );
+}

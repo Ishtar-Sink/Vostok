@@ -172,6 +172,10 @@ baseline_subsection: Baseline
 evidence_subsection: Evidências
 evidence_automatic: automática
 evidence_manual: manual
+# Rótulo na "Verificação": a linha "# evidência: <arquivo>" liga o comando logo abaixo à evidência de mesmo nome.
+verify_label: "# evidência:"
+# Tipo da evidência sem comando ("- `arquivo` (automática, da verificação)"), copiada da saída do rótulo.
+evidence_from_verify: "automática, da verificação"
 evidence_none: Não se aplica.
 
 # Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a

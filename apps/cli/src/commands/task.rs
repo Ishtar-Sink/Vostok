@@ -178,10 +178,13 @@ const COMPONENT_ACTIONS: [&str; 3] = ["criar", "alterar", "remover"];
 const CREATE_ACTION: &str = "criar";
 const ALTER_ACTION: &str = "alterar";
 
-/// Trecho executado antes da "Verificação": o trap registra o comando que falhou, já que muitos
-/// comandos de teste falham sem imprimir nada.
-const VERIFY_PRELUDE: &str =
-    "set -eo pipefail; trap 'echo \"comando com falha (código $?): $BASH_COMMAND\"' ERR";
+/// Trap da "Verificação": registra o comando que falhou, já que muitos comandos de teste falham sem
+/// imprimir nada.
+const VERIFY_TRAP: &str = "trap 'echo \"comando com falha (código $?): $BASH_COMMAND\"' ERR";
+
+/// Rótulo e tipo de evidência da verificação para projetos sem as chaves em `config/tasks.yml`.
+const DEFAULT_VERIFY_LABEL: &str = "# evidência:";
+const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 
 /// Roteiro fixo do briefing; `<SPEC_ID>` e `<TASK_ID>` são trocados pelos IDs da tarefa.
 const BRIEF_ROUTE: &str = "1. Confira no registro abaixo a linha `baseline` e não mude nada sem ela.
@@ -411,6 +414,24 @@ impl Tasks {
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
+    }
+
+    /// Início da linha que rotula um comando da "Verificação" (`verify_label`).
+    fn verify_label(&self) -> String {
+        self.cfg("verify_label")
+            .unwrap_or_else(|_| DEFAULT_VERIFY_LABEL.to_string())
+    }
+
+    /// Tipo da evidência copiada da saída de um rótulo (`evidence_from_verify`).
+    fn evidence_from_verify(&self) -> String {
+        self.cfg("evidence_from_verify")
+            .unwrap_or_else(|_| DEFAULT_EVIDENCE_FROM_VERIFY.to_string())
+    }
+
+    /// Rótulos do bloco da "Verificação" da tarefa.
+    fn labels_of(&self, content: &str) -> Result<Vec<VerifyLabel>> {
+        let block = verify_block(&self.subsection(content, "verify_subsection")?);
+        Ok(verify_labels(&block, &self.verify_label()))
     }
 
     /// `(nome, comando)` das evidências automáticas de "Evidências", pela leitura do `evidence`.
@@ -1180,6 +1201,30 @@ impl Tasks {
         Ok(())
     }
 
+    /// Pasta com a saída de cada comando rotulado da "Verificação".
+    fn verify_dir(&self, file: &Path) -> Result<PathBuf> {
+        Ok(self.evidence_dir(file)?.join("validation/verify"))
+    }
+
+    /// Apaga as saídas de rótulos anteriores e devolve o bloco que grava a saída de cada comando
+    /// rotulado em `validation/verify/`; a pasta só é criada quando há rótulo.
+    fn block_recording_labels(&self, file: &Path, block: &str) -> Result<String> {
+        let verify_dir = self.verify_dir(file)?;
+        if verify_dir.exists() {
+            fs::remove_dir_all(&verify_dir)?;
+        }
+        let labels = verify_labels(block, &self.verify_label());
+        if labels.is_empty() {
+            return Ok(block.to_string());
+        }
+        fs::create_dir_all(&verify_dir)?;
+        Ok(labeled_block(
+            block,
+            &labels,
+            &fs::canonicalize(&verify_dir)?,
+        ))
+    }
+
     /// Executa o bloco da "Verificação" e grava a saída em `validation/<name>`.
     fn run_verification(&self, file: &Path, block: &str, name: &str) -> Result<(i32, PathBuf)> {
         let dir = self.evidence_dir(file)?.join("validation");
@@ -1188,7 +1233,7 @@ impl Tasks {
         let output = File::create(&output_path)?;
         let status = Command::new("bash")
             .arg("-c")
-            .arg(format!("{VERIFY_PRELUDE}\n{block}"))
+            .arg(format!("set -eo pipefail; {VERIFY_TRAP}\n{block}"))
             .current_dir(self.project_root()?)
             .stdin(Stdio::null())
             .stdout(output.try_clone()?)
@@ -1235,6 +1280,7 @@ impl Tasks {
                 self.cfg("verify_subsection")?
             );
         }
+        let block = self.block_recording_labels(&file, &block)?;
         let (code, output_path) = self.run_verification(&file, &block, "tests.out")?;
         let validating = &self.status.validating;
 
@@ -1415,7 +1461,19 @@ impl Tasks {
         let mut same: Vec<(String, String)> = Vec::new();
         let mut missing = String::new();
         let mut failed = String::new();
+        let from_verify = self.evidence_from_verify();
         for item in &items {
+            if let Some(name) = verify_evidence_name(item, &from_verify) {
+                if !is_valid_evidence_name(name) {
+                    bail!("nome de evidência inválido: '{name}'");
+                }
+                if !self.copy_verify_output(&file, name)? {
+                    failed.push_str(&format!(
+                        "- {name}: a evidência {name} vem da verificação; execute vostok task tests\n"
+                    ));
+                }
+                continue;
+            }
             let (name, kind, rest) = evidence_item(item)
                 .ok_or_else(|| anyhow!("item de evidência fora do formato: {item}"))?;
             if !is_valid_evidence_name(name) {
@@ -1499,6 +1557,22 @@ impl Tasks {
         );
         print_same_as_baseline(&same);
         Ok(())
+    }
+
+    /// Copia para a evidência a saída do rótulo `name` gravada pelo `tests`, que só vale com os
+    /// testes aprovados (RN-04). Sem ela, apaga a evidência antiga e devolve `false`.
+    fn copy_verify_output(&self, file: &Path, name: &str) -> Result<bool> {
+        let target = self.evidence_dir(file)?.join(name);
+        let tests_passed = frontmatter_get(file, "tests_result").unwrap_or_default() == "passed";
+        let output = self.verify_dir(file)?.join(name);
+        if tests_passed && output.is_file() {
+            fs::copy(&output, &target)?;
+            return Ok(true);
+        }
+        if target.exists() {
+            fs::remove_file(&target)?;
+        }
+        Ok(false)
     }
 
     // --- finish e resume ---
@@ -2312,11 +2386,20 @@ impl Tasks {
         let mut count = 0;
         // Nome final de cada item, com o nome escrito quando ele tem caminho.
         let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
+        let from_verify = self.evidence_from_verify();
+        let mut verify_names = Vec::new();
         for item in text
             .lines()
             .filter(|line| has_text(line) && !is_indented(line))
         {
-            if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
+            if let Some(name) = verify_evidence_name(item, &from_verify) {
+                count += 1;
+                finals.push((name, None));
+                verify_names.push(name);
+                if !is_valid_evidence_name(name) {
+                    errors.push(format!("'{sub}' com nome de evidência inválido: `{name}` (o nome é só o nome do arquivo, sem caminho, sem começar por '.' e diferente de 'baseline' e 'validation'): {item}"));
+                }
+            } else if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
                 let name = evidence_item(item).map_or("", |(name, _, _)| name);
                 match normalized_evidence_name(item) {
@@ -2332,9 +2415,10 @@ impl Tasks {
                     }
                 }
             } else {
-                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando` ou - `arquivo` ({manual}): descrição)"));
+                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}) ou - `arquivo` ({manual}): descrição)"));
             }
         }
+        errors.extend(self.label_errors(content, &verify_names)?);
         if count == 0 {
             errors.push(format!(
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
@@ -2347,6 +2431,53 @@ impl Tasks {
         );
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), false));
+        Ok(errors)
+    }
+
+    /// Rótulos da "Verificação" conferidos contra as evidências da verificação: cada rótulo tem
+    /// nome válido, um comando logo abaixo, não se repete e tem a sua evidência, e cada evidência
+    /// da verificação tem o seu rótulo.
+    fn label_errors(&self, content: &str, verify_names: &[&str]) -> Result<Vec<String>> {
+        let label = self.verify_label();
+        let from_verify = self.evidence_from_verify();
+        let verify = self.cfg("verify_subsection")?;
+        let labels = self.labels_of(content)?;
+        let mut errors = Vec::new();
+        let mut seen = HashSet::new();
+        for VerifyLabel {
+            name,
+            command_lines,
+            ..
+        } in &labels
+        {
+            let written = format!("`{label} {name}`");
+            if name.is_empty() {
+                errors.push(format!(
+                    "'{verify}' com rótulo `{label}` sem o nome do arquivo"
+                ));
+                continue;
+            }
+            if !is_valid_evidence_name(name) {
+                errors.push(format!("'{verify}' com rótulo {written} com nome de arquivo inválido (só o nome do arquivo, sem caminho)"));
+            }
+            if *command_lines == 0 {
+                errors.push(format!(
+                    "'{verify}' com rótulo {written} sem comando na linha seguinte"
+                ));
+            }
+            if !seen.insert(name.as_str()) {
+                errors.push(format!("'{verify}' com rótulo {written} repetido"));
+            } else if !verify_names.contains(&name.as_str()) {
+                errors.push(format!(
+                    "'{verify}' com rótulo {written} sem a evidência `{name}` ({from_verify})"
+                ));
+            }
+        }
+        for name in verify_names {
+            if !labels.iter().any(|label| label.name == *name) {
+                errors.push(format!("evidência `{name}` ({from_verify}) sem o rótulo `{label} {name}` na '{verify}'"));
+            }
+        }
         Ok(errors)
     }
 
@@ -2978,6 +3109,83 @@ fn quoted(line: &str) -> Option<&str> {
     (rest.len() < line.len())
         .then_some(rest)?
         .strip_prefix("> ")
+}
+
+/// Nome de uma evidência da verificação ("- `arquivo` (tipo)"), sem comando.
+fn verify_evidence_name<'a>(line: &'a str, from_verify: &str) -> Option<&'a str> {
+    let (name, rest) = quoted_name(line.strip_prefix("- ")?)?;
+    let kind = rest.strip_prefix(" (")?.strip_suffix(')')?;
+    (kind == from_verify).then_some(name)
+}
+
+/// Rótulo da "Verificação": o nome do arquivo, o índice da linha do rótulo no bloco e quantas
+/// linhas tem o comando logo abaixo (zero quando não há comando).
+struct VerifyLabel {
+    name: String,
+    line: usize,
+    command_lines: usize,
+}
+
+/// Rótulos do bloco: a linha que começa por `label` liga o comando da linha seguinte, que
+/// continua enquanto a linha termina em `\`.
+fn verify_labels(block: &str, label: &str) -> Vec<VerifyLabel> {
+    let lines: Vec<&str> = block.lines().collect();
+    lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let name = line.trim().strip_prefix(label)?.trim();
+            Some(VerifyLabel {
+                name: name.to_string(),
+                line: index,
+                command_lines: command_lines_after(&lines, index),
+            })
+        })
+        .collect()
+}
+
+/// Linhas do comando que começa logo depois de `index`; zero se a linha seguinte estiver vazia,
+/// for comentário ou não existir.
+fn command_lines_after(lines: &[&str], index: usize) -> usize {
+    let starts = lines
+        .get(index + 1)
+        .is_some_and(|line| has_text(line) && !line.trim_start().starts_with('#'));
+    if !starts {
+        return 0;
+    }
+    let mut count = 0;
+    for line in &lines[index + 1..] {
+        count += 1;
+        if !line.trim_end().ends_with('\\') {
+            break;
+        }
+    }
+    count
+}
+
+/// Bloco com a saída de cada comando rotulado gravada também em `dir/<arquivo>`. O pipe para o
+/// `tee` mantém a ordem da saída e, com o `pipefail`, o código de saída do comando; o trap dentro
+/// do grupo registra o comando que falhou, já que fora dele o `$BASH_COMMAND` seria o `tee`.
+fn labeled_block(block: &str, labels: &[VerifyLabel], dir: &Path) -> String {
+    let mut lines: Vec<String> = block.lines().map(str::to_string).collect();
+    for label in labels {
+        if label.command_lines == 0 || label.name.is_empty() || !is_valid_evidence_name(&label.name)
+        {
+            continue;
+        }
+        let first = label.line + 1;
+        let last = label.line + label.command_lines;
+        let target = shell_quoted(&dir.join(&label.name).to_string_lossy());
+        lines[first] = format!("{{ {VERIFY_TRAP}; {}", lines[first]);
+        // O fechamento vai na linha seguinte para valer mesmo com um comentário no fim do comando.
+        lines[last] = format!("{}\n}} 2>&1 | tee {target}", lines[last]);
+    }
+    lines.join("\n")
+}
+
+/// Texto entre aspas simples para o shell.
+fn shell_quoted(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 /// Comandos do primeiro bloco `bash` do texto.

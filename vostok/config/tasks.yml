@@ -221,3 +221,19 @@ coverage_optional:
 
 # Subagentes ao mesmo tempo numa onda da execute-task, de 1 a 6.
 max_subagents: 3
+
+# Rótulo na "Verificação": a linha "# evidência: <arquivo>" liga o comando logo abaixo à evidência de mesmo nome.
+verify_label: "# evidência:"
+
+# Tipo da evidência sem comando ("- `arquivo` (automática, da verificação)"), copiada da saída do rótulo.
+evidence_from_verify: "automática, da verificação"
+
+# Tipo da evidência que grava o diff de um caminho ("- `arquivo` (diff): `caminho`"), inclusive de arquivo novo.
+evidence_diff: diff
+
+# Subitem opcional com um texto que o vostok task evidence procura na saída da evidência.
+evidence_expect_field: Espera
+
+# Tipo da evidência gerada por um comando de print ("- `tela.png` (print): `comando`"): o comando grava a
+# imagem em $VOSTOK_EVIDENCE/<arquivo>, e a tarefa só conclui com a conferência do usuário.
+evidence_print: print

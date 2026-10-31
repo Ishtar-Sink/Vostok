@@ -6,9 +6,9 @@ files:
   personas/desenvolvedor.md: cfd27bf1bcecfd876a385846965d85915f181044bf045a672621b1dc94c499b2
   personas/engenheiro.md: f927731b4b83a24865d8983408019a592d37b4e3dd9584a5cb0b71d3693a3659
   personas/planejador.md: 56dd29d831a658fd7c7d506d485fc8b9ab24415e86e53a2f4ed01163c669b042
-  personas/qa-lead.md: 7b741db95e592cfb2b4338aae309d61cec291bc969dd7134a08af46a10cdebfb
+  personas/qa-lead.md: 210a348ed2541a91a15f495a3e057454d2fb586152164327de157feed90ea81f
   personas/qa.md: 88bb4231d0c692dde8b15edc763c98154ddd5495273f9987abd2f600aef30b0c
-  personas/ui-ux-designer.md: 1bec563c32ef4d023754aca8456dd5eaadb271db1c1607fdd6ef8694cd1f4679
+  personas/ui-ux-designer.md: aa78bdbd0351f58f2d2172a1fe418cbafec78252290effbca9acea9a3bbb819b
   rules/agent/anti-loop.md: 08eedac049dc5513c46f604f526bb790c7a54f91ddff58a81bacf1e823204bfc
   rules/agent/boundaries.md: 98bf3197bcbc8423e5b9605385a083496b0ad6c6454b9a3d3b5515b600530638
   rules/agent/memory.md: aaf6b3fc220efd1068744f355a776556183631c186ee87094144b5e382c920b7
@@ -18,16 +18,16 @@ files:
   skills/default/adjust-plan/SKILL.md: 8a66a223afc072c3a729d462538a5cac0f29178d15b03edbba8f0c26b38c4be7
   skills/default/adjust-rules/SKILL.md: c7641a99c2758b90d635834eb3600691e7ec1e855a4f5cf2003bc8aecb98ad94
   skills/default/adjust-spec/SKILL.md: b164b77337b1d83b38def4e7e83d0d2bfdae943c31406753adfd89177f68185b
-  skills/default/adjust-task/SKILL.md: 9f1850966b18ee3a1c956bd78f7b2dce01c40f1fa8ae213929b666b740bc12ba
+  skills/default/adjust-task/SKILL.md: 4e9effe4f01f4b178774aaebd1c4c733244aa386c0c8a10ee9a1b31157db6011
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: 7d3745a212b0f0f00ecc3b014752e8c6cfdc3f0d330a8021d97f672ff0640824
+  skills/default/approve-plan/SKILL.md: bbf03282264363418a53707960a13683da13a384e4980007d9e5d7a365eabdaa
   skills/default/approve-spec/SKILL.md: ffdbd013691a23bc934692ae96a6fee5bbd7804b402c14706b8863791f141c2e
   skills/default/approve-task/SKILL.md: 144918ce8aba783cfa0f692cd3084b971dbf9f23c1c130deb5698e99b2318f2f
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/execute-task/SKILL.md: 4b10684397c9effd1cae272a0b3d5859594b72d57cca3ea8720f284e60769111
   skills/default/finalize-spec/SKILL.md: a04e33b30d8f37ffe6314f3912d2e23c50f067c4ec03da9e8cf2ab8aaf978d71
-  skills/default/finish-task/SKILL.md: d2983de849b654639c5375b84746c5f79b4b5090c161672b583c690468b41835
+  skills/default/finish-task/SKILL.md: fce4d4c45c6465ebc919c935246f4f9bfc32c80d20784f18d73aab7149acae9c
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: b6a4e0f2eecdfaf9ccbc10ae68be60f3fddd2af5f9455140c5f0cd2ab5db6c78
   skills/default/refine-spec/SKILL.md: e540c92e04e9c3901c85a9acda2e61cceb3a3c9eb81d6c2924a0a01b57d88cbc
@@ -38,8 +38,8 @@ files:
   skills/default/validate-harness-bug/SKILL.md: e802ea98d5434d2bb3d0b832c3119c948db649dfc3c62e5e0372e1ee1f419671
   templates/bug/report.md: ffb178247760a7d7995ccc37293737eeb6f23f915f4c0b479f7a2e58fb4c8bb0
   templates/finalize/content.md: 51619b1d7d495c7a3f21963f36c56b38c4c81db8a7c4701c8b0735ff27d8c991
-  templates/finalize/evidence-item.html: 42b06c8c07c17e07d49ae5bdfb1ba345766b304e9db156b3ebb56596ba38f41a
-  templates/finalize/evidence.html: 8eff5596c293a0d6fb35821a37185c8faf435c780117734531b0460563f944d4
+  templates/finalize/evidence-item.html: 724e5d1412c86cedc6b4e062f92f2f72ff5058c5d85fbeb4c143d236c70992e3
+  templates/finalize/evidence.html: a8bbc2b75c21cfc69a690f990960cb2132233959eb23c3dab15d391d2a65b89a
   templates/finalize/executive.html: 878152f1f3aa8e716d6938ceae791772a7e98183a2fa437d3813820f519cea62
   templates/finalize/technical.html: b530e83342e95f1ed8ce4c6f8d254c6fb2435ef69da5a0783a997ff5accf5f3c
   templates/memory/decision.md: 88c15b81cbc0f342643e6e2406a4e0e9cedb55f5824b30d7c76ea74126c00397

@@ -12,8 +12,8 @@ use clap::Subcommand;
 
 use super::task::{
     dashdash_commands, dashdash_warning, delivery_errors, evidence_item, evidence_name_problem,
-    evidence_rule_errors, new_folders, new_kind_name, normalized_evidence_name, verify_block,
-    EvidenceKinds,
+    evidence_rule_errors, expected_change, new_folders, new_kind_name, normalized_evidence_name,
+    verify_block, EvidenceKinds,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -1371,6 +1371,14 @@ impl Workspace {
         let mut errors = Vec::new();
         let mut count = 0;
         for item in text.split('\n').filter(|item| !item.trim().is_empty()) {
+            if let Some((command, reason)) = expected_change(item) {
+                count += 1;
+                if reason.is_empty() {
+                    errors.push(format!("'{sub}' com item (muda) sem motivo: {item}"));
+                }
+                errors.extend(delivery_errors(&sub, command, created, folders));
+                continue;
+            }
             let command = item
                 .strip_prefix("- ")
                 .and_then(backticked)

@@ -1317,3 +1317,40 @@ fn plan_evidence_rules_require_a_print_for_an_interface_task() {
     assert!(!success, "{text}");
     assert!(text.contains("tarefa com interface sem print"), "{text}");
 }
+
+// --- Mudança esperada no Baseline (SPEC-021) ---
+
+fn expected_change_plan(item: &str) -> (Project, bool, String) {
+    let project = Project::new();
+    let task = plan_with_evidence(&project, "Não se aplica.");
+    let text = std::fs::read_to_string(&task).unwrap();
+    std::fs::write(&task, text.replace("### Baseline\n\n- `true`", item)).unwrap();
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    let all = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    (project, output.status.success(), all)
+}
+
+#[test]
+fn expected_change_with_a_reason_is_accepted_by_the_plan_validation() {
+    let (_, ok, all) =
+        expected_change_plan("### Baseline\n\n- `cargo --version` (muda): a versão muda");
+    assert!(ok, "{all}");
+}
+
+#[test]
+fn expected_change_without_a_reason_is_refused_by_the_plan_validation() {
+    let (_, ok, all) = expected_change_plan("### Baseline\n\n- `cargo --version` (muda)");
+    assert!(!ok, "{all}");
+    assert!(
+        all.contains("'Baseline' com item (muda) sem motivo: - `cargo --version` (muda)"),
+        "{all}"
+    );
+}

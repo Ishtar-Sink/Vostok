@@ -9,16 +9,17 @@ wave: 2
 covers: [RF-05, CT-06, CT-07, CB-05, CB-06]
 type: tarefa
 labels: [SPEC-021, padrao]
-status: approved
-content_hash: 883a89e89a756135b1e39e6da19aa28063651b7babf7bb0faf6d4553fb92f9e6
+status: done
+content_hash: 09bb8365b287795fd45640b0d3b781f1300cefa1152f11191ed078ed73135890
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: 883a89e89a756135b1e39e6da19aa28063651b7babf7bb0faf6d4553fb92f9e6
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-02: Mudança esperada no Baseline
@@ -74,11 +75,11 @@ Resultado esperado: todos os testes passam e o clippy termina sem avisos.
 
 ### Concluída quando
 
-- [ ] Um item `(muda): motivo` mostra a diferença sem bloquear e registra o motivo (RF-05, CT-06).
+- [x] Um item `(muda): motivo` mostra a diferença sem bloquear e registra o motivo (RF-05, CT-06).
 
   > Como comprovar: em `expected-change-tests.txt`, ver aprovado o teste da mudança esperada.
 
-- [ ] Item `(muda)` sem motivo é recusado na tarefa e no plano (CT-07, CB-05).
+- [x] Item `(muda)` sem motivo é recusado na tarefa e no plano (CT-07, CB-05).
 
   > Como comprovar: em `expected-change-tests.txt`, ver aprovados os testes de recusa.
 
@@ -108,6 +109,15 @@ Abordagem: o motivo vem do item do Baseline e é aprovado com a tarefa (RN-03); 
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | failed | comandos diferentes do baseline; bloqueada |
+| 5 | 2026-10-31 | retomada | validating | decisão do usuário: usuário aceitou: teste novo expected_change_on_a_delivery_command_* caiu no filtro delivery_ do baseline (acréscimo, não regressão); aceito(s): 1 |
+| 6 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 7 | 2026-10-31 | regressão | passed | 1 igual(is) ao baseline, 1 aceito(s) pelo usuário |
+| 8 | 2026-10-31 | evidências | passed | 1 evidência(s) em evidence/TASK-02/ |
+| 9 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

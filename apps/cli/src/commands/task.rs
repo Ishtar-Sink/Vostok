@@ -191,6 +191,7 @@ const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
 const DEFAULT_EVIDENCE_PRINT: &str = "print";
+const EXPECTED_CHANGE_MARK: &str = "(muda)";
 const DEFAULT_REGRESSION_ALERT: [&str; 4] = ["FAILED", "error", "warning", "panicked"];
 /// Extensões de "Mudar" que fazem da tarefa uma tarefa com interface, como na `approve-plan`.
 const INTERFACE_EXTENSIONS: [&str; 7] =
@@ -1266,6 +1267,16 @@ impl Tasks {
     }
 
     /// Comandos de "Baseline", sem os acentos graves.
+    /// Motivo de cada comando de "Baseline" com mudança esperada, na ordem dos comandos.
+    fn baseline_reasons(&self, content: &str) -> Result<Vec<Option<String>>> {
+        Ok(self
+            .subsection(content, "baseline_subsection")?
+            .lines()
+            .filter(|line| baseline_command(line).is_some())
+            .map(|line| expected_change(line).map(|(_, reason)| reason.to_string()))
+            .collect())
+    }
+
     fn baseline_commands(&self, content: &str) -> Result<Vec<String>> {
         Ok(self
             .subsection(content, "baseline_subsection")?
@@ -1441,6 +1452,7 @@ impl Tasks {
         }
         let content = read(&file)?;
         let commands = self.baseline_commands(&content)?;
+        let reasons = self.baseline_reasons(&content)?;
         let reused = self.labeled_outputs(&file, &content)?;
         let dir = evidence.join("validation/regression");
         clear_regression_outputs(&dir)?;
@@ -1460,6 +1472,8 @@ impl Tasks {
         let alerts = self.regression_alert();
         let mut grown = String::new();
         let mut grown_count = 0;
+        let mut expected_changes = String::new();
+        let mut expected_count = 0;
         for (index, command) in commands.iter().enumerate() {
             let number = index + 1;
             let name = output_name(number);
@@ -1495,6 +1509,16 @@ impl Tasks {
                         .is_some_and(|item| item.covers(code, &output, &ignore)) =>
                 {
                     accepted_count += 1
+                }
+                Ok(_) if reasons.get(index).is_some_and(Option::is_some) => {
+                    fs::write(
+                        dir.join(diff_name(number)),
+                        diff_output(&previous, &current),
+                    )?;
+                    expected_count += 1;
+                    let reason = reasons[index].as_deref().unwrap_or_default();
+                    expected_changes
+                        .push_str(&format!("- [{number}] {command}: muda ({reason})\n"));
                 }
                 Ok(expected) => match added_lines(
                     &without_ignored(&expected, &ignore),
@@ -1553,6 +1577,9 @@ impl Tasks {
             if grown_count > 0 {
                 detail.push_str(&format!("; {grown_count} com acréscimo"));
             }
+            if expected_count > 0 {
+                detail.push_str(&format!("; {expected_count} mudança(s) esperada(s)"));
+            }
             if ignored_count > 0 {
                 detail.push_str(&format!(
                     "; {ignored_count} ignorado(s) por medir a entrega"
@@ -1560,7 +1587,7 @@ impl Tasks {
             }
             self.record_step(&file, "regressão", "passed", &detail)?;
             println!("Sem regressão em {task}: {detail}.");
-            print!("{grown}{ignored}");
+            print!("{grown}{expected_changes}{ignored}");
             return Ok(());
         }
         frontmatter_set(&file, "regression_result", "failed")?;
@@ -2606,6 +2633,9 @@ impl Tasks {
         for item in text.lines().filter(|line| has_text(line)) {
             if is_baseline_item(item) {
                 count += 1;
+                if expected_change(item).is_some_and(|(_, reason)| reason.is_empty()) {
+                    errors.push(format!("'{sub}' com item (muda) sem motivo: {item}"));
+                }
                 if let Some(command) = baseline_command(item) {
                     errors.extend(delivery_errors(&sub, command, created, folders));
                 }
@@ -3074,9 +3104,28 @@ fn change_items(text: &str) -> Vec<(String, String)> {
 }
 
 fn is_baseline_item(line: &str) -> bool {
-    line.strip_prefix("- ")
-        .and_then(quoted_name)
-        .is_some_and(|(_, rest)| rest.is_empty())
+    expected_change(line).is_some()
+        || line
+            .strip_prefix("- ")
+            .and_then(quoted_name)
+            .is_some_and(|(_, rest)| rest.is_empty())
+}
+
+/// Item de "Baseline" com mudança esperada (`` - `comando` (muda): motivo ``): o comando e o
+/// motivo, vazio quando falta.
+pub(super) fn expected_change(line: &str) -> Option<(&str, &str)> {
+    let (command, rest) = line
+        .strip_prefix("- `")?
+        .split_once(&format!("` {EXPECTED_CHANGE_MARK}"))?;
+    if command.is_empty() {
+        return None;
+    }
+    let reason = match rest.strip_prefix(':') {
+        Some(reason) => reason.trim(),
+        None if rest.trim().is_empty() => "",
+        None => return None,
+    };
+    Some((command, reason))
 }
 
 /// Um erro por caminho `criar` citado no comando de "Baseline" e por pasta nova citada: o baseline
@@ -3181,6 +3230,9 @@ fn untracked_folders(root: &Path, created: &[String]) -> Vec<String> {
 
 /// Comando de um item de "Baseline" ("- `comando`"); o comando pode ter crases.
 fn baseline_command(line: &str) -> Option<&str> {
+    if let Some((command, _)) = expected_change(line) {
+        return Some(command);
+    }
     line.strip_prefix("- `")?
         .strip_suffix('`')
         .filter(|command| !command.is_empty())
@@ -4492,6 +4544,13 @@ mod tests {
         assert!(!is_baseline_item("- ``"));
         assert_eq!(baseline_command("- `echo `x``"), Some("echo `x`"));
         assert_eq!(baseline_command("- ``"), None);
+        assert_eq!(
+            expected_change("- `wc -l` (muda): passa de 5 para 6"),
+            Some(("wc -l", "passa de 5 para 6"))
+        );
+        assert_eq!(expected_change("- `wc -l` (muda)"), Some(("wc -l", "")));
+        assert_eq!(expected_change("- `wc -l` (muda) x"), None);
+        assert_eq!(baseline_command("- `wc -l` (muda): motivo"), Some("wc -l"));
     }
 
     #[test]

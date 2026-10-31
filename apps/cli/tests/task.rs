@@ -1859,7 +1859,10 @@ fn delivery_command_existing_folder_is_still_compared() {
     let (ok, all) = regression_output(&project);
     // A pasta já existia: o comando é comparado, e a linha nova passa como acréscimo (SPEC-021).
     assert!(ok, "{all}");
-    assert!(all.contains("- [1] ls src: acréscimo de 1 linha(s)"), "{all}");
+    assert!(
+        all.contains("- [1] ls src: acréscimo de 1 linha(s)"),
+        "{all}"
+    );
     assert!(!all.contains("ignorado"), "{all}");
 }
 
@@ -2732,4 +2735,94 @@ fn growth_over_a_baseline_recorded_before_the_change_passes() {
     let (ok, output) = regression_output(&project);
     assert!(ok, "{output}");
     assert!(output.contains("1 com acréscimo"), "{output}");
+}
+
+// --- Mudança esperada no Baseline (SPEC-021) ---
+
+const EXPECTED_CHANGE: &str = "- `cat valor.txt` (muda): o valor passa de a para b\n";
+
+#[test]
+fn expected_change_passes_with_the_reason_recorded() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let text = read(&project, TASK_PATH).replace("- `cat valor.txt`\n", EXPECTED_CHANGE);
+    write(&project, TASK_PATH, &text);
+    write(&project, "valor.txt", "b\n");
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(ok, "{output}");
+    assert!(output.contains("1 mudança(s) esperada(s)"), "{output}");
+    assert!(
+        output.contains("- [1] cat valor.txt: muda (o valor passa de a para b)\n"),
+        "{output}"
+    );
+    assert!(read(&project, &format!("{REGRESSION_DIR}/01.diff")).contains("> b"));
+    assert!(read(&project, TASK_PATH).contains("1 mudança(s) esperada(s)"));
+}
+
+#[test]
+fn expected_change_without_a_difference_counts_as_equal() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let text = read(&project, TASK_PATH).replace("- `cat valor.txt`\n", EXPECTED_CHANGE);
+    write(&project, TASK_PATH, &text);
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("1 comando(s) iguais ao baseline"),
+        "{output}"
+    );
+}
+
+#[test]
+fn expected_change_without_a_reason_is_refused_by_the_task_validation() {
+    let project = Project::new();
+    let text = complete_task("pending", "Não se aplica.").replace(
+        "### Baseline\n\n- `true`",
+        "### Baseline\n\n- `true` (muda):",
+    );
+    write(&project, TASK_PATH, &text);
+    let output = nested(&project, "adjust", "validate")
+        .assert()
+        .failure()
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8(output).unwrap();
+    assert!(
+        stderr.contains("'Baseline' com item (muda) sem motivo: - `true` (muda):"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn expected_change_with_a_reason_is_valid_for_the_task() {
+    let project = Project::new();
+    let text = complete_task("pending", "Não se aplica.").replace(
+        "### Baseline\n\n- `true`",
+        "### Baseline\n\n- `true` (muda): a saída muda",
+    );
+    write(&project, TASK_PATH, &text);
+    nested(&project, "adjust", "validate").assert().success();
+}
+
+#[test]
+fn expected_change_on_a_delivery_command_is_ignored_as_delivery() {
+    let command = "test -e novo.txt && echo existe || echo ausente";
+    let project = delivery_task("novo.txt", command, &[("README.md", "x")]);
+    let text = read(&project, TASK_PATH).replace(
+        &format!("- `{command}`"),
+        &format!("- `{command}` (muda): a entrega aparece"),
+    );
+    write(&project, TASK_PATH, &text);
+    init_git(&project);
+    task(&project, &["baseline"]).assert().success();
+    write(&project, "novo.txt", "x");
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(ok, "{output}");
+    assert!(
+        output.contains("ignorado, mede a entrega da tarefa ('novo.txt')"),
+        "{output}"
+    );
+    assert!(!output.contains("muda ("), "{output}");
 }

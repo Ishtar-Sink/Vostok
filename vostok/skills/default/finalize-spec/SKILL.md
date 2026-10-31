@@ -3,7 +3,7 @@ name: finalize-spec
 description: "Finaliza uma especificação (spec) implementada, com status implemented e todas as tarefas done, só a pedido do usuário: lê as fontes (spec, tarefas, evidências, memória, commits e código), sintetiza o conteúdo dos documentos executivo, técnico e de evidências, gera os três HTML, arquiva a spec com as tarefas e publica o executivo e o técnico em docs/specs/. Use quando o usuário pedir para finalizar, fechar, encerrar ou arquivar uma spec implementada, ou gerar os documentos finais de uma spec."
 allowed-tools: Read Edit Glob Grep Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok finalize sources, vostok finalize create, vostok finalize validate, vostok finalize build, vostok finalize archive, vostok commit check"
   templates: "templates/finalize/content.md templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
@@ -31,6 +31,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 [finalize-spec-06]: Não invente indicadores. Um KPI de valor só entra se vier das fontes (contado ou medido); sem nenhum, escreva "Não se aplica.".
 [finalize-spec-07]: No máximo 2 rodadas de correção do `vostok finalize validate` ([agent/anti-loop-02]). Na terceira falha, **PARE** com o template `blocker`.
 [finalize-spec-08]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
+[finalize-spec-09]: A skill é executada no Coordenador, uma spec por vez, sem disparar subagente: ele já tem as fontes no contexto, e um subagente recomeçaria a leitura do zero.
 
 ## Checklist
 

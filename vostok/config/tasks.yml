@@ -218,3 +218,6 @@ profile_legacy:
 # dessas seções no "Cobre" é aceito; um que não é coberto não é cobrado.
 coverage_optional:
   - edge-cases
+
+# Subagentes ao mesmo tempo numa onda da execute-task, de 1 a 6.
+max_subagents: 3

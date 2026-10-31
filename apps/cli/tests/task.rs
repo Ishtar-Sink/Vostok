@@ -2826,3 +2826,73 @@ fn expected_change_on_a_delivery_command_is_ignored_as_delivery() {
     );
     assert!(!output.contains("muda ("), "{output}");
 }
+
+// --- Aceite que mantém testes e evidências (SPEC-021) ---
+
+fn field(project: &Project, key: &str) -> String {
+    let prefix = format!("{key}: ");
+    read(project, TASK_PATH)
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix).map(str::to_string))
+        .unwrap_or_default()
+}
+
+/// Tarefa com testes e evidências aprovados, bloqueada pela regressão do comando 1.
+fn kept_results_blocked() -> Project {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(&project, "valor.txt", "b\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    assert_eq!(status(&project), "blocked");
+    project
+}
+
+#[test]
+fn kept_results_finish_with_the_regression_only() {
+    let project = kept_results_blocked();
+    let resumed = stdout(&mut task(
+        &project,
+        &["resume", "--accept-regression", "1", "diferença esperada"],
+    ));
+    assert!(
+        resumed.contains("diferença aceita. Execute vostok task regression"),
+        "{resumed}"
+    );
+    assert_eq!(field(&project, "tests_result"), "passed");
+    assert_eq!(field(&project, "evidence_result"), "passed");
+    assert_eq!(field(&project, "regression_result"), "null");
+    assert_eq!(field(&project, "attempts"), "0");
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+}
+
+#[test]
+fn kept_results_are_reset_by_a_plain_restart() {
+    let project = kept_results_blocked();
+    let resumed = stdout(&mut task(&project, &["resume", "corrigir o valor"]));
+    assert!(
+        resumed.contains("tentativas e resultados zerados"),
+        "{resumed}"
+    );
+    assert_eq!(field(&project, "tests_result"), "null");
+    assert_eq!(field(&project, "evidence_result"), "null");
+    assert_eq!(field(&project, "regression_result"), "null");
+}
+
+#[test]
+fn kept_results_keep_a_failed_test_result() {
+    let project = kept_results_blocked();
+    let text = read(&project, TASK_PATH).replace("tests_result: passed", "tests_result: failed");
+    write(&project, TASK_PATH, &text);
+    task(
+        &project,
+        &["resume", "--accept-regression", "1", "diferença esperada"],
+    )
+    .assert()
+    .success();
+    assert_eq!(field(&project, "tests_result"), "failed");
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["finish"]).assert().failure();
+}

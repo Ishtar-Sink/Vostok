@@ -1965,9 +1965,17 @@ impl Tasks {
         }
         let validating = &self.status.validating;
         frontmatter_set(&file, "status", validating)?;
-        reset_results(&file)?;
+        if acceptances.is_empty() {
+            reset_results(&file)?;
+            self.record_step(&file, "retomada", validating, &detail)?;
+            println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.");
+            return Ok(());
+        }
+        // O aceite não muda código nem testes: testes e evidências continuam valendo.
+        frontmatter_set(&file, "attempts", "0")?;
+        frontmatter_set(&file, "regression_result", "null")?;
         self.record_step(&file, "retomada", validating, &detail)?;
-        println!("Tarefa {task} retomada: status '{validating}', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.");
+        println!("Tarefa {task} retomada: status '{validating}', diferença aceita. Execute vostok task regression e, com ela aprovada, vostok task finish.");
         Ok(())
     }
 

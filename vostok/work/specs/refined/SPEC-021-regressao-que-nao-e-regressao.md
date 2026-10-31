@@ -1,10 +1,10 @@
 ---
 id: SPEC-021
 title: "Regressão que não é regressão"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-10-31T12:08:25Z
-updated_at: 2026-10-31T14:09:07Z
+updated_at: 2026-10-31T15:24:41Z
 tags: []
 type: improvement
 source: "draft/SPEC-021-regressao-que-nao-e-regressao.md"

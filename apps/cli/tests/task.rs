@@ -1857,7 +1857,10 @@ fn delivery_command_existing_folder_is_still_compared() {
     write(&project, "src/novo.rs", "fn main() {}");
     task(&project, &["tests"]).assert().success();
     let (ok, all) = regression_output(&project);
-    assert!(!ok, "{all}");
+    // A pasta já existia: o comando é comparado, e a linha nova passa como acréscimo (SPEC-021).
+    assert!(ok, "{all}");
+    assert!(all.contains("- [1] ls src: acréscimo de 1 linha(s)"), "{all}");
+    assert!(!all.contains("ignorado"), "{all}");
 }
 
 #[test]
@@ -2619,4 +2622,114 @@ fn evidence_legacy_task_finishes_as_before() {
     task(&project, &["regression"]).assert().success();
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}
+
+// --- Acréscimo e alerta na regressão (SPEC-021) ---
+
+fn growth_regression(before: &str, after: &str) -> (Project, bool, String) {
+    let project = running_task(&[("valor.txt", before)]);
+    write(&project, "valor.txt", after);
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    (project, ok, output)
+}
+
+#[test]
+fn growth_of_a_list_passes_as_an_addition() {
+    let (project, ok, output) = growth_regression("a\nb\n", "a\nnovo\nb\nfim\n");
+    assert!(ok, "{output}");
+    assert!(
+        output.contains(
+            "Sem regressão em TASK-01: 0 comando(s) iguais ao baseline; 1 com acréscimo."
+        ),
+        "{output}"
+    );
+    assert!(
+        output.contains("- [1] cat valor.txt: acréscimo de 2 linha(s)\n"),
+        "{output}"
+    );
+    assert_eq!(status(&project), "validating");
+    assert!(read(&project, TASK_PATH).contains("1 com acréscimo"));
+}
+
+#[test]
+fn growth_with_a_removed_line_blocks() {
+    let (project, ok, output) = growth_regression("a\nb\n", "a\nnovo\n");
+    assert!(!ok);
+    assert!(output.contains("- [1] cat valor.txt\n"), "{output}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn growth_with_an_alert_line_blocks_and_cites_it() {
+    let (project, ok, output) = growth_regression("a\n", "a\ntest x ... FAILED\n");
+    assert!(!ok);
+    assert!(
+        output.contains("linha nova com alerta: test x ... FAILED"),
+        "{output}"
+    );
+    assert_eq!(status(&project), "blocked");
+    assert!(exists(&project, &format!("{REGRESSION_DIR}/01.diff")));
+}
+
+#[test]
+fn growth_alert_ignores_case() {
+    let (_, ok, output) = growth_regression("a\n", "a\nWarning: algo\n");
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("linha nova com alerta: Warning: algo"),
+        "{output}"
+    );
+}
+
+#[test]
+fn growth_with_a_different_exit_code_blocks() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    std::fs::remove_file(project.root().join("valor.txt")).unwrap();
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(!ok, "{output}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn growth_with_reordered_lines_blocks() {
+    let (project, ok, output) = growth_regression("a\nb\n", "b\na\n");
+    assert!(!ok, "{output}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn growth_alert_list_comes_from_the_configuration() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let path = "vostok/config/tasks.yml";
+    let config = read(&project, path).replace(
+        "regression_alert:\n  - FAILED\n  - error\n  - warning\n  - panicked\n",
+        "regression_alert:\n  - ERRO\n",
+    );
+    assert!(config.contains("  - ERRO\n"), "{config}");
+    write(&project, path, &config);
+    write(&project, "valor.txt", "a\nerro: algo\nwarning: outro\n");
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(!ok);
+    assert!(
+        output.contains("linha nova com alerta: erro: algo"),
+        "{output}"
+    );
+}
+
+#[test]
+fn growth_over_a_baseline_recorded_before_the_change_passes() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(
+        &project,
+        &format!("{BASELINE_DIR}/01.out"),
+        "$ cat valor.txt\nexit: 0\na\n",
+    );
+    write(&project, "valor.txt", "a\nb\n");
+    task(&project, &["tests"]).assert().success();
+    let (ok, output) = regression_output(&project);
+    assert!(ok, "{output}");
+    assert!(output.contains("1 com acréscimo"), "{output}");
 }

@@ -191,6 +191,7 @@ const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
 const DEFAULT_EVIDENCE_PRINT: &str = "print";
+const DEFAULT_REGRESSION_ALERT: [&str; 4] = ["FAILED", "error", "warning", "panicked"];
 /// Extensões de "Mudar" que fazem da tarefa uma tarefa com interface, como na `approve-plan`.
 const INTERFACE_EXTENSIONS: [&str; 7] =
     [".html", ".css", ".scss", ".tsx", ".jsx", ".vue", ".svelte"];
@@ -422,6 +423,18 @@ impl Tasks {
             .into_iter()
             .filter(|item| !item.is_empty())
             .collect()
+    }
+
+    /// Trechos de `regression_alert`: uma linha nova com algum deles bloqueia o acréscimo. Sem a
+    /// chave (projetos antigos), os textos padrão.
+    fn regression_alert(&self) -> Vec<String> {
+        match self.cfg_list("regression_alert") {
+            Ok(items) => items.into_iter().filter(|item| !item.is_empty()).collect(),
+            Err(_) => DEFAULT_REGRESSION_ALERT
+                .iter()
+                .map(|item| item.to_string())
+                .collect(),
+        }
     }
 
     /// Subpasta de `baseline/` com a saída das evidências automáticas; sem a chave (projetos
@@ -1444,6 +1457,9 @@ impl Tasks {
         let mut changed = String::new();
         let mut equal = 0;
         let mut accepted_count = 0;
+        let alerts = self.regression_alert();
+        let mut grown = String::new();
+        let mut grown_count = 0;
         for (index, command) in commands.iter().enumerate() {
             let number = index + 1;
             let name = output_name(number);
@@ -1480,16 +1496,39 @@ impl Tasks {
                 {
                     accepted_count += 1
                 }
-                Ok(_) => {
-                    fs::write(
-                        dir.join(diff_name(number)),
-                        diff_output(&previous, &current),
-                    )?;
-                    changed.push_str(&format!(
-                        "- [{number}] {command}\n{}\n",
-                        diff_excerpt(&previous, &current)
-                    ));
-                }
+                Ok(expected) => match added_lines(
+                    &without_ignored(&expected, &ignore),
+                    &without_ignored(&output, &ignore),
+                ) {
+                    Some(added) => match added.iter().find(|line| has_alert(line, &alerts)) {
+                        None => {
+                            grown_count += 1;
+                            grown.push_str(&format!(
+                                "- [{number}] {command}: acréscimo de {} linha(s)\n",
+                                added.len()
+                            ));
+                        }
+                        Some(line) => {
+                            fs::write(
+                                dir.join(diff_name(number)),
+                                diff_output(&previous, &current),
+                            )?;
+                            changed.push_str(&format!(
+                                "- [{number}] {command}\nlinha nova com alerta: {line}\n"
+                            ));
+                        }
+                    },
+                    None => {
+                        fs::write(
+                            dir.join(diff_name(number)),
+                            diff_output(&previous, &current),
+                        )?;
+                        changed.push_str(&format!(
+                            "- [{number}] {command}\n{}\n",
+                            diff_excerpt(&previous, &current)
+                        ));
+                    }
+                },
             }
         }
         for previous in files_with_extension(&base, "out")? {
@@ -1511,6 +1550,9 @@ impl Tasks {
             } else {
                 format!("{equal} igual(is) ao baseline, {accepted_count} aceito(s) pelo usuário")
             };
+            if grown_count > 0 {
+                detail.push_str(&format!("; {grown_count} com acréscimo"));
+            }
             if ignored_count > 0 {
                 detail.push_str(&format!(
                     "; {ignored_count} ignorado(s) por medir a entrega"
@@ -1518,7 +1560,7 @@ impl Tasks {
             }
             self.record_step(&file, "regressão", "passed", &detail)?;
             println!("Sem regressão em {task}: {detail}.");
-            print!("{ignored}");
+            print!("{grown}{ignored}");
             return Ok(());
         }
         frontmatter_set(&file, "regression_result", "failed")?;
@@ -3762,6 +3804,37 @@ fn latest_acceptances(dir: &Path) -> HashMap<usize, AcceptedRegression> {
         .into_iter()
         .map(|item| (item.number, item))
         .collect()
+}
+
+/// Linhas novas de uma saída que só cresceu: as duas primeiras linhas (`$ comando` e `exit: N`)
+/// iguais e as linhas de antes presentes na saída atual, na mesma ordem. `None` quando algo de
+/// antes sumiu, mudou ou trocou de ordem.
+fn added_lines(expected: &[u8], current: &[u8]) -> Option<Vec<String>> {
+    let expected = String::from_utf8_lossy(expected);
+    let current = String::from_utf8_lossy(current);
+    let before: Vec<&str> = expected.lines().collect();
+    let after: Vec<&str> = current.lines().collect();
+    if before.len() < 2 || after.len() < 2 || before[..2] != after[..2] {
+        return None;
+    }
+    let mut pending = before[2..].iter().peekable();
+    let mut added = Vec::new();
+    for line in &after[2..] {
+        if pending.peek() == Some(&line) {
+            pending.next();
+        } else {
+            added.push(line.to_string());
+        }
+    }
+    pending.peek().is_none().then_some(added)
+}
+
+/// A linha contém algum texto de alerta, sem diferenciar maiúsculas.
+fn has_alert(line: &str, alerts: &[String]) -> bool {
+    let line = line.to_lowercase();
+    alerts
+        .iter()
+        .any(|alert| line.contains(&alert.to_lowercase()))
 }
 
 /// Saída sem as linhas que contêm algum dos trechos; sem trechos, a saída inteira.

@@ -29,6 +29,15 @@ regression_ignore:
   - finished in
   - "Time:"
 
+# Trechos de alerta do vostok task regression: uma saída que só ganhou linhas, com o mesmo código de
+# saída, passa como acréscimo, salvo quando uma linha nova contém algum deles (sem diferenciar
+# maiúsculas).
+regression_alert:
+  - FAILED
+  - error
+  - warning
+  - panicked
+
 # Pasta das evidências e do baseline de cada tarefa, relativa a `paths.tasks`/<SPEC_ID>.
 evidence_dir: evidence
 

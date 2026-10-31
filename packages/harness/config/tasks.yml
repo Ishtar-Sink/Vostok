@@ -180,6 +180,9 @@ evidence_from_verify: "automática, da verificação"
 evidence_diff: diff
 # Subitem opcional com um texto que o vostok task evidence procura na saída da evidência.
 evidence_expect_field: Espera
+# Tipo da evidência gerada por um comando de print ("- `tela.png` (print): `comando`"): o comando grava a
+# imagem em $VOSTOK_EVIDENCE/<arquivo>, e a tarefa só conclui com a conferência do usuário.
+evidence_print: print
 evidence_none: Não se aplica.
 
 # Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a

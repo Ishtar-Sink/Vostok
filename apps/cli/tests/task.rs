@@ -2516,3 +2516,107 @@ fn evidence_diff_item_is_accepted_by_the_validation() {
     let project = validated_labels("true", &diff_item("novo.diff", "novo.txt"));
     success_stdout(&mut nested(&project, "adjust", "validate"));
 }
+
+// --- Print com conferência humana (SPEC-020) ---
+
+fn print_item(name: &str, command: &str) -> String {
+    format!("- `{name}` (print): `{command}`\n  - Prova: a tela.\n  - Trecho: o botão.\n  - Falha: tela vazia.")
+}
+
+fn print_task(command: &str) -> Project {
+    running_task_with_evidence(&[("a.txt", "um\n")], &print_item("tela.png", command))
+}
+
+const SHOT: &str = "printf 'PNG' > \"$VOSTOK_EVIDENCE/tela.png\"";
+
+#[test]
+fn evidence_print_is_pending_until_the_user_reviews_it() {
+    let project = print_task(SHOT);
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Prints sem conferência humana"), "{stdout}");
+    assert!(stdout.contains("tela.png"), "{stdout}");
+    assert_eq!(read(&project, &format!("{EVIDENCE_DIR}/tela.png")), "PNG");
+    assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
+    assert!(read(&project, TASK_PATH).contains("print sem conferência humana"));
+}
+
+#[test]
+fn evidence_print_without_the_image_fails() {
+    let project = print_task("true");
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("- tela.png: o comando não gerou a imagem"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn evidence_print_reviewed_by_the_user_passes() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence", "--reviewed", "tela.png"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content.contains("print tela.png conferido pelo usuário (sha256 "),
+        "{content}"
+    );
+    assert!(content.contains("evidence_result: passed"));
+}
+
+#[test]
+fn evidence_print_changed_after_the_review_is_pending_again() {
+    let project = print_task("printf \"$(date +%s%N)\" > \"$VOSTOK_EVIDENCE/tela.png\"");
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Prints sem conferência humana"), "{stdout}");
+}
+
+#[test]
+fn evidence_print_review_of_an_unknown_print_fails() {
+    let project = print_task(SHOT);
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--reviewed", "outra.png"],
+    ));
+    assert!(
+        stderr.contains("'outra.png' não é um print desta tarefa"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn evidence_print_required_for_an_interface_task() {
+    let project = validated_labels("true", &automatic("saida.txt", "echo ok", None));
+    let content = read(&project, TASK_PATH).replace(
+        "- `novo.txt` (criar): arquivo novo.",
+        "- `tela.tsx` (criar): tela nova.",
+    );
+    write(&project, TASK_PATH, &content);
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        stderr.contains("tarefa com interface sem print"),
+        "{stderr}"
+    );
+
+    let content = read(&project, TASK_PATH).replace(
+        "- `saida.txt` (automática): `echo ok`",
+        "- `tela.png` (print): `npx playwright screenshot`",
+    );
+    write(&project, TASK_PATH, &content);
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+}
+
+#[test]
+fn evidence_legacy_task_finishes_as_before() {
+    let project = running_task_with_evidence(
+        &[("valor.txt", "a\n")],
+        &automatic("saida.txt", "grep -n a valor.txt", None),
+    );
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}

@@ -77,6 +77,9 @@ pub enum TaskCommand {
     Evidence {
         spec_id: Option<String>,
         task_id: Option<String>,
+        /// Print conferido pelo usuário, relativo à pasta de evidências da tarefa.
+        #[arg(long, value_name = "ARQUIVO")]
+        reviewed: Vec<String>,
     },
     /// Conclui a tarefa.
     Finish {
@@ -187,6 +190,12 @@ const DEFAULT_VERIFY_LABEL: &str = "# evidência:";
 const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
+const DEFAULT_EVIDENCE_PRINT: &str = "print";
+/// Extensões de "Mudar" que fazem da tarefa uma tarefa com interface, como na `approve-plan`.
+const INTERFACE_EXTENSIONS: [&str; 7] =
+    [".html", ".css", ".scss", ".tsx", ".jsx", ".vue", ".svelte"];
+/// Extensões de imagem aceitas como print manual.
+const IMAGE_EXTENSIONS: [&str; 5] = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 /// Primeiras palavras de um comando que só lê arquivos: como evidência, não comprovam comportamento.
 const READING_COMMANDS: [&str; 6] = ["grep", "sed", "cat", "head", "tail", "awk"];
 
@@ -257,9 +266,13 @@ pub fn run(command: TaskCommand) -> Result<()> {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
             tasks.regression(&spec, &task)
         }
-        TaskCommand::Evidence { spec_id, task_id } => {
+        TaskCommand::Evidence {
+            spec_id,
+            task_id,
+            reviewed,
+        } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
-            tasks.evidence(&spec, &task)
+            tasks.evidence(&spec, &task, &reviewed)
         }
         TaskCommand::Finish { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
@@ -436,6 +449,12 @@ impl Tasks {
     fn evidence_diff(&self) -> String {
         self.cfg("evidence_diff")
             .unwrap_or_else(|_| DEFAULT_EVIDENCE_DIFF.to_string())
+    }
+
+    /// Tipo da evidência gerada por um comando de print (`evidence_print`).
+    fn evidence_print(&self) -> String {
+        self.cfg("evidence_print")
+            .unwrap_or_else(|_| DEFAULT_EVIDENCE_PRINT.to_string())
     }
 
     /// Texto esperado na saída de cada evidência, pelo subitem `evidence_expect_field`.
@@ -1506,7 +1525,7 @@ impl Tasks {
         bail!("a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário")
     }
 
-    fn evidence(&self, spec: &str, task: &str) -> Result<()> {
+    fn evidence(&self, spec: &str, task: &str, reviewed: &[String]) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
         let dir = self.evidence_dir(&file)?;
@@ -1539,6 +1558,8 @@ impl Tasks {
         let mut failed = String::new();
         let from_verify = self.evidence_from_verify();
         let diff = self.evidence_diff();
+        let print = self.evidence_print();
+        let mut prints: Vec<String> = Vec::new();
         let expectations = self.evidence_expectations(&text);
         let block = verify_block(&self.subsection(&content, "verify_subsection")?);
         let labeled: HashMap<String, String> = labeled_commands(&block, &self.verify_label())
@@ -1566,7 +1587,31 @@ impl Tasks {
                 bail!("nome de evidência inválido: '{name}'");
             }
             let target = dir.join(name);
-            if kind == diff {
+            if kind == print {
+                let command = rest
+                    .strip_prefix('`')
+                    .and_then(|rest| rest.strip_suffix('`'))
+                    .filter(|command| !command.is_empty())
+                    .ok_or_else(|| anyhow!("print sem comando: {item}"))?;
+                if target.exists() {
+                    fs::remove_file(&target)?;
+                }
+                let (code, output) =
+                    shell_output_with(command, &root, &[("VOSTOK_EVIDENCE", &dir)])?;
+                if code != 0 {
+                    failed.push_str(&format!(
+                        "- {name}: `{command}` terminou com erro\n{}\n",
+                        trim_newlines(&indented_tail(&output, 5))
+                    ));
+                } else if !fs::metadata(&target).is_ok_and(|meta| meta.len() > 0) {
+                    failed.push_str(&format!(
+                        "- {name}: o comando não gerou a imagem em {}\n",
+                        target.display()
+                    ));
+                } else {
+                    prints.push(name.to_string());
+                }
+            } else if kind == diff {
                 let path = rest
                     .strip_prefix('`')
                     .and_then(|rest| rest.strip_suffix('`'))
@@ -1636,9 +1681,41 @@ impl Tasks {
                 }
             }
         }
+        for name in reviewed {
+            if !prints.contains(name) {
+                bail!("'{name}' não é um print desta tarefa; nada foi registrado");
+            }
+        }
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
             bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
+        }
+        for name in reviewed {
+            let review = print_review(name, &fs::read(dir.join(name))?);
+            self.record_step(&file, "conferência", "usuário", &review)?;
+        }
+        let record = read(&file)?;
+        let unreviewed: Vec<&String> = prints
+            .iter()
+            .filter(|name| {
+                let image = fs::read(dir.join(name.as_str())).unwrap_or_default();
+                !record.contains(&print_review(name, &image))
+            })
+            .collect();
+        if !unreviewed.is_empty() {
+            frontmatter_set(&file, "evidence_result", "pending")?;
+            self.record_step(
+                &file,
+                "evidências",
+                "pending",
+                "print sem conferência humana",
+            )?;
+            println!("Prints sem conferência humana; mostre cada um ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <arquivo>:");
+            for name in unreviewed {
+                println!("- {}", dir.join(name.as_str()).display());
+            }
+            print_same_as_baseline(&same);
+            return Ok(());
         }
         if !missing.is_empty() {
             frontmatter_set(&file, "evidence_result", "pending")?;
@@ -2516,6 +2593,8 @@ impl Tasks {
         let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
         let from_verify = self.evidence_from_verify();
         let diff = self.evidence_diff();
+        let print = self.evidence_print();
+        let mut has_image = false;
         let changed: Vec<String> = change_items(&self.subsection(content, "change_subsection")?)
             .into_iter()
             .map(|(_, path)| path)
@@ -2532,6 +2611,14 @@ impl Tasks {
                 if !is_valid_evidence_name(name) {
                     errors.push(format!("'{sub}' com nome de evidência inválido: `{name}` (o nome é só o nome do arquivo, sem caminho, sem começar por '.' e diferente de 'baseline' e 'validation'): {item}"));
                 }
+            } else if is_print_evidence(item, &print) {
+                count += 1;
+                has_image = true;
+                let name = evidence_item(item).map_or("", |(name, _, _)| name);
+                finals.push((name, None));
+                errors.extend(
+                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                );
             } else if is_diff_evidence(item, &diff) {
                 count += 1;
                 let name = evidence_item(item).map_or("", |(name, _, _)| name);
@@ -2541,6 +2628,13 @@ impl Tasks {
                 );
             } else if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
+                if is_manual_evidence(item, &manual) {
+                    has_image |= evidence_item(item).is_some_and(|(name, _, _)| {
+                        IMAGE_EXTENSIONS
+                            .iter()
+                            .any(|ext| name.to_lowercase().ends_with(ext))
+                    });
+                }
                 if let Some((name, _, rest)) =
                     evidence_item(item).filter(|_| is_automatic_evidence(item, &automatic))
                 {
@@ -2563,8 +2657,14 @@ impl Tasks {
                     }
                 }
             } else {
-                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}), - `arquivo` ({diff}): `caminho` ou - `arquivo` ({manual}): descrição)"));
+                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}), - `arquivo` ({diff}): `caminho`, - `arquivo` ({print}): `comando` ou - `arquivo` ({manual}): descrição)"));
             }
+        }
+        let interface = changed
+            .iter()
+            .any(|path| INTERFACE_EXTENSIONS.iter().any(|ext| path.ends_with(ext)));
+        if interface && !has_image {
+            errors.push(format!("'{sub}': tarefa com interface sem print; inclua - `tela.png` ({print}): `comando` ou uma evidência manual de imagem"));
         }
         errors.extend(self.label_errors(content, &verify_names)?);
         if count == 0 {
@@ -3266,6 +3366,22 @@ fn verify_evidence_name<'a>(line: &'a str, from_verify: &str) -> Option<&'a str>
     (kind == from_verify).then_some(name)
 }
 
+/// Item "- `arquivo` (print): `comando`".
+fn is_print_evidence(line: &str, print: &str) -> bool {
+    evidence_kind_and_rest(line, print)
+        .and_then(quoted_name)
+        .is_some_and(|(_, rest)| rest.is_empty())
+}
+
+/// Linha do registro que marca a conferência de um print pelo usuário; o SHA-256 da imagem faz a
+/// conferência valer só para a imagem conferida.
+fn print_review(name: &str, image: &[u8]) -> String {
+    format!(
+        "print {name} conferido pelo usuário (sha256 {})",
+        &sha256_hex(image)[..8]
+    )
+}
+
 /// Item "- `arquivo` (diff): `caminho`".
 fn is_diff_evidence(line: &str, diff: &str) -> bool {
     evidence_kind_and_rest(line, diff)
@@ -3643,11 +3759,17 @@ fn regression_acceptances(
 /// Executa um comando com `bash -c` a partir de `dir` e devolve o código de saída e a saída, com
 /// stdout e stderr juntos na ordem em que foram escritos.
 fn shell_output(command: &str, dir: &Path) -> Result<(i32, Vec<u8>)> {
+    shell_output_with(command, dir, &[])
+}
+
+/// Como `shell_output`, com variáveis de ambiente a mais.
+fn shell_output_with(command: &str, dir: &Path, vars: &[(&str, &Path)]) -> Result<(i32, Vec<u8>)> {
     let (mut reader, writer) = std::io::pipe()?;
     let mut child = Command::new("bash")
         .arg("-c")
         .arg(command)
         .current_dir(dir)
+        .envs(vars.iter().map(|(key, value)| (*key, *value)))
         .stdin(Stdio::null())
         .stdout(writer.try_clone()?)
         .stderr(writer)

@@ -694,6 +694,61 @@ fn ct08_init_generates_a_subagent_per_specialist_persona_for_claude_code() {
 }
 
 #[test]
+fn max_turns_in_claude_code_agents() {
+    let workspace = installed("claude-code");
+
+    for (name, turns) in [
+        ("desenvolvedor", 60),
+        ("ui-ux-designer", 60),
+        ("qa", 30),
+        ("arquiteto", 30),
+        ("engenheiro", 30),
+        ("qa-lead", 30),
+        ("planejador", 30),
+    ] {
+        let agent = workspace.read(&format!(".claude/agents/vostok-{name}.md"));
+        assert!(
+            agent.contains(&format!("\nmodel: inherit\nmaxTurns: {turns}\n---\n")),
+            "{name}: {agent}"
+        );
+    }
+}
+
+#[test]
+fn max_turns_only_for_claude_code() {
+    for tools in ["cursor", "codex"] {
+        let workspace = installed(tools);
+        for dir in [".cursor/agents", ".codex/agents"] {
+            let Ok(entries) = std::fs::read_dir(workspace.path(dir)) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let content = std::fs::read_to_string(entry.path()).unwrap();
+                assert!(!content.contains("maxTurns"), "{tools}: {content}");
+            }
+        }
+    }
+}
+
+#[test]
+fn agents_follow_the_task_brief() {
+    let workspace = installed("claude-code");
+
+    for name in SPECIALISTS {
+        let agent = workspace.read(&format!(".claude/agents/vostok-{name}.md"));
+        assert!(
+            agent.contains("vostok task brief <SPEC_ID> <TASK_ID>"),
+            "{agent}"
+        );
+        assert!(agent.contains("mensagem do Coordenador"), "{agent}");
+        assert!(
+            agent.contains(&format!("vostok context load --persona {name}")),
+            "{agent}"
+        );
+    }
+}
+
+#[test]
 fn ct08_subagent_description_comes_from_the_persona() {
     let workspace = installed("claude-code");
 

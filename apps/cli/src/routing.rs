@@ -29,6 +29,8 @@ pub struct AgentTarget {
     pub dir: &'static str,
     pub extension: &'static str,
     pub format: AgentFormat,
+    /// Se a definição leva `maxTurns` (só o Claude Code o lê).
+    pub max_turns: bool,
 }
 
 /// Ferramenta de agente suportada e o que ela recebe no projeto.
@@ -59,6 +61,7 @@ pub const TOOLS: [Tool; 3] = [
             dir: ".claude/agents",
             extension: "md",
             format: AgentFormat::Markdown,
+            max_turns: true,
         }),
         agents_read_from: None,
     },
@@ -71,6 +74,7 @@ pub const TOOLS: [Tool; 3] = [
             dir: ".codex/agents",
             extension: "toml",
             format: AgentFormat::Toml,
+            max_turns: false,
         }),
         agents_read_from: None,
     },
@@ -83,6 +87,7 @@ pub const TOOLS: [Tool; 3] = [
             dir: ".cursor/agents",
             extension: "md",
             format: AgentFormat::Markdown,
+            max_turns: false,
         }),
         agents_read_from: Some("claude-code"),
     },
@@ -271,7 +276,7 @@ fn write_agents(harness: &Harness, root: &Path, redirect_dirs: &[String]) -> Res
     for (_, target) in targets {
         for persona in &personas {
             let file = format!("{AGENT_PREFIX}{}.{}", persona.name, target.extension);
-            let content = render_agent(&target.format, persona);
+            let content = render_agent(&target.format, target.max_turns, persona);
             if let Some(local) = write_routing_file(&root.join(target.dir).join(file), &content)? {
                 locals.push(local);
             }
@@ -306,12 +311,20 @@ fn personas(harness: &Harness) -> Result<Vec<Persona>> {
 
 /// Definição de subagente da persona no formato da ferramenta. Sem `tools` e com o modelo da sessão:
 /// o modelo é escolhido no disparo, pelo perfil da tarefa.
-fn render_agent(format: &AgentFormat, persona: &Persona) -> String {
+fn max_turns(persona: &str) -> u32 {
+    match persona {
+        "desenvolvedor" | "ui-ux-designer" => 60,
+        _ => 30,
+    }
+}
+
+fn render_agent(format: &AgentFormat, with_max_turns: bool, persona: &Persona) -> String {
     let name = &persona.name;
     let instructions = format!(
         "Persona {} do harness Vostok, como subagente.\n\
-         Antes de qualquer outra ação, execute `vostok context load --persona {name}` e siga a persona e o contexto carregados.\n\
-         A tarefa, o que entregar e o modelo vêm da mensagem do Coordenador que disparou este subagente.\n",
+         Numa tarefa, a mensagem do Coordenador manda rodar `vostok task brief <SPEC_ID> <TASK_ID>`: rode só ele e siga o que ele imprime.\n\
+         Em qualquer outro trabalho, antes de qualquer ação, execute `vostok context load --persona {name}` e siga a persona e o contexto carregados.\n\
+         O que entregar e o modelo vêm da mensagem do Coordenador.\n",
         persona.title
     );
     // As aspas duplas do YAML e as strings básicas do TOML escapam `\` e `"` do mesmo jeito.
@@ -322,8 +335,13 @@ fn render_agent(format: &AgentFormat, persona: &Persona) -> String {
                 .lines()
                 .map(|line| format!("> {line}\n"))
                 .collect();
+            let turns = if with_max_turns {
+                format!("maxTurns: {}\n", max_turns(name))
+            } else {
+                String::new()
+            };
             format!(
-                "---\nname: {AGENT_PREFIX}{name}\ndescription: \"{description}\"\nmodel: inherit\n---\n\n{quoted}"
+                "---\nname: {AGENT_PREFIX}{name}\ndescription: \"{description}\"\nmodel: inherit\n{turns}---\n\n{quoted}"
             )
         }
         AgentFormat::Toml => format!(

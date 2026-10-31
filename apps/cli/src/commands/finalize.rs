@@ -2204,6 +2204,7 @@ impl Finalization {
                         "KIND_CLASS",
                         if kind == "manual" { "manual" } else { "auto" }.to_string(),
                     ),
+                    ("BEFORE", self.before_html(&evidence_dir, name)),
                     ("MEDIA", MEDIA_MARKER.to_string()),
                     (
                         "HOW",
@@ -2266,6 +2267,27 @@ impl Finalization {
         let template = read_template(&templates.join(EVIDENCE_TEMPLATE), errors);
         let html = render_lines(&template, &values.into_iter().collect());
         Ok(splice(&html, ITEMS_MARKER, &items))
+    }
+
+    /// Saída da evidência coletada antes da tarefa, vazia se não houve baseline. As duas primeiras
+    /// linhas do arquivo guardam o comando e o código de saída e não entram no documento.
+    fn before_html(&self, evidence_dir: &Path, name: &str) -> String {
+        let Ok(baseline_dir) = self.task_setting("evidence_baseline_dir") else {
+            return String::new();
+        };
+        let Ok(recorded) = fs::read(evidence_dir.join("baseline").join(baseline_dir).join(name))
+        else {
+            return String::new();
+        };
+        let output: Vec<u8> = recorded
+            .splitn(3, |&byte| byte == b'\n')
+            .nth(2)
+            .unwrap_or_default()
+            .to_vec();
+        let escaped = String::from_utf8_lossy(&html_escape_bytes(&output)).into_owned();
+        format!(
+            "<p class=\"piece-label\">Antes da tarefa</p><pre><code>{escaped}</code></pre><p class=\"piece-label\">Depois da tarefa</p>"
+        )
     }
 
     /// HTML da mídia de uma evidência. Imagem e vídeo até o limite vão em base64 e texto, escapado num

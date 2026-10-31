@@ -157,6 +157,72 @@ fn evidence_document_lists_the_accepted_regression_differences() {
     assert!(html.contains("vírgula exigida pelo passo 2"));
 }
 
+/// Monta uma tarefa concluída com a evidência `saida.txt` e, se pedido, o baseline dela, e devolve o
+/// `evidencias.html` gerado.
+fn evidence_html_with_baseline(baseline: Option<&str>) -> String {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    let tasks = project.harness().join("work/tasks/SPEC-001");
+    fs::create_dir_all(&tasks).unwrap();
+    fs::write(
+        tasks.join("TASK-01.md"),
+        "---\nid: TASK-01\ntitle: Tarefa\nstatus: done\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Evidências\n\n- `saida.txt` (automática): `echo depois`\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-14 | conclusão | done | ok |\n",
+    )
+    .unwrap();
+    let evidence = tasks.join("evidence/TASK-01");
+    fs::create_dir_all(&evidence).unwrap();
+    fs::write(evidence.join("saida.txt"), "saida depois <ok>\n").unwrap();
+    if let Some(output) = baseline {
+        let dir = evidence.join("baseline/evidence");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("saida.txt"), output).unwrap();
+    }
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let content_path = project.harness().join("work/finalize/SPEC-001/content.md");
+    let content = fs::read_to_string(&content_path).unwrap();
+    let content = content
+        .replace("#{EVIDENCE_01_HOW}", "rodar.")
+        .replace("#{EVIDENCE_01_READ}", "ler.");
+    fs::write(&content_path, fill_variables(&content)).unwrap();
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    fs::read_to_string(content_path.with_file_name("evidencias.html")).unwrap()
+}
+
+#[test]
+fn evidence_before_after_shows_the_baseline_output_before_the_final_one() {
+    let html = evidence_html_with_baseline(Some("$ echo antes\nexit: 0\nsaida antes <x>\n"));
+    let before = html.find("Antes da tarefa").expect(&html);
+    let after = html.find("Depois da tarefa").expect(&html);
+    assert!(before < after);
+    assert!(html.contains("saida antes &lt;x&gt;"), "{html}");
+    assert!(!html.contains("$ echo antes"), "{html}");
+    assert!(html.find("saida antes").unwrap() < after);
+    assert!(html.contains("saida depois &lt;ok&gt;"), "{html}");
+    assert!(html.rfind("saida depois").unwrap() > after);
+}
+
+#[test]
+fn evidence_before_after_shows_only_the_final_output_without_baseline() {
+    let html = evidence_html_with_baseline(None);
+    assert!(!html.contains("Antes da tarefa"), "{html}");
+    assert!(!html.contains("Depois da tarefa"), "{html}");
+    assert!(html.contains("saida depois &lt;ok&gt;"), "{html}");
+}
+
 /// Troca cada variável `#{...}` por um texto válido para o tipo da seção.
 fn fill_variables(content: &str) -> String {
     let mut out = String::new();

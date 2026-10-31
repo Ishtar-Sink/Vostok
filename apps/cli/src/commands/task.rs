@@ -190,6 +190,8 @@ const DEFAULT_VERIFY_LABEL: &str = "# evidência:";
 const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
+pub(super) const EVIDENCE_REQUIRES: &str = "Requer";
+const NOT_EXECUTED: &str = "não executada:";
 const DEFAULT_EVIDENCE_PRINT: &str = "print";
 const EXPECTED_CHANGE_MARK: &str = "(muda)";
 const DEFAULT_REGRESSION_ALERT: [&str; 4] = ["FAILED", "error", "warning", "panicked"];
@@ -476,29 +478,11 @@ impl Tasks {
         let field = self
             .cfg("evidence_expect_field")
             .unwrap_or_else(|_| DEFAULT_EVIDENCE_EXPECT.to_string());
-        let from_verify = self.evidence_from_verify();
-        let mut current: Option<String> = None;
-        let mut expectations = HashMap::new();
-        for line in text.lines().filter(|line| has_text(line)) {
-            if !is_indented(line) {
-                current = verify_evidence_name(line, &from_verify)
-                    .or_else(|| evidence_item(line).map(|(name, _, _)| name))
-                    .map(str::to_string);
-                continue;
-            }
-            let value = line
-                .trim()
-                .strip_prefix("- ")
-                .and_then(|rest| rest.strip_prefix(field.as_str()))
-                .and_then(|rest| rest.strip_prefix(": "))
-                .map(|rest| rest.trim().trim_matches('`'));
-            if let (Some(name), Some(value)) = (&current, value) {
-                if !value.is_empty() {
-                    expectations.insert(name.clone(), value.to_string());
-                }
-            }
-        }
-        expectations
+        evidence_subitem_values(text, &field, &self.evidence_from_verify())
+            .into_iter()
+            .map(|(name, value)| (name, value.trim_matches('`').to_string()))
+            .filter(|(_, value)| !value.is_empty())
+            .collect()
     }
 
     /// Tipos de evidência e o rótulo da "Verificação", com os valores padrão.
@@ -532,8 +516,10 @@ impl Tasks {
         let expect = self
             .cfg("evidence_expect_field")
             .unwrap_or_else(|_| DEFAULT_EVIDENCE_EXPECT.to_string());
-        if !optional.contains(&expect) {
-            optional.push(expect);
+        for field in [expect, EVIDENCE_REQUIRES.to_string()] {
+            if !optional.contains(&field) {
+                optional.push(field);
+            }
         }
         Some(EvidenceFields {
             required: self.cfg_list("evidence_fields").ok()?,
@@ -1242,7 +1228,19 @@ impl Tasks {
         // Evidências automáticas: a saída de antes da mudança; o código de saída não impede a coleta.
         let mut evidences = Vec::new();
         if let Some(evidence_dir) = self.evidence_baseline_dir() {
+            let text = self.subsection(&content, "evidence_subsection")?;
+            let requirements = evidence_requirements(&text, &self.evidence_from_verify());
             for (name, command) in self.automatic_evidences(&content)? {
+                let missing = requirements
+                    .get(&name)
+                    .and_then(|paths| paths.iter().find(|path| !root.join(path).exists()));
+                if let Some(path) = missing {
+                    let reason = format!("{NOT_EXECUTED} {path} ainda não existe");
+                    println!("- [evidência {name}] {reason}");
+                    let record = format!("$ {command}\nexit: 1\n{reason}\n").into_bytes();
+                    evidences.push((evidence_dir.clone(), name, record));
+                    continue;
+                }
                 println!("- [evidência {name}] {command}");
                 evidences.push((evidence_dir.clone(), name, recorded_run(&command, &root)?.1));
             }
@@ -1734,6 +1732,7 @@ impl Tasks {
                             .nth(2)
                             .unwrap_or_default();
                         if recorded_exit_code(&recorded) == Some(0)
+                            && !before.starts_with(NOT_EXECUTED.as_bytes())
                             && without_ignored(before, &ignore) == without_ignored(&output, &ignore)
                         {
                             same.push((name.to_string(), command.to_string()));
@@ -2718,10 +2717,9 @@ impl Tasks {
             }
         }
         let block = verify_block(&self.subsection(content, "verify_subsection")?);
-        let changed: Vec<String> = change_items(&self.subsection(content, "change_subsection")?)
-            .into_iter()
-            .map(|(_, path)| path)
-            .collect();
+        let items = change_items(&self.subsection(content, "change_subsection")?);
+        let created = created_of(&items);
+        let changed: Vec<String> = items.into_iter().map(|(_, path)| path).collect();
         errors.extend(evidence_rule_errors(
             &kinds,
             &sub,
@@ -2729,6 +2727,7 @@ impl Tasks {
             &text,
             &block,
             &changed,
+            &created,
         ));
         if count == 0 {
             errors.push(format!(
@@ -2758,13 +2757,9 @@ impl Tasks {
     /// Caminhos que a tarefa cria ("Mudar" com a ação `criar`).
     fn created_paths(&self, file: &Path) -> Result<Vec<String>> {
         let content = read(file)?;
-        Ok(
-            change_items(&self.subsection(&content, "change_subsection")?)
-                .into_iter()
-                .filter(|(action, _)| action == CREATE_ACTION)
-                .map(|(_, path)| path)
-                .collect(),
-        )
+        Ok(created_of(&change_items(
+            &self.subsection(&content, "change_subsection")?,
+        )))
     }
 }
 
@@ -3429,6 +3424,54 @@ impl EvidenceKinds {
     }
 }
 
+/// Caminhos com a ação `criar` de "Mudar".
+pub(super) fn created_of(items: &[(String, String)]) -> Vec<String> {
+    items
+        .iter()
+        .filter(|(action, _)| action == CREATE_ACTION)
+        .map(|(_, path)| path.clone())
+        .collect()
+}
+
+/// Valor do subitem `field` de cada evidência, pelo nome da evidência, sem os espaços das pontas.
+fn evidence_subitem_values(text: &str, field: &str, from_verify: &str) -> HashMap<String, String> {
+    let mut current: Option<String> = None;
+    let mut values = HashMap::new();
+    for line in text.lines().filter(|line| has_text(line)) {
+        if !is_indented(line) {
+            current = verify_evidence_name(line, from_verify)
+                .or_else(|| evidence_item(line).map(|(name, _, _)| name))
+                .map(str::to_string);
+            continue;
+        }
+        let value = line
+            .trim()
+            .strip_prefix("- ")
+            .and_then(|rest| rest.strip_prefix(field))
+            .and_then(|rest| rest.strip_prefix(": "))
+            .map(str::trim);
+        if let (Some(name), Some(value)) = (&current, value) {
+            values.insert(name.clone(), value.to_string());
+        }
+    }
+    values
+}
+
+/// Caminhos de `Requer:` de cada evidência: os trechos entre crases, separados por vírgula.
+pub(super) fn evidence_requirements(text: &str, from_verify: &str) -> HashMap<String, Vec<String>> {
+    evidence_subitem_values(text, EVIDENCE_REQUIRES, from_verify)
+        .into_iter()
+        .map(|(name, value)| {
+            let paths = value
+                .split(',')
+                .map(|path| path.trim().trim_matches('`').trim().to_string())
+                .filter(|path| !path.is_empty())
+                .collect();
+            (name, paths)
+        })
+        .collect()
+}
+
 /// Nome de um item dos tipos da SPEC-020: da verificação, `diff` ou `print`.
 pub(super) fn new_kind_name<'a>(item: &'a str, kinds: &EvidenceKinds) -> Option<&'a str> {
     verify_evidence_name(item, &kinds.from_verify).or_else(|| {
@@ -3447,8 +3490,20 @@ pub(super) fn evidence_rule_errors(
     evidence: &str,
     block: &str,
     changed: &[String],
+    created: &[String],
 ) -> Vec<String> {
     let mut errors = Vec::new();
+    let mut requirements: Vec<_> = evidence_requirements(evidence, &kinds.from_verify)
+        .into_iter()
+        .collect();
+    requirements.sort();
+    for (name, paths) in requirements {
+        for path in paths.iter().filter(|path| !created.contains(path)) {
+            errors.push(format!(
+                "'{sub}': a evidência {name} requer '{path}', que não é criado pela tarefa"
+            ));
+        }
+    }
     let mut has_image = false;
     let mut verify_names = Vec::new();
     for item in evidence

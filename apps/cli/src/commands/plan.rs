@@ -11,9 +11,9 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use super::task::{
-    dashdash_commands, dashdash_warning, delivery_errors, evidence_item, evidence_name_problem,
-    evidence_rule_errors, expected_change, new_folders, new_kind_name, normalized_evidence_name,
-    verify_block, EvidenceKinds,
+    created_of, dashdash_commands, dashdash_warning, delivery_errors, evidence_item,
+    evidence_name_problem, evidence_rule_errors, expected_change, new_folders, new_kind_name,
+    normalized_evidence_name, verify_block, EvidenceKinds, EVIDENCE_REQUIRES,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -179,8 +179,10 @@ impl Workspace {
         let expect = self
             .task_setting("evidence_expect_field")
             .unwrap_or_else(|_| "Espera".to_string());
-        if !optional.contains(&expect) {
-            optional.push(expect);
+        for field in [expect, EVIDENCE_REQUIRES.to_string()] {
+            if !optional.contains(&field) {
+                optional.push(field);
+            }
         }
         Some(EvidenceFields {
             required: self.task_list("evidence_fields").ok()?,
@@ -1475,11 +1477,9 @@ impl Workspace {
                 ));
             }
         }
-        let changed: Vec<String> = self
-            .change_items(content)?
-            .into_iter()
-            .map(|(_, path)| path)
-            .collect();
+        let items = self.change_items(content)?;
+        let created = created_of(&items);
+        let changed: Vec<String> = items.into_iter().map(|(_, path)| path).collect();
         errors.extend(evidence_rule_errors(
             &kinds,
             &sub,
@@ -1487,6 +1487,7 @@ impl Workspace {
             &text,
             &self.verification(content)?,
             &changed,
+            &created,
         ));
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));

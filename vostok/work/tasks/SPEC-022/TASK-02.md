@@ -9,16 +9,17 @@ wave: 2
 covers: [RF-01, RF-02, RF-03, CT-01, CT-02, CT-03, CT-04, CB-01, CB-02]
 type: tarefa
 labels: [SPEC-022, padrao]
-status: approved
-content_hash: 5187bd39e1a4a0d9cfd7a64208833005a1088ba7b1e6b2be3d72501683f90039
+status: done
+content_hash: 9fa186e7cc7d18e23555d1f974db13c18c09a4386d2d47eb11986d6d417326cb
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: 5187bd39e1a4a0d9cfd7a64208833005a1088ba7b1e6b2be3d72501683f90039
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-02: Requer nas evidências
@@ -75,15 +76,15 @@ Resultado esperado: toda a suíte passa e o clippy termina sem avisos.
 
 ### Concluída quando
 
-- [ ] Evidência com `Requer:` ausente não roda no baseline e grava o motivo (RF-01, CT-01, CT-02).
+- [x] Evidência com `Requer:` ausente não roda no baseline e grava o motivo (RF-01, CT-01, CT-02).
 
   > Como comprovar: em `requires-tests.txt`, ver aprovados os testes do caminho ausente e presente.
 
-- [ ] Ela não gera aviso de "saída igual" (RF-03, CT-04).
+- [x] Ela não gera aviso de "saída igual" (RF-03, CT-04).
 
   > Como comprovar: em `requires-tests.txt`, ver aprovado o teste sem aviso.
 
-- [ ] `Requer:` só aceita caminhos `criar`, na tarefa e no plano (RF-02, CT-03, CB-01).
+- [x] `Requer:` só aceita caminhos `criar`, na tarefa e no plano (RF-02, CT-03, CB-01).
 
   > Como comprovar: em `requires-tests.txt`, ver aprovados os testes de recusa.
 
@@ -114,6 +115,12 @@ Abordagem: subitem opcional lido como o `Espera:`; a coleta pula a evidência e 
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | passed | 2 comando(s) iguais ao baseline |
+| 5 | 2026-10-31 | evidências | passed | 1 evidência(s) em evidence/TASK-02/ |
+| 6 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

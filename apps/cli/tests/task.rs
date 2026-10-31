@@ -2930,3 +2930,68 @@ fn start_progress_prints_each_command_before_the_summary() {
     let content = read(&project, TASK_PATH);
     assert!(content.find("| início |").unwrap() < content.find("| baseline |").unwrap());
 }
+
+// --- Requer nas evidências (SPEC-022) ---
+
+const REQUIRES_EVIDENCE: &str = "- `saida.txt` (automática): `echo x >> contador.txt; test -s novo.txt && echo pronto`\n  - Prova: o arquivo novo é lido.\n  - Trecho: o conteúdo.\n  - Falha: arquivo ausente.\n  - Requer: `novo.txt`";
+
+#[test]
+fn requires_missing_path_skips_the_evidence_in_the_baseline() {
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], REQUIRES_EVIDENCE);
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ echo x >> contador.txt; test -s novo.txt && echo pronto\nexit: 1\nnão executada: novo.txt ainda não existe\n"
+    );
+    assert!(!exists(&project, "contador.txt"));
+}
+
+#[test]
+fn requires_existing_path_runs_the_evidence_in_the_baseline() {
+    let project = running_task_with_evidence(
+        &[("valor.txt", "a\n"), ("novo.txt", "pronto\n")],
+        REQUIRES_EVIDENCE,
+    );
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ echo x >> contador.txt; test -s novo.txt && echo pronto\nexit: 0\npronto\n"
+    );
+    assert!(exists(&project, "contador.txt"));
+}
+
+#[test]
+fn requires_skipped_evidence_does_not_warn_about_the_same_output() {
+    let project = running_task_with_evidence(&[("valor.txt", "a\n")], REQUIRES_EVIDENCE);
+    write(&project, "novo.txt", "pronto\n");
+    task(&project, &["tests"]).assert().success();
+    let output = stdout(&mut task(&project, &["evidence"]));
+    assert!(!output.contains("mesma saída do baseline"), "{output}");
+    assert!(read(&project, TASK_PATH).contains("evidence_result: passed"));
+}
+
+fn requires_validation(evidence: &str) -> (bool, String) {
+    let project = Project::new();
+    write(&project, TASK_PATH, &complete_task("pending", evidence));
+    let output = nested(&project, "adjust", "validate").output().unwrap();
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn requires_a_created_path_is_valid_for_the_task() {
+    let (ok, stderr) = requires_validation(REQUIRES_EVIDENCE);
+    assert!(ok, "{stderr}");
+}
+
+#[test]
+fn requires_a_path_the_task_does_not_create_is_refused() {
+    let (ok, stderr) = requires_validation(
+        &REQUIRES_EVIDENCE.replace("Requer: `novo.txt`", "Requer: `novo.txt`, `README.md`"),
+    );
+    assert!(!ok);
+    assert!(
+        stderr.contains("a evidência saida.txt requer 'README.md', que não é criado pela tarefa"),
+        "{stderr}"
+    );
+}

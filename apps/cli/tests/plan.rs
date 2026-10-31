@@ -1354,3 +1354,38 @@ fn expected_change_without_a_reason_is_refused_by_the_plan_validation() {
         "{all}"
     );
 }
+
+// --- Requer nas evidências (SPEC-022) ---
+
+fn requires_plan(requires: &str) -> (bool, String) {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        &format!("- `saida.txt` (automática): `test -s novo.txt && echo existe`\n{SUBITEMS}\n  - Requer: {requires}"),
+    );
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn requires_a_created_path_is_accepted_by_the_plan_validation() {
+    let (ok, stderr) = requires_plan("`novo.txt`");
+    assert!(ok, "{stderr}");
+}
+
+#[test]
+fn requires_a_path_the_task_does_not_create_is_refused_by_the_plan_validation() {
+    let (ok, stderr) = requires_plan("`README.md`");
+    assert!(!ok);
+    assert!(
+        stderr.contains("a evidência saida.txt requer 'README.md', que não é criado pela tarefa"),
+        "{stderr}"
+    );
+}

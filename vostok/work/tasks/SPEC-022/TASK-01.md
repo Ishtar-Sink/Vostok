@@ -9,16 +9,17 @@ wave: 1
 covers: [RF-07, CT-08]
 type: tarefa
 labels: [SPEC-022, padrao]
-status: approved
-content_hash: 37ffa0c683c232bdd375494b5c33207d9b4ae76d26ca8a106627d4e55112a6b1
+status: done
+content_hash: b2995eb10c36f43ac35ac4de2d1f8f195d9489ea0d08690620eb88fe818adec5
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: 37ffa0c683c232bdd375494b5c33207d9b4ae76d26ca8a106627d4e55112a6b1
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-01: Progresso no início da tarefa
@@ -72,11 +73,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens, e o clippy termin
 
 ### Concluída quando
 
-- [ ] O `vostok task start` marca `in_progress` antes do baseline e imprime cada comando (RF-07, CT-08).
+- [x] O `vostok task start` marca `in_progress` antes do baseline e imprime cada comando (RF-07, CT-08).
 
   > Como comprovar: em `start-progress-tests.txt`, ver aprovados os testes da saída e da falha na coleta.
 
-- [ ] A suíte inteira passa.
+- [x] A suíte inteira passa.
 
   > Como comprovar: a Verificação termina com código 0.
 
@@ -106,6 +107,12 @@ Abordagem: inverter a ordem em `start` (status e `início` antes da coleta) e im
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | passed | 0 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-10-31 | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
+| 6 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

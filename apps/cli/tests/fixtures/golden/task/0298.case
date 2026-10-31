@@ -22,7 +22,8 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 139
+@stdout 160
+- [1] cat estado.txt
 Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline: 1 comando(s); códigos de saída: 0
 
 @stderr 0

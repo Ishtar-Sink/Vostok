@@ -1356,13 +1356,14 @@ fn start_baseline_refuses_an_existing_created_path() {
 }
 
 #[test]
-fn start_baseline_failure_keeps_the_task_approved() {
+fn start_progress_failure_leaves_the_task_running() {
     let project = approved_task("- `true`");
     write(&project, "vostok/work/tasks/SPEC-001/evidence", "arquivo");
     failure_stderr(&mut task(&project, &["start"]));
     let content = read(&project, TASK_PATH);
-    assert!(content.contains("\nstatus: approved\n"), "{content}");
-    assert!(!content.contains("| início |"), "{content}");
+    assert!(content.contains("\nstatus: in_progress\n"), "{content}");
+    assert!(content.contains("| início |"), "{content}");
+    assert!(!content.contains("| baseline |"), "{content}");
 }
 
 #[test]
@@ -2895,4 +2896,37 @@ fn kept_results_keep_a_failed_test_result() {
     assert_eq!(field(&project, "tests_result"), "failed");
     task(&project, &["regression"]).assert().success();
     task(&project, &["finish"]).assert().failure();
+}
+
+// --- Progresso no início da tarefa (SPEC-022) ---
+
+#[test]
+fn start_progress_prints_each_command_before_the_summary() {
+    let project = Project::new();
+    let content = complete_task(
+        "pending",
+        "- `saida.txt` (automática): `echo depois`\n  - Prova: o valor.\n  - Trecho: a linha.\n  - Falha: vazio.",
+    )
+    .replace(
+        "### Baseline\n\n- `true`\n",
+        "### Baseline\n\n- `true`\n- `echo dois`\n",
+    );
+    write(&project, TASK_PATH, &content);
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    let output = stdout(&mut task(&project, &["start"]));
+    let header = output
+        .find("Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:\n")
+        .expect(&output);
+    let first = output.find("- [1] true\n").expect(&output);
+    let second = output.find("- [2] echo dois\n").expect(&output);
+    let evidence = output
+        .find("- [evidência saida.txt] echo depois\n")
+        .expect(&output);
+    let summary = output
+        .find("Baseline de TASK-01 coletado em ")
+        .expect(&output);
+    assert!(header < first && first < second && second < evidence && evidence < summary);
+    let content = read(&project, TASK_PATH);
+    assert!(content.find("| início |").unwrap() < content.find("| baseline |").unwrap());
 }

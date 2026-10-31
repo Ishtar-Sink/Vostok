@@ -1122,7 +1122,8 @@ impl Tasks {
                 blockers.join("\n")
             );
         }
-        let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
+        // A tarefa aparece em execução antes da coleta, que pode demorar; se a coleta falhar, ela
+        // continua em execução sem baseline, e o `vostok task baseline` coleta de novo.
         let in_progress = &self.status.in_progress;
         frontmatter_set(&file, "status", in_progress)?;
         let approved_at = frontmatter_get(&file, "approved_at").unwrap_or_else(|_| "?".into());
@@ -1132,9 +1133,11 @@ impl Tasks {
             detail.push_str(&format!("; modelo: {model}"));
         }
         self.record_step(&file, "início", in_progress, &detail)?;
+        println!("Tarefa {task} iniciada: status '{in_progress}'. Coletando o baseline:");
+        let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
         self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
         println!(
-            "Tarefa {task} iniciada: status '{in_progress}'. Baseline de {task} coletado em {}: {baseline_detail}",
+            "Baseline de {task} coletado em {}: {baseline_detail}",
             dir.display()
         );
         Ok(())
@@ -1232,13 +1235,15 @@ impl Tasks {
         let root = self.project_root()?;
         // Os resultados são gravados juntos no fim: ou o baseline existe inteiro, ou não existe.
         let mut results = Vec::new();
-        for command in &commands {
+        for (index, command) in commands.iter().enumerate() {
+            println!("- [{}] {command}", index + 1);
             results.push(recorded_run(command, &root)?);
         }
         // Evidências automáticas: a saída de antes da mudança; o código de saída não impede a coleta.
         let mut evidences = Vec::new();
         if let Some(evidence_dir) = self.evidence_baseline_dir() {
             for (name, command) in self.automatic_evidences(&content)? {
+                println!("- [evidência {name}] {command}");
                 evidences.push((evidence_dir.clone(), name, recorded_run(&command, &root)?.1));
             }
         }
@@ -1266,7 +1271,6 @@ impl Tasks {
         Ok((dir, detail))
     }
 
-    /// Comandos de "Baseline", sem os acentos graves.
     /// Motivo de cada comando de "Baseline" com mudança esperada, na ordem dos comandos.
     fn baseline_reasons(&self, content: &str) -> Result<Vec<Option<String>>> {
         Ok(self
@@ -1277,6 +1281,7 @@ impl Tasks {
             .collect())
     }
 
+    /// Comandos de "Baseline", sem os acentos graves.
     fn baseline_commands(&self, content: &str) -> Result<Vec<String>> {
         Ok(self
             .subsection(content, "baseline_subsection")?

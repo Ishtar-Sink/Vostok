@@ -9,16 +9,17 @@ wave: 1
 covers: [RF-09, CT-10]
 type: tarefa
 labels: [SPEC-022, padrao]
-status: approved
-content_hash: 0e10ae47f6cff1e9f1fbb7d91014019440950e47107da8f38ec4754687ad6ee1
+status: done
+content_hash: fff63304754b19687ab6340aba96aa902a120a31303e0bc3e2de41c5a9d2ec36
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: 0e10ae47f6cff1e9f1fbb7d91014019440950e47107da8f38ec4754687ad6ee1
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-04: Antes de evidência não executada
@@ -67,7 +68,7 @@ Resultado esperado: os testes de finalize passam e o clippy termina sem avisos.
 
 ### Concluída quando
 
-- [ ] O `evidencias.html` mostra no "antes" a linha de não executada ou interrompida (RF-09, CT-10).
+- [x] O `evidencias.html` mostra no "antes" a linha de não executada ou interrompida (RF-09, CT-10).
 
   > Como comprovar: em `before-skipped-tests.txt`, ver aprovados os dois testes.
 
@@ -96,6 +97,12 @@ Abordagem: a linha gravada no baseline já é a explicação; o `before_html` s�
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | passed | 0 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-10-31 | evidências | passed | 1 evidência(s) em evidence/TASK-04/ |
+| 6 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

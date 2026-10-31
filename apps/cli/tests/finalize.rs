@@ -240,3 +240,27 @@ fn fill_variables(content: &str) -> String {
     }
     out
 }
+
+// --- Antes de evidência não executada ou interrompida (SPEC-022) ---
+
+#[test]
+fn before_skipped_shows_the_not_executed_line() {
+    let html = evidence_html_with_baseline(Some(
+        "$ echo antes\nexit: 1\nnão executada: novo.txt ainda não existe\n",
+    ));
+    let before = html.find("Antes da tarefa").expect(&html);
+    let line = html
+        .find("não executada: novo.txt ainda não existe")
+        .expect(&html);
+    assert!(before < line && line < html.find("Depois da tarefa").unwrap());
+}
+
+#[test]
+fn before_skipped_shows_the_interrupted_line() {
+    let html = evidence_html_with_baseline(Some(
+        "$ echo antes\nexit: 124\nparcial <x>\ninterrompida após 120 s\n",
+    ));
+    let line = html.find("interrompida após 120 s").expect(&html);
+    assert!(html.contains("parcial &lt;x&gt;"), "{html}");
+    assert!(line < html.find("Depois da tarefa").unwrap());
+}

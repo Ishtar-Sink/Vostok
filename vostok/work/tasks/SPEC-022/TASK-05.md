@@ -9,16 +9,17 @@ wave: 1
 covers: [RF-08, CT-09]
 type: tarefa
 labels: [SPEC-022, padrao]
-status: approved
-content_hash: 52c420c327e8a37bc48edf2e92f48f82be71726c404cb3030060697bce086d56
+status: done
+content_hash: b098e79546b55b5ec2fe8b87c0b7ed12c9a367c9e112009c5618913065e37bfc
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: 52c420c327e8a37bc48edf2e92f48f82be71726c404cb3030060697bce086d56
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-05: Orientação de Requer e Tempo-limite
@@ -78,11 +79,11 @@ Resultado esperado: os testes de `base` passam.
 
 ### Concluída quando
 
-- [ ] A `approve-plan`, a `approve-task` e a `qa-lead` orientam `Requer:` e `Tempo-limite:` (RF-08, CT-09).
+- [x] A `approve-plan`, a `approve-task` e a `qa-lead` orientam `Requer:` e `Tempo-limite:` (RF-08, CT-09).
 
   > Como comprovar: abrir os três diffs e ver os trechos novos.
 
-- [ ] Os testes de `base` continuam passando.
+- [x] Os testes de `base` continuam passando.
 
   > Como comprovar: a Verificação termina com código 0.
 
@@ -111,6 +112,12 @@ Só texto, a partir dos contratos da spec. A SPEC-021 TASK-04 também muda a `ap
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | 2026-10-31 | evidências | passed | 3 evidência(s) em evidence/TASK-05/ |
+| 6 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

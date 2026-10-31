@@ -84,6 +84,8 @@ O comando lista os impedimentos de cada tarefa, sem alterar nada. Se houver algu
 | Edição manual sem registro | Registrar a edição com `vostok task adjust record-manual` ou pedir um ajuste (skill `adjust-task`). |
 | Problema de validação | Ajustar a tarefa com a skill `adjust-task`. |
 
+Se a saída listar evidências com `Tempo-limite:` acima do padrão (`- TASK-01: tela.txt com tempo-limite de 900 s (padrão 120 s)`) e o usuário ainda não as viu nesta conversa, **PARE** e mostre-as com o template `question`: aprovar a tarefa aprova a exceção, e o início dela pode demorar até esse tempo por evidência.
+
 ### 5. Aprovar
 
 Execute, com os mesmos argumentos do passo 4:

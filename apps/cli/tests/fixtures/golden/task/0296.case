@@ -22,8 +22,10 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 186
-Tarefa TASK-01 iniciada: status 'in_progress'. Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline: 1 comando(s); códigos de saída: 0
+@stdout 229
+Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+- [1] cat estado.txt
+Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline: 1 comando(s); códigos de saída: 0
 
 @stderr 0
 

@@ -37,6 +37,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 [finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
 [finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
 [finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
+[finish-task-09]: A conferência de um print é sempre do usuário, nunca do agente. Nunca execute `--reviewed` sem a confirmação dele.
 
 ## Checklist
 
@@ -121,6 +122,7 @@ O comando grava a saída de cada evidência automática e confere as manuais:
 
 - Evidência automática com erro: corrija a causa no código da tarefa e execute `vostok task evidence` de novo. Se o erro estiver no próprio comando da evidência, **PARE** e responda com o template `blocker`: mudar a evidência é um ajuste (skill `adjust-task`).
 - Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo comando. Com os arquivos, execute `vostok task evidence` de novo.
+- Prints sem conferência listados na saída: mostre cada imagem ao usuário (o caminho) e pergunte com o template `question` se ela mostra o esperado, numa só pergunta com os prints de todas as tarefas finalizadas no mesmo pedido. Só com a confirmação dele, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>`. Print rejeitado: **PARE** e responda com o template `blocker`.
 - Evidência com a mesma saída do baseline: o comando grava e avisa. Ela não comprova a mudança da tarefa; siga para o passo seguinte e cite o aviso em "Pendências" da resposta, sugerindo ajustar a evidência com a skill `adjust-task`.
 
 ### 6. Persistir as evidências

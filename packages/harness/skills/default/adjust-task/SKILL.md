@@ -40,6 +40,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-09]: Não aprove nem execute a tarefa como parte do ajuste. A aprovação é feita pela skill `approve-task`, só a pedido do usuário.
 [adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`.
 [adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
+[adjust-task-12]: Ao ajustar "Verificação" ou "Evidências", use os formatos da skill `approve-plan`: comandos focados em "Mudar" e conferidos, rótulo `# evidência:`, `(automática)`, `(automática, da verificação)`, `(diff): caminho`, `(print): comando`, `(manual)` e o subitem `Espera:`. A evidência mostra o comportamento entregue, nunca a leitura do texto da tarefa.
 
 ## Checklist
 

@@ -11,7 +11,9 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use super::task::{
-    delivery_errors, evidence_item, evidence_name_problem, new_folders, normalized_evidence_name,
+    dashdash_commands, dashdash_warning, delivery_errors, evidence_item, evidence_name_problem,
+    evidence_rule_errors, new_folders, new_kind_name, normalized_evidence_name, verify_block,
+    EvidenceKinds,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -168,13 +170,35 @@ impl Workspace {
     }
 
     /// Subitens das evidências; sem `evidence_fields` na configuração, eles não são exigidos.
+    /// O subitem do texto esperado vale mesmo sem estar em `evidence_optional_fields`, como na
+    /// validação de tarefa.
     fn evidence_fields(&self) -> Option<EvidenceFields> {
+        let mut optional = self
+            .task_list("evidence_optional_fields")
+            .unwrap_or_default();
+        let expect = self
+            .task_setting("evidence_expect_field")
+            .unwrap_or_else(|_| "Espera".to_string());
+        if !optional.contains(&expect) {
+            optional.push(expect);
+        }
         Some(EvidenceFields {
             required: self.task_list("evidence_fields").ok()?,
-            optional: self
-                .task_list("evidence_optional_fields")
-                .unwrap_or_default(),
+            optional,
         })
+    }
+
+    fn evidence_kinds(&self) -> EvidenceKinds {
+        EvidenceKinds::read(|key| self.task_setting(key).ok())
+    }
+
+    /// Bloco `bash` da "Verificação" da tarefa.
+    fn verification(&self, content: &str) -> Result<String> {
+        Ok(verify_block(
+            &self
+                .execution_subsection(content, "verify_subsection")?
+                .unwrap_or_default(),
+        ))
     }
 
     fn plan_path(&self, spec_id: &str) -> Result<PathBuf> {
@@ -1020,6 +1044,12 @@ impl Workspace {
             "Tarefas de {spec_id} válidas: {}",
             self.tasks_dir(spec_id)?.display()
         );
+        for file in markdown_files(&self.tasks_dir(spec_id)?) {
+            let task = file_stem(&file);
+            for command in dashdash_commands(&self.verification(&read(&file)?)?) {
+                println!("{}", dashdash_warning(&task, &command));
+            }
+        }
         Ok(())
     }
 
@@ -1386,11 +1416,18 @@ impl Workspace {
         let mut count = 0;
         // Nome final de cada item, com o nome escrito quando ele tem caminho.
         let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
+        let kinds = self.evidence_kinds();
         for item in text
             .split('\n')
             .filter(|item| !item.trim().is_empty() && !is_indented(item))
         {
-            if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
+            if let Some(name) = new_kind_name(item, &kinds) {
+                count += 1;
+                finals.push((name, None));
+                errors.extend(
+                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
+                );
+            } else if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
                 let name = evidence_item(item).map_or("", |(name, _, _)| name);
                 if let Some(normalized) = normalized_evidence_name(item) {
@@ -1430,6 +1467,19 @@ impl Workspace {
                 ));
             }
         }
+        let changed: Vec<String> = self
+            .change_items(content)?
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
+        errors.extend(evidence_rule_errors(
+            &kinds,
+            &sub,
+            &self.task_setting("verify_subsection")?,
+            &text,
+            &self.verification(content)?,
+            &changed,
+        ));
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));
         Ok(errors)

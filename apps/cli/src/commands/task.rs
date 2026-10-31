@@ -487,10 +487,9 @@ impl Tasks {
         expectations
     }
 
-    /// Rótulos do bloco da "Verificação" da tarefa.
-    fn labels_of(&self, content: &str) -> Result<Vec<VerifyLabel>> {
-        let block = verify_block(&self.subsection(content, "verify_subsection")?);
-        Ok(verify_labels(&block, &self.verify_label()))
+    /// Tipos de evidência e o rótulo da "Verificação", com os valores padrão.
+    fn evidence_kinds(&self) -> EvidenceKinds {
+        EvidenceKinds::read(|key| self.cfg(key).ok())
     }
 
     /// `(nome, comando)` das evidências automáticas de "Evidências", pela leitura do `evidence`.
@@ -854,6 +853,18 @@ impl Tasks {
         for file in &files {
             println!("- {}", task_id_of(file));
         }
+        for file in &files {
+            self.print_dashdash_warnings(file)?;
+        }
+        Ok(())
+    }
+
+    /// Avisos dos comandos da "Verificação" com argumentos depois de `--` (RF-02); não recusam.
+    fn print_dashdash_warnings(&self, file: &Path) -> Result<()> {
+        let block = verify_block(&self.subsection(&read(file)?, "verify_subsection")?);
+        for command in dashdash_commands(&block) {
+            println!("{}", dashdash_warning(&task_id_of(file), &command));
+        }
         Ok(())
     }
 
@@ -1007,7 +1018,7 @@ impl Tasks {
             &self.evidence_renames(&file)?.1,
         );
         println!("Tarefa {task} válida: {}", file.display());
-        Ok(())
+        self.print_dashdash_warnings(&file)
     }
 
     fn record(&self, spec: &str, task: &str, summary: &str) -> Result<()> {
@@ -2591,58 +2602,19 @@ impl Tasks {
         let mut count = 0;
         // Nome final de cada item, com o nome escrito quando ele tem caminho.
         let mut finals: Vec<(&str, Option<&str>)> = Vec::new();
-        let from_verify = self.evidence_from_verify();
-        let diff = self.evidence_diff();
-        let print = self.evidence_print();
-        let mut has_image = false;
-        let changed: Vec<String> = change_items(&self.subsection(content, "change_subsection")?)
-            .into_iter()
-            .map(|(_, path)| path)
-            .collect();
-        let mut verify_names = Vec::new();
+        let kinds = self.evidence_kinds();
         for item in text
             .lines()
             .filter(|line| has_text(line) && !is_indented(line))
         {
-            if let Some(name) = verify_evidence_name(item, &from_verify) {
+            if let Some(name) = new_kind_name(item, &kinds) {
                 count += 1;
                 finals.push((name, None));
-                verify_names.push(name);
                 if !is_valid_evidence_name(name) {
                     errors.push(format!("'{sub}' com nome de evidência inválido: `{name}` (o nome é só o nome do arquivo, sem caminho, sem começar por '.' e diferente de 'baseline' e 'validation'): {item}"));
                 }
-            } else if is_print_evidence(item, &print) {
-                count += 1;
-                has_image = true;
-                let name = evidence_item(item).map_or("", |(name, _, _)| name);
-                finals.push((name, None));
-                errors.extend(
-                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
-                );
-            } else if is_diff_evidence(item, &diff) {
-                count += 1;
-                let name = evidence_item(item).map_or("", |(name, _, _)| name);
-                finals.push((name, None));
-                errors.extend(
-                    evidence_name_problem(item).map(|problem| format!("'{sub}' com {problem}")),
-                );
             } else if is_automatic_evidence(item, &automatic) || is_manual_evidence(item, &manual) {
                 count += 1;
-                if is_manual_evidence(item, &manual) {
-                    has_image |= evidence_item(item).is_some_and(|(name, _, _)| {
-                        IMAGE_EXTENSIONS
-                            .iter()
-                            .any(|ext| name.to_lowercase().ends_with(ext))
-                    });
-                }
-                if let Some((name, _, rest)) =
-                    evidence_item(item).filter(|_| is_automatic_evidence(item, &automatic))
-                {
-                    let command = rest.trim_matches('`');
-                    if let Some(path) = read_of_changed_path(command, &changed) {
-                        errors.push(format!("'{sub}': a evidência {name} só lê '{path}', que a tarefa muda; use - `{name}.diff` ({diff}): `{path}` ou uma evidência de comportamento"));
-                    }
-                }
                 let name = evidence_item(item).map_or("", |(name, _, _)| name);
                 match normalized_evidence_name(item) {
                     Some(normalized) if names == EvidenceNames::Normalizable => {
@@ -2657,16 +2629,22 @@ impl Tasks {
                     }
                 }
             } else {
-                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({from_verify}), - `arquivo` ({diff}): `caminho`, - `arquivo` ({print}): `comando` ou - `arquivo` ({manual}): descrição)"));
+                errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({}), - `arquivo` ({}): `caminho`, - `arquivo` ({}): `comando` ou - `arquivo` ({manual}): descrição)", kinds.from_verify, kinds.diff, kinds.print));
             }
         }
-        let interface = changed
-            .iter()
-            .any(|path| INTERFACE_EXTENSIONS.iter().any(|ext| path.ends_with(ext)));
-        if interface && !has_image {
-            errors.push(format!("'{sub}': tarefa com interface sem print; inclua - `tela.png` ({print}): `comando` ou uma evidência manual de imagem"));
-        }
-        errors.extend(self.label_errors(content, &verify_names)?);
+        let block = verify_block(&self.subsection(content, "verify_subsection")?);
+        let changed: Vec<String> = change_items(&self.subsection(content, "change_subsection")?)
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
+        errors.extend(evidence_rule_errors(
+            &kinds,
+            &sub,
+            &self.cfg("verify_subsection")?,
+            &text,
+            &block,
+            &changed,
+        ));
         if count == 0 {
             errors.push(format!(
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
@@ -2679,53 +2657,6 @@ impl Tasks {
         );
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), false));
-        Ok(errors)
-    }
-
-    /// Rótulos da "Verificação" conferidos contra as evidências da verificação: cada rótulo tem
-    /// nome válido, um comando logo abaixo, não se repete e tem a sua evidência, e cada evidência
-    /// da verificação tem o seu rótulo.
-    fn label_errors(&self, content: &str, verify_names: &[&str]) -> Result<Vec<String>> {
-        let label = self.verify_label();
-        let from_verify = self.evidence_from_verify();
-        let verify = self.cfg("verify_subsection")?;
-        let labels = self.labels_of(content)?;
-        let mut errors = Vec::new();
-        let mut seen = HashSet::new();
-        for VerifyLabel {
-            name,
-            command_lines,
-            ..
-        } in &labels
-        {
-            let written = format!("`{label} {name}`");
-            if name.is_empty() {
-                errors.push(format!(
-                    "'{verify}' com rótulo `{label}` sem o nome do arquivo"
-                ));
-                continue;
-            }
-            if !is_valid_evidence_name(name) {
-                errors.push(format!("'{verify}' com rótulo {written} com nome de arquivo inválido (só o nome do arquivo, sem caminho)"));
-            }
-            if *command_lines == 0 {
-                errors.push(format!(
-                    "'{verify}' com rótulo {written} sem comando na linha seguinte"
-                ));
-            }
-            if !seen.insert(name.as_str()) {
-                errors.push(format!("'{verify}' com rótulo {written} repetido"));
-            } else if !verify_names.contains(&name.as_str()) {
-                errors.push(format!(
-                    "'{verify}' com rótulo {written} sem a evidência `{name}` ({from_verify})"
-                ));
-            }
-        }
-        for name in verify_names {
-            if !labels.iter().any(|label| label.name == *name) {
-                errors.push(format!("evidência `{name}` ({from_verify}) sem o rótulo `{label} {name}` na '{verify}'"));
-            }
-        }
         Ok(errors)
     }
 
@@ -3366,6 +3297,161 @@ fn verify_evidence_name<'a>(line: &'a str, from_verify: &str) -> Option<&'a str>
     (kind == from_verify).then_some(name)
 }
 
+/// Tipos de evidência e o rótulo da "Verificação" lidos de `config/tasks.yml`.
+pub(super) struct EvidenceKinds {
+    automatic: String,
+    manual: String,
+    label: String,
+    from_verify: String,
+    diff: String,
+    print: String,
+}
+
+impl EvidenceKinds {
+    /// Lê as chaves por `get`; a chave ausente (projeto antigo) fica com o valor padrão.
+    pub(super) fn read(get: impl Fn(&str) -> Option<String>) -> Self {
+        let value = |key: &str, default: &str| get(key).unwrap_or_else(|| default.to_string());
+        Self {
+            automatic: value("evidence_automatic", "automática"),
+            manual: value("evidence_manual", "manual"),
+            label: value("verify_label", DEFAULT_VERIFY_LABEL),
+            from_verify: value("evidence_from_verify", DEFAULT_EVIDENCE_FROM_VERIFY),
+            diff: value("evidence_diff", DEFAULT_EVIDENCE_DIFF),
+            print: value("evidence_print", DEFAULT_EVIDENCE_PRINT),
+        }
+    }
+}
+
+/// Nome de um item dos tipos da SPEC-020: da verificação, `diff` ou `print`.
+pub(super) fn new_kind_name<'a>(item: &'a str, kinds: &EvidenceKinds) -> Option<&'a str> {
+    verify_evidence_name(item, &kinds.from_verify).or_else(|| {
+        (is_diff_evidence(item, &kinds.diff) || is_print_evidence(item, &kinds.print))
+            .then(|| evidence_item(item).map(|(name, _, _)| name))
+            .flatten()
+    })
+}
+
+/// Regras das evidências que dependem do resto da tarefa: a leitura de um caminho de "Mudar", o
+/// print em tarefa com interface e os rótulos da "Verificação" contra as evidências da verificação.
+pub(super) fn evidence_rule_errors(
+    kinds: &EvidenceKinds,
+    sub: &str,
+    verify: &str,
+    evidence: &str,
+    block: &str,
+    changed: &[String],
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut has_image = false;
+    let mut verify_names = Vec::new();
+    for item in evidence
+        .lines()
+        .filter(|line| has_text(line) && !is_indented(line))
+    {
+        if let Some(name) = verify_evidence_name(item, &kinds.from_verify) {
+            verify_names.push(name);
+        } else if is_print_evidence(item, &kinds.print) {
+            has_image = true;
+        } else if is_manual_evidence(item, &kinds.manual) {
+            has_image |= evidence_item(item).is_some_and(|(name, _, _)| {
+                IMAGE_EXTENSIONS
+                    .iter()
+                    .any(|ext| name.to_lowercase().ends_with(ext))
+            });
+        } else if is_automatic_evidence(item, &kinds.automatic) {
+            let Some((name, _, rest)) = evidence_item(item) else {
+                continue;
+            };
+            if let Some(path) = read_of_changed_path(rest.trim_matches('`'), changed) {
+                errors.push(format!("'{sub}': a evidência {name} só lê '{path}', que a tarefa muda; use - `{name}.diff` ({}): `{path}` ou uma evidência de comportamento", kinds.diff));
+            }
+        }
+    }
+    let interface = changed
+        .iter()
+        .any(|path| INTERFACE_EXTENSIONS.iter().any(|ext| path.ends_with(ext)));
+    if interface && !has_image {
+        errors.push(format!("'{sub}': tarefa com interface sem print; inclua - `tela.png` ({}): `comando` ou uma evidência manual de imagem", kinds.print));
+    }
+    errors.extend(label_errors(kinds, verify, block, &verify_names));
+    errors
+}
+
+/// Rótulos da "Verificação" conferidos contra as evidências da verificação: cada rótulo tem
+/// nome válido, um comando logo abaixo, não se repete e tem a sua evidência, e cada evidência
+/// da verificação tem o seu rótulo.
+fn label_errors(
+    kinds: &EvidenceKinds,
+    verify: &str,
+    block: &str,
+    verify_names: &[&str],
+) -> Vec<String> {
+    let label = &kinds.label;
+    let from_verify = &kinds.from_verify;
+    let labels = verify_labels(block, label);
+    let mut errors = Vec::new();
+    let mut seen = HashSet::new();
+    for VerifyLabel {
+        name,
+        command_lines,
+        ..
+    } in &labels
+    {
+        let written = format!("`{label} {name}`");
+        if name.is_empty() {
+            errors.push(format!(
+                "'{verify}' com rótulo `{label}` sem o nome do arquivo"
+            ));
+            continue;
+        }
+        if !is_valid_evidence_name(name) {
+            errors.push(format!("'{verify}' com rótulo {written} com nome de arquivo inválido (só o nome do arquivo, sem caminho)"));
+        }
+        if *command_lines == 0 {
+            errors.push(format!(
+                "'{verify}' com rótulo {written} sem comando na linha seguinte"
+            ));
+        }
+        if !seen.insert(name.as_str()) {
+            errors.push(format!("'{verify}' com rótulo {written} repetido"));
+        } else if !verify_names.contains(&name.as_str()) {
+            errors.push(format!(
+                "'{verify}' com rótulo {written} sem a evidência `{name}` ({from_verify})"
+            ));
+        }
+    }
+    for name in verify_names {
+        if !labels.iter().any(|label| label.name == *name) {
+            errors.push(format!(
+                "evidência `{name}` ({from_verify}) sem o rótulo `{label} {name}` na '{verify}'"
+            ));
+        }
+    }
+    errors
+}
+
+/// Comandos da "Verificação" que passam argumentos depois de `--` para um script de `pnpm`, `npm`
+/// ou `yarn`, em que o filtro costuma ser ignorado; no `cargo`, o `--` é o certo.
+pub(super) fn dashdash_commands(block: &str) -> Vec<String> {
+    block
+        .lines()
+        .map(str::trim)
+        .filter(|line| {
+            let first = line.split_whitespace().next().unwrap_or("");
+            ["pnpm", "npm", "yarn"].contains(&first)
+                && line
+                    .split_once(" -- ")
+                    .is_some_and(|(_, rest)| has_text(rest))
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// Aviso de um comando de `dashdash_commands`.
+pub(super) fn dashdash_warning(task: &str, command: &str) -> String {
+    format!("Aviso: {task}: o comando '{command}' passa argumentos depois de '--' para o script; confira se o filtro é aplicado")
+}
+
 /// Item "- `arquivo` (print): `comando`".
 fn is_print_evidence(line: &str, print: &str) -> bool {
     evidence_kind_and_rest(line, print)
@@ -3549,7 +3635,7 @@ fn shell_quoted(text: &str) -> String {
 }
 
 /// Comandos do primeiro bloco `bash` do texto.
-fn verify_block(text: &str) -> String {
+pub(super) fn verify_block(text: &str) -> String {
     let mut inside = false;
     let mut lines = Vec::new();
     for line in text.lines() {

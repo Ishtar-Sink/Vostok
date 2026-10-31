@@ -1201,3 +1201,119 @@ fn delivery_command_new_folder_is_refused_by_the_plan_validation() {
         "{stderr}"
     );
 }
+
+// --- Aviso de `--` e regras novas de evidência no plano (SPEC-020) ---
+
+fn plan_task_with(project: &Project, verification: &str, evidence: &str) -> std::path::PathBuf {
+    let task = plan_with_evidence(project, evidence);
+    let content = std::fs::read_to_string(&task).unwrap().replace(
+        "```bash\ntrue\n```",
+        &format!("```bash\n{verification}\n```"),
+    );
+    std::fs::write(&task, content).unwrap();
+    task
+}
+
+fn approve_validate(project: &Project) -> (bool, String) {
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    (output.status.success(), text)
+}
+
+fn simple_evidence() -> String {
+    format!("- `saida.txt` (automática): `echo ok`\n{SUBITEMS}")
+}
+
+#[test]
+fn dashdash_warns_for_pnpm_npm_and_yarn() {
+    for command in [
+        "pnpm --filter web test -- src/x",
+        "npm run test -- src/x",
+        "yarn test -- src/x",
+    ] {
+        let project = Project::new();
+        plan_task_with(&project, command, &simple_evidence());
+        let (success, text) = approve_validate(&project);
+        assert!(success, "{command}: {text}");
+        assert!(
+            text.contains(&format!(
+                "Aviso: TASK-01: o comando '{command}' passa argumentos depois de '--'"
+            )),
+            "{command}: {text}"
+        );
+    }
+}
+
+#[test]
+fn dashdash_does_not_warn_for_cargo() {
+    let project = Project::new();
+    plan_task_with(&project, "cargo test -- brief_", &simple_evidence());
+    let (success, text) = approve_validate(&project);
+    assert!(success, "{text}");
+    assert!(!text.contains("Aviso: TASK-01: o comando"), "{text}");
+}
+
+#[test]
+fn plan_evidence_rules_accept_the_new_kinds() {
+    let project = Project::new();
+    let evidence = format!(
+        "- `saida.txt` (automática, da verificação)\n{SUBITEMS}\n- `novo.diff` (diff): `novo.txt`\n{SUBITEMS}\n- `tela.png` (print): `npx playwright screenshot`\n{SUBITEMS}\n  - Espera: `ok`"
+    );
+    plan_task_with(&project, "# evidência: saida.txt\necho ok", &evidence);
+    let (success, text) = approve_validate(&project);
+    assert!(success, "{text}");
+}
+
+#[test]
+fn plan_evidence_rules_refuse_a_label_without_evidence() {
+    let project = Project::new();
+    plan_task_with(
+        &project,
+        "# evidência: outra.txt\necho ok",
+        &simple_evidence(),
+    );
+    let (success, text) = approve_validate(&project);
+    assert!(!success, "{text}");
+    assert!(
+        text.contains("rótulo `# evidência: outra.txt` sem a evidência"),
+        "{text}"
+    );
+}
+
+#[test]
+fn plan_evidence_rules_refuse_reading_a_changed_path() {
+    let project = Project::new();
+    plan_task_with(
+        &project,
+        "true",
+        &format!("- `leitura.txt` (automática): `grep -n x novo.txt`\n{SUBITEMS}"),
+    );
+    let (success, text) = approve_validate(&project);
+    assert!(!success, "{text}");
+    assert!(
+        text.contains("a evidência leitura.txt só lê 'novo.txt', que a tarefa muda"),
+        "{text}"
+    );
+}
+
+#[test]
+fn plan_evidence_rules_require_a_print_for_an_interface_task() {
+    let project = Project::new();
+    let task = plan_task_with(&project, "true", &simple_evidence());
+    let content = std::fs::read_to_string(&task).unwrap().replace(
+        "- `novo.txt` (criar): arquivo novo.",
+        "- `tela.tsx` (criar): tela nova.",
+    );
+    std::fs::write(&task, content).unwrap();
+    let (success, text) = approve_validate(&project);
+    assert!(!success, "{text}");
+    assert!(text.contains("tarefa com interface sem print"), "{text}");
+}

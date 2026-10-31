@@ -1502,6 +1502,8 @@ fn status_prints_the_tasks_and_waves_tables() {
 |---|---|---|
 | 1 | TASK-01, TASK-02 | in_progress |
 | 2 | TASK-03, TASK-04 | approved |
+
+Subagentes ao mesmo tempo: 3
 ";
     assert_eq!(output, expected);
 }
@@ -1563,9 +1565,7 @@ fn status_tasks_in_a_dependency_cycle_go_to_the_dash_wave() {
         assert!(row.ends_with("| - | pending |"), "{row}");
     }
     assert!(
-        output
-            .trim_end()
-            .ends_with("| - | TASK-01, TASK-02 | pending |"),
+        output.contains("| - | TASK-01, TASK-02 | pending |\n"),
         "{output}"
     );
 }
@@ -1895,4 +1895,195 @@ fn delivery_command_lookalike_names_do_not_count() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(!stderr.contains("que a tarefa cria"), "{stderr}");
     assert!(!stderr.contains("pasta que a tarefa cria"), "{stderr}");
+}
+
+// --- Consumo de tokens (SPEC-019) ---
+
+fn harness_file(project: &Project, relative: &str) -> String {
+    std::fs::read_to_string(project.harness().join(relative)).unwrap()
+}
+
+fn brief_of(project: &Project) -> String {
+    success_stdout(&mut task(project, &["brief"]))
+}
+
+#[test]
+fn brief_prints_rules_persona_route_and_task() {
+    let project = started_task(&[]);
+    let brief = brief_of(&project);
+    let positions: Vec<usize> = ["# Regras", "# Persona", "# Roteiro", "# Tarefa"]
+        .iter()
+        .map(|title| brief.find(title).unwrap_or_else(|| panic!("sem {title}")))
+        .collect();
+    assert!(
+        positions.windows(2).all(|pair| pair[0] < pair[1]),
+        "{brief}"
+    );
+    assert!(brief.contains(harness_file(&project, "rules/agent/boundaries.md").trim()));
+    if project
+        .harness()
+        .join("rules/project/security.md")
+        .is_file()
+    {
+        assert!(brief.contains(harness_file(&project, "rules/project/security.md").trim()));
+    }
+    assert!(brief.contains("## Execução"), "{brief}");
+    assert!(
+        brief.contains("vostok task check SPEC-001 TASK-01"),
+        "{brief}"
+    );
+    assert!(!brief.contains("<SPEC_ID>"), "{brief}");
+    assert!(brief.contains("| baseline |"), "{brief}");
+}
+
+#[test]
+fn brief_is_smaller_than_the_current_load() {
+    let project = started_task(&[]);
+    let brief = brief_of(&project);
+    let persona =
+        success_stdout(
+            project
+                .vostok()
+                .args(["context", "load", "--persona", "desenvolvedor"]),
+        );
+    let skill =
+        success_stdout(
+            project
+                .vostok()
+                .args(["context", "load", "--skill", "execute-task"]),
+        );
+    let load = success_stdout(&mut task(&project, &["load"]));
+    assert!(
+        brief.len() * 100 < 40 * (persona.len() + skill.len() + load.len()),
+        "briefing {} contra {}",
+        brief.len(),
+        persona.len() + skill.len() + load.len()
+    );
+}
+
+#[test]
+fn brief_refuses_a_task_not_started_or_without_baseline() {
+    let expected = "o briefing só sai para tarefa 'in_progress' com baseline coletado";
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", "Não se aplica."),
+    );
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    let stderr = failure_stderr(&mut task(&project, &["brief"]));
+    assert!(stderr.contains(expected), "{stderr}");
+
+    let project = started_task(&[]);
+    std::fs::remove_dir_all(project.root().join(BASELINE_DIR)).unwrap();
+    let stderr = failure_stderr(&mut task(&project, &["brief"]));
+    assert!(stderr.contains(expected), "{stderr}");
+}
+
+#[test]
+fn brief_without_persona_uses_desenvolvedor() {
+    let project = started_task(&[]);
+    assert!(!read(&project, TASK_PATH).contains("\npersona:"));
+    let brief = brief_of(&project);
+    let persona = harness_file(&project, "personas/desenvolvedor.md");
+    let section = brief.split("\n# Persona\n").nth(1).unwrap();
+    assert!(section.contains(persona.trim()), "{brief}");
+}
+
+/// Troca o bloco da "Verificação" da tarefa pelo comando dado.
+fn set_verification(project: &Project, command: &str) {
+    let content =
+        read(project, TASK_PATH).replace("```bash\ntrue\n```", &format!("```bash\n{command}\n```"));
+    write(project, TASK_PATH, &content);
+}
+
+#[test]
+fn check_passes_and_fails_without_touching_the_task() {
+    let project = started_task(&[]);
+    let before = read(&project, TASK_PATH);
+    let stdout = success_stdout(&mut task(&project, &["check"]));
+    assert!(
+        stdout.contains("Verificação de TASK-01 passou (saída em "),
+        "{stdout}"
+    );
+    assert!(exists(
+        &project,
+        &format!("{EVIDENCE_DIR}/validation/check.out")
+    ));
+    assert_eq!(read(&project, TASK_PATH), before);
+
+    set_verification(&project, "false");
+    let before = read(&project, TASK_PATH);
+    let output = task(&project, &["check"])
+        .assert()
+        .failure()
+        .get_output()
+        .clone();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.contains("Verificação de TASK-01 falhou (código 1); últimas linhas"),
+        "{stdout}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn check_refuses_a_blocked_task() {
+    let project = started_task(&[]);
+    let content = read(&project, TASK_PATH).replace("status: in_progress", "status: blocked");
+    write(&project, TASK_PATH, &content);
+    let stderr = failure_stderr(&mut task(&project, &["check"]));
+    assert!(stderr.contains("está bloqueada"), "{stderr}");
+}
+
+#[test]
+fn max_subagents_is_shown_and_invalid_values_warn() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "wave: 1", "status: pending"],
+    );
+    let stdout_of = |project: &Project| {
+        let output = status_run(project).output().unwrap();
+        (
+            String::from_utf8(output.stdout).unwrap(),
+            String::from_utf8(output.stderr).unwrap(),
+        )
+    };
+    let (out, err) = stdout_of(&project);
+    assert!(
+        out.trim_end().ends_with("Subagentes ao mesmo tempo: 3"),
+        "{out}"
+    );
+    assert!(!err.contains("Aviso: max_subagents"), "{err}");
+
+    let path = "vostok/config/tasks.yml";
+    let base = read(&project, path);
+    assert!(base.contains("max_subagents: 3"));
+    for (value, shown) in [("3", "3"), ("0", "6"), ("9", "6")] {
+        write(
+            &project,
+            path,
+            &base.replace("max_subagents: 3", &format!("max_subagents: {value}")),
+        );
+        let (out, err) = stdout_of(&project);
+        assert!(
+            out.trim_end()
+                .ends_with(&format!("Subagentes ao mesmo tempo: {shown}")),
+            "{out}"
+        );
+        assert_eq!(
+            err.contains("Aviso: max_subagents"),
+            shown != value,
+            "{err}"
+        );
+    }
+    write(&project, path, &base.replace("max_subagents: 3\n", ""));
+    let (out, _) = stdout_of(&project);
+    assert!(
+        out.trim_end().ends_with("Subagentes ao mesmo tempo: 3"),
+        "{out}"
+    );
 }

@@ -152,7 +152,7 @@ fn load_skill(harness: &Harness, printer: &Printer, skill: &str) -> Result<bool>
 }
 
 /// Itens da entrada `skills.<skill>` do mapa, na ordem do arquivo.
-fn skill_entries(map: &str, skill: &str) -> Vec<String> {
+pub(crate) fn skill_entries(map: &str, skill: &str) -> Vec<String> {
     let mut in_skills = false;
     let mut in_entry = false;
     let mut entries = Vec::new();

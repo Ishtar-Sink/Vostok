@@ -53,6 +53,16 @@ pub enum TaskCommand {
         spec_id: Option<String>,
         task_id: Option<String>,
     },
+    /// Imprime o briefing do subagente.
+    Brief {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+    },
+    /// Executa a verificação sem registrar.
+    Check {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+    },
     /// Executa a verificação.
     Tests {
         spec_id: Option<String>,
@@ -141,6 +151,7 @@ pub enum ApproveCommand {
     },
 }
 
+const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
 const LOAD_USAGE: &str = "Uso: vostok task load <SPEC_ID> <TASK_ID>";
 const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>";
 const APPROVE_USAGE: &str =
@@ -171,6 +182,24 @@ const ALTER_ACTION: &str = "alterar";
 /// comandos de teste falham sem imprimir nada.
 const VERIFY_PRELUDE: &str =
     "set -eo pipefail; trap 'echo \"comando com falha (código $?): $BASH_COMMAND\"' ERR";
+
+/// Roteiro fixo do briefing; `<SPEC_ID>` e `<TASK_ID>` são trocados pelos IDs da tarefa.
+const BRIEF_ROUTE: &str = "1. Confira no registro abaixo a linha `baseline` e não mude nada sem ela.
+2. Leia os arquivos de \"Ler\" por busca e trecho (`grep -n`, `sed -n`), nunca inteiro um arquivo com mais de 400 linhas.
+3. Implemente primeiro os testes pedidos e confirme que falham.
+4. Siga os \"Passos\", mudando só os arquivos de \"Mudar\".
+5. Verifique com `vostok task check <SPEC_ID> <TASK_ID>` até passar.
+6. Sem commit, sem stage, sem `vostok task tests|regression|evidence|finish`, sem ler segredos.
+7. Se um passo exigir algo fora da tarefa, pare e devolva a pergunta.
+8. Devolva um bloco de até 5 linhas: `Resultado:`, `Arquivos:`, `Verificação:` (a última linha do `vostok task check`), `Em aberto:`.
+";
+
+/// Itens fixos de `# Regras` do briefing, antes dos `rules/...` da entrada `execute-task`.
+const BRIEF_RULES: [&str; 3] = [
+    "rules/agent/boundaries.md",
+    "rules/project/security.md",
+    "rules/project/language.md",
+];
 
 pub fn run(command: TaskCommand) -> Result<()> {
     let tasks = Tasks::new(Harness::from_current_dir()?)?;
@@ -204,6 +233,14 @@ pub fn run(command: TaskCommand) -> Result<()> {
         TaskCommand::Baseline { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
             tasks.baseline(&spec, &task)
+        }
+        TaskCommand::Brief { spec_id, task_id } => {
+            let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
+            tasks.brief(&spec, &task)
+        }
+        TaskCommand::Check { spec_id, task_id } => {
+            let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
+            tasks.check(&spec, &task)
         }
         TaskCommand::Tests { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
@@ -344,6 +381,20 @@ impl Tasks {
         config_list(&self.harness.config_file("tasks.yml"), key)
     }
 
+    /// Subagentes ao mesmo tempo: `max_subagents` de 1 a 6; ausente vale 3, inválido vale 6 com aviso.
+    fn max_subagents(&self) -> u32 {
+        let Ok(value) = self.cfg("max_subagents") else {
+            return 3;
+        };
+        match value.parse::<u32>() {
+            Ok(n) if (1..=6).contains(&n) => n,
+            _ => {
+                eprintln!("Aviso: max_subagents '{value}' inválido em config/tasks.yml; use de 1 a 6. Vale 6.");
+                6
+            }
+        }
+    }
+
     /// Trechos de `regression_ignore`; sem a chave (projetos antigos), lista vazia.
     fn regression_ignore(&self) -> Vec<String> {
         self.cfg_list("regression_ignore")
@@ -471,6 +522,11 @@ impl Tasks {
     // --- load e check-done ---
 
     fn load(&self, spec: &str, task: &str) -> Result<()> {
+        print!("{}", self.load_text(spec, task)?);
+        Ok(())
+    }
+
+    fn load_text(&self, spec: &str, task: &str) -> Result<String> {
         let file = self.existing_task(spec, task)?;
         let section = self.cfg("execution_section")?;
         let content = read(&file)?;
@@ -487,7 +543,7 @@ impl Tasks {
         if info.tool.is_none() {
             eprintln!("{}", models::tool_warning());
         }
-        print!(
+        Ok(format!(
             "---\n{}\n---\n\n## Modelo\n\n- Perfil: {}\n- Descrição: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n\n## {section}\n{}\n",
             trim_newlines(&front_matter.join("\n")),
             info.profile,
@@ -495,7 +551,63 @@ impl Tasks {
             info.tool.as_deref().unwrap_or("não configurada"),
             info.model,
             trim_newlines(&execution)
-        );
+        ))
+    }
+
+    /// Briefing do subagente: regras, persona, roteiro e tarefa com o registro de execução.
+    fn brief(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        let has_baseline = self.evidence_dir(&file)?.join("baseline").is_dir();
+        if status != self.status.in_progress || !has_baseline {
+            let hint = if has_baseline {
+                String::new()
+            } else {
+                format!("; execute: vostok task baseline {spec} {task}")
+            };
+            bail!("a tarefa {task} está com status '{status}'; o briefing só sai para tarefa '{}' com baseline coletado{hint}", self.status.in_progress);
+        }
+        let root = &self.harness.root;
+        let map = fs::read_to_string(self.harness.config_file("context.yml"))?;
+        let mut rules: Vec<String> = BRIEF_RULES.iter().map(|rule| rule.to_string()).collect();
+        for entry in crate::commands::context::skill_entries(&map, "execute-task") {
+            if entry.starts_with("rules/") && !rules.contains(&entry) {
+                rules.push(entry);
+            }
+        }
+        let mut text = String::from("# Regras\n");
+        for rule in &rules {
+            match fs::read_to_string(root.join(rule)) {
+                Ok(content) => text.push_str(&format!("\n{}\n", content.trim_end())),
+                Err(_) => eprintln!("Aviso: '{rule}' não encontrado em {}", root.display()),
+            }
+        }
+        let persona = match frontmatter_get(&file, "persona")
+            .unwrap_or_default()
+            .as_str()
+        {
+            "" | "-" | "null" => "desenvolvedor".to_string(),
+            persona => persona.to_string(),
+        };
+        text.push_str("\n# Persona\n");
+        let persona_file = format!("personas/{persona}.md");
+        match fs::read_to_string(root.join(&persona_file)) {
+            Ok(content) => text.push_str(&format!("\n{}\n", content.trim_end())),
+            Err(_) => eprintln!(
+                "Aviso: '{persona_file}' não encontrado em {}",
+                root.display()
+            ),
+        }
+        let route = BRIEF_ROUTE
+            .replace("<SPEC_ID>", spec)
+            .replace("<TASK_ID>", task);
+        text.push_str(&format!("\n# Roteiro\n\n{route}\n# Tarefa\n\n"));
+        text.push_str(&self.load_text(spec, task)?);
+        let record = self.cfg("record_section")?;
+        if let Some(section) = markdown_section(&read(&file)?, &record) {
+            text.push_str(&format!("\n## {record}\n{}\n", trim_newlines(&section)));
+        }
+        print!("{text}");
         Ok(())
     }
 
@@ -577,6 +689,10 @@ impl Tasks {
                 wave_status(&statuses, &self.status)
             ));
         }
+        text.push_str(&format!(
+            "\nSubagentes ao mesmo tempo: {}\n",
+            self.max_subagents()
+        ));
         Ok(text)
     }
 
@@ -1064,6 +1180,48 @@ impl Tasks {
         Ok(())
     }
 
+    /// Executa o bloco da "Verificação" e grava a saída em `validation/<name>`.
+    fn run_verification(&self, file: &Path, block: &str, name: &str) -> Result<(i32, PathBuf)> {
+        let dir = self.evidence_dir(file)?.join("validation");
+        fs::create_dir_all(&dir)?;
+        let output_path = dir.join(name);
+        let output = File::create(&output_path)?;
+        let status = Command::new("bash")
+            .arg("-c")
+            .arg(format!("{VERIFY_PRELUDE}\n{block}"))
+            .current_dir(self.project_root()?)
+            .stdin(Stdio::null())
+            .stdout(output.try_clone()?)
+            .stderr(output)
+            .status()
+            .context("não foi possível executar o bash")?;
+        Ok((exit_code(status), output_path))
+    }
+
+    /// Executa a verificação sem mudar o front-matter nem o registro.
+    fn check(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        self.require_running(&file, task)?;
+        let block = verify_block(&self.subsection(&read(&file)?, "verify_subsection")?);
+        if !has_text(&block) {
+            bail!(
+                "a tarefa {task} não tem um bloco `bash` em '{}'",
+                self.cfg("verify_subsection")?
+            );
+        }
+        let (code, path) = self.run_verification(&file, &block, "check.out")?;
+        if code == 0 {
+            println!("Verificação de {task} passou (saída em {})", path.display());
+            return Ok(());
+        }
+        println!(
+            "Verificação de {task} falhou (código {code}); últimas linhas ({}):",
+            path.display()
+        );
+        print!("{}", indented_tail(&fs::read(&path)?, 30));
+        bail!("a verificação de {task} falhou; corrija e rode de novo")
+    }
+
     fn tests(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
@@ -1077,20 +1235,7 @@ impl Tasks {
                 self.cfg("verify_subsection")?
             );
         }
-        let dir = self.evidence_dir(&file)?.join("validation");
-        fs::create_dir_all(&dir)?;
-        let output_path = dir.join("tests.out");
-        let output = File::create(&output_path)?;
-        let status = Command::new("bash")
-            .arg("-c")
-            .arg(format!("{VERIFY_PRELUDE}\n{block}"))
-            .current_dir(self.project_root()?)
-            .stdin(Stdio::null())
-            .stdout(output.try_clone()?)
-            .stderr(output)
-            .status()
-            .context("não foi possível executar o bash")?;
-        let code = exit_code(status);
+        let (code, output_path) = self.run_verification(&file, &block, "tests.out")?;
         let validating = &self.status.validating;
 
         if code == 0 {

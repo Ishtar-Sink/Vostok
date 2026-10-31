@@ -18,6 +18,9 @@ status:
 # Máximo de falhas nos testes antes de a tarefa ficar bloqueada ([agent/anti-loop-02]).
 max_attempts: 2
 
+# Subagentes ao mesmo tempo numa onda da execute-task, de 1 a 6.
+max_subagents: 3
+
 # Trechos de texto ignorados pelo vostok task regression: as linhas que contêm algum deles saem da
 # comparação com o baseline, dos dois lados (hora, duração). O `NN.diff` continua com a saída inteira.
 regression_ignore:

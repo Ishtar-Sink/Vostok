@@ -3,7 +3,7 @@ name: approve-plan
 description: "Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status"
   templates: "templates/task/task.md"
@@ -104,7 +104,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 
 **Execução** (para o agente):
 
-- **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec.
+- **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec. Para arquivo com mais de 400 linhas, o item cita a função, o teste ou a faixa de linhas que importam (`` - `caminho` (fn nome, teste nome) ``): quem executa lê por busca e trecho, nunca o arquivo inteiro.
 - **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.
 - **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.
 - **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. O baseline detecta regressão: mede o que já existe, que a tarefa toca e não pode quebrar. Para cada `alterar` de "Mudar", inclua os testes, o lint e a checagem de tipos que cobrem esses arquivos, e as saídas atuais que eles produzem. Para cada `remover`, inclua o que referencia o caminho (build, imports, links). Meça isso e nunca a entrega da tarefa: nem os caminhos `criar` (o `vostok plan approve validate` recusa), nem o texto ou os testes que a tarefa acrescenta; quando a saída lista testes, filtre os nomes novos da tarefa e tire o resumo de contagem (`grep -v '^test result'` ou equivalente), que muda com os testes novos. Prefira comandos focados no que a tarefa toca à suíte inteira, e ordene saídas que mudam de ordem entre execuções. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções.

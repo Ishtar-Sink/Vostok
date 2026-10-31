@@ -1,21 +1,21 @@
 ---
 name: execute-task
-description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa ou uma onda por pedido; numa onda, o Coordenador dispara um subagente por tarefa, com a persona e o modelo dela. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa ou uma onda, citar um ID como TASK-03 para execução ou pedir para executar a onda N."
+description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa ou uma onda por pedido; o Coordenador executa na própria sessão a onda de uma tarefa e as tarefas em sequência, e dispara um subagente por tarefa só para as que rodam em paralelo. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa ou uma onda, citar um ID como TASK-03 para execução ou pedir para executar a onda N."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok commit check"
+  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok task brief, vostok task check, vostok commit check"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
 # Executar tarefa
 
-Leva uma tarefa aprovada, ou as tarefas de uma onda, de `approved` a `in_progress`, coleta o estado anterior (baseline) e implementa cada tarefa, deixando-as em execução e prontas para serem finalizadas pela skill `finish-task`. Numa onda, o Coordenador dispara um subagente por tarefa, com a persona e o modelo do perfil dela, e sequencia as que mudam os mesmos arquivos.
+Leva uma tarefa aprovada, ou as tarefas de uma onda, de `approved` a `in_progress`, coleta o estado anterior (baseline) e implementa cada tarefa, deixando-as em execução e prontas para serem finalizadas pela skill `finish-task`. O Coordenador faz o máximo possível: executa na própria sessão a onda de uma tarefa e as tarefas que mudam os mesmos arquivos, e só dispara subagentes, com a persona e o modelo do perfil de cada tarefa, para as tarefas que rodam em paralelo.
 
 ## Persona
 
-Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interface, carregada(s) no passo 1 pelo `vostok context load`. O chat segue como Coordenador, que escolhe o modelo, dispara os subagentes e consolida a resposta; cada subagente carrega a persona da tarefa no [pedido ao subagente](#pedido-ao-subagente). Sem subagentes, a própria sessão carrega a persona de cada tarefa. Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
+Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interface, carregada(s) no passo 1 pelo `vostok context load`. O chat segue como Coordenador, que escolhe o modelo, executa as tarefas que não vão para subagente, dispara os subagentes e consolida a resposta; cada tarefa recebe a persona pelo `vostok task brief`, na própria sessão ou no [pedido ao subagente](#pedido-ao-subagente). Ao terminar, inclusive numa parada, o chat volta à persona Coordenador; nenhum estado de persona ativa é gravado.
 
 ## Termos
 
@@ -36,10 +36,11 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os comandos os alteram.
 [execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A finalização é um pedido separado do usuário.
-[execute-task-08]: O chat segue como Coordenador: ele escolhe o modelo, dispara os subagentes e consolida a resposta, sem implementar nem testar. Cada subagente carrega a persona da tarefa (persona Coordenador, RF-25).
+[execute-task-08]: O chat segue como Coordenador: ele escolhe o modelo, executa as tarefas que ficam na própria sessão, dispara os subagentes das paralelas e consolida a resposta. Cada tarefa segue a persona do `vostok task brief` (persona Coordenador, RF-25).
 [execute-task-09]: O modelo vem do perfil da tarefa, nunca do usuário (RN-03): o Coordenador escolhe, entre os modelos que a ferramenta oferece, o que atende à descrição do perfil; se a ferramenta não deixa listar ou escolher, usa o apelido de reserva; com "modelo da sessão", segue com o modelo da sessão. O modelo usado vai no `vostok task start --model`.
-[execute-task-10]: Tarefas da onda com arquivos em comum rodam em sequência, na ordem dos IDs, e o usuário é avisado (RF-16, FA-02). As demais rodam em paralelo, com no máximo 6 subagentes ao mesmo tempo (ou menos, se a ferramenta limitar); as excedentes esperam uma vaga.
+[execute-task-10]: Tarefas da onda com arquivos em comum rodam em sequência, na ordem dos IDs, na própria sessão, e o usuário é avisado (RF-16, FA-02). As demais, quando são 2 ou mais, rodam em paralelo em subagentes, com no máximo o valor de `max_subagents` (linha `Subagentes ao mesmo tempo` do `vostok task status`) ao mesmo tempo; as excedentes esperam uma vaga.
 [execute-task-11]: Sem subagentes ou sem escolha de modelo na ferramenta, as tarefas rodam uma por vez na própria sessão, com o modelo da sessão (FA-01).
+[execute-task-12]: O Coordenador faz o máximo possível: a onda com uma tarefa e as tarefas em sequência são executadas na própria sessão, seguindo o `vostok task brief` de cada uma; subagente só existe para paralelismo real (RN-01).
 
 ## Checklist
 
@@ -99,9 +100,16 @@ Compare as listas "Mudar" das tarefas a executar e monte grupos: tarefas que div
 TASK-08 e TASK-13 mexem em `apps/cli/src/commands/task.rs`: rodam em sequência.
 ```
 
-### 5. Disparar os subagentes
+### 5. Executar a onda
 
-Para cada grupo, dispare um subagente por tarefa: em sequência dentro do grupo e com os grupos em paralelo, com no máximo 6 subagentes ao mesmo tempo, ou menos se o estudo registrar um limite menor para a ferramenta. As excedentes esperam uma vaga. Cada subagente recebe:
+**Antes de executar ou disparar qualquer tarefa**, o Coordenador inicia cada tarefa da onda, inclusive numa onda de uma tarefa (veja o comando e as recusas abaixo).
+
+Depois, separe as tarefas:
+
+- **Na própria sessão ([execute-task-12]):** a onda com uma tarefa e cada grupo em sequência do passo 4. Execute uma por vez, na ordem dos IDs, rodando `vostok task brief <SPEC_ID> <TASK_ID>` e seguindo o que ele imprime.
+- **Em subagentes:** as tarefas sem arquivo em comum, quando são 2 ou mais, com no máximo `max_subagents` ao mesmo tempo (linha `Subagentes ao mesmo tempo` do `vostok task status`). As excedentes esperam uma vaga.
+
+Cada subagente recebe:
 
 - o [pedido ao subagente](#pedido-ao-subagente);
 - a persona da tarefa: o campo `persona` mostrado pelo `vostok task status`; `-` ou `null` vale `desenvolvedor`;
@@ -109,7 +117,7 @@ Para cada grupo, dispare um subagente por tarefa: em sequência dentro do grupo 
 
 Se a ferramenta tem as definições de subagente das personas (`vostok-<persona>`), use a da persona.
 
-**Antes de disparar o primeiro subagente**, o Coordenador inicia cada tarefa da onda, inclusive numa onda de uma tarefa, e só então dispara os subagentes:
+Para iniciar cada tarefa:
 
 ```bash
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
@@ -124,11 +132,11 @@ O `--model` grava no front-matter e no registro de execução o modelo escolhido
 | Dependência fora de `done` | Executar e concluir a dependência antes. |
 | Caminho `criar` de Mudar já existe | O estado anterior já foi alterado: restaurar o estado anterior, com a decisão do usuário, e iniciar de novo. |
 
-Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, carregando a persona com `vostok context load --persona <persona>` e seguindo o roteiro do pedido, com o modelo da sessão.
+Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, seguindo o `vostok task brief` de cada uma, com o modelo da sessão.
 
 ### 6. Consolidar
 
-Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" (`vostok task load`) a linha `baseline` e leia o resumo devolvido. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
+Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
 
 ### 7. Responder ao usuário
 
@@ -146,25 +154,9 @@ Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 
 ## Roteiro do subagente
 
-Os passos que o subagente segue para a sua tarefa, pelo [pedido ao subagente](#pedido-ao-subagente). Sem subagentes, a própria sessão os segue para cada tarefa.
+O roteiro de cada tarefa vem do `vostok task brief <SPEC_ID> <TASK_ID>`, seguido na própria sessão ou pelo subagente: conferir a linha `baseline`, ler os arquivos de "Ler" por busca e trecho (nunca inteiro um arquivo com mais de 400 linhas), implementar primeiro os testes, seguir os "Passos" mudando só os arquivos de "Mudar", verificar com `vostok task check <SPEC_ID> <TASK_ID>`, sem commit, sem stage e sem finalizar, e devolver o bloco de até 5 linhas. Se um passo exigir algo fora da tarefa, **PARE** e devolva a pergunta com o template `question`.
 
-### Carregar a tarefa
-
-Execute `vostok task load <SPEC_ID> <TASK_ID>` e leia os arquivos de "Ler".
-
-Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): execute `vostok context load --skill execute-task --persona ui-ux-designer` antes de implementar.
-
-### Conferir o baseline
-
-Antes de mudar qualquer arquivo, confirme no registro da tarefa (`vostok task load <SPEC_ID> <TASK_ID>`) a linha `baseline`. Sem ela, **PARE** e devolva ao Coordenador com o template `blocker`. O `vostok task baseline` só existe para tarefa iniciada antes da versão que coleta o baseline no `start`.
-
-### Implementar os testes
-
-Implemente primeiro os testes automatizados que a "Verificação" e os "Passos" pedem, para que comprovem a tarefa antes do código existir.
-
-### Implementar o código
-
-Siga os "Passos", na ordem, mudando só os arquivos de "Mudar". Se um passo exigir algo fora da tarefa, **PARE** e devolva a pergunta ao Coordenador, com o template `question`; ele a repassa ao usuário.
+Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): execute também `vostok context load --skill execute-task --persona ui-ux-designer` antes de implementar.
 
 ## Formatos de resposta
 
@@ -181,10 +173,9 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 ### Pedido ao subagente
 
 ```markdown
-Você é o subagente da tarefa <TASK_ID> da <SPEC_ID>, com a persona <persona>.
+Você é o subagente da tarefa <TASK_ID> da <SPEC_ID>, com a persona <persona> e o modelo <MODELO>.
 
-1. Rode `vostok context load --persona <persona>` e `vostok context load --skill execute-task`.
-2. A tarefa já foi iniciada pelo Coordenador com `--model <MODELO>` e o baseline já foi coletado: não rode `vostok task start` nem `vostok task baseline`, e não mude nenhum arquivo antes de conferir a linha `baseline` no registro.
-3. Siga os passos "Carregar a tarefa", "Conferir o baseline", "Implementar os testes" e "Implementar o código" da skill `execute-task`, só para esta tarefa, sem commit nem stage e sem finalizar.
-4. Devolva, em até 5 linhas: o resultado, os arquivos mudados e o que ficou em aberto; se precisar parar, devolva a mensagem no template `blocker` ou `question`.
+1. Rode `vostok task brief <SPEC_ID> <TASK_ID>` e siga o que ele imprime.
+2. A tarefa já foi iniciada e o baseline já foi coletado: não rode `vostok context load`, `vostok task start` nem `vostok task baseline`, e não leia a skill `execute-task`.
+3. Devolva o bloco de até 5 linhas do briefing (Resultado, Arquivos, Verificação, Em aberto); se precisar parar, devolva a mensagem no template `blocker` ou `question`.
 ```

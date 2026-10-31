@@ -216,7 +216,8 @@ fn ct11_execute_task_runs_a_task_or_a_wave() {
                 "subagente",
                 "Mudar",
                 "em sequência",
-                "no máximo 6 subagentes",
+                "max_subagents",
+                "vostok task brief",
             ],
         ),
         (

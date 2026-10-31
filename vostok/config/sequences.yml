@@ -2,7 +2,7 @@
 # Mantido pelos scripts: cada criação usa o valor atual e depois o incrementa.
 # Altere à mão só para pular ou reiniciar a numeração.
 
-specs: 7
+specs: 20
 decisions: 3
-issues: 1
+issues: 3
 knowledge: 1

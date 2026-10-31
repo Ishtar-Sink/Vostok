@@ -237,3 +237,18 @@ evidence_expect_field: Espera
 # Tipo da evidência gerada por um comando de print ("- `tela.png` (print): `comando`"): o comando grava a
 # imagem em $VOSTOK_EVIDENCE/<arquivo>, e a tarefa só conclui com a conferência do usuário.
 evidence_print: print
+
+# Trechos de alerta do vostok task regression: uma saída que só ganhou linhas, com o mesmo código de
+# saída, passa como acréscimo, salvo quando uma linha nova contém algum deles (sem diferenciar
+# maiúsculas).
+regression_alert:
+  - FAILED
+  - error
+  - warning
+  - panicked
+
+# Tempo-limite, em segundos, de cada evidência rodada no baseline: passou do tempo, o comando e os
+# processos que ele abriu são encerrados e a gravação termina com "interrompida após N s". Uma
+# evidência pode ter o subitem "Tempo-limite: <segundos>" (0 sem limite), aprovado pelo usuário com a
+# tarefa. Não vale para os comandos de "Baseline" nem para a finalização.
+evidence_baseline_timeout: 120

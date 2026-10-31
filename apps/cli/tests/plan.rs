@@ -1389,3 +1389,38 @@ fn requires_a_path_the_task_does_not_create_is_refused_by_the_plan_validation() 
         "{stderr}"
     );
 }
+
+// --- Tempo-limite das evidências (SPEC-022) ---
+
+fn evidence_timeout_plan(value: &str) -> (bool, String) {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        &format!("- `saida.txt` (automática): `echo ok`\n{SUBITEMS}\n  - Tempo-limite: {value}"),
+    );
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    (
+        output.status.success(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+#[test]
+fn evidence_timeout_number_is_accepted_by_the_plan_validation() {
+    let (ok, stderr) = evidence_timeout_plan("900");
+    assert!(ok, "{stderr}");
+}
+
+#[test]
+fn evidence_timeout_text_is_refused_by_the_plan_validation() {
+    let (ok, stderr) = evidence_timeout_plan("abc");
+    assert!(!ok);
+    assert!(
+        stderr.contains("a evidência saida.txt tem Tempo-limite que não é um número de segundos"),
+        "{stderr}"
+    );
+}

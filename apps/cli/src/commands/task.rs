@@ -191,6 +191,10 @@ const DEFAULT_EVIDENCE_FROM_VERIFY: &str = "automática, da verificação";
 const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
 pub(super) const EVIDENCE_REQUIRES: &str = "Requer";
+pub(super) const EVIDENCE_TIMEOUT: &str = "Tempo-limite";
+const DEFAULT_EVIDENCE_BASELINE_TIMEOUT: u64 = 120;
+/// Código gravado para uma evidência interrompida pelo tempo-limite, o mesmo do `timeout`.
+const TIMEOUT_EXIT: i32 = 124;
 const NOT_EXECUTED: &str = "não executada:";
 const DEFAULT_EVIDENCE_PRINT: &str = "print";
 const EXPECTED_CHANGE_MARK: &str = "(muda)";
@@ -440,6 +444,15 @@ impl Tasks {
         }
     }
 
+    /// Tempo-limite, em segundos, de cada evidência no baseline; sem a chave (projetos antigos) ou
+    /// com valor inválido, o padrão.
+    fn evidence_baseline_timeout(&self) -> u64 {
+        self.cfg("evidence_baseline_timeout")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_EVIDENCE_BASELINE_TIMEOUT)
+    }
+
     /// Subpasta de `baseline/` com a saída das evidências automáticas; sem a chave (projetos
     /// antigos) ou vazia, nada é gravado nem comparado.
     fn evidence_baseline_dir(&self) -> Option<String> {
@@ -516,7 +529,11 @@ impl Tasks {
         let expect = self
             .cfg("evidence_expect_field")
             .unwrap_or_else(|_| DEFAULT_EVIDENCE_EXPECT.to_string());
-        for field in [expect, EVIDENCE_REQUIRES.to_string()] {
+        for field in [
+            expect,
+            EVIDENCE_REQUIRES.to_string(),
+            EVIDENCE_TIMEOUT.to_string(),
+        ] {
             if !optional.contains(&field) {
                 optional.push(field);
             }
@@ -855,6 +872,42 @@ impl Tasks {
         }
         for file in &files {
             self.print_dashdash_warnings(file)?;
+        }
+        self.print_timeout_exceptions(&files)?;
+        Ok(())
+    }
+
+    /// Evidências com `Tempo-limite:` acima do padrão (ou 0, sem limite): a exceção que o usuário
+    /// aprova com a tarefa.
+    fn print_timeout_exceptions(&self, files: &[PathBuf]) -> Result<()> {
+        let default = self.evidence_baseline_timeout();
+        let mut lines = Vec::new();
+        for file in files {
+            let text = self.subsection(&read(file)?, "evidence_subsection")?;
+            let mut timeouts: Vec<(String, u64)> =
+                evidence_timeouts(&text, &self.evidence_from_verify())
+                    .into_iter()
+                    .filter_map(|(name, seconds)| Some((name, seconds?)))
+                    .filter(|(_, seconds)| *seconds == 0 || *seconds > default)
+                    .collect();
+            timeouts.sort();
+            for (name, seconds) in timeouts {
+                let limit = if seconds == 0 {
+                    "sem tempo-limite".to_string()
+                } else {
+                    format!("com tempo-limite de {seconds} s")
+                };
+                lines.push(format!(
+                    "- {}: {name} {limit} (padrão {default} s)",
+                    task_id_of(file)
+                ));
+            }
+        }
+        if !lines.is_empty() {
+            println!(
+                "Evidências com tempo-limite acima do padrão no baseline, aprovadas com a tarefa:"
+            );
+            println!("{}", lines.join("\n"));
         }
         Ok(())
     }
@@ -1230,6 +1283,8 @@ impl Tasks {
         if let Some(evidence_dir) = self.evidence_baseline_dir() {
             let text = self.subsection(&content, "evidence_subsection")?;
             let requirements = evidence_requirements(&text, &self.evidence_from_verify());
+            let timeouts = evidence_timeouts(&text, &self.evidence_from_verify());
+            let default_timeout = self.evidence_baseline_timeout();
             for (name, command) in self.automatic_evidences(&content)? {
                 let missing = requirements
                     .get(&name)
@@ -1241,8 +1296,18 @@ impl Tasks {
                     evidences.push((evidence_dir.clone(), name, record));
                     continue;
                 }
-                println!("- [evidência {name}] {command}");
-                evidences.push((evidence_dir.clone(), name, recorded_run(&command, &root)?.1));
+                let seconds = timeouts
+                    .get(&name)
+                    .copied()
+                    .flatten()
+                    .unwrap_or(default_timeout);
+                if seconds == default_timeout {
+                    println!("- [evidência {name}] {command}");
+                } else {
+                    println!("- [evidência {name}] {command} (tempo-limite {seconds} s)");
+                }
+                let record = recorded_run_with_timeout(&command, &root, seconds)?;
+                evidences.push((evidence_dir.clone(), name, record));
             }
         }
         fs::create_dir_all(&dir)?;
@@ -1733,6 +1798,7 @@ impl Tasks {
                             .unwrap_or_default();
                         if recorded_exit_code(&recorded) == Some(0)
                             && !before.starts_with(NOT_EXECUTED.as_bytes())
+                            && recorded_exit_code(&recorded) != Some(TIMEOUT_EXIT)
                             && without_ignored(before, &ignore) == without_ignored(&output, &ignore)
                         {
                             same.push((name.to_string(), command.to_string()));
@@ -3457,6 +3523,14 @@ fn evidence_subitem_values(text: &str, field: &str, from_verify: &str) -> HashMa
     values
 }
 
+/// `Tempo-limite:` de cada evidência: `Some(segundos)` com um número, `None` com outro texto.
+pub(super) fn evidence_timeouts(text: &str, from_verify: &str) -> HashMap<String, Option<u64>> {
+    evidence_subitem_values(text, EVIDENCE_TIMEOUT, from_verify)
+        .into_iter()
+        .map(|(name, value)| (name, value.trim_matches('`').trim().parse().ok()))
+        .collect()
+}
+
 /// Caminhos de `Requer:` de cada evidência: os trechos entre crases, separados por vírgula.
 pub(super) fn evidence_requirements(text: &str, from_verify: &str) -> HashMap<String, Vec<String>> {
     evidence_subitem_values(text, EVIDENCE_REQUIRES, from_verify)
@@ -3503,6 +3577,17 @@ pub(super) fn evidence_rule_errors(
                 "'{sub}': a evidência {name} requer '{path}', que não é criado pela tarefa"
             ));
         }
+    }
+    let mut timeouts: Vec<_> = evidence_timeouts(evidence, &kinds.from_verify)
+        .into_iter()
+        .filter(|(_, seconds)| seconds.is_none())
+        .map(|(name, _)| name)
+        .collect();
+    timeouts.sort();
+    for name in timeouts {
+        errors.push(format!(
+            "'{sub}': a evidência {name} tem {EVIDENCE_TIMEOUT} que não é um número de segundos"
+        ));
     }
     let mut has_image = false;
     let mut verify_names = Vec::new();
@@ -4057,6 +4142,89 @@ fn shell_output_with(command: &str, dir: &Path, vars: &[(&str, &Path)]) -> Resul
     let mut output = Vec::new();
     reader.read_to_end(&mut output)?;
     Ok((exit_code(child.wait()?), output))
+}
+
+/// Como `recorded_run`, interrompendo o comando, com os processos que ele abriu, depois de
+/// `seconds` segundos (0 sem limite): a saída até ali, seguida de `interrompida após N s`.
+fn recorded_run_with_timeout(command: &str, dir: &Path, seconds: u64) -> Result<Vec<u8>> {
+    if seconds == 0 {
+        return Ok(recorded_run(command, dir)?.1);
+    }
+    let (mut reader, writer) = std::io::pipe()?;
+    let mut builder = Command::new("bash");
+    builder
+        .arg("-c")
+        .arg(command)
+        .current_dir(dir)
+        .stdin(Stdio::null())
+        .stdout(writer.try_clone()?)
+        .stderr(writer);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        builder.process_group(0);
+    }
+    let mut child = builder
+        .spawn()
+        .context("não foi possível executar o bash")?;
+    drop(builder);
+    let reading = std::thread::spawn(move || {
+        let mut output = Vec::new();
+        let _ = reader.read_to_end(&mut output);
+        output
+    });
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
+    let mut status = None;
+    while std::time::Instant::now() < deadline {
+        if let Some(done) = child.try_wait()? {
+            status = Some(done);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let (code, interrupted) = match status {
+        Some(done) => (exit_code(done), false),
+        None => {
+            stop_process_group(&mut child);
+            child.wait()?;
+            (TIMEOUT_EXIT, true)
+        }
+    };
+    let mut output = reading.join().unwrap_or_default();
+    if interrupted {
+        if !output.is_empty() && !output.ends_with(b"\n") {
+            output.push(b'\n');
+        }
+        output.extend_from_slice(format!("interrompida após {seconds} s\n").as_bytes());
+    }
+    let mut record = format!("$ {command}\nexit: {code}\n").into_bytes();
+    record.extend(output);
+    Ok(record)
+}
+
+/// Encerra o grupo de processos do comando: TERM, e KILL no que sobrar.
+#[cfg(unix)]
+fn stop_process_group(child: &mut std::process::Child) {
+    let group = format!("-{}", child.id());
+    let signal = |name: &str| {
+        let _ = Command::new("kill")
+            .args([name, "--", &group])
+            .stderr(Stdio::null())
+            .status();
+    };
+    signal("-TERM");
+    for _ in 0..20 {
+        if matches!(child.try_wait(), Ok(Some(_))) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    signal("-KILL");
+}
+
+#[cfg(not(unix))]
+fn stop_process_group(child: &mut std::process::Child) {
+    let _ = child.kill();
 }
 
 /// Executa um comando e devolve o código de saída e o registro no formato do baseline: o comando, o

@@ -9,16 +9,17 @@ wave: 3
 covers: [RF-04, RF-05, RF-06, CT-05, CT-06, CT-07, CT-11, CB-03, CB-04, CB-05, CB-06, CB-07]
 type: tarefa
 labels: [SPEC-022, julgamento]
-status: approved
-content_hash: d9d553bc16a184cae2cccf179ea41596d7909d14d2b931b5a4315c838fa7732e
+status: done
+content_hash: dad5b159dfa00894992928ab9cc088d85198be3de698da0a9011b5d0c92aeda3
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-10-31T14:09:07Z
 approved_hash: d9d553bc16a184cae2cccf179ea41596d7909d14d2b931b5a4315c838fa7732e
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-03: Tempo-limite das evidências no baseline
@@ -76,15 +77,15 @@ Resultado esperado: toda a suíte passa e o clippy termina sem avisos.
 
 ### Concluída quando
 
-- [ ] Uma evidência que passa do tempo no baseline é interrompida e registrada (RF-04, CT-05, CB-05).
+- [x] Uma evidência que passa do tempo no baseline é interrompida e registrada (RF-04, CT-05, CB-05).
 
   > Como comprovar: em `evidence-timeout-tests.txt`, ver aprovados os testes do tempo-limite e do processo filho.
 
-- [ ] `Tempo-limite:` substitui o padrão e aparece na aprovação (RF-05, RF-06, CT-06, CT-07).
+- [x] `Tempo-limite:` substitui o padrão e aparece na aprovação (RF-05, RF-06, CT-06, CT-07).
 
   > Como comprovar: em `evidence-timeout-tests.txt`, ver aprovados os testes da exceção e da lista.
 
-- [ ] Tarefas sem os subitens coletam como antes (RNF-01, CT-11).
+- [x] Tarefas sem os subitens coletam como antes (RNF-01, CT-11).
 
   > Como comprovar: em `evidence-timeout-tests.txt`, ver aprovado o teste da tarefa antiga.
 
@@ -115,6 +116,12 @@ Abordagem: grupo de processos próprio e encerramento do grupo; leitura da saíd
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-10-31 | início | in_progress | aprovada em 2026-10-31T14:09:07Z; modelo: opus |
+| 2 | 2026-10-31 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-10-31 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-10-31 | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | 2026-10-31 | evidências | passed | 1 evidência(s) em evidence/TASK-03/ |
+| 6 | 2026-10-31 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

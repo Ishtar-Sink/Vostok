@@ -13,7 +13,7 @@ use clap::Subcommand;
 use super::task::{
     created_of, dashdash_commands, dashdash_warning, delivery_errors, evidence_item,
     evidence_name_problem, evidence_rule_errors, expected_change, new_folders, new_kind_name,
-    normalized_evidence_name, verify_block, EvidenceKinds, EVIDENCE_REQUIRES,
+    normalized_evidence_name, verify_block, EvidenceKinds, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -179,7 +179,11 @@ impl Workspace {
         let expect = self
             .task_setting("evidence_expect_field")
             .unwrap_or_else(|_| "Espera".to_string());
-        for field in [expect, EVIDENCE_REQUIRES.to_string()] {
+        for field in [
+            expect,
+            EVIDENCE_REQUIRES.to_string(),
+            EVIDENCE_TIMEOUT.to_string(),
+        ] {
             if !optional.contains(&field) {
                 optional.push(field);
             }

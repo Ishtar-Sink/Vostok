@@ -2995,3 +2995,114 @@ fn requires_a_path_the_task_does_not_create_is_refused() {
         "{stderr}"
     );
 }
+
+// --- Tempo-limite das evidências no baseline (SPEC-022) ---
+
+fn timeout_evidence(command: &str, extra: &str) -> String {
+    format!("- `saida.txt` (automática): `{command}`\n  - Prova: o comando roda.\n  - Trecho: fim.\n  - Falha: vazio.{extra}")
+}
+
+/// Tarefa com a evidência dada, com o tempo-limite padrão em `seconds`, depois do baseline; devolve
+/// também quanto a coleta demorou.
+fn timeout_task(seconds: &str, evidence: &str) -> (Project, std::time::Duration) {
+    let project = task_before_baseline(&[("valor.txt", "a\n")], evidence);
+    set_config(&project, "evidence_baseline_timeout", seconds);
+    assert!(read(&project, "vostok/config/tasks.yml")
+        .contains(&format!("evidence_baseline_timeout: {seconds}\n")));
+    let start = std::time::Instant::now();
+    task(&project, &["baseline"]).assert().success();
+    (project, start.elapsed())
+}
+
+#[test]
+fn evidence_timeout_interrupts_and_records_the_evidence() {
+    let (project, elapsed) =
+        timeout_task("1", &timeout_evidence("echo começo; sleep 5; echo fim", ""));
+    assert!(elapsed < std::time::Duration::from_secs(4), "{elapsed:?}");
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ echo começo; sleep 5; echo fim\nexit: 124\ncomeço\ninterrompida após 1 s\n"
+    );
+}
+
+#[test]
+fn evidence_timeout_stops_the_child_processes() {
+    let (project, elapsed) = timeout_task(
+        "1",
+        &timeout_evidence("sh -c 'sleep 30; echo tarde >> filho.txt' & wait", ""),
+    );
+    assert!(elapsed < std::time::Duration::from_secs(5), "{elapsed:?}");
+    assert!(evidence_baseline_file(&project, "saida.txt").ends_with("interrompida após 1 s\n"));
+}
+
+#[test]
+fn evidence_timeout_zero_runs_without_a_limit() {
+    let (project, _) = timeout_task(
+        "1",
+        &timeout_evidence("sleep 2; echo fim", "\n  - Tempo-limite: 0"),
+    );
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ sleep 2; echo fim\nexit: 0\nfim\n"
+    );
+}
+
+#[test]
+fn evidence_timeout_of_the_evidence_replaces_the_default() {
+    let (project, _) = timeout_task(
+        "1",
+        &timeout_evidence("sleep 2; echo fim", "\n  - Tempo-limite: 10"),
+    );
+    assert!(evidence_baseline_file(&project, "saida.txt").ends_with("fim\n"));
+}
+
+#[test]
+fn evidence_timeout_legacy_task_collects_as_before() {
+    let (project, _) = timeout_task("120", AUTOMATIC_EVIDENCE);
+    assert_eq!(
+        evidence_baseline_file(&project, "saida.txt"),
+        "$ cat valor.txt\nexit: 0\na\n"
+    );
+}
+
+#[test]
+fn evidence_timeout_that_is_not_a_number_is_refused() {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task(
+            "pending",
+            &timeout_evidence("echo ok", "\n  - Tempo-limite: abc"),
+        ),
+    );
+    let output = nested(&project, "adjust", "validate").output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(
+        stderr.contains("a evidência saida.txt tem Tempo-limite que não é um número de segundos"),
+        "{stderr}"
+    );
+}
+
+fn timeout_approval(evidence: &str) -> String {
+    let project = Project::new();
+    write(&project, TASK_PATH, &complete_task("pending", evidence));
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "validate"))
+}
+
+#[test]
+fn evidence_timeout_above_the_default_is_listed_for_approval() {
+    let output = timeout_approval(&timeout_evidence("echo ok", "\n  - Tempo-limite: 900"));
+    assert!(
+        output.contains("- TASK-01: saida.txt com tempo-limite de 900 s (padrão 120 s)"),
+        "{output}"
+    );
+}
+
+#[test]
+fn evidence_timeout_below_the_default_is_not_listed() {
+    let output = timeout_approval(&timeout_evidence("echo ok", "\n  - Tempo-limite: 30"));
+    assert!(!output.contains("tempo-limite"), "{output}");
+}

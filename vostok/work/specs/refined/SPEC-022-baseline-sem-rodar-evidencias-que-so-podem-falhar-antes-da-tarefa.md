@@ -1,10 +1,10 @@
 ---
 id: SPEC-022
 title: "Baseline sem rodar evidências que só podem falhar antes da tarefa"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-10-31T12:41:33Z
-updated_at: 2026-10-31T14:09:07Z
+updated_at: 2026-10-31T17:04:50Z
 tags: []
 type: improvement
 source: "draft/SPEC-022-baseline-sem-rodar-evidencias-que-so-podem-falhar-antes-da-tarefa.md"

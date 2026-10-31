@@ -46,6 +46,12 @@ evidence_dir: evidence
 # do baseline: ela não comprova a mudança. Vazia ou ausente, nada é gravado nem comparado.
 evidence_baseline_dir: evidence
 
+# Tempo-limite, em segundos, de cada evidência rodada no baseline: passou do tempo, o comando e os
+# processos que ele abriu são encerrados e a gravação termina com "interrompida após N s". Uma
+# evidência pode ter o subitem "Tempo-limite: <segundos>" (0 sem limite), aprovado pelo usuário com a
+# tarefa. Não vale para os comandos de "Baseline" nem para a finalização.
+evidence_baseline_timeout: 120
+
 # Seção do arquivo da tarefa com uma linha por etapa da execução, escrita só pelos scripts.
 record_section: Registro de execução
 

@@ -1,6 +1,6 @@
 ---
 name: vostok-arquiteto
-description: "Toma as decisões de desenho de cada tarefa (onde o código fica, contratos públicos, compatibilidade) e escreve Ler, Mudar e Detalhes técnicos; usado no detalhamento de tarefas."
+description: "Toma as decisões de desenho de cada tarefa (onde o código fica, contratos públicos, compatibilidade) e escreve Ler, Mudar e o `tecnico.md` (Detalhes técnicos no arquivo único); usado no detalhamento de tarefas."
 model: inherit
 maxTurns: 30
 ---

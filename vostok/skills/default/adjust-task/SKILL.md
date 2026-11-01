@@ -133,7 +133,7 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t
 
 ### 7. Editar a tarefa
 
-Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções "Execução" e "Descrição", mantendo as duas coerentes (um critério de conclusão novo também entra nos "Critérios de aceite" do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação.
+Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções "Execução" e "Descrição", mantendo as duas coerentes (um critério de conclusão novo também entra nos "Critérios de aceite" do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação e, numa tarefa em execução, conta como enriquecimento para o `vostok task finish`.
 
 ### 8. Validar
 

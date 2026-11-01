@@ -22,7 +22,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
 - **Tarefa:** a pasta `vostok/work/tasks/<SPEC_ID>/TASK-NN/`, criada pelo comando a partir do plano, com `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências), `criterios.md` (Concluída quando), `executivo.md`, `tecnico.md`, `estado.yml`, `registro.md`, o `README.md` gerado e a subpasta `evidencias/`. Specs planejadas antes têm o arquivo único `TASK-NN.md`; `vostok task migrate <SPEC_ID>` as converte.
 - **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): "Ler", "Mudar", "Passos", "Baseline", "Verificação", "Evidências" e "Concluída quando".
-- **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos na finalização da tarefa (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção "Descrição" do arquivo único.
+- **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos no detalhamento com o que a tarefa vai fazer e enriquecidos na finalização (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção "Descrição" do arquivo único.
 - **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.
 - **Impedimento:** o que impede a aprovação: spec fora de `approved` ou alterada, plano desatualizado, edição manual sem registro ou problema de validação.
 
@@ -100,7 +100,7 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
-Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). `executivo.md` e `tecnico.md` ficam com as variáveis: são escritos na finalização da tarefa, a partir do que foi feito, e o `vostok task finish` os exige. Não escreva card nem README: o `vostok` os gera.
+Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
 
 **Execução** (para o agente):
 
@@ -133,7 +133,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
   ```
 - **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.
 
-**Descrição** (para pessoas; só no formato antigo, de arquivo único):
+**Descrição** (para pessoas; `executivo.md` e `tecnico.md` na tarefa em pasta e as variáveis abaixo no arquivo único):
 
 - **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.

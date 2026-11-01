@@ -76,7 +76,7 @@ Execute, com os IDs ou `--all`:
 vostok task approve validate <SPEC_ID> <TASK_ID ...>
 ```
 
-O comando lista os impedimentos de cada tarefa, sem alterar nada. Na tarefa em pasta, a aprovação cobre `execucao.md`, `verificacao.md` e `criterios.md`; mudar depois só `executivo.md` ou `tecnico.md` não derruba a aprovação. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:
+O comando lista os impedimentos de cada tarefa, sem alterar nada. Na tarefa em pasta, a aprovação cobre `execucao.md`, `verificacao.md` e `criterios.md`; mudar depois só `executivo.md` ou `tecnico.md` não derruba a aprovação. A validação recusa a tarefa em pasta com `executivo.md` ou `tecnico.md` no template; a correção é escrever o documento (skill `adjust-task`). Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:
 
 | Impedimento | Como resolver |
 |---|---|

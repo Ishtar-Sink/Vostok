@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-025
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Análise da identidade do Ishtar Sink, do Atria e dos documentos atuais, com três direções visuais.
 - **Critérios de aceite:**
-  - [ ] O estudo analisa a identidade do Ishtar Sink, o Atria e os documentos atuais (RF-01, CT-01).
-  - [ ] O estudo propõe três direções distintas, uma com abas e duas sem (RF-01, CT-01).
+  - [x] O estudo analisa a identidade do Ishtar Sink, o Atria e os documentos atuais (RF-01, CT-01).
+  - [x] O estudo propõe três direções distintas, uma com abas e duas sem (RF-01, CT-01).
 - **Rótulos:** SPEC-025, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

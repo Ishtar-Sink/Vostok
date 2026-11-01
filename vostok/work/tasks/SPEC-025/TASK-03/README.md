@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-025
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-02
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Seis páginas: três modelos, um com abas, cada um com executivo e técnico de uma spec real reescrita.
 - **Critérios de aceite:**
-  - [ ] Há três modelos, um com abas e dois sem, cada um com executivo e técnico (RF-02, CT-02).
-  - [ ] Os três usam o mesmo conteúdo real da SPEC-023 reescrito (RF-03, CT-02).
-  - [ ] As páginas funcionam no celular e não fazem requisição externa (RNF-02, RNF-04).
+  - [x] Há três modelos, um com abas e dois sem, cada um com executivo e técnico (RF-02, CT-02).
+  - [x] Os três usam o mesmo conteúdo real da SPEC-023 reescrito (RF-03, CT-02).
+  - [x] As páginas funcionam no celular e não fazem requisição externa (RNF-02, RNF-04).
 - **Rótulos:** SPEC-025, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-02

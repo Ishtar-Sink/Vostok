@@ -9,17 +9,20 @@ wave: 4
 covers: [RF-04, CT-03]
 type: tarefa
 labels: [SPEC-025, mecanica]
-status: approved
-content_hash: 94596f80665d806c917ec17e251005b8568ef599ea76b03ad9b70815478fe745
+status: done
+content_hash: 5205ad22fbe634387553f691aa9008ea789e906dd8a9ca1863d78d7ff1e5902a
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T22:37:51Z
 approved_hash: 94596f80665d806c917ec17e251005b8568ef599ea76b03ad9b70815478fe745
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: a9c6fb02470cc926d4360548686de5f45c13b8011c60792e91c0eca24314d8ae
 verification_hash: 7645394ddbe6b527801cf745a34971c808bb97bf091ea22439c105e21919f488
-criteria_hash: aeba33ba0f66935ff0c11df1648bbaa225987369ec35eea4399324c7f22e5bf3
-state_hash: 182b2ac7ea8dd767973ce5058cb9d93a0bbf15b640ef9026e09766998eb1e733
+criteria_hash: b09b3052fb7e6f30459356ea042bf9865f8f7cb077f25462c62c64aee9185e4a
+state_hash: 6bf1f51d485a44f09764adaecff17d0a2340cd009927e076d455913d7ff6d0dc
+model: claude-opus-5-5
+executive_hash: 0390bbb260c0a11d6c961cbdea4d8a7fc6a65521fdb974557982f66b14b77e76
+technical_hash: 20605695932ec7aeefa3d6e8a391389ae22ea4a169b46584ed6bbf284eb2aaf8

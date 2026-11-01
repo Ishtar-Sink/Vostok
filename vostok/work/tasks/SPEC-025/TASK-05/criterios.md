@@ -11,3 +11,7 @@
 - [ ] Os goldens da finalização passam com o HTML novo.
 
   > Como comprovar: rodar `cargo test --test finalize` e ver o `golden_finalize` aprovado.
+
+- [ ] Toda cor dos documentos gerados vem de `documents.yml` (RNF-01).
+
+  > Como comprovar: em `visual-tests.txt`, ver aprovado `visual_colors_come_only_from_documents_yml`.

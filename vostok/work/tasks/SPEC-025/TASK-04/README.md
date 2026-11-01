@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-025
-- **Status:** approved
+- **Status:** done
 - **Onda:** 4
 - **Dependências:** TASK-03
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Registro do modelo escolhido e da aprovação do estudo de conteúdo pelo usuário.
 - **Critérios de aceite:**
-  - [ ] O modelo escolhido, o motivo e a data estão no estudo (RF-04, CT-03).
-  - [ ] A aprovação do estudo de conteúdo, com os ajustes pedidos, está registrada (RF-04, CT-03).
+  - [x] O modelo escolhido, o motivo e a data estão no estudo (RF-04, CT-03).
+  - [x] A aprovação do estudo de conteúdo, com os ajustes pedidos, está registrada (RF-04, CT-03).
 - **Rótulos:** SPEC-025, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** TASK-03

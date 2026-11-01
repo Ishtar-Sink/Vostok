@@ -25,6 +25,7 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
   - [ ] Os três documentos são gerados no modelo escolhido, com tema claro padrão e sem requisição externa (RF-09, RF-10, CT-07, CT-10).
   - [ ] Os títulos do técnico de cada tarefa aparecem como títulos (RF-12, CT-09).
   - [ ] Os goldens da finalização passam com o HTML novo.
+  - [ ] Toda cor dos documentos gerados vem de `documents.yml` (RNF-01).
 - **Rótulos:** SPEC-025, julgamento
 - **Estimativa:** julgamento
 - **Bloqueada por:** TASK-04

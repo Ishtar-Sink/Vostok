@@ -25,6 +25,7 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
   - [ ] O executivo gerado traz objetivo, entregas, valor e impacto, ganhos secundários e próximos passos (RF-06, CT-05).
   - [ ] O técnico gerado traz o quê, por quê, como e as seções de sustentação (RF-07, RF-08, CT-06).
   - [ ] A validação recusa seção nova vazia e a skill segue o estudo (RF-11, CT-08).
+  - [ ] Os números de "Em números" aparecem na faixa do resumo, e o mapa de cobertura exige todos os requisitos (RF-06, RF-11, CT-05).
 - **Rótulos:** SPEC-025, julgamento
 - **Estimativa:** julgamento
 - **Bloqueada por:** TASK-05

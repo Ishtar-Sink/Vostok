@@ -10,16 +10,17 @@ covers: [RF-06, RF-07, RF-08, RF-11, CT-05, CT-06, CT-08]
 type: historia
 labels: [SPEC-025, julgamento]
 status: approved
-content_hash: 4790c9117073c26454acc20c14ecc017936497276f7659d10dadccebf54f43d8
-adjustments: 0
-adjusted_at: null
-approved_at: 2026-11-01T22:37:51Z
-approved_hash: 4790c9117073c26454acc20c14ecc017936497276f7659d10dadccebf54f43d8
+content_hash: 886fac322f52517fbf2443115a339a7051ced80c03b1f30b3ca1ecb2172d41ae
+adjustments: 1
+adjusted_at: 2026-11-01T23:09:52Z
+approved_at: 2026-11-01T23:09:52Z
+approved_hash: 886fac322f52517fbf2443115a339a7051ced80c03b1f30b3ca1ecb2172d41ae
 attempts: 0
 tests_result: null
 regression_result: null
 evidence_result: null
-execution_hash: f57ad3efa6ffdc94809dd99ac30bb55715cb83673ce34d7919434aca9c77419e
+execution_hash: e6ad2c472ff6d27b002bc9d1ee143b344d99f22306d22b1c80a3fe23c073ac32
 verification_hash: f172104a94a47f2b5abe985870955d682fee7f4857619d76992356f32add66f9
-criteria_hash: 6bd0102856a8c2b722c23ac42d068658f669373bb452d2f2a517b255968009f4
-state_hash: 2739bb33dc73ef13089b2ca3a13cae69ca92ba80790f8260c45576451f23af3d
+criteria_hash: fdc275616a33a3055ed5a1316c7da84dc27225f9318ccb769090a7a6abe4e874
+state_hash: 4db106e3ad2f8089f0ec51d1e1e293cbb6a748bd225af31bc5edfb3b82e8cf49
+updated_at: 2026-11-01T23:09:52Z

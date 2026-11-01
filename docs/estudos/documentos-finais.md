@@ -138,4 +138,8 @@ O resto fica como orientação na skill `finalize-spec`, porque depende de julga
 
 ## Escolha do modelo
 
-Registrada na TASK-04.
+Data da escolha: 2026-11-01. Modelo escolhido: **o C, Dossiê em blocos, com o índice do B**. Os protótipos estão em `docs/estudos/documentos-finais/`; a combinação foi montada como teste fora do repositório e aprovada pelo usuário.
+
+O motivo dado pelo usuário foi a preferência pelo modelo C, com uma troca: "em vez das pill, colocaria o índice como o do b". Ficam do C o cabeçalho com rótulo, título e metadados, a faixa "Em resumo" com os números em destaque e cada seção num cartão branco com rótulo numerado, algumas lado a lado no desktop. Do B vem a navegação: um índice preso à esquerda no desktop, com as seções numeradas e a seção em leitura marcada, que no celular vira um bloco em duas colunas logo abaixo do resumo. A linha de atalhos em pílula do C sai.
+
+O estudo de conteúdo foi aprovado como está, sem ajustes, com as seções, a regra de formato e a divisão entre o que o `finalize validate` confere e o que fica na skill. Não houve outros ajustes no visual. Fica para a TASK-05 o subconjunto das fontes, que nos protótipos foram embutidas inteiras.

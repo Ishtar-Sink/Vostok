@@ -145,7 +145,7 @@ O `vostok task finish` recusa a conclusão enquanto faltar o guia, uma entrada o
 
 Para cada critério de "Concluída quando" (`criterios.md` na tarefa em pasta), faça a comprovação descrita em "Como comprovar". Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.
 
-**Documentos da tarefa (tarefa em pasta):** depois das evidências e dos critérios, `executivo.md` e `tecnico.md` são escritos a partir do que foi feito. Execute `vostok task describe <SPEC_ID> <TASK_ID>` e dispare um subagente de perfil `mecanica` (o mais simples de `vostok/config/models.yml`) com essa saída como único contexto, pedindo o executivo (para quem não é técnico: o que mudou e o valor) e o técnico (para quem mantém o código: o que foi feito, como, decisões e pontos de atenção). Confira o texto contra o `describe` antes de seguir. Sem subagente disponível, escreva os dois na própria sessão a partir do mesmo `describe`. No formato antigo, pule este bloco.
+**Documentos da tarefa (tarefa em pasta):** depois das evidências e dos critérios, `executivo.md` e `tecnico.md` são enriquecidos com o que foi feito. Execute `vostok task describe <SPEC_ID> <TASK_ID>` e dispare um subagente de perfil `mecanica` (o mais simples de `vostok/config/models.yml`) com essa saída e os dois documentos como contexto: ele mantém o que o planejamento escreveu, corrige o que mudou e acrescenta o que foi feito, pedindo o executivo (para quem não é técnico: o que mudou e o valor) e o técnico (para quem mantém o código: o que foi feito, como, decisões e pontos de atenção). Confira o texto contra o `describe` antes de seguir. Sem subagente disponível, enriqueça os dois na própria sessão a partir do mesmo `describe`. No formato antigo, pule este bloco.
 
 ### 8. Concluir
 
@@ -155,7 +155,7 @@ Execute:
 vostok task finish <SPEC_ID> <TASK_ID>
 ```
 
-O comando exige testes, regressão e evidências `passed`, todos os critérios marcados e, na tarefa em pasta, `executivo.md` e `tecnico.md` escritos, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. Se ele recusar, volte à etapa que falta.
+O comando exige testes, regressão e evidências `passed`, todos os critérios marcados e, na tarefa em pasta, `executivo.md` e `tecnico.md` enriquecidos, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. O comando recusa documento no template e documento igual ao do início da tarefa (`não foi enriquecido desde o início`). Se ele recusar, volte à etapa que falta.
 
 ### 9. Responder ao usuário
 

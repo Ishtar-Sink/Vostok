@@ -1,10 +1,10 @@
 ---
 id: SPEC-025
 title: "Documentos finais com visual e conteúdo profissionais"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-01T22:16:17Z
-updated_at: 2026-11-01T22:32:01Z
+updated_at: 2026-11-01T23:44:22Z
 tags: []
 type: improvement
 source: "draft/SPEC-025-documentos-finais-com-visual-e-conteudo-profissionais.md"

@@ -36,6 +36,13 @@ pub enum FinalizeCommand {
 const CONTENT_FILE: &str = "content.md";
 const EVIDENCE_HOW: &str = "Como chegar";
 const EVIDENCE_READ: &str = "Como ler";
+const EVIDENCE_PROOF: &str = "Prova";
+/// Seção que marca o template de conteúdo do estudo de conteúdo (SPEC-025); sem ela, vale o modelo anterior.
+const COVERAGE_SECTION: &str = "Mapa de cobertura";
+const NOT_APPLICABLE: &str = "Não se aplica.";
+const MAX_NUMBERS: usize = 3;
+const MAX_LIST_ITEM_CHARS: usize = 300;
+const EXECUTIVE_WORDS_WARNING: usize = 1000;
 const EXECUTIVE_TEMPLATE: &str = "finalize/executive.html";
 const TECHNICAL_TEMPLATE: &str = "finalize/technical.html";
 const EVIDENCE_TEMPLATE: &str = "finalize/evidence.html";
@@ -874,12 +881,19 @@ impl Finalization {
         let values = HashMap::from([("SPEC_ID", self.id.clone())]);
         let mut content = render_lines(&template, &values);
         let mut blocks = 0;
+        let study = self.study_model();
         for task in &self.tasks {
             let task_id = task.id();
             for (name, _) in self.evidence_items(task)? {
                 blocks += 1;
+                content.push_str(&format!("\n## {task_id} / {name}\n\n"));
+                if study {
+                    content.push_str(&format!(
+                        "- **{EVIDENCE_PROOF}:** #{{EVIDENCE_{blocks:02}_PROOF}}\n"
+                    ));
+                }
                 content.push_str(&format!(
-                    "\n## {task_id} / {name}\n\n- **{EVIDENCE_HOW}:** #{{EVIDENCE_{blocks:02}_HOW}}\n- **{EVIDENCE_READ}:** #{{EVIDENCE_{blocks:02}_READ}}\n"
+                    "- **{EVIDENCE_HOW}:** #{{EVIDENCE_{blocks:02}_HOW}}\n- **{EVIDENCE_READ}:** #{{EVIDENCE_{blocks:02}_READ}}\n"
                 ));
             }
         }
@@ -901,7 +915,46 @@ impl Finalization {
             self.id,
             self.rel(&self.content_path()?)
         );
+        if self.study_model() {
+            let content = fs::read_to_string(self.content_path()?).unwrap_or_default();
+            let words = prose_lines(&content_part(&content, "Executivo"))
+                .flat_map(str::split_whitespace)
+                .count();
+            if words > EXECUTIVE_WORDS_WARNING {
+                println!(
+                    "Aviso: o executivo tem {words} palavras; o estudo de conteúdo recomenda de 400 a 800."
+                );
+            }
+        }
         Ok(())
+    }
+
+    /// O template de conteúdo instalado segue o estudo de conteúdo: tem o mapa de cobertura. Um harness
+    /// anterior ao `vostok update` continua com o modelo antigo, nas regras e nos documentos.
+    fn study_model(&self) -> bool {
+        self.content_template()
+            .ok()
+            .and_then(|path| fs::read_to_string(path).ok())
+            .is_some_and(|template| {
+                template
+                    .lines()
+                    .any(|line| line == format!("## {COVERAGE_SECTION}"))
+            })
+    }
+
+    /// IDs dos requisitos funcionais e não funcionais da spec, na ordem das tabelas.
+    fn requirement_ids(&self) -> Vec<String> {
+        let spec = fs::read_to_string(&self.spec).unwrap_or_default();
+        spec.lines()
+            .filter_map(|line| line.strip_prefix("| ")?.split(' ').next())
+            .filter(|id| {
+                ["RF-", "RNF-"].iter().any(|prefix| {
+                    id.strip_prefix(prefix)
+                        .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+                })
+            })
+            .map(str::to_string)
+            .collect()
     }
 
     fn require_valid_content(&self) -> Result<()> {
@@ -937,9 +990,18 @@ impl Finalization {
                 errors.push(format!("seção ausente: {heading}"));
             }
         }
-        errors.extend(section_errors(&content, &self.task_setting("id.prefix")?));
-        let deliveries = part_section(&content_part(&content, "Executivo"), "Entregas");
-        errors.extend(delivery_errors(&deliveries));
+        let study = self.study_model();
+        errors.extend(section_errors(
+            &content,
+            &self.task_setting("id.prefix")?,
+            study,
+        ));
+        if study {
+            errors.extend(study_errors(&content, &self.requirement_ids()));
+        } else {
+            let deliveries = part_section(&content_part(&content, "Executivo"), "Entregas");
+            errors.extend(delivery_errors(&deliveries));
+        }
         for task in &self.tasks {
             let task_id = task.id();
             let evidence_dir = self.task_evidence_dir(task)?;
@@ -958,19 +1020,27 @@ impl Finalization {
     }
 }
 
-/// Seções `## ` vazias e blocos de evidência sem "Como chegar" ou "Como ler".
-fn section_errors(content: &str, task_prefix: &str) -> Vec<String> {
+/// Seções `## ` vazias e blocos de evidência sem "Como chegar" ou "Como ler" (e sem "Prova", com
+/// `require_proof`).
+fn section_errors(content: &str, task_prefix: &str, require_proof: bool) -> Vec<String> {
     struct Block {
         heading: String,
         evidence: bool,
         lines: usize,
+        proof: bool,
         how: bool,
         read: bool,
     }
-    fn flush(block: Option<Block>, errors: &mut Vec<String>) {
+    let flush = |block: Option<Block>, errors: &mut Vec<String>| {
         let Some(block) = block else {
             return;
         };
+        if block.evidence && require_proof && !block.proof {
+            errors.push(format!(
+                "bloco de evidência sem \"{EVIDENCE_PROOF}\": {}",
+                block.heading
+            ));
+        }
         if block.evidence {
             if !block.how {
                 errors.push(format!(
@@ -987,7 +1057,7 @@ fn section_errors(content: &str, task_prefix: &str) -> Vec<String> {
         } else if block.lines == 0 {
             errors.push(format!("seção vazia: {}", block.heading));
         }
-    }
+    };
     let mut errors = Vec::new();
     let mut current: Option<Block> = None;
     for line in content.lines().map(strip_cr) {
@@ -1004,6 +1074,7 @@ fn section_errors(content: &str, task_prefix: &str) -> Vec<String> {
                 heading: line.to_string(),
                 evidence: is_evidence_heading(line, task_prefix),
                 lines: 0,
+                proof: false,
                 how: false,
                 read: false,
             });
@@ -1012,12 +1083,108 @@ fn section_errors(content: &str, task_prefix: &str) -> Vec<String> {
         if let Some(block) = current.as_mut() {
             if line.contains(|c| c != ' ' && c != '\t') {
                 block.lines += 1;
+                block.proof |= is_filled(line, EVIDENCE_PROOF);
                 block.how |= is_filled(line, EVIDENCE_HOW);
                 block.read |= is_filled(line, EVIDENCE_READ);
             }
         }
     }
     flush(current, &mut errors);
+    errors
+}
+
+/// Linhas de texto de um trecho, sem comentários e sem linhas em branco.
+fn prose_lines(text: &str) -> impl Iterator<Item = &str> {
+    text.lines()
+        .map(strip_cr)
+        .filter(|line| !is_comment_line(line) && !awk_trim(line).is_empty())
+}
+
+/// Linhas de tabela que não são o separador.
+fn table_rows(section: &str) -> usize {
+    prose_lines(section)
+        .filter(|line| line.starts_with('|') && !is_table_separator(line))
+        .count()
+}
+
+/// O texto cita o ID sozinho (`RF-1` não conta como `RF-10`).
+fn cites_id(text: &str, id: &str) -> bool {
+    text.match_indices(id).any(|(index, _)| {
+        let before = text[..index].chars().next_back();
+        let after = text[index + id.len()..].chars().next();
+        !before.is_some_and(|c| c.is_alphanumeric() || c == '-')
+            && !after.is_some_and(|c| c.is_ascii_digit())
+    })
+}
+
+/// Regras do estudo de conteúdo que a validação confere: "Em números", as tabelas do técnico, o mapa
+/// de cobertura, o executivo sem código e itens de lista que são parágrafos.
+fn study_errors(content: &str, requirements: &[String]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for part_title in ["Executivo", "Técnico"] {
+        let part = content_part(content, part_title);
+        let numbers = section_of(&part, "Em números");
+        let lines: Vec<&str> = prose_lines(&numbers).collect();
+        if lines != [NOT_APPLICABLE] {
+            if lines.len() > MAX_NUMBERS {
+                errors.push(format!(
+                    "Em números ({part_title}): {} itens, o máximo é {MAX_NUMBERS}",
+                    lines.len()
+                ));
+            }
+            for line in &lines {
+                let valid = line
+                    .strip_prefix("- **")
+                    .and_then(|rest| rest.split_once("**"))
+                    .is_some_and(|(value, label)| !value.is_empty() && !awk_trim(label).is_empty());
+                if !valid {
+                    errors.push(format!(
+                        "Em números ({part_title}): linha fora do formato \"- **<valor>** <rótulo>\": {line}"
+                    ));
+                }
+            }
+        }
+        for line in prose_lines(&part) {
+            let item = line
+                .strip_prefix("- ")
+                .or_else(|| ordered_item(line));
+            if item.is_some_and(|item| item.chars().count() > MAX_LIST_ITEM_CHARS) {
+                let start: String = line.chars().take(60).collect();
+                errors.push(format!(
+                    "item de lista com mais de {MAX_LIST_ITEM_CHARS} caracteres ({part_title}); transforme em parágrafo: {start}…"
+                ));
+            }
+        }
+    }
+    for line in prose_lines(&content_part(content, "Executivo")) {
+        if line.contains('`') {
+            errors.push(format!(
+                "código no executivo (caminho, comando ou função): {line}"
+            ));
+        }
+    }
+    let technical = content_part(content, "Técnico");
+    if table_rows(&section_of(&technical, "Mapa do código")) < 2 {
+        errors.push(
+            "Mapa do código (Técnico): falta a tabela \"| Caminho | Papel | Testes |\" com pelo menos uma linha"
+                .to_string(),
+        );
+    }
+    let operation = section_of(&technical, "Operação e diagnóstico");
+    if !prose_lines(&operation).any(|line| ordered_item(line).is_some())
+        && table_rows(&operation) < 2
+    {
+        errors.push(
+            "Operação e diagnóstico (Técnico): falta um passo numerado ou uma tabela de sintomas"
+                .to_string(),
+        );
+    }
+    let coverage = section_of(&content_part(content, "Evidências"), COVERAGE_SECTION);
+    for id in requirements {
+        if !cites_id(&coverage, id) {
+            errors.push(format!("{COVERAGE_SECTION} (Evidências): falta {id}"));
+        }
+    }
     errors
 }
 
@@ -1659,6 +1826,15 @@ fn legacy_css_tokens(
     css
 }
 
+/// Parágrafo "Prova" de um bloco de evidência; vazio no conteúdo anterior ao estudo, que não tem o campo.
+fn proof_html(content: &str, heading: &str) -> String {
+    let proof = evidence_field(content, heading, EVIDENCE_PROOF);
+    if awk_trim(&proof).is_empty() {
+        return String::new();
+    }
+    format!("    <p><b>{EVIDENCE_PROOF}</b>{}</p>", inline_html(&proof))
+}
+
 /// Coluna de números da faixa do resumo: cada item `- **<valor>** <rótulo>` de `## Em números` vira um
 /// bloco. Sem a seção ou sem itens nesse formato, fica vazia e a faixa ocupa a largura toda.
 fn numbers_html(part: &str) -> String {
@@ -1855,6 +2031,12 @@ impl Finalization {
         values.extend([
             ("LEDE", section_html(&part, "Panorama")),
             ("NUMBERS", numbers_html(&part)),
+            ("SUMMARY", section_html(&part, "Em resumo")),
+            ("OBJECTIVE", section_html(&part, "Objetivo")),
+            ("DELIVERED", section_html(&part, "O que foi entregue")),
+            ("VALUE", section_html(&part, "Valor e impacto")),
+            ("SECONDARY", section_html(&part, "Ganhos secundários")),
+            ("RISKS_LIMITS", section_html(&part, "Riscos e limites")),
             (
                 "VALUE_KPIS",
                 captured(&value_kpis_html(&section_of(&part, "Indicadores de valor"))),
@@ -1890,6 +2072,12 @@ impl Finalization {
         values.extend([
             ("OVERVIEW", section_html(&part, "Visão geral")),
             ("NUMBERS", numbers_html(&part)),
+            ("SUMMARY", section_html(&part, "Em resumo")),
+            ("CONTEXT", section_html(&part, "Contexto")),
+            ("HOW", section_html(&part, "Como funciona")),
+            ("OPERATION", section_html(&part, "Operação e diagnóstico")),
+            ("CODE_MAP", section_html(&part, "Mapa do código")),
+            ("LIMITS", section_html(&part, "Limites e dívidas")),
             (
                 "ARCHITECTURE",
                 section_html(&part, "Arquitetura e componentes"),
@@ -2539,6 +2727,7 @@ impl Finalization {
                         "READ",
                         inline_html(&evidence_field(&content, &heading, EVIDENCE_READ)),
                     ),
+                    ("PROOF", proof_html(&content, &heading)),
                 ]);
                 let template = read_template(&templates.join(EVIDENCE_ITEM_TEMPLATE), errors);
                 items.extend(splice(
@@ -2583,9 +2772,25 @@ impl Finalization {
             counts.embedded,
             counts.assets
         );
+        let part = captured(&content_part(&content, "Evidências"));
+        let written = section_html(&part, "Em resumo");
+        let summary = if written.trim().is_empty() { summary } else { written };
+        let coverage = section_html(&part, COVERAGE_SECTION);
+        let (coverage, coverage_nav) = if coverage.trim().is_empty() {
+            (String::new(), String::new())
+        } else {
+            (
+                format!(
+                    "<section class=\"panel\" id=\"p-cobertura\">\n<div class=\"sec-h\"><h2>{COVERAGE_SECTION}</h2></div>\n{coverage}\n</section>"
+                ),
+                "    <a href=\"#p-cobertura\">Cobertura</a>".to_string(),
+            )
+        };
         let mut values = self.header_values(&header, "Evidências", tokens);
         values.extend([
             ("SUMMARY", summary),
+            ("COVERAGE", coverage),
+            ("COVERAGE_NAV", coverage_nav),
             ("NAV", nav),
             ("ITEMS", ITEMS_MARKER.to_string()),
         ]);

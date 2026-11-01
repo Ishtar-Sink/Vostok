@@ -161,15 +161,17 @@ footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
 </div></header>
 
 <div class="wrap layout">
-  <nav class="toc" aria-label="Índice"><p>Tarefas</p><div class="links">
+  <nav class="toc" aria-label="Índice"><p>Neste documento</p><div class="links">
+#{COVERAGE_NAV}
 #{NAV}
   </div></nav>
   <main class="blocks">
+#{COVERAGE}
 #{ITEMS}
   </main>
 </div>
 
-<footer><div class="wrap">Vostok · evidências de #{SPEC_ID}, uma peça por evidência, com como chegar e como ler.</div></footer>
+<footer><div class="wrap">Vostok · evidências de #{SPEC_ID}: o mapa de cobertura e uma peça por evidência, com o que ela prova, como chegar e como ler.</div></footer>
 <script>
 (function () {
   // Tema: a escolha fica só no navegador de quem lê; sem escolha, vale a preferência do sistema.

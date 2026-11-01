@@ -185,6 +185,7 @@ fn evidence_html_with_baseline(baseline: Option<&str>) -> String {
     let content_path = project.harness().join("work/finalize/SPEC-001/content.md");
     let content = fs::read_to_string(&content_path).unwrap();
     let content = content
+        .replace("#{EVIDENCE_01_PROOF}", "a saída de CT-01.")
         .replace("#{EVIDENCE_01_HOW}", "rodar.")
         .replace("#{EVIDENCE_01_READ}", "ler.");
     fs::write(&content_path, fill_variables(&content)).unwrap();
@@ -230,7 +231,11 @@ fn fill_variables(content: &str) -> String {
         if let Some(start) = line.find("#{") {
             let name = &line[start + 2..line.find('}').unwrap()];
             out.push_str(match name {
-                "EXEC_DELIVERIES" => "### Aceite\n- **Impacto:** alto\n- **O que mudou:** aceite.\n- **Valor:** conclusão.\n- **Como perceber:** tarefa concluída.",
+                "EXEC_NUMBERS" => "- **2** tarefas concluídas",
+                "TECH_NUMBERS" => "Não se aplica.",
+                "TECH_OPERATION" => "1. Rodar `vostok finalize build`.",
+                "TECH_CODE_MAP" => "| Caminho | Papel | Testes |\n|---|---|---|\n| `src/novo.rs` | novo | `novo_` |",
+                "EVIDENCE_COVERAGE" => "| ID | O que foi verificado | Evidência |\n|---|---|---|\n| CT-01 | saída | TASK-01 / saida.txt |",
                 _ => "Texto.",
             });
         } else {
@@ -316,6 +321,7 @@ fn built_folder_project_with(prepare: impl FnOnce(&std::path::Path)) -> Project 
     let content_path = project.harness().join("work/finalize/SPEC-001/content.md");
     let content = fs::read_to_string(&content_path)
         .unwrap()
+        .replace("#{EVIDENCE_01_PROOF}", "a saída de CT-01.")
         .replace("#{EVIDENCE_01_HOW}", "rodar.")
         .replace("#{EVIDENCE_01_READ}", "ler.");
     fs::write(&content_path, fill_variables(&content)).unwrap();
@@ -497,4 +503,135 @@ fn visual_colors_come_only_from_documents_yml() {
             assert!(allowed.contains(&color), "{name}: #{color} fora de documents.yml");
         }
     }
+}
+
+/// Spec com uma tarefa em pasta e o conteúdo criado e preenchido, sem `build`; devolve o caminho do conteúdo.
+fn filled_content(project: &Project) -> std::path::PathBuf {
+    write_folder_task(project, "TASK-01");
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let path = project.harness().join("work/finalize/SPEC-001/content.md");
+    let content = fs::read_to_string(&path)
+        .unwrap()
+        .replace("#{EVIDENCE_01_PROOF}", "a saída de CT-01.")
+        .replace("#{EVIDENCE_01_HOW}", "rodar.")
+        .replace("#{EVIDENCE_01_READ}", "ler.");
+    fs::write(&path, fill_variables(&content)).unwrap();
+    path
+}
+
+/// Troca o texto da seção `## <title>` (a primeira com esse título) por `text`.
+fn set_section(path: &std::path::Path, title: &str, text: &str) {
+    let content = fs::read_to_string(path).unwrap();
+    let heading = format!("## {title}\n");
+    let start = content.find(&heading).unwrap() + heading.len();
+    let end = content[start..]
+        .find("\n#")
+        .map_or(content.len(), |offset| start + offset + 1);
+    let updated = format!("{}\n{text}\n\n{}", &content[..start], &content[end..]);
+    fs::write(path, updated).unwrap();
+}
+
+fn validate_stderr(project: &Project) -> String {
+    failure_stderr(project.vostok().args(["finalize", "validate", "SPEC-001"]))
+}
+
+#[test]
+fn content_validate_refuses_an_empty_new_section() {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    let path = filled_content(&project);
+    set_section(&path, "Objetivo", "<!-- vazio -->");
+    let stderr = validate_stderr(&project);
+    assert!(stderr.contains("seção vazia: ## Objetivo"), "{stderr}");
+}
+
+#[test]
+fn content_validate_refuses_code_in_the_executive() {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    let path = filled_content(&project);
+    set_section(&path, "Valor e impacto", "Ficou em `src/novo.rs`.");
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("código no executivo (caminho, comando ou função): Ficou em `src/novo.rs`."),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn content_validate_requires_every_requirement_in_the_coverage_map() {
+    let project = Project::new();
+    let refined = project.harness().join("work/specs/refined");
+    fs::create_dir_all(&refined).unwrap();
+    fs::write(
+        refined.join("SPEC-001-exemplo.md"),
+        "---\nid: SPEC-001\ntitle: Exemplo\nstatus: implemented\n---\n\n# Exemplo\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n| RF-10 | Dez. |\n\n| ID | Requisito | Verificação |\n|---|---|---|\n| RNF-01 | Rápido. | Medir. |\n",
+    )
+    .unwrap();
+    let path = filled_content(&project);
+    set_section(
+        &path,
+        "Mapa de cobertura",
+        "| ID | O que foi verificado | Evidência |\n|---|---|---|\n| RF-10 | dez | TASK-01 / saida.txt |",
+    );
+    let stderr = validate_stderr(&project);
+    assert!(stderr.contains("Mapa de cobertura (Evidências): falta RF-01"), "{stderr}");
+    assert!(stderr.contains("Mapa de cobertura (Evidências): falta RNF-01"), "{stderr}");
+    assert!(!stderr.contains("falta RF-10"), "{stderr}");
+}
+
+#[test]
+fn content_executive_has_the_new_sections() {
+    let project = built_folder_project();
+    let executive = &built_documents(&project)[0].1;
+    for title in [
+        "Objetivo",
+        "O que foi entregue",
+        "Valor e impacto",
+        "Ganhos secundários",
+        "Riscos e limites",
+        "Próximos passos",
+    ] {
+        assert!(executive.contains(&format!("<h2>{title}</h2>")), "{title}");
+    }
+    assert!(!executive.contains("<h2>Entregas</h2>"), "{executive}");
+}
+
+#[test]
+fn content_technical_has_the_support_sections() {
+    let project = built_folder_project();
+    let technical = &built_documents(&project)[1].1;
+    for title in [
+        "Contexto",
+        "Como funciona",
+        "Decisões",
+        "Operação e diagnóstico",
+        "Mapa do código",
+        "Limites e dívidas",
+    ] {
+        assert!(technical.contains(&format!("<h2>{title}</h2>")), "{title}");
+    }
+    assert!(technical.contains("<td><code>src/novo.rs</code></td>"), "{technical}");
+    assert!(technical.contains("<li>Rodar <code>vostok finalize build</code>.</li>"), "{technical}");
+}
+
+#[test]
+fn content_numbers_render_in_the_summary_band() {
+    let project = built_folder_project();
+    let documents = built_documents(&project);
+    let executive = &documents[0].1;
+    assert!(
+        executive.contains("<div class=\"fact\"><b>2</b><span>tarefas concluídas</span></div>"),
+        "{executive}"
+    );
+    assert!(!executive.contains("<h2>Em números</h2>"), "{executive}");
+    let technical = &documents[1].1;
+    assert!(!technical.contains("class=\"facts\""), "{technical}");
+    let evidence = &documents[2].1;
+    assert!(evidence.contains("<b>Prova</b>a saída de CT-01."), "{evidence}");
+    assert!(evidence.contains("id=\"p-cobertura\""), "{evidence}");
 }

@@ -97,30 +97,6 @@ td.strong { font-weight: 600; }
 .note.warn { background: var(--warning-soft); }
 .note.warn > b:first-child { color: var(--warning); }
 
-/* Cartões das entregas */
-.cards { display: grid; gap: 10px; }
-details.card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
-               border-radius: 9px; overflow: hidden; }
-details.card.impact-alto { border-left-color: var(--primary); }
-details.card.impact-medio { border-left-color: var(--success); }
-details.card > summary { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; padding: 15px 18px; cursor: pointer; list-style: none; }
-details.card > summary::-webkit-details-marker { display: none; }
-details.card > summary::before { content: "+"; font-family: var(--font-mono); color: var(--primary); font-weight: 700; flex: none; width: 11px; }
-details.card[open] > summary::before { content: "\2212"; }
-details.card > summary > b { font-size: 14.5px; letter-spacing: -.008em; flex: 1; min-width: 200px; }
-details.card > summary:hover { background: var(--surface-muted); }
-details.card > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-details.card[open] > summary { border-bottom: 1px solid var(--border); }
-.card-body { padding: 14px 18px 16px 40px; color: var(--text-muted); font-size: 13.5px; }
-.card-body p { margin: 0 0 10px; }
-.card-body p:last-child { margin-bottom: 0; }
-.card-body p > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em;
-                               color: var(--text); opacity: .7; margin-bottom: 2px; font-weight: 700; }
-.ctl { display: flex; gap: 8px; justify-content: flex-end; margin: -6px 0 12px; }
-.ctl button { font: inherit; font-size: 12px; color: var(--text-muted); background: none; border: 1px solid var(--border);
-              border-radius: 999px; padding: 4px 11px; cursor: pointer; }
-.ctl button:hover { color: var(--text); border-color: var(--primary); }
-
 /* Linha do tempo */
 .timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--border); display: grid; gap: 10px; }
 .timeline li { position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: baseline; font-size: 13.5px; }
@@ -130,7 +106,6 @@ details.card[open] > summary { border-bottom: 1px solid var(--border); }
 .timeline .date { font: 500 12px/1.4 var(--font-mono); color: var(--text-muted); }
 .timeline .task { overflow-wrap: anywhere; }
 .timeline .id { font: 700 11.5px var(--font-mono); color: var(--primary); margin-right: 6px; }
-.kpi b { font: 700 19px/1.15 var(--font-display); overflow-wrap: anywhere; }
 
 footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
 
@@ -160,50 +135,52 @@ footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
   <h1>#{SPEC_TITLE}</h1>
   <div class="meta"><span>#{SPEC_ID}</span><span>Aprovada em #{APPROVED}</span><span>Concluída em #{FINISHED}</span></div>
   <div class="summary"><div><span class="eyebrow label">Em resumo</span><div class="lead">
-#{LEDE}
+#{SUMMARY}
   </div></div>
 #{NUMBERS}</div>
 </div></header>
 
 <div class="wrap layout">
   <nav class="toc" aria-label="Índice"><p>Neste documento</p><ol>
-    <li><a href="#entregue"><span>01</span>O que foi entregue</a></li>
-    <li><a href="#entregas"><span>02</span>As #{DELIVERY_COUNT} entregas</a></li>
-    <li><a href="#antes-e-depois"><span>03</span>Antes e depois</a></li>
-    <li><a href="#execucao"><span>04</span>Como foi executado</a></li>
-    <li><a href="#proximos-passos"><span>05</span>Próximos passos</a></li>
-    <li><a href="#riscos"><span>06</span>Riscos e limitações</a></li>
+    <li><a href="#objetivo"><span>01</span>Objetivo</a></li>
+    <li><a href="#o-que-foi-entregue"><span>02</span>O que foi entregue</a></li>
+    <li><a href="#valor-e-impacto"><span>03</span>Valor e impacto</a></li>
+    <li><a href="#ganhos-secundarios"><span>04</span>Ganhos secundários</a></li>
+    <li><a href="#execucao"><span>05</span>Como foi executado</a></li>
+    <li><a href="#riscos-e-limites"><span>06</span>Riscos e limites</a></li>
+    <li><a href="#proximos-passos"><span>07</span>Próximos passos</a></li>
   </ol></nav>
   <main class="blocks">
-  <section class="blk" id="entregue">
+  <section class="blk" id="objetivo">
     <span class="eyebrow label">01</span>
-    <h2>O que foi entregue</h2>
-    <p class="sub">As entregas desta spec e o valor de cada uma.</p>
-#{VALUE_KPIS}
-#{DELIVERY_TABLE}
-    <div class="note"><b>O recorte deste documento</b>
-#{SCOPE}
-    </div>
-  </section>
-  <section class="blk" id="entregas">
-    <span class="eyebrow label">02</span>
-    <h2>As #{DELIVERY_COUNT} entregas</h2>
-    <p class="sub">Abra cada entrega para ver o que mudou, o valor e como perceber.</p>
-    <div class="ctl"><button type="button" data-cards="open">Abrir todas</button><button type="button" data-cards="close">Fechar todas</button></div>
-    <div class="cards">
-#{DELIVERIES}
-    </div>
-  </section>
-  <section class="blk" id="antes-e-depois">
-    <span class="eyebrow label">03</span>
-    <h2>Antes e depois</h2>
-    <p class="sub">Como era e como ficou para quem usa.</p>
+    <h2>Objetivo</h2>
     <div class="md">
-#{BEFORE_AFTER}
+#{OBJECTIVE}
+    </div>
+  </section>
+  <section class="blk" id="o-que-foi-entregue">
+    <span class="eyebrow label">02</span>
+    <h2>O que foi entregue</h2>
+    <div class="md">
+#{DELIVERED}
+    </div>
+  </section>
+  <section class="blk" id="valor-e-impacto">
+    <span class="eyebrow label">03</span>
+    <h2>Valor e impacto</h2>
+    <div class="md">
+#{VALUE}
+    </div>
+  </section>
+  <section class="blk" id="ganhos-secundarios">
+    <span class="eyebrow label">04</span>
+    <h2>Ganhos secundários</h2>
+    <div class="md">
+#{SECONDARY}
     </div>
   </section>
   <section class="blk" id="execucao">
-    <span class="eyebrow label">04</span>
+    <span class="eyebrow label">05</span>
     <h2>Como foi executado</h2>
     <p class="sub">Tarefas, testes e evidências, da aprovação em #{APPROVED} à conclusão em #{FINISHED}.</p>
 #{INDICATORS}
@@ -212,18 +189,18 @@ footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
 #{TIMELINE}
     </ol>
   </section>
+  <section class="blk half" id="riscos-e-limites">
+    <span class="eyebrow label">06</span>
+    <h2>Riscos e limites</h2>
+    <div class="md">
+#{RISKS_LIMITS}
+    </div>
+  </section>
   <section class="blk half" id="proximos-passos">
-    <span class="eyebrow label">05</span>
+    <span class="eyebrow label">07</span>
     <h2>Próximos passos</h2>
     <div class="md">
 #{NEXT}
-    </div>
-  </section>
-  <section class="blk half" id="riscos">
-    <span class="eyebrow label">06</span>
-    <h2>Riscos e limitações</h2>
-    <div class="md">
-#{RISKS}
     </div>
   </section>
   </main>
@@ -267,21 +244,6 @@ footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
     });
   }, { rootMargin: "-20% 0px -70% 0px" });
   Array.prototype.forEach.call(document.querySelectorAll(".blk[id], .panel[id]"), function (el) { observer.observe(el); });
-
-  var cards = Array.prototype.slice.call(document.querySelectorAll("details.card"));
-  Array.prototype.forEach.call(document.querySelectorAll("[data-cards]"), function (b) {
-    b.addEventListener("click", function () {
-      var open = b.getAttribute("data-cards") === "open";
-      cards.forEach(function (d) { d.open = open; });
-    });
-  });
-  // Na impressão, as entregas fechadas abrem para o conteúdo sair inteiro no papel.
-  var closed = [];
-  window.addEventListener("beforeprint", function () {
-    closed = cards.filter(function (d) { return !d.open; });
-    closed.forEach(function (d) { d.open = true; });
-  });
-  window.addEventListener("afterprint", function () { closed.forEach(function (d) { d.open = false; }); });
 })();
 </script>
 </body>

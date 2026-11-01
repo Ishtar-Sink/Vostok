@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPEC-024 · Documento técnico · Executivo e técnico preservados e escritos desde o planejamento</title>
+<style>
+:root {
+  color-scheme: dark;
+  --color-bg: #1a1528;
+  --color-surface: #231d35;
+  --color-surface-2: #2b2440;
+  --color-ink: #ece8f5;
+  --color-muted: #a39cb8;
+  --color-line: #3a3252;
+  --color-primary: #a78bfa;
+  --color-primary-ink: #150f22;
+  --color-primary-soft: #352a55;
+  --color-ok: #5ccf9f;
+  --color-ok-soft: #173027;
+  --color-warn: #f0a45a;
+  --color-warn-soft: #33251a;
+  --color-crit: #ef7b86;
+  --color-crit-soft: #3a1c22;
+  --color-diff-add: #5ccf9f;
+  --color-diff-add-soft: #173027;
+  --color-diff-del: #ef7b86;
+  --color-diff-del-soft: #3a1c22;
+  --color-head: #17112a;
+  --color-head-2: #34255c;
+  --color-head-ink: #f5f1ff;
+  --color-head-muted: #b9afd6;
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f7f5fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1edf8;
+  --color-ink: #1d1729;
+  --color-muted: #6a6280;
+  --color-line: #e3ddee;
+  --color-primary: #6d28d9;
+  --color-primary-ink: #ffffff;
+  --color-primary-soft: #ede5fb;
+  --color-ok: #047857;
+  --color-ok-soft: #e3f4ec;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf1e3;
+  --color-crit: #b91c3c;
+  --color-crit-soft: #fbe5ea;
+  --color-diff-add: #047857;
+  --color-diff-add-soft: #e3f4ec;
+  --color-diff-del: #b91c3c;
+  --color-diff-del-soft: #fbe5ea;
+  --color-head: #1c1430;
+  --color-head-2: #38235f;
+  --color-head-ink: #ffffff;
+  --color-head-muted: #cdc2ee;
+}
+* { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: 400 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+}
+code { font: .92em var(--font-mono); background: var(--color-surface-2); padding: 1px 5px; border-radius: 4px; }
+p { margin: 0 0 12px; }
+h2 { font-size: 20px; margin: 0 0 5px; letter-spacing: -.015em; text-wrap: pretty; }
+h3 { font-size: 15px; margin: 0 0 8px; letter-spacing: -.008em; }
+
+/* Cabeçalho em faixa */
+.hd { background: linear-gradient(160deg, var(--color-head) 0%, var(--color-head-2) 100%); color: var(--color-head-ink);
+      padding: 20px clamp(16px, 4vw, 40px) 0; }
+.hd-top, .hd-body { max-width: 1120px; margin: 0 auto; }
+.hd-top { display: flex; align-items: center; gap: 12px; }
+.mark { width: 26px; height: 26px; flex: none; }
+.wm { font-weight: 700; font-size: 15px; letter-spacing: -.01em; line-height: 1.15; }
+.wm small { display: block; font-weight: 500; font-size: 11px; color: var(--color-head-muted); letter-spacing: .02em; }
+.hd-sp { flex: 1; }
+.tbtn { background: rgba(255,255,255,.09); color: var(--color-head-ink); border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px; padding: 6px 13px; font: inherit; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: rgba(255,255,255,.17); }
+.tbtn:focus-visible { outline: 2px solid var(--color-head-muted); outline-offset: 2px; }
+.hd-body { padding: 26px 0 28px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; color: var(--color-head-muted); margin: 0 0 9px; }
+.hd-body h1 { font-size: clamp(26px, 3.5vw, 35px); line-height: 1.12; margin: 0 0 12px; letter-spacing: -.024em; text-wrap: pretty; }
+.lede { font-size: 14.5px; color: var(--color-head-muted); max-width: 900px; }
+.lede p:last-child { margin-bottom: 0; }
+.lede strong { color: var(--color-head-ink); font-weight: 600; }
+.lede code { background: rgba(255,255,255,.1); color: var(--color-head-ink); }
+
+main { max-width: 1120px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 56px; }
+.panel { padding: 30px 0 4px; }
+.tabs .panel:not(.on) { display: none; }
+.sec-h { margin: 0 0 14px; }
+.sec-h > p { color: var(--color-muted); font-size: 13.5px; margin: 6px 0 0; }
+/* Tabelas */
+.tw { overflow-x: auto; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface); margin: 0 0 14px; }
+table { border-collapse: collapse; width: 100%; min-width: 560px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--color-muted); font-weight: 700;
+     padding: 11px 14px; border-bottom: 1px solid var(--color-line); background: var(--color-surface-2); white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--color-line); font-size: 13.5px; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.strong { font-weight: 600; }
+
+.na { color: var(--color-muted); font-style: italic; }
+
+/* Abas */
+.nav { position: sticky; top: 0; z-index: 20; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.nav-in { max-width: 1120px; margin: 0 auto; display: flex; gap: 2px; padding: 0 clamp(16px, 4vw, 40px); overflow-x: auto; }
+.nav a { display: block; padding: 12px 12px 10px; font-size: 12.5px; color: var(--color-muted); text-decoration: none;
+         border-bottom: 2px solid transparent; white-space: nowrap; }
+.nav a:hover { color: var(--color-ink); }
+.nav a.on { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 600; }
+.nav a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -3px; border-radius: 3px; }
+
+/* Diffs */
+details.dfile { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 9px; margin: 0 0 8px; overflow: hidden; }
+details.dfile[open] { border-color: var(--color-primary); }
+details.dfile > summary { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 11px 15px; cursor: pointer; list-style: none; }
+details.dfile > summary::-webkit-details-marker { display: none; }
+details.dfile > summary::before { content: "+"; font-family: var(--font-mono); color: var(--color-primary); font-weight: 700; flex: none; width: 11px; }
+details.dfile[open] > summary::before { content: "\2212"; }
+details.dfile > summary:hover { background: var(--color-surface-2); }
+details.dfile > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+details.dfile > summary .path { font: 600 12.5px var(--font-mono); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.dbody { border-top: 1px solid var(--color-line); }
+.dbody > p { margin: 0; padding: 12px 15px; color: var(--color-muted); font-size: 13px; }
+.dbody .tw { border: 0; border-radius: 0; margin: 0; }
+table.diff { table-layout: fixed; min-width: 760px; font: 12px/1.5 var(--font-mono); }
+table.diff td { padding: 0 8px; border-bottom: 0; font-size: 12px; vertical-align: top; }
+table.diff col.cln { width: 48px; }
+table.diff td.ln { width: 48px; text-align: right; color: var(--color-muted); user-select: none; background: var(--color-surface-2); }
+table.diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+table.diff td.code.del { background: var(--color-diff-del-soft); }
+table.diff td.code.add { background: var(--color-diff-add-soft); }
+table.diff td.code.empty { background: var(--color-surface-2); }
+table.diff tr:has(td.code.del) td.ln:nth-child(1) { color: var(--color-diff-del); }
+table.diff tr:has(td.code.add) td.ln:nth-child(3) { color: var(--color-diff-add); }
+table.diff tr.hunk td { background: var(--color-primary-soft); color: var(--color-muted); padding: 4px 10px; }
+table.diff td.code:nth-child(2) { border-right: 1px solid var(--color-line); }
+
+/* Etiquetas e notas */
+.tag { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px;
+       white-space: nowrap; background: var(--color-surface-2); color: var(--color-muted); }
+.chip { display: inline-block; font: 700 11.5px var(--font-mono); color: var(--color-primary); background: var(--color-primary-soft);
+        padding: 1px 7px; border-radius: 999px; margin: 0 4px 3px 0; white-space: nowrap; }
+.tag.criar { background: var(--color-ok-soft); color: var(--color-ok); }
+.tag.alterar { background: var(--color-primary-soft); color: var(--color-primary); }
+.tag.remover { background: var(--color-crit-soft); color: var(--color-crit); }
+td.path { font: 12.5px var(--font-mono); overflow-wrap: anywhere; }
+td.mono { font: 12.5px var(--font-mono); white-space: nowrap; }
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+.note { background: var(--color-primary-soft); border-radius: 9px; padding: 15px 18px; font-size: 13.5px; margin: 20px 0 0; }
+.note > b:first-child { display: block; text-transform: uppercase; font-size: 10.5px; letter-spacing: .08em; margin-bottom: 4px; color: var(--color-primary); }
+.note p:last-child, .note ul:last-child, .note ol:last-child { margin-bottom: 0; }
+.note ul, .note ol { margin: 0 0 10px; padding-left: 20px; }
+.note.warn { background: var(--color-warn-soft); }
+.note.warn > b:first-child { color: var(--color-warn); }
+
+/* Conteúdo em Markdown */
+.md { font-size: 14px; }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+.md li { margin: 4px 0; }
+.md li::marker { color: var(--color-primary); }
+
+footer { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 44px; border-top: 1px solid var(--color-line);
+         color: var(--color-muted); font-size: 12px; }
+
+@page { margin: 14mm 0; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tbtn, .nav { display: none; }
+  details.dfile { break-inside: auto; }
+  main { padding-bottom: 0; }
+  .hd { padding-top: 0; }
+  .tabs .panel:not(.on), .panel { display: block; }
+  .panel + .panel { break-before: page; }
+  .sec-h, tr, th { break-inside: avoid; }
+  .sec-h { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="hd-top">
+    <svg class="mark" viewBox="0 0 26 26" aria-hidden="true">
+      <circle cx="13" cy="13" r="6" fill="currentColor"/>
+      <ellipse cx="13" cy="13" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".55" transform="rotate(-24 13 13)"/>
+    </svg>
+    <div class="wm">Vostok<small>Harness · finalização de spec</small></div>
+    <div class="hd-sp"></div>
+    <button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema claro</button>
+  </div>
+  <div class="hd-body">
+    <p class="eyebrow">Documento técnico · SPEC-024 · aprovada em 2026-11-01 · concluída em 2026-11-01</p>
+    <h1>Executivo e técnico preservados e escritos desde o planejamento</h1>
+    <div class="lede">
+      <p>Para quem vai manter o que foi entregue: <strong>o que foi feito</strong> e como, os <strong>requisitos</strong> cobertos, os <strong>arquivos</strong> e <strong>commits</strong>, as decisões e onde se aprofundar.</p>
+    </div>
+  </div>
+</header>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" role="tablist">
+    <a href="#p-visao-geral" role="tab" data-tab="visao-geral">Visão geral</a>
+    <a href="#p-arquitetura" role="tab" data-tab="arquitetura">Arquitetura</a>
+    <a href="#p-o-que-foi-feito" role="tab" data-tab="o-que-foi-feito">O que foi feito</a>
+    <a href="#p-requisitos" role="tab" data-tab="requisitos">Requisitos</a>
+    <a href="#p-arquivos" role="tab" data-tab="arquivos">Arquivos</a>
+    <a href="#p-diffs" role="tab" data-tab="diffs">Diffs</a>
+    <a href="#p-commits" role="tab" data-tab="commits">Commits</a>
+    <a href="#p-decisoes" role="tab" data-tab="decisoes">Decisões</a>
+    <a href="#p-aprendizados" role="tab" data-tab="aprendizados">Aprendizados</a>
+    <a href="#p-atencao" role="tab" data-tab="atencao">Atenção</a>
+    <a href="#p-referencias" role="tab" data-tab="referencias">Referências</a>
+  </div>
+</nav>
+
+<main>
+  <section class="panel" id="p-visao-geral" role="tabpanel" data-panel="visao-geral">
+    <div class="sec-h"><h2>Visão geral</h2></div>
+    <div class="md">
+<p>A tarefa em pasta é lida como um texto virtual (<code>TaskDoc::text</code>) e regravada pela divisão desse texto (<code>split_task_text</code>, <code>TaskDoc::write_text</code>). A divisão tratava todo <code>## </code> como início do registro, e a gravação regravava o executivo e o técnico com o que sobrava. Agora a divisão mantém títulos e código dentro do documento e a gravação nunca toca nos dois arquivos. Sobre isso, o ciclo dos documentos ganhou exigências: validação no template, hash no <code>start</code> e comparação no <code>finish</code>.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-arquitetura" role="tabpanel" data-panel="arquitetura">
+    <div class="sec-h"><h2>Arquitetura e componentes</h2></div>
+    <div class="md">
+<ul>
+<li><code>split_task_text</code>: dentro do executivo ou do técnico, só <code>## &lt;registro&gt;</code>, <code>### &lt;card&gt;</code> e, no executivo, <code>### &lt;técnico&gt;</code> encerram o documento.</li>
+<li><code>TaskDoc::write_text</code>: pula <code>executivo.md</code> e <code>tecnico.md</code>.</li>
+<li><code>TaskLayout</code>: ganhou <code>record_section</code>, <code>card_heading</code> e <code>document_files</code> (<code>executive_hash</code>, <code>technical_hash</code>).</li>
+<li><code>TaskDoc::store_document_hashes</code>, chamado no <code>start</code>.</li>
+<li><code>finish</code> e <code>task_errors</code>: as duas recusas novas.</li>
+<li>Skills <code>approve-plan</code>, <code>finish-task</code>, <code>approve-task</code>, <code>adjust-task</code>, persona <code>arquiteto</code> e templates <code>executivo.md</code> e <code>tecnico.md</code>.</li>
+<li><code>.gitignore</code> distribuído e da raiz: regra <code>work/**/evidencias</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-o-que-foi-feito" role="tabpanel" data-panel="o-que-foi-feito">
+    <div class="sec-h"><h2>O que foi feito</h2></div>
+    <div class="md">
+<ul>
+<li>Teste que reproduz a issue #9 escrito antes da correção e visto falhando.</li>
+<li>Divisão robusta e gravação que pula os documentos.</li>
+<li>Validação da pasta recusa documento com variável de template (<code>approve</code>, <code>adjust validate</code>).</li>
+<li>Hash dos documentos no <code>start</code> e recusa no <code>finish</code> do documento não enriquecido; sem o hash, só a checagem de template.</li>
+<li>Testes <code>docs_*</code> (6), ajustes nos testes que concluem tarefa em pasta e no <code>fill_folder_task</code> do plano.</li>
+<li>Cenários: documentos com títulos e bloco de código nas variantes de pasta, enriquecidos depois do <code>start</code>, e normalização do RF-13 genérica.</li>
+<li>Skills, persona e templates no ciclo novo.</li>
+<li>Regra <code>work/**/evidencias</code> nos <code>.gitignore</code>.</li>
+</ul>
+<h3>TASK-01: Documentos preservados e exigidos no código</h3>
+<p>A causa está na camada TaskDoc: o texto virtual põe o executivo e o técnico sob os títulos de três cerquilhas da Descrição, e split_task_text trata todo título de duas cerquilhas como início do registro. A correção tem duas partes complementares. A divisão passa a manter tudo o que vem depois de um documento nele até o título do registro ou do histórico, e write_text deixa de regravar executivo.md e tecnico.md. Corrigir só a divisão foi descartado porque um documento pode conter qualquer título, inclusive os nomes das outras seções; pular a gravação garante o RF-01 mesmo que a divisão erre.</p>
+<p>O start grava executive_hash e technical_hash no estado.yml, e o finish compara. Sem esses campos, de tarefas iniciadas na 0.2.7, vale só a checagem de template (resposta 1A da spec). O arquivo único fica fora da trava (resposta 2A). A validação da pasta em task_errors passa a recusar documento com variável de template, o que também vale para o adjust validate.</p>
+<p>Os cenários ganham documentos com títulos e código nas variantes de pasta e o enriquecimento depois do start, fora da transcrição, sem mudar as fixtures. Não divide arquivos com a TASK-02, da mesma onda.</p>
+<p>## O que foi feito</p>
+<p>Foram alterados o módulo de tarefas da CLI (divisão e gravação da pasta, validação, hash no start e checagem no finish), os testes de tarefas, os cenários de referência e os testes de plano. Os testes de plano passaram a preencher o executivo e o técnico, porque a aprovação da tarefa agora exige os dois; o ajuste está registrado no histórico da tarefa. Dentro de um documento, a divisão só encerra a parte no título do registro, no título do card (arquivo único) ou, no executivo, no título do técnico; os demais títulos e os blocos de código ficam no documento. O caso do card apareceu na execução, num teste da migração. TaskDoc::write_text deixou de regravar executivo.md e tecnico.md. O start grava executive_hash e technical_hash no estado.yml, e o finish recusa documento com o mesmo hash; sem esses campos, vale só a checagem de template, que é o caso das tarefas iniciadas na 0.2.7, inclusive as desta spec. Os cenários ganham documentos com títulos e bloco de código, enriquecidos depois do start fora da transcrição, sem alterar nenhuma fixture.</p>
+<p>Verificação: suíte completa e clippy sem falhas; na regressão, os cenários ficaram iguais ao baseline e os testes de tarefa, plano e finalização tiveram só acréscimo (os seis testes docs_). Pontos de atenção: a validação da pasta recusa documento com variável de template, o que também vale para o adjust validate de uma tarefa criada na 0.2.7; o plan approve validate tem validação própria e ainda não confere esses documentos; uma mudança na transcrição dos cenários de referência é regressão e deve parar a execução, sem ajustar a fixture.</p>
+<h3>TASK-02: Ciclo dos documentos nas skills</h3>
+<p>Alinha as skills approve-plan, finish-task, approve-task e adjust-task, os templates executivo.md e tecnico.md e a persona do arquiteto ao ciclo da SPEC-024: escrita no detalhamento (RF-04), enriquecimento na conclusão (RF-08) e comentário dos templates (RF-09). O comportamento do vostok que as skills descrevem, a recusa na aprovação e no finish, é entregue pela TASK-01; esta tarefa só muda texto e pode rodar em paralelo, porque não divide arquivos com ela. A alternativa de deixar o planejador escrever os dois documentos foi descartada: o arquiteto já toma as decisões de desenho que vão no técnico (inferência C da spec). As evidências são diffs, como na TASK-09 da SPEC-023.</p>
+<p>## O que foi feito</p>
+<p>Foram alterados sete arquivos de texto: as skills approve-plan, finish-task, approve-task e adjust-task, a persona do arquiteto e os dois templates de documento, nos quais só o comentário da primeira linha mudou. No detalhamento, a approve-plan manda preencher também no executivo e no técnico com o que a tarefa vai fazer, e a aprovação recusa os que ainda estão no modelo. Na conclusão, a finish-task enriquece os documentos em vez de escrevê-los do zero; a adjust-task deixa claro que ajustá-los não pede nova aprovação e conta como enriquecimento. Uma frase da finish-task foi corrigida depois da execução, de &quot;escreva&quot; para &quot;enriqueça&quot;. O trabalho foi feito por um subagente, e as evidências são sete diffs, um por arquivo alterado.</p>
+<p>Ponto de atenção: as skills descrevem recusas na aprovação e na conclusão que só existem com a correção de código da TASK-01; as duas partes saem juntas na mesma versão.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-requisitos" role="tabpanel" data-panel="requisitos">
+    <div class="sec-h"><h2>Requisitos e tarefas</h2><p>Cada requisito com as tarefas que o cobrem.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Requisito</th><th>Descrição</th><th>Tarefas</th></tr></thead>
+<tbody>
+<tr><td class="mono">RF-01</td><td>O <code>TaskDoc</code> deve gravar, numa tarefa em pasta, só os arquivos que o comando altera (<code>registro.md</code>, <code>estado.yml</code> e os de execução), sem regravar <code>executivo.md</code> nem <code>tecnico.md</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-02</td><td>O sistema deve preservar byte a byte <code>executivo.md</code> e <code>tecnico.md</code> em <code>start</code>, <code>baseline</code>, <code>tests</code>, <code>regression</code>, <code>evidence</code>, <code>resume</code>, <code>finish</code>, <code>persist</code> e nos comandos de ajuste e aprovação.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-03</td><td>A validação da tarefa em pasta (<code>approve validate</code>, <code>approve approve</code>, <code>adjust validate</code>) deve recusar <code>executivo.md</code> ou <code>tecnico.md</code> com variável de template sem preencher.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-05</td><td>O <code>vostok task start</code> deve gravar no <code>estado.yml</code> o hash de <code>executivo.md</code> e o de <code>tecnico.md</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-06</td><td>O <code>vostok task finish</code> deve recusar a tarefa em pasta quando <code>executivo.md</code> ou <code>tecnico.md</code> for igual ao hash gravado no <code>start</code>, com a mensagem <code>o documento &lt;arquivo&gt; de &lt;TASK&gt; não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe</code>.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-07</td><td>Sem o hash do <code>start</code>, o <code>vostok task finish</code> deve recusar só documento com variável de template, como na 0.2.7.</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-01</td><td>Finish com documentos estruturados</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-02</td><td>Títulos e código</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-03</td><td>Aprovação com template</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-04</td><td>Hash no start</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-05</td><td>Finish sem enriquecer</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-06</td><td>Tarefa sem hash do start</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CT-08</td><td>Equivalência</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-01</td><td>Executivo com título <code># </code>, <code>## </code> e <code>### </code></td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-02</td><td>Técnico com bloco de código que contém <code>## </code></td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-03</td><td>Documento só em prosa</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-04</td><td>Tarefa iniciada na 0.2.7, sem hash do <code>start</code></td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-05</td><td>Só um dos dois documentos enriquecido</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-06</td><td>Tarefa no formato de arquivo único</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-07</td><td>Ajuste que edita o executivo durante a execução</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">CB-08</td><td><code>resume</code> ou ajuste registrado depois de enriquecidos os documentos</td><td><span class="chip">TASK-01</span></td></tr>
+<tr><td class="mono">RF-04</td><td>A skill <code>approve-plan</code> deve escrever, no detalhamento, o executivo e o técnico de cada tarefa com o que ela vai fazer.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-08</td><td>A skill <code>finish-task</code> deve enriquecer os documentos existentes com o que foi feito, a partir do <code>vostok task describe</code>, em vez de escrevê-los do zero.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">RF-09</td><td>Os templates <code>executivo.md</code> e <code>tecnico.md</code> devem dizer que o texto é escrito no planejamento e enriquecido na conclusão.</td><td><span class="chip">TASK-02</span></td></tr>
+<tr><td class="mono">CT-07</td><td>Skills e templates</td><td><span class="chip">TASK-02</span></td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-arquivos" role="tabpanel" data-panel="arquivos">
+    <div class="sec-h"><h2>Arquivos alterados</h2><p>Os caminhos de "Mudar" das tarefas, com a ação.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Ação</th><th>Caminho</th></tr></thead>
+<tbody>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/src/commands/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/task.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/scenarios.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">apps/cli/tests/plan.rs</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/approve-plan/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/finish-task/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/approve-task/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/skills/default/adjust-task/SKILL.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/personas/arquiteto.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/templates/task/executivo.md</td></tr>
+<tr><td><span class="tag alterar">alterar</span></td><td class="path">packages/harness/templates/task/tecnico.md</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-diffs" role="tabpanel" data-panel="diffs">
+    <div class="sec-h"><h2>Diffs</h2><p>O que mudou em cada arquivo alterado, entre o último commit anterior à aprovação e o estado atual.</p></div>
+<details class="dfile">
+<summary><b class="path">apps/cli/src/commands/task.rs</b><span class="tag criar">+60</span><span class="tag remover">−5</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1314,6 +1314,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">1314</td><td class="code">            detail.push_str(&amp;format!(&quot;; modelo: {model}&quot;));</td><td class="ln">1314</td><td class="code">            detail.push_str(&amp;format!(&quot;; modelo: {model}&quot;));</td></tr>
+<tr><td class="ln">1315</td><td class="code">        }</td><td class="ln">1315</td><td class="code">        }</td></tr>
+<tr><td class="ln">1316</td><td class="code">        self.record_step(&amp;file, &quot;início&quot;, in_progress, &amp;detail)?;</td><td class="ln">1316</td><td class="code">        self.record_step(&amp;file, &quot;início&quot;, in_progress, &amp;detail)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1317</td><td class="code add">        TaskDoc::at(&amp;file).store_document_hashes()?;</td></tr>
+<tr><td class="ln">1317</td><td class="code">        println!(&quot;Tarefa {task} iniciada: status &#39;{in_progress}&#39;. Coletando o baseline:&quot;);</td><td class="ln">1318</td><td class="code">        println!(&quot;Tarefa {task} iniciada: status &#39;{in_progress}&#39;. Coletando o baseline:&quot;);</td></tr>
+<tr><td class="ln">1318</td><td class="code">        let (dir, baseline_detail) = self.collect_baseline(&amp;file, task)?;</td><td class="ln">1319</td><td class="code">        let (dir, baseline_detail) = self.collect_baseline(&amp;file, task)?;</td></tr>
+<tr><td class="ln">1319</td><td class="code">        self.record_step(&amp;file, &quot;baseline&quot;, &quot;coletado&quot;, &amp;baseline_detail)?;</td><td class="ln">1320</td><td class="code">        self.record_step(&amp;file, &quot;baseline&quot;, &quot;coletado&quot;, &amp;baseline_detail)?;</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2094,9 +2095,13 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2094</td><td class="code">        }</td><td class="ln">2095</td><td class="code">        }</td></tr>
+<tr><td class="ln">2095</td><td class="code">        let doc = TaskDoc::at(&amp;file);</td><td class="ln">2096</td><td class="code">        let doc = TaskDoc::at(&amp;file);</td></tr>
+<tr><td class="ln">2096</td><td class="code">        if doc.folder() {</td><td class="ln">2097</td><td class="code">        if doc.folder() {</td></tr>
+<tr><td class="ln">2097</td><td class="code del">            for name in [&amp;layout().executive, &amp;layout().technical] {</td><td class="ln">2098</td><td class="code add">            for (key, name) in layout().document_files() {</td></tr>
+<tr><td class="ln">2098</td><td class="code del">                if !template_leftovers(&amp;read(&amp;doc.part(name))?).is_empty() {</td><td class="ln">2099</td><td class="code add">                let text = read(&amp;doc.part(name))?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2100</td><td class="code add">                if !template_leftovers(&amp;text).is_empty() {</td></tr>
+<tr><td class="ln">2099</td><td class="code">                    problems.push_str(&amp;format!(&quot;- o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe\n&quot;));</td><td class="ln">2101</td><td class="code">                    problems.push_str(&amp;format!(&quot;- o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2102</td><td class="code add">                } else if doc.get(key).ok().as_deref() == Some(sha256_hex(text.as_bytes()).as_str())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2103</td><td class="code add">                {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2104</td><td class="code add">                    problems.push_str(&amp;format!(&quot;- o documento {name} de {task} não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe\n&quot;));</td></tr>
+<tr><td class="ln">2100</td><td class="code">                }</td><td class="ln">2105</td><td class="code">                }</td></tr>
+<tr><td class="ln">2101</td><td class="code">            }</td><td class="ln">2106</td><td class="code">            }</td></tr>
+<tr><td class="ln">2102</td><td class="code">        }</td><td class="ln">2107</td><td class="code">        }</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2858,7 +2863,7 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2858</td><td class="code">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td><td class="ln">2863</td><td class="code">    ) -&gt; Result&lt;Vec&lt;String&gt;&gt; {</td></tr>
+<tr><td class="ln">2859</td><td class="code">        let id = task_id_of(file);</td><td class="ln">2864</td><td class="code">        let id = task_id_of(file);</td></tr>
+<tr><td class="ln">2860</td><td class="code">        let content = TaskDoc::at(file).text()?;</td><td class="ln">2865</td><td class="code">        let content = TaskDoc::at(file).text()?;</td></tr>
+<tr><td class="ln">2861</td><td class="code del">        // Na tarefa em pasta, o executivo e o técnico são escritos na finalização, e o card é gerado.</td><td class="ln">2866</td><td class="code add">        // Na tarefa em pasta, o card é gerado, e o executivo e o técnico são conferidos nos arquivos.</td></tr>
+<tr><td class="ln">2862</td><td class="code">        let folder = is_task_folder(file);</td><td class="ln">2867</td><td class="code">        let folder = is_task_folder(file);</td></tr>
+<tr><td class="ln">2863</td><td class="code">        let checked = if folder {</td><td class="ln">2868</td><td class="code">        let checked = if folder {</td></tr>
+<tr><td class="ln">2864</td><td class="code">            before_section(&amp;content, &amp;self.cfg(&quot;description_section&quot;)?)</td><td class="ln">2869</td><td class="code">            before_section(&amp;content, &amp;self.cfg(&quot;description_section&quot;)?)</td></tr>
+<tr class="hunk"><td colspan="4">@@ -2871,7 +2876,16 @@ impl Tasks {</td></tr>
+<tr><td class="ln">2871</td><td class="code">            .collect();</td><td class="ln">2876</td><td class="code">            .collect();</td></tr>
+<tr><td class="ln">2872</td><td class="code">        errors.extend(self.fixed_section_errors(&amp;content)?);</td><td class="ln">2877</td><td class="code">        errors.extend(self.fixed_section_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">2873</td><td class="code">        errors.extend(self.subsection_errors(&amp;content, folder)?);</td><td class="ln">2878</td><td class="code">        errors.extend(self.subsection_errors(&amp;content, folder)?);</td></tr>
+<tr><td class="ln">2874</td><td class="code del">        if !folder {</td><td class="ln">2879</td><td class="code add">        if folder {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2880</td><td class="code add">            let doc = TaskDoc::at(file);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2881</td><td class="code add">            for name in [&amp;layout().executive, &amp;layout().technical] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2882</td><td class="code add">                if !template_leftovers(&amp;read(&amp;doc.part(name))?).is_empty() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2883</td><td class="code add">                    errors.push(format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2884</td><td class="code add">                        &quot;o documento {name} de {id} ainda está no template; escreva-o com o que a tarefa vai fazer&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2885</td><td class="code add">                    ));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2886</td><td class="code add">                }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2887</td><td class="code add">            }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">2888</td><td class="code add">        } else {</td></tr>
+<tr><td class="ln">2875</td><td class="code">            errors.extend(self.description_errors(&amp;content)?);</td><td class="ln">2889</td><td class="code">            errors.extend(self.description_errors(&amp;content)?);</td></tr>
+<tr><td class="ln">2876</td><td class="code">        }</td><td class="ln">2890</td><td class="code">        }</td></tr>
+<tr><td class="ln">2877</td><td class="code">        let running = self.is_running(&amp;status_of(file));</td><td class="ln">2891</td><td class="code">        let running = self.is_running(&amp;status_of(file));</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3217,6 +3231,8 @@ pub(crate) struct TaskLayout {</td></tr>
+<tr><td class="ln">3217</td><td class="code">    pub(crate) readme: String,</td><td class="ln">3231</td><td class="code">    pub(crate) readme: String,</td></tr>
+<tr><td class="ln">3218</td><td class="code">    /// Conteúdo do template do `README.md` da tarefa; vazio sem o template, e então o README não é gerado.</td><td class="ln">3232</td><td class="code">    /// Conteúdo do template do `README.md` da tarefa; vazio sem o template, e então o README não é gerado.</td></tr>
+<tr><td class="ln">3219</td><td class="code">    pub(crate) readme_template: String,</td><td class="ln">3233</td><td class="code">    pub(crate) readme_template: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3234</td><td class="code add">    record_section: String,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3235</td><td class="code add">    card_heading: String,</td></tr>
+<tr><td class="ln">3220</td><td class="code">    pub(crate) evidence_dir: String,</td><td class="ln">3236</td><td class="code">    pub(crate) evidence_dir: String,</td></tr>
+<tr><td class="ln">3221</td><td class="code">    pub(crate) execution_section: String,</td><td class="ln">3237</td><td class="code">    pub(crate) execution_section: String,</td></tr>
+<tr><td class="ln">3222</td><td class="code">    pub(crate) description_section: String,</td><td class="ln">3238</td><td class="code">    pub(crate) description_section: String,</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3247,6 +3263,8 @@ impl TaskLayout {</td></tr>
+<tr><td class="ln">3247</td><td class="code">            description_section: get(&quot;description_section&quot;, &quot;Descrição&quot;),</td><td class="ln">3263</td><td class="code">            description_section: get(&quot;description_section&quot;, &quot;Descrição&quot;),</td></tr>
+<tr><td class="ln">3248</td><td class="code">            executive_heading: get(&quot;executive_summary_subsection&quot;, &quot;Resumo executivo&quot;),</td><td class="ln">3264</td><td class="code">            executive_heading: get(&quot;executive_summary_subsection&quot;, &quot;Resumo executivo&quot;),</td></tr>
+<tr><td class="ln">3249</td><td class="code">            technical_heading: get(&quot;technical_details_subsection&quot;, &quot;Detalhes técnicos&quot;),</td><td class="ln">3265</td><td class="code">            technical_heading: get(&quot;technical_details_subsection&quot;, &quot;Detalhes técnicos&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3266</td><td class="code add">            record_section: get(&quot;record_section&quot;, &quot;Registro de execução&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3267</td><td class="code add">            card_heading: get(&quot;card_subsection&quot;, &quot;Card&quot;),</td></tr>
+<tr><td class="ln">3250</td><td class="code">        }</td><td class="ln">3268</td><td class="code">        }</td></tr>
+<tr><td class="ln">3251</td><td class="code">    }</td><td class="ln">3269</td><td class="code">    }</td></tr>
+<tr><td class="ln">3252</td><td class="code"></td><td class="ln">3270</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -3255,6 +3273,14 @@ impl TaskLayout {</td></tr>
+<tr><td class="ln">3255</td><td class="code">        [&amp;self.execution, &amp;self.verification, &amp;self.criteria]</td><td class="ln">3273</td><td class="code">        [&amp;self.execution, &amp;self.verification, &amp;self.criteria]</td></tr>
+<tr><td class="ln">3256</td><td class="code">    }</td><td class="ln">3274</td><td class="code">    }</td></tr>
+<tr><td class="ln">3257</td><td class="code"></td><td class="ln">3275</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3276</td><td class="code add">    /// Campo do estado com o hash de cada documento no início da tarefa, e o arquivo.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3277</td><td class="code add">    fn document_files(&amp;self) -&gt; [(&amp;&#39;static str, &amp;str); 2] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3278</td><td class="code add">        [</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3279</td><td class="code add">            (&quot;executive_hash&quot;, &amp;self.executive),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3280</td><td class="code add">            (&quot;technical_hash&quot;, &amp;self.technical),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3281</td><td class="code add">        ]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3282</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3283</td><td class="code add"></td></tr>
+<tr><td class="ln">3258</td><td class="code">    /// Campo do estado que guarda o hash de cada arquivo de execução.</td><td class="ln">3284</td><td class="code">    /// Campo do estado que guarda o hash de cada arquivo de execução.</td></tr>
+<tr><td class="ln">3259</td><td class="code">    fn hashed_files(&amp;self) -&gt; [(&amp;&#39;static str, &amp;str); 3] {</td><td class="ln">3285</td><td class="code">    fn hashed_files(&amp;self) -&gt; [(&amp;&#39;static str, &amp;str); 3] {</td></tr>
+<tr><td class="ln">3260</td><td class="code">        [</td><td class="ln">3286</td><td class="code">        [</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3452,6 +3478,18 @@ impl&lt;&#39;a&gt; TaskDoc&lt;&#39;a&gt; {</td></tr>
+<tr><td class="ln">3452</td><td class="code">        Ok(())</td><td class="ln">3478</td><td class="code">        Ok(())</td></tr>
+<tr><td class="ln">3453</td><td class="code">    }</td><td class="ln">3479</td><td class="code">    }</td></tr>
+<tr><td class="ln">3454</td><td class="code"></td><td class="ln">3480</td><td class="code"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3481</td><td class="code add">    /// Grava no estado o hash do executivo e do técnico, para o `finish` exigir que mudem. Sem</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3482</td><td class="code add">    /// efeito no arquivo único.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3483</td><td class="code add">    fn store_document_hashes(&amp;self) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3484</td><td class="code add">        if !self.folder() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3485</td><td class="code add">            return Ok(());</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3486</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3487</td><td class="code add">        for (key, name) in layout().document_files() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3488</td><td class="code add">            self.put(key, &amp;self.part_hash(name)?)?;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3489</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3490</td><td class="code add">        Ok(())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3491</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3492</td><td class="code add"></td></tr>
+<tr><td class="ln">3455</td><td class="code">    /// Grava o `state_hash` do estado como está.</td><td class="ln">3493</td><td class="code">    /// Grava o `state_hash` do estado como está.</td></tr>
+<tr><td class="ln">3456</td><td class="code">    fn refresh_state_hash(&amp;self) -&gt; Result&lt;()&gt; {</td><td class="ln">3494</td><td class="code">    fn refresh_state_hash(&amp;self) -&gt; Result&lt;()&gt; {</td></tr>
+<tr><td class="ln">3457</td><td class="code">        let path = self.part(&amp;layout().state);</td><td class="ln">3495</td><td class="code">        let path = self.part(&amp;layout().state);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3571,7 +3609,12 @@ impl&lt;&#39;a&gt; TaskDoc&lt;&#39;a&gt; {</td></tr>
+<tr><td class="ln">3571</td><td class="code">        if !self.folder() {</td><td class="ln">3609</td><td class="code">        if !self.folder() {</td></tr>
+<tr><td class="ln">3572</td><td class="code">            return write(self.file, content);</td><td class="ln">3610</td><td class="code">            return write(self.file, content);</td></tr>
+<tr><td class="ln">3573</td><td class="code">        }</td><td class="ln">3611</td><td class="code">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3612</td><td class="code add">        let layout = layout();</td></tr>
+<tr><td class="ln">3574</td><td class="code">        for (name, text) in split_task_text(content) {</td><td class="ln">3613</td><td class="code">        for (name, text) in split_task_text(content) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3614</td><td class="code add">            // Os comandos nunca escrevem o executivo nem o técnico: regravá-los só poderia estragá-los.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3615</td><td class="code add">            if name == layout.executive || name == layout.technical {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3616</td><td class="code add">                continue;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3617</td><td class="code add">            }</td></tr>
+<tr><td class="ln">3575</td><td class="code">            let path = self.part(&amp;name);</td><td class="ln">3618</td><td class="code">            let path = self.part(&amp;name);</td></tr>
+<tr><td class="ln">3576</td><td class="code">            let current = read(&amp;path).unwrap_or_default();</td><td class="ln">3619</td><td class="code">            let current = read(&amp;path).unwrap_or_default();</td></tr>
+<tr><td class="ln">3577</td><td class="code">            let text = text.trim_matches(&#39;\n&#39;);</td><td class="ln">3620</td><td class="code">            let text = text.trim_matches(&#39;\n&#39;);</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3648,7 +3691,19 @@ pub(crate) fn split_task_text(content: &amp;str) -&gt; Vec&lt;(String, String)&gt; {</td></tr>
+<tr><td class="ln">3648</td><td class="code">        if is_fence(line) {</td><td class="ln">3691</td><td class="code">        if is_fence(line) {</td></tr>
+<tr><td class="ln">3649</td><td class="code">            in_code = !in_code;</td><td class="ln">3692</td><td class="code">            in_code = !in_code;</td></tr>
+<tr><td class="ln">3650</td><td class="code">        }</td><td class="ln">3693</td><td class="code">        }</td></tr>
+<tr><td class="ln">3651</td><td class="code del">        if !in_code {</td><td class="ln">3694</td><td class="code add">        let in_document = current</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3695</td><td class="code add">            .as_deref()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3696</td><td class="code add">            .is_some_and(|name| name == layout.executive || name == layout.technical);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3697</td><td class="code add">        // O executivo e o técnico são texto livre: só o título do registro, o do card (arquivo</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3698</td><td class="code add">        // único) ou, no executivo, o do técnico encerram o documento; os demais títulos ficam nele.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3699</td><td class="code add">        let subsection = line.strip_prefix(&quot;### &quot;).map(str::trim);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3700</td><td class="code add">        let ends_document = line</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3701</td><td class="code add">            .strip_prefix(&quot;## &quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3702</td><td class="code add">            .is_some_and(|heading| heading.trim() == layout.record_section)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3703</td><td class="code add">            || subsection == Some(layout.card_heading.as_str())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3704</td><td class="code add">            || (current.as_deref() == Some(layout.executive.as_str())</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3705</td><td class="code add">                &amp;&amp; subsection == Some(layout.technical_heading.as_str()));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3706</td><td class="code add">        if !in_code &amp;&amp; !(in_document &amp;&amp; !ends_document) {</td></tr>
+<tr><td class="ln">3652</td><td class="code">            if let Some(heading) = line.strip_prefix(&quot;### &quot;) {</td><td class="ln">3707</td><td class="code">            if let Some(heading) = line.strip_prefix(&quot;### &quot;) {</td></tr>
+<tr><td class="ln">3653</td><td class="code">                current = file_of(heading.trim()).map(str::to_string);</td><td class="ln">3708</td><td class="code">                current = file_of(heading.trim()).map(str::to_string);</td></tr>
+<tr><td class="ln">3654</td><td class="code">                // Executivo e técnico guardam só o texto, sem o título.</td><td class="ln">3709</td><td class="code">                // Executivo e técnico guardam só o texto, sem o título.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/task.rs</b><span class="tag criar">+167</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -3257,6 +3257,8 @@ fn folder_format_keeps_the_evidence_inside_the_task() {</td></tr>
+<tr><td class="ln">3257</td><td class="code">    );</td><td class="ln">3257</td><td class="code">    );</td></tr>
+<tr><td class="ln">3258</td><td class="code">    let criteria = read(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;)).replace(&quot;- [ ]&quot;, &quot;- [x]&quot;);</td><td class="ln">3258</td><td class="code">    let criteria = read(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;)).replace(&quot;- [ ]&quot;, &quot;- [x]&quot;);</td></tr>
+<tr><td class="ln">3259</td><td class="code">    write(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;), &amp;criteria);</td><td class="ln">3259</td><td class="code">    write(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;), &amp;criteria);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3260</td><td class="code add">    append(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;), &quot;\nEntregue.\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3261</td><td class="code add">    append(&amp;project, &amp;format!(&quot;{FOLDER}/tecnico.md&quot;), &quot;\nFeito.\n&quot;);</td></tr>
+<tr><td class="ln">3260</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td><td class="ln">3262</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln">3261</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: done\n&quot;));</td><td class="ln">3263</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: done\n&quot;));</td></tr>
+<tr><td class="ln">3262</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/registro.md&quot;)).contains(&quot;| conclusão | done |&quot;));</td><td class="ln">3264</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/registro.md&quot;)).contains(&quot;| conclusão | done |&quot;));</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3583,6 +3585,7 @@ fn describe_finish_refuses_the_technical_document_still_in_the_template() {</td></tr>
+<tr><td class="ln">3583</td><td class="code">        &amp;format!(&quot;{FOLDER}/tecnico.md&quot;),</td><td class="ln">3585</td><td class="code">        &amp;format!(&quot;{FOLDER}/tecnico.md&quot;),</td></tr>
+<tr><td class="ln">3584</td><td class="code">        &quot;Criado o novo.txt.\n&quot;,</td><td class="ln">3586</td><td class="code">        &quot;Criado o novo.txt.\n&quot;,</td></tr>
+<tr><td class="ln">3585</td><td class="code">    );</td><td class="ln">3587</td><td class="code">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3588</td><td class="code add">    append(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;), &quot;\nEntregue.\n&quot;);</td></tr>
+<tr><td class="ln">3586</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td><td class="ln">3589</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln">3587</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: done\n&quot;));</td><td class="ln">3590</td><td class="code">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: done\n&quot;));</td></tr>
+<tr><td class="ln">3588</td><td class="code">}</td><td class="ln">3591</td><td class="code">}</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3605,6 +3608,8 @@ fn describe_finish_refuses_the_executive_document_still_in_the_template() {</td></tr>
+<tr><td class="ln">3605</td><td class="code">#[test]</td><td class="ln">3608</td><td class="code">#[test]</td></tr>
+<tr><td class="ln">3606</td><td class="code">fn describe_finish_accepts_a_migrated_task_with_the_documents_written() {</td><td class="ln">3609</td><td class="code">fn describe_finish_accepts_a_migrated_task_with_the_documents_written() {</td></tr>
+<tr><td class="ln">3607</td><td class="code">    let project = folder_validated();</td><td class="ln">3610</td><td class="code">    let project = folder_validated();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3611</td><td class="code add">    // Migrada depois do início: sem os hashes do `start`, vale só a checagem de template.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3612</td><td class="code add">    drop_document_hashes(&amp;project);</td></tr>
+<tr><td class="ln">3608</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td><td class="ln">3613</td><td class="code">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln">3609</td><td class="code">    assert_eq!(</td><td class="ln">3614</td><td class="code">    assert_eq!(</td></tr>
+<tr><td class="ln">3610</td><td class="code">        read(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;)),</td><td class="ln">3615</td><td class="code">        read(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;)),</td></tr>
+<tr class="hunk"><td colspan="4">@@ -3827,3 +3832,165 @@ fn migrate_refuses_an_unrecorded_manual_edit_and_migrates_nothing() {</td></tr>
+<tr><td class="ln">3827</td><td class="code">        &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt&quot;</td><td class="ln">3832</td><td class="code">        &quot;vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt&quot;</td></tr>
+<tr><td class="ln">3828</td><td class="code">    ));</td><td class="ln">3833</td><td class="code">    ));</td></tr>
+<tr><td class="ln">3829</td><td class="code">}</td><td class="ln">3834</td><td class="code">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3835</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3836</td><td class="code add">// --- Executivo e técnico preservados e enriquecidos (SPEC-024) ---</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3837</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3838</td><td class="code add">const STRUCTURED_EXECUTIVE: &amp;str = &quot;## O que mudou\n\nTexto do executivo.\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3839</td><td class="code add">const STRUCTURED_TECHNICAL: &amp;str = &quot;## O que foi feito\n\nTexto do técnico.\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3840</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3841</td><td class="code add">fn write_documents(project: &amp;Project, executive: &amp;str, technical: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3842</td><td class="code add">    write(project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;), executive);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3843</td><td class="code add">    write(project, &amp;format!(&quot;{FOLDER}/tecnico.md&quot;), technical);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3844</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3845</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3846</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3847</td><td class="code add">fn docs_finish_keeps_structured_documents() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3848</td><td class="code add">    let project = folder_started();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3849</td><td class="code add">    write_documents(&amp;project, STRUCTURED_EXECUTIVE, STRUCTURED_TECHNICAL);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3850</td><td class="code add">    for step in [&quot;tests&quot;, &quot;regression&quot;, &quot;evidence&quot;] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3851</td><td class="code add">        task(&amp;project, &amp;[step]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3852</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3853</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3854</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3855</td><td class="code add">        &quot;vostok/work/specs/refined/SPEC-001-exemplo.md&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3856</td><td class="code add">        &quot;---\nid: SPEC-001\ntitle: \&quot;Exemplo\&quot;\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3857</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3858</td><td class="code add">    let criteria = read(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;)).replace(&quot;- [ ]&quot;, &quot;- [x]&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3859</td><td class="code add">    write(&amp;project, &amp;format!(&quot;{FOLDER}/criterios.md&quot;), &amp;criteria);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3860</td><td class="code add">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3861</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3862</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3863</td><td class="code add">        STRUCTURED_EXECUTIVE</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3864</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3865</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3866</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{FOLDER}/tecnico.md&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3867</td><td class="code add">        STRUCTURED_TECHNICAL</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3868</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3869</td><td class="code add">    let record = read(&amp;project, &amp;format!(&quot;{FOLDER}/registro.md&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3870</td><td class="code add">    assert!(record.starts_with(&quot;## Registro de execução\n&quot;), &quot;{record}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3871</td><td class="code add">    assert!(!record.contains(&quot;O que mudou&quot;), &quot;{record}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3872</td><td class="code add">    assert!(record.contains(&quot;| conclusão | done |&quot;), &quot;{record}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3873</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3874</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3875</td><td class="code add">const TITLED_EXECUTIVE: &amp;str =</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3876</td><td class="code add">    &quot;# TASK-01: Tarefa\n\nAbertura.\n\n## O que muda\n\nTexto.\n\n### Detalhe\n\nMais texto.\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3877</td><td class="code add">const CODED_TECHNICAL: &amp;str =</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3878</td><td class="code add">    &quot;Abertura.\n\n```text\n## não é título\n# nem este\n```\n\n## Abordagem\n\nTexto.\n&quot;;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3879</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3880</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3881</td><td class="code add">fn docs_commands_keep_structured_documents() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3882</td><td class="code add">    let project = folder_task(&quot;pending&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3883</td><td class="code add">    write_documents(&amp;project, TITLED_EXECUTIVE, CODED_TECHNICAL);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3884</td><td class="code add">    nested(&amp;project, &quot;adjust&quot;, &quot;record-manual&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3885</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3886</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3887</td><td class="code add">    nested(&amp;project, &quot;approve&quot;, &quot;approve&quot;).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3888</td><td class="code add">    task(&amp;project, &amp;[&quot;start&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3889</td><td class="code add">    for step in [&quot;tests&quot;, &quot;regression&quot;, &quot;evidence&quot;] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3890</td><td class="code add">        task(&amp;project, &amp;[step]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3891</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3892</td><td class="code add">    append(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3893</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3894</td><td class="code add">        &amp;format!(&quot;{FOLDER}/execucao.md&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3895</td><td class="code add">        &quot;2. Confira o arquivo.\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3896</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3897</td><td class="code add">    nested(&amp;project, &quot;adjust&quot;, &quot;record-manual&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3898</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3899</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3900</td><td class="code add">    project</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3901</td><td class="code add">        .vostok()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3902</td><td class="code add">        .args([</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3903</td><td class="code add">            &quot;task&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3904</td><td class="code add">            &quot;adjust&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3905</td><td class="code add">            &quot;record&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3906</td><td class="code add">            &quot;SPEC-001&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3907</td><td class="code add">            &quot;TASK-01&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3908</td><td class="code add">            &quot;passo novo&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3909</td><td class="code add">        ])</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3910</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3911</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3912</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3913</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3914</td><td class="code add">        TITLED_EXECUTIVE</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3915</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3916</td><td class="code add">    assert_eq!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3917</td><td class="code add">        read(&amp;project, &amp;format!(&quot;{FOLDER}/tecnico.md&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3918</td><td class="code add">        CODED_TECHNICAL</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3919</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3920</td><td class="code add">    let record = read(&amp;project, &amp;format!(&quot;{FOLDER}/registro.md&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3921</td><td class="code add">    assert!(!record.contains(&quot;Abertura.&quot;), &quot;{record}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3922</td><td class="code add">    assert!(record.contains(&quot;| passo novo |&quot;), &quot;{record}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3923</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3924</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3925</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3926</td><td class="code add">fn docs_approve_refuses_a_document_in_the_template() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3927</td><td class="code add">    let project = folder_task(&quot;pending&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3928</td><td class="code add">    write(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3929</td><td class="code add">        &amp;project,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3930</td><td class="code add">        &amp;format!(&quot;{FOLDER}/tecnico.md&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3931</td><td class="code add">        &quot;&lt;!-- Escrito no planejamento. --&gt;\n\n#{TASK_TECHNICAL}\n&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3932</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3933</td><td class="code add">    nested(&amp;project, &quot;adjust&quot;, &quot;record-manual&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3934</td><td class="code add">        .assert()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3935</td><td class="code add">        .success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3936</td><td class="code add">    let stderr = failure_stderr(&amp;mut nested(&amp;project, &quot;approve&quot;, &quot;approve&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3937</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3938</td><td class="code add">        stderr.contains(&quot;o documento tecnico.md de TASK-01 ainda está no template; escreva-o com o que a tarefa vai fazer&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3939</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3940</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3941</td><td class="code add">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: pending\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3942</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3943</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3944</td><td class="code add">fn state_line(project: &amp;Project, key: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3945</td><td class="code add">    read(project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3946</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3947</td><td class="code add">        .find_map(|line| line.strip_prefix(&amp;format!(&quot;{key}: &quot;)).map(str::to_string))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3948</td><td class="code add">        .unwrap_or_default()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3949</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3950</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3951</td><td class="code add">/// Remove do estado os hashes do início, como numa tarefa iniciada antes da SPEC-024.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3952</td><td class="code add">fn drop_document_hashes(project: &amp;Project) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3953</td><td class="code add">    let path = format!(&quot;{FOLDER}/estado.yml&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3954</td><td class="code add">    let state: String = read(project, &amp;path)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3955</td><td class="code add">        .lines()</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3956</td><td class="code add">        .filter(|line| !line.starts_with(&quot;executive_hash:&quot;) &amp;&amp; !line.starts_with(&quot;technical_hash:&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3957</td><td class="code add">        .map(|line| format!(&quot;{line}\n&quot;))</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3958</td><td class="code add">        .collect();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3959</td><td class="code add">    write(project, &amp;path, &amp;state);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3960</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3961</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3962</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3963</td><td class="code add">fn docs_start_stores_the_document_hashes() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3964</td><td class="code add">    let project = folder_started();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3965</td><td class="code add">    assert_eq!(state_line(&amp;project, &quot;executive_hash&quot;).len(), 64);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3966</td><td class="code add">    assert_eq!(state_line(&amp;project, &quot;technical_hash&quot;).len(), 64);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3967</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3968</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3969</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3970</td><td class="code add">fn docs_finish_refuses_documents_not_enriched() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3971</td><td class="code add">    let project = folder_validated();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3972</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;finish&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3973</td><td class="code add">    for name in [&quot;executivo.md&quot;, &quot;tecnico.md&quot;] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3974</td><td class="code add">        assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3975</td><td class="code add">            stderr.contains(&amp;format!(&quot;o documento {name} de TASK-01 não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe&quot;)),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3976</td><td class="code add">            &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3977</td><td class="code add">        );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3978</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3979</td><td class="code add">    append(&amp;project, &amp;format!(&quot;{FOLDER}/executivo.md&quot;), &quot;\nEntregue.\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3980</td><td class="code add">    let stderr = failure_stderr(&amp;mut task(&amp;project, &amp;[&quot;finish&quot;]));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3981</td><td class="code add">    assert!(!stderr.contains(&quot;executivo.md&quot;), &quot;{stderr}&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3982</td><td class="code add">    assert!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3983</td><td class="code add">        stderr.contains(&quot;o documento tecnico.md de TASK-01 não foi enriquecido&quot;),</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3984</td><td class="code add">        &quot;{stderr}&quot;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3985</td><td class="code add">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3986</td><td class="code add">    append(&amp;project, &amp;format!(&quot;{FOLDER}/tecnico.md&quot;), &quot;\nFeito.\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3987</td><td class="code add">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3988</td><td class="code add">}</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3989</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3990</td><td class="code add">#[test]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3991</td><td class="code add">fn docs_finish_without_start_hashes_checks_only_the_template() {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3992</td><td class="code add">    let project = folder_validated();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3993</td><td class="code add">    drop_document_hashes(&amp;project);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3994</td><td class="code add">    task(&amp;project, &amp;[&quot;finish&quot;]).assert().success();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3995</td><td class="code add">    assert!(read(&amp;project, &amp;format!(&quot;{FOLDER}/estado.yml&quot;)).contains(&quot;\nstatus: done\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">3996</td><td class="code add">}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/scenarios.rs</b><span class="tag criar">+38</span><span class="tag remover">−5</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -117,11 +117,17 @@ fn folder_files(text: &amp;str) -&gt; Vec&lt;(&amp;&#39;static str, String)&gt; {</td></tr>
+<tr><td class="ln">117</td><td class="code">        ),</td><td class="ln">117</td><td class="code">        ),</td></tr>
+<tr><td class="ln">118</td><td class="code">        (</td><td class="ln">118</td><td class="code">        (</td></tr>
+<tr><td class="ln">119</td><td class="code">            &quot;executivo.md&quot;,</td><td class="ln">119</td><td class="code">            &quot;executivo.md&quot;,</td></tr>
+<tr><td class="ln">120</td><td class="code del">            between_lines(text, &quot;### Resumo executivo&quot;, &quot;### Detalhes técnicos&quot;),</td><td class="ln">120</td><td class="code add">            format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">121</td><td class="code add">                &quot;## Plano\n\n{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">122</td><td class="code add">                between_lines(text, &quot;### Resumo executivo&quot;, &quot;### Detalhes técnicos&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">123</td><td class="code add">            ),</td></tr>
+<tr><td class="ln">121</td><td class="code">        ),</td><td class="ln">124</td><td class="code">        ),</td></tr>
+<tr><td class="ln">122</td><td class="code">        (</td><td class="ln">125</td><td class="code">        (</td></tr>
+<tr><td class="ln">123</td><td class="code">            &quot;tecnico.md&quot;,</td><td class="ln">126</td><td class="code">            &quot;tecnico.md&quot;,</td></tr>
+<tr><td class="ln">124</td><td class="code del">            between_lines(text, &quot;### Detalhes técnicos&quot;, &quot;### Card&quot;),</td><td class="ln">127</td><td class="code add">            format!(</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">128</td><td class="code add">                &quot;## Plano\n\n```text\n## não é título\n```\n\n{}&quot;,</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">129</td><td class="code add">                between_lines(text, &quot;### Detalhes técnicos&quot;, &quot;### Card&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">130</td><td class="code add">            ),</td></tr>
+<tr><td class="ln">125</td><td class="code">        ),</td><td class="ln">131</td><td class="code">        ),</td></tr>
+<tr><td class="ln">126</td><td class="code">        (&quot;registro.md&quot;, between(&quot;## Registro de execução&quot;, &quot;\0&quot;)),</td><td class="ln">132</td><td class="code">        (&quot;registro.md&quot;, between(&quot;## Registro de execução&quot;, &quot;\0&quot;)),</td></tr>
+<tr><td class="ln">127</td><td class="code">    ]</td><td class="ln">133</td><td class="code">    ]</td></tr>
+<tr class="hunk"><td colspan="4">@@ -313,6 +319,22 @@ impl Scenario {</td></tr>
+<tr><td class="ln">313</td><td class="code">        let mut args = vec![&quot;task&quot;, command, SPEC, id];</td><td class="ln">319</td><td class="code">        let mut args = vec![&quot;task&quot;, command, SPEC, id];</td></tr>
+<tr><td class="ln">314</td><td class="code">        args.extend_from_slice(extra);</td><td class="ln">320</td><td class="code">        args.extend_from_slice(extra);</td></tr>
+<tr><td class="ln">315</td><td class="code">        self.run(&amp;args);</td><td class="ln">321</td><td class="code">        self.run(&amp;args);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">322</td><td class="code add">        if command == &quot;start&quot; {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">323</td><td class="code add">            self.enrich_documents(id);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">324</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">325</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">326</td><td class="code add"></td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">327</td><td class="code add">    /// Na tarefa em pasta, enriquece o executivo e o técnico depois do início, como a</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">328</td><td class="code add">    /// `finish-task` faz; fora da transcrição.</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">329</td><td class="code add">    fn enrich_documents(&amp;mut self, id: &amp;str) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">330</td><td class="code add">        if !in_folder(self, id) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">331</td><td class="code add">            return;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">332</td><td class="code add">        }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">333</td><td class="code add">        for name in [&quot;executivo.md&quot;, &quot;tecnico.md&quot;] {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">334</td><td class="code add">            let path = format!(&quot;{}/{name}&quot;, task_folder(id));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">335</td><td class="code add">            let text = self.read(&amp;path);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">336</td><td class="code add">            self.write(&amp;path, &amp;format!(&quot;{text}\n## Feito\n\nEnriquecido.\n&quot;));</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">337</td><td class="code add">        }</td></tr>
+<tr><td class="ln">316</td><td class="code">    }</td><td class="ln">338</td><td class="code">    }</td></tr>
+<tr><td class="ln">317</td><td class="code"></td><td class="ln">339</td><td class="code"></td></tr>
+<tr><td class="ln">318</td><td class="code">    /// `vostok task &lt;grupo&gt; &lt;comando&gt; SPEC-001 &lt;id&gt;`.</td><td class="ln">340</td><td class="code">    /// `vostok task &lt;grupo&gt; &lt;comando&gt; SPEC-001 &lt;id&gt;`.</td></tr>
+<tr class="hunk"><td colspan="4">@@ -473,13 +495,24 @@ fn normalize(text: &amp;str, root: &amp;std::path::Path) -&gt; String {</td></tr>
+<tr><td class="ln">473</td><td class="code">    let text = text.replace(root.to_str().unwrap(), &quot;&lt;ROOT&gt;&quot;);</td><td class="ln">495</td><td class="code">    let text = text.replace(root.to_str().unwrap(), &quot;&lt;ROOT&gt;&quot;);</td></tr>
+<tr><td class="ln">474</td><td class="code">    let text = drop_edited_files(&amp;text);</td><td class="ln">496</td><td class="code">    let text = drop_edited_files(&amp;text);</td></tr>
+<tr><td class="ln">475</td><td class="code">    let text = drop_migration_rows(&amp;text);</td><td class="ln">497</td><td class="code">    let text = drop_migration_rows(&amp;text);</td></tr>
+<tr><td class="ln">476</td><td class="code del">    let text = text.replace(SOURCES_DOCUMENTS, &quot;&quot;);</td><td class="ln">498</td><td class="code add">    let text = drop_sources_documents(&amp;text);</td></tr>
+<tr><td class="ln">477</td><td class="code">    replace_commit_header(&amp;replace_hashes(&amp;replace_dates(&amp;text)))</td><td class="ln">499</td><td class="code">    replace_commit_header(&amp;replace_hashes(&amp;replace_dates(&amp;text)))</td></tr>
+<tr><td class="ln">478</td><td class="code">}</td><td class="ln">500</td><td class="code">}</td></tr>
+<tr><td class="ln">479</td><td class="code"></td><td class="ln">501</td><td class="code"></td></tr>
+<tr><td class="ln">480</td><td class="code">/// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.</td><td class="ln">502</td><td class="code">/// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.</td></tr>
+<tr><td class="ln">481</td><td class="code del">const SOURCES_DOCUMENTS: &amp;str =</td><td class="ln">503</td><td class="code add">fn drop_sources_documents(text: &amp;str) -&gt; String {</td></tr>
+<tr><td class="ln">482</td><td class="code del">    &quot;**Resumo executivo**\n\nResumo.\n\n**Detalhes técnicos**\n\nDetalhes.\n\n&quot;;</td><td class="ln">504</td><td class="code add">    let mut out = String::new();</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">505</td><td class="code add">    let mut rest = text;</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">506</td><td class="code add">    while let Some(start) = rest.find(&quot;**Resumo executivo**\n&quot;) {</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">507</td><td class="code add">        let end = rest[start..]</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">508</td><td class="code add">            .find(&quot;**Registro de execução**&quot;)</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">509</td><td class="code add">            .map_or(rest.len(), |offset| start + offset);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">510</td><td class="code add">        out.push_str(&amp;rest[..start]);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">511</td><td class="code add">        rest = &amp;rest[end..];</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">512</td><td class="code add">    }</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">513</td><td class="code add">    out.push_str(rest);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">514</td><td class="code add">    out</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">515</td><td class="code add">}</td></tr>
+<tr><td class="ln">483</td><td class="code"></td><td class="ln">516</td><td class="code"></td></tr>
+<tr><td class="ln">484</td><td class="code">/// RF-12: a spec migrada ganha no registro a linha da migração; ela sai e as linhas seguintes</td><td class="ln">517</td><td class="code">/// RF-12: a spec migrada ganha no registro a linha da migração; ela sai e as linhas seguintes</td></tr>
+<tr><td class="ln">485</td><td class="code">/// voltam ao número que teriam sem ela.</td><td class="ln">518</td><td class="code">/// voltam ao número que teriam sem ela.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">apps/cli/tests/plan.rs</b><span class="tag criar">+2</span><span class="tag remover">−0</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1476,6 +1476,8 @@ fn fill_folder_task(project: &amp;Project) {</td></tr>
+<tr><td class="ln">1476</td><td class="code">        &amp;format!(&quot;{TASK_FOLDER}/criterios.md&quot;),</td><td class="ln">1476</td><td class="code">        &amp;format!(&quot;{TASK_FOLDER}/criterios.md&quot;),</td></tr>
+<tr><td class="ln">1477</td><td class="code">        &quot;### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  &gt; Como comprovar: ver o arquivo.\n&quot;,</td><td class="ln">1477</td><td class="code">        &quot;### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  &gt; Como comprovar: ver o arquivo.\n&quot;,</td></tr>
+<tr><td class="ln">1478</td><td class="code">    );</td><td class="ln">1478</td><td class="code">    );</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1479</td><td class="code add">    write_file(project, &amp;format!(&quot;{TASK_FOLDER}/executivo.md&quot;), &quot;Resumo.\n&quot;);</td></tr>
+<tr><td class="ln"></td><td class="code empty"></td><td class="ln">1480</td><td class="code add">    write_file(project, &amp;format!(&quot;{TASK_FOLDER}/tecnico.md&quot;), &quot;Detalhes.\n&quot;);</td></tr>
+<tr><td class="ln">1479</td><td class="code">}</td><td class="ln">1481</td><td class="code">}</td></tr>
+<tr><td class="ln">1480</td><td class="code"></td><td class="ln">1482</td><td class="code"></td></tr>
+<tr><td class="ln">1481</td><td class="code">#[test]</td><td class="ln">1483</td><td class="code">#[test]</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/approve-plan/SKILL.md</b><span class="tag criar">+3</span><span class="tag remover">−3</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -22,7 +22,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta</td></tr>
+<tr><td class="ln">22</td><td class="code">- **Plano:** o arquivo `vostok/work/plans/&lt;SPEC_ID&gt;.md`. É removido pelo comando depois da aprovação.</td><td class="ln">22</td><td class="code">- **Plano:** o arquivo `vostok/work/plans/&lt;SPEC_ID&gt;.md`. É removido pelo comando depois da aprovação.</td></tr>
+<tr><td class="ln">23</td><td class="code">- **Tarefa:** a pasta `vostok/work/tasks/&lt;SPEC_ID&gt;/TASK-NN/`, criada pelo comando a partir do plano, com `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências), `criterios.md` (Concluída quando), `executivo.md`, `tecnico.md`, `estado.yml`, `registro.md`, o `README.md` gerado e a subpasta `evidencias/`. Specs planejadas antes têm o arquivo único `TASK-NN.md`; `vostok task migrate &lt;SPEC_ID&gt;` as converte.</td><td class="ln">23</td><td class="code">- **Tarefa:** a pasta `vostok/work/tasks/&lt;SPEC_ID&gt;/TASK-NN/`, criada pelo comando a partir do plano, com `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências), `criterios.md` (Concluída quando), `executivo.md`, `tecnico.md`, `estado.yml`, `registro.md`, o `README.md` gerado e a subpasta `evidencias/`. Specs planejadas antes têm o arquivo único `TASK-NN.md`; `vostok task migrate &lt;SPEC_ID&gt;` as converte.</td></tr>
+<tr><td class="ln">24</td><td class="code">- **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): &quot;Ler&quot;, &quot;Mudar&quot;, &quot;Passos&quot;, &quot;Baseline&quot;, &quot;Verificação&quot;, &quot;Evidências&quot; e &quot;Concluída quando&quot;.</td><td class="ln">24</td><td class="code">- **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): &quot;Ler&quot;, &quot;Mudar&quot;, &quot;Passos&quot;, &quot;Baseline&quot;, &quot;Verificação&quot;, &quot;Evidências&quot; e &quot;Concluída quando&quot;.</td></tr>
+<tr><td class="ln">25</td><td class="code del">- **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos na finalização da tarefa (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção &quot;Descrição&quot; do arquivo único.</td><td class="ln">25</td><td class="code add">- **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos no detalhamento com o que a tarefa vai fazer e enriquecidos na finalização (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção &quot;Descrição&quot; do arquivo único.</td></tr>
+<tr><td class="ln">26</td><td class="code">- **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.</td><td class="ln">26</td><td class="code">- **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.</td></tr>
+<tr><td class="ln">27</td><td class="code">- **Impedimento:** o que impede a aprovação: spec fora de `approved` ou alterada, plano desatualizado, edição manual sem registro ou problema de validação.</td><td class="ln">27</td><td class="code">- **Impedimento:** o que impede a aprovação: spec fora de `approved` ou alterada, plano desatualizado, edição manual sem registro ou problema de validação.</td></tr>
+<tr><td class="ln">28</td><td class="code"></td><td class="ln">28</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -100,7 +100,7 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt</td></tr>
+<tr><td class="ln">100</td><td class="code"></td><td class="ln">100</td><td class="code"></td></tr>
+<tr><td class="ln">101</td><td class="code">Tarefa com interface (lista &quot;Mudar&quot; com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.</td><td class="ln">101</td><td class="code">Tarefa com interface (lista &quot;Mudar&quot; com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.</td></tr>
+<tr><td class="ln">102</td><td class="code"></td><td class="ln">102</td><td class="code"></td></tr>
+<tr><td class="ln">103</td><td class="code del">Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). `executivo.md` e `tecnico.md` ficam com as variáveis: são escritos na finalização da tarefa, a partir do que foi feito, e o `vostok task finish` os exige. Não escreva card nem README: o `vostok` os gera.</td><td class="ln">103</td><td class="code add">Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.</td></tr>
+<tr><td class="ln">104</td><td class="code"></td><td class="ln">104</td><td class="code"></td></tr>
+<tr><td class="ln">105</td><td class="code">**Execução** (para o agente):</td><td class="ln">105</td><td class="code">**Execução** (para o agente):</td></tr>
+<tr><td class="ln">106</td><td class="code"></td><td class="ln">106</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -133,7 +133,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj</td></tr>
+<tr><td class="ln">133</td><td class="code">  ```</td><td class="ln">133</td><td class="code">  ```</td></tr>
+<tr><td class="ln">134</td><td class="code">- **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  &gt; Como comprovar: ...`, com uma linha em branco entre os critérios. &quot;Como comprovar&quot; é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: &quot;abrir `config/tasks.yml` e ver `max_attempts: 2`&quot;, &quot;rodar a suíte e ver &#39;Falhou: 0&#39;&quot;), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.</td><td class="ln">134</td><td class="code">- **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  &gt; Como comprovar: ...`, com uma linha em branco entre os critérios. &quot;Como comprovar&quot; é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: &quot;abrir `config/tasks.yml` e ver `max_attempts: 2`&quot;, &quot;rodar a suíte e ver &#39;Falhou: 0&#39;&quot;), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.</td></tr>
+<tr><td class="ln">135</td><td class="code"></td><td class="ln">135</td><td class="code"></td></tr>
+<tr><td class="ln">136</td><td class="code del">**Descrição** (para pessoas; só no formato antigo, de arquivo único):</td><td class="ln">136</td><td class="code add">**Descrição** (para pessoas; `executivo.md` e `tecnico.md` na tarefa em pasta e as variáveis abaixo no arquivo único):</td></tr>
+<tr><td class="ln">137</td><td class="code"></td><td class="ln">137</td><td class="code"></td></tr>
+<tr><td class="ln">138</td><td class="code">- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.</td><td class="ln">138</td><td class="code">- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.</td></tr>
+<tr><td class="ln">139</td><td class="code">- **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.</td><td class="ln">139</td><td class="code">- **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/finish-task/SKILL.md</b><span class="tag criar">+2</span><span class="tag remover">−2</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -145,7 +145,7 @@ O `vostok task finish` recusa a conclusão enquanto faltar o guia, uma entrada o</td></tr>
+<tr><td class="ln">145</td><td class="code"></td><td class="ln">145</td><td class="code"></td></tr>
+<tr><td class="ln">146</td><td class="code">Para cada critério de &quot;Concluída quando&quot; (`criterios.md` na tarefa em pasta), faça a comprovação descrita em &quot;Como comprovar&quot;. Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.</td><td class="ln">146</td><td class="code">Para cada critério de &quot;Concluída quando&quot; (`criterios.md` na tarefa em pasta), faça a comprovação descrita em &quot;Como comprovar&quot;. Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.</td></tr>
+<tr><td class="ln">147</td><td class="code"></td><td class="ln">147</td><td class="code"></td></tr>
+<tr><td class="ln">148</td><td class="code del">**Documentos da tarefa (tarefa em pasta):** depois das evidências e dos critérios, `executivo.md` e `tecnico.md` são escritos a partir do que foi feito. Execute `vostok task describe &lt;SPEC_ID&gt; &lt;TASK_ID&gt;` e dispare um subagente de perfil `mecanica` (o mais simples de `vostok/config/models.yml`) com essa saída como único contexto, pedindo o executivo (para quem não é técnico: o que mudou e o valor) e o técnico (para quem mantém o código: o que foi feito, como, decisões e pontos de atenção). Confira o texto contra o `describe` antes de seguir. Sem subagente disponível, escreva os dois na própria sessão a partir do mesmo `describe`. No formato antigo, pule este bloco.</td><td class="ln">148</td><td class="code add">**Documentos da tarefa (tarefa em pasta):** depois das evidências e dos critérios, `executivo.md` e `tecnico.md` são enriquecidos com o que foi feito. Execute `vostok task describe &lt;SPEC_ID&gt; &lt;TASK_ID&gt;` e dispare um subagente de perfil `mecanica` (o mais simples de `vostok/config/models.yml`) com essa saída e os dois documentos como contexto: ele mantém o que o planejamento escreveu, corrige o que mudou e acrescenta o que foi feito, pedindo o executivo (para quem não é técnico: o que mudou e o valor) e o técnico (para quem mantém o código: o que foi feito, como, decisões e pontos de atenção). Confira o texto contra o `describe` antes de seguir. Sem subagente disponível, enriqueça os dois na própria sessão a partir do mesmo `describe`. No formato antigo, pule este bloco.</td></tr>
+<tr><td class="ln">149</td><td class="code"></td><td class="ln">149</td><td class="code"></td></tr>
+<tr><td class="ln">150</td><td class="code">### 8. Concluir</td><td class="ln">150</td><td class="code">### 8. Concluir</td></tr>
+<tr><td class="ln">151</td><td class="code"></td><td class="ln">151</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -155,7 +155,7 @@ Execute:</td></tr>
+<tr><td class="ln">155</td><td class="code">vostok task finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td><td class="ln">155</td><td class="code">vostok task finish &lt;SPEC_ID&gt; &lt;TASK_ID&gt;</td></tr>
+<tr><td class="ln">156</td><td class="code">```</td><td class="ln">156</td><td class="code">```</td></tr>
+<tr><td class="ln">157</td><td class="code"></td><td class="ln">157</td><td class="code"></td></tr>
+<tr><td class="ln">158</td><td class="code del">O comando exige testes, regressão e evidências `passed`, todos os critérios marcados e, na tarefa em pasta, `executivo.md` e `tecnico.md` escritos, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. Se ele recusar, volte à etapa que falta.</td><td class="ln">158</td><td class="code add">O comando exige testes, regressão e evidências `passed`, todos os critérios marcados e, na tarefa em pasta, `executivo.md` e `tecnico.md` enriquecidos, grava `done` e, se esta for a última tarefa da spec, muda a spec para `implemented`. O comando recusa documento no template e documento igual ao do início da tarefa (`não foi enriquecido desde o início`). Se ele recusar, volte à etapa que falta.</td></tr>
+<tr><td class="ln">159</td><td class="code"></td><td class="ln">159</td><td class="code"></td></tr>
+<tr><td class="ln">160</td><td class="code">### 9. Responder ao usuário</td><td class="ln">160</td><td class="code">### 9. Responder ao usuário</td></tr>
+<tr><td class="ln">161</td><td class="code"></td><td class="ln">161</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/approve-task/SKILL.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -76,7 +76,7 @@ Execute, com os IDs ou `--all`:</td></tr>
+<tr><td class="ln">76</td><td class="code">vostok task approve validate &lt;SPEC_ID&gt; &lt;TASK_ID ...&gt;</td><td class="ln">76</td><td class="code">vostok task approve validate &lt;SPEC_ID&gt; &lt;TASK_ID ...&gt;</td></tr>
+<tr><td class="ln">77</td><td class="code">```</td><td class="ln">77</td><td class="code">```</td></tr>
+<tr><td class="ln">78</td><td class="code"></td><td class="ln">78</td><td class="code"></td></tr>
+<tr><td class="ln">79</td><td class="code del">O comando lista os impedimentos de cada tarefa, sem alterar nada. Na tarefa em pasta, a aprovação cobre `execucao.md`, `verificacao.md` e `criterios.md`; mudar depois só `executivo.md` ou `tecnico.md` não derruba a aprovação. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:</td><td class="ln">79</td><td class="code add">O comando lista os impedimentos de cada tarefa, sem alterar nada. Na tarefa em pasta, a aprovação cobre `execucao.md`, `verificacao.md` e `criterios.md`; mudar depois só `executivo.md` ou `tecnico.md` não derruba a aprovação. A validação recusa a tarefa em pasta com `executivo.md` ou `tecnico.md` no template; a correção é escrever o documento (skill `adjust-task`). Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:</td></tr>
+<tr><td class="ln">80</td><td class="code"></td><td class="ln">80</td><td class="code"></td></tr>
+<tr><td class="ln">81</td><td class="code">| Impedimento | Como resolver |</td><td class="ln">81</td><td class="code">| Impedimento | Como resolver |</td></tr>
+<tr><td class="ln">82</td><td class="code">|---|---|</td><td class="ln">82</td><td class="code">|---|---|</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/skills/default/adjust-task/SKILL.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -133,7 +133,7 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t</td></tr>
+<tr><td class="ln">133</td><td class="code"></td><td class="ln">133</td><td class="code"></td></tr>
+<tr><td class="ln">134</td><td class="code">### 7. Editar a tarefa</td><td class="ln">134</td><td class="code">### 7. Editar a tarefa</td></tr>
+<tr><td class="ln">135</td><td class="code"></td><td class="ln">135</td><td class="code"></td></tr>
+<tr><td class="ln">136</td><td class="code del">Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções &quot;Execução&quot; e &quot;Descrição&quot;, mantendo as duas coerentes (um critério de conclusão novo também entra nos &quot;Critérios de aceite&quot; do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação.</td><td class="ln">136</td><td class="code add">Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções &quot;Execução&quot; e &quot;Descrição&quot;, mantendo as duas coerentes (um critério de conclusão novo também entra nos &quot;Critérios de aceite&quot; do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação e, numa tarefa em execução, conta como enriquecimento para o `vostok task finish`.</td></tr>
+<tr><td class="ln">137</td><td class="code"></td><td class="ln">137</td><td class="code"></td></tr>
+<tr><td class="ln">138</td><td class="code">### 8. Validar</td><td class="ln">138</td><td class="code">### 8. Validar</td></tr>
+<tr><td class="ln">139</td><td class="code"></td><td class="ln">139</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/personas/arquiteto.md</b><span class="tag criar">+3</span><span class="tag remover">−3</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1,7 +1,7 @@</td></tr>
+<tr><td class="ln">1</td><td class="code">---</td><td class="ln">1</td><td class="code">---</td></tr>
+<tr><td class="ln">2</td><td class="code">name: arquiteto</td><td class="ln">2</td><td class="code">name: arquiteto</td></tr>
+<tr><td class="ln">3</td><td class="code">title: Arquiteto</td><td class="ln">3</td><td class="code">title: Arquiteto</td></tr>
+<tr><td class="ln">4</td><td class="code del">description: &quot;Toma as decisões de desenho de cada tarefa (onde o código fica, contratos públicos, compatibilidade) e escreve Ler, Mudar e Detalhes técnicos; usado no detalhamento de tarefas.&quot;</td><td class="ln">4</td><td class="code add">description: &quot;Toma as decisões de desenho de cada tarefa (onde o código fica, contratos públicos, compatibilidade) e escreve Ler, Mudar e o `tecnico.md` (Detalhes técnicos no arquivo único); usado no detalhamento de tarefas.&quot;</td></tr>
+<tr><td class="ln">5</td><td class="code">---</td><td class="ln">5</td><td class="code">---</td></tr>
+<tr><td class="ln">6</td><td class="code"></td><td class="ln">6</td><td class="code"></td></tr>
+<tr><td class="ln">7</td><td class="code"># Persona: Arquiteto</td><td class="ln">7</td><td class="code"># Persona: Arquiteto</td></tr>
+<tr class="hunk"><td colspan="4">@@ -13,7 +13,7 @@ Você atua como Arquiteto do time do harness Vostok. Seu foco é o desenho: onde</td></tr>
+<tr><td class="ln">13</td><td class="code">- Decide onde o código fica.</td><td class="ln">13</td><td class="code">- Decide onde o código fica.</td></tr>
+<tr><td class="ln">14</td><td class="code">- Define os contratos públicos: comandos, formatos e configuração.</td><td class="ln">14</td><td class="code">- Define os contratos públicos: comandos, formatos e configuração.</td></tr>
+<tr><td class="ln">15</td><td class="code">- Garante a compatibilidade com versões anteriores.</td><td class="ln">15</td><td class="code">- Garante a compatibilidade com versões anteriores.</td></tr>
+<tr><td class="ln">16</td><td class="code del">- Escreve as listas &quot;Ler&quot; e &quot;Mudar&quot; e as decisões dos &quot;Detalhes técnicos&quot;.</td><td class="ln">16</td><td class="code add">- Escreve as listas &quot;Ler&quot; e &quot;Mudar&quot; e as decisões do `tecnico.md` (Detalhes técnicos no arquivo único), escrito no detalhamento.</td></tr>
+<tr><td class="ln">17</td><td class="code"></td><td class="ln">17</td><td class="code"></td></tr>
+<tr><td class="ln">18</td><td class="code">## Quando atua</td><td class="ln">18</td><td class="code">## Quando atua</td></tr>
+<tr><td class="ln">19</td><td class="code"></td><td class="ln">19</td><td class="code"></td></tr>
+<tr class="hunk"><td colspan="4">@@ -28,7 +28,7 @@ Você atua como Arquiteto do time do harness Vostok. Seu foco é o desenho: onde</td></tr>
+<tr><td class="ln">28</td><td class="code"></td><td class="ln">28</td><td class="code"></td></tr>
+<tr><td class="ln">29</td><td class="code">## Saídas</td><td class="ln">29</td><td class="code">## Saídas</td></tr>
+<tr><td class="ln">30</td><td class="code"></td><td class="ln">30</td><td class="code"></td></tr>
+<tr><td class="ln">31</td><td class="code del">- &quot;Ler&quot;, &quot;Mudar&quot; e &quot;Detalhes técnicos&quot; de cada tarefa.</td><td class="ln">31</td><td class="code add">- &quot;Ler&quot;, &quot;Mudar&quot; e `tecnico.md` (Detalhes técnicos no arquivo único) de cada tarefa.</td></tr>
+<tr><td class="ln">32</td><td class="code"></td><td class="ln">32</td><td class="code"></td></tr>
+<tr><td class="ln">33</td><td class="code">## Regras</td><td class="ln">33</td><td class="code">## Regras</td></tr>
+<tr><td class="ln">34</td><td class="code"></td><td class="ln">34</td><td class="code"></td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/templates/task/executivo.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1,3 +1,3 @@</td></tr>
+<tr><td class="ln">1</td><td class="code del">&lt;!-- Escrito na finalização da tarefa. --&gt;</td><td class="ln">1</td><td class="code add">&lt;!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. --&gt;</td></tr>
+<tr><td class="ln">2</td><td class="code"></td><td class="ln">2</td><td class="code"></td></tr>
+<tr><td class="ln">3</td><td class="code">#{TASK_EXECUTIVE}</td><td class="ln">3</td><td class="code">#{TASK_EXECUTIVE}</td></tr>
+</table></div></div>
+</details>
+<details class="dfile">
+<summary><b class="path">packages/harness/templates/task/tecnico.md</b><span class="tag criar">+1</span><span class="tag remover">−1</span></summary>
+<div class="dbody"><div class="tw"><table class="diff">
+<colgroup><col class="cln"><col><col class="cln"><col></colgroup>
+<tr class="hunk"><td colspan="4">@@ -1,3 +1,3 @@</td></tr>
+<tr><td class="ln">1</td><td class="code del">&lt;!-- Escrito na finalização da tarefa. --&gt;</td><td class="ln">1</td><td class="code add">&lt;!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. --&gt;</td></tr>
+<tr><td class="ln">2</td><td class="code"></td><td class="ln">2</td><td class="code"></td></tr>
+<tr><td class="ln">3</td><td class="code">#{TASK_TECHNICAL}</td><td class="ln">3</td><td class="code">#{TASK_TECHNICAL}</td></tr>
+</table></div></div>
+</details>
+
+  </section>
+
+  <section class="panel" id="p-commits" role="tabpanel" data-panel="commits">
+    <div class="sec-h"><h2>Commits</h2><p>Desde a aprovação da spec, nos caminhos das tarefas.</p></div>
+<div class="tw"><table>
+<thead><tr><th>Commit</th><th>Data</th><th>Mensagem</th></tr></thead>
+<tbody>
+<tr><td class="mono">98b2909</td><td class="mono">2026-11-01</td><td>docs(skills): write the task documents when planning and enrich them on finish</td></tr>
+<tr><td class="mono">d8cdd4f</td><td class="mono">2026-11-01</td><td>fix(task): keep the executive and technical documents of folder tasks</td></tr>
+</tbody>
+</table></div>
+  </section>
+
+  <section class="panel" id="p-decisoes" role="tabpanel" data-panel="decisoes">
+    <div class="sec-h"><h2>Decisões</h2></div>
+    <div class="md">
+<ul>
+<li>Duas defesas em vez de uma: corrigir a divisão e também nunca regravar os documentos, porque um documento pode conter qualquer título.</li>
+<li>Trava pelo hash gravado no <code>start</code>, em vez de só orientar a skill (decisão do usuário).</li>
+<li>Sem hash do <code>start</code>, só a checagem de template, para não travar tarefas em andamento (resposta 1A).</li>
+<li>Trava só na tarefa em pasta; o arquivo único segue como estava (resposta 2A).</li>
+<li>Aprovação recusa documento no template, em vez de aceitar com aviso (resposta 3A).</li>
+<li>A regra do <code>.gitignore</code> entrou na mesma versão por decisão do usuário, num commit próprio, porque a spec já estava implementada e não aceitava ajuste.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-aprendizados" role="tabpanel" data-panel="aprendizados">
+    <div class="sec-h"><h2>Aprendizados</h2></div>
+    <div class="md">
+<ul>
+<li>Os testes da SPEC-023 usavam documentos de uma linha; o defeito só aparece com títulos. Dados de teste realistas teriam pegado.</li>
+<li>A execução achou um caso a mais: no arquivo único, o <code>### Card</code> também encerra o técnico; um teste da migração pegou.</li>
+<li>O <code>tests/plan.rs</code> entrou em Mudar por ajuste registrado, porque a aprovação passou a exigir os documentos.</li>
+<li>Na hora do commit apareceu outra lacuna da SPEC-023: o <code>.gitignore</code> não cobria <code>evidencias</code>. Vale conferir o que o git vê ao introduzir um caminho novo.</li>
+<li>As tarefas desta spec foram iniciadas com a 0.2.7 e não têm o hash do <code>start</code>: foram concluídas pela checagem de template, com os documentos enriquecidos assim mesmo.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-atencao" role="tabpanel" data-panel="atencao">
+    <div class="sec-h"><h2>Pontos de atenção</h2></div>
+    <div class="note warn"><b>Antes de mexer</b>
+<ul>
+<li>O <code>plan approve validate</code> tem validação própria e ainda não confere o executivo e o técnico; quem recusa é o <code>task approve</code>.</li>
+<li>O <code>adjust validate</code> de uma tarefa criada na 0.2.7 com os documentos no template passa a falhar até que sejam escritos.</li>
+<li>Um título igual a <code>### Card</code> ou <code>### Detalhes técnicos</code> dentro do executivo encerra o documento na divisão; como a gravação pula os documentos, o arquivo não muda, mas a leitura virtual corta ali.</li>
+<li>Projetos que já commitaram evidências em <code>evidencias/</code> precisam removê-las do índice com <code>git rm --cached</code>.</li>
+</ul>
+    </div>
+  </section>
+
+  <section class="panel" id="p-referencias" role="tabpanel" data-panel="referencias">
+    <div class="sec-h"><h2>Referências</h2><p>Para se aprofundar.</p></div>
+    <div class="md">
+<ul>
+<li><code>apps/cli/src/commands/task.rs</code> (<code>split_task_text</code>, <code>TaskDoc::write_text</code>, <code>store_document_hashes</code>, <code>finish</code>, <code>task_errors</code>): a correção e as travas.</li>
+<li><code>apps/cli/tests/task.rs</code> (testes <code>docs_*</code>): a reprodução da issue e as travas.</li>
+<li><code>apps/cli/tests/scenarios.rs</code> (<code>enrich_documents</code>, <code>drop_sources_documents</code>): os cenários com documentos estruturados.</li>
+<li><code>packages/harness/skills/default/finish-task/SKILL.md</code>: o enriquecimento na conclusão.</li>
+<li><code>packages/harness/.gitignore</code>: a regra das evidências em pasta.</li>
+<li>Issue #9 do Ishtar-Sink/Vostok: o relato.</li>
+<li>Commits <code>d8cdd4f</code>, <code>98b2909</code> e <code>f4cd865</code>.</li>
+</ul>
+    </div>
+  </section>
+</main>
+
+<footer>Vostok · documento técnico de SPEC-024, gerado a partir da spec, das tarefas e do conteúdo da finalização.</footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  var button = document.getElementById("theme-toggle");
+  button.addEventListener("click", function () {
+    var light = root.getAttribute("data-theme") !== "light";
+    root.setAttribute("data-theme", light ? "light" : "dark");
+    button.textContent = light ? "Tema escuro" : "Tema claro";
+    button.setAttribute("aria-pressed", light ? "true" : "false");
+  });
+
+  // Abas: sem JavaScript, todas as seções aparecem em sequência e os links levam a cada uma.
+  // Links do menu sem painel correspondente saem do menu.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".nav a[data-tab]")).filter(function (a) {
+    if (document.getElementById("p-" + a.getAttribute("data-tab"))) return true;
+    a.parentNode.removeChild(a);
+    return false;
+  });
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  // O hash da aba (#diffs) não coincide com o id da seção (p-diffs): o link continua compartilhável
+  // e o navegador não rola até a seção antes de ela aparecer, o que esconderia o cabeçalho.
+  function show(id) {
+    if (!tabs.length) return;
+    id = id.replace(/^p-/, "");
+    if (!document.getElementById("p-" + id)) id = tabs[0].getAttribute("data-tab");
+    tabs.forEach(function (a) {
+      var on = a.getAttribute("data-tab") === id;
+      a.classList.toggle("on", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    panels.forEach(function (p) { p.classList.toggle("on", p.id === "p-" + id); });
+  }
+  tabs.forEach(function (a) {
+    a.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      show(a.getAttribute("data-tab"));
+      history.replaceState(null, "", "#" + a.getAttribute("data-tab"));
+    });
+  });
+  document.body.classList.add("tabs");
+  show((location.hash || "").replace("#", ""));
+
+  // Na impressão, os blocos de diff fechados abrem para o conteúdo sair inteiro no papel.
+  var closed = [];
+  window.addEventListener("beforeprint", function () {
+    closed = Array.prototype.slice.call(document.querySelectorAll("details.dfile:not([open])"));
+    closed.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () {
+    closed.forEach(function (d) { d.open = false; });
+  });
+})();
+</script>
+</body>
+</html>

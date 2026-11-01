@@ -5,3 +5,4 @@ apps/cli/target/
 vostok/.state/
 vostok/work/.archive/
 vostok/work/**/evidence
+vostok/work/**/evidencias

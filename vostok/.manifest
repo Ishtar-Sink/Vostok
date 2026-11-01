@@ -1,4 +1,4 @@
-version: 0.2.8
+version: 0.2.9
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   personas/arquiteto.md: 8ae32cd5f2a089c00825a674744ac4404746097d7a6645f651068a2cdebf6d19
@@ -26,7 +26,7 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/execute-task/SKILL.md: 2ab360b91212c0a8c05c38e9441fb767b8c5f7f5915c8d868a7e623b593c2e34
-  skills/default/finalize-spec/SKILL.md: 4336bdd5bc15e9a706832799b368324f6069d655de7ac5f50629f7d0ac2c30ea
+  skills/default/finalize-spec/SKILL.md: 623bc1ec57ecc96af286b57f7111b9c0a0fcccc7e9eee84ed928cd7119db1824
   skills/default/finish-task/SKILL.md: b05b12ed542f9a24e43f1a26e01c3ceef32db48d02e71a9704b11dbb47cc8dc3
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: b6a4e0f2eecdfaf9ccbc10ae68be60f3fddd2af5f9455140c5f0cd2ab5db6c78
@@ -37,11 +37,16 @@ files:
   skills/default/suggest-harness-improvement/SKILL.md: d686b0bc388b3606e19b3bd568faa6714b84e1efd70bab7f13fe133a7d66ad4e
   skills/default/validate-harness-bug/SKILL.md: e802ea98d5434d2bb3d0b832c3119c948db649dfc3c62e5e0372e1ee1f419671
   templates/bug/report.md: ffb178247760a7d7995ccc37293737eeb6f23f915f4c0b479f7a2e58fb4c8bb0
-  templates/finalize/content.md: 51619b1d7d495c7a3f21963f36c56b38c4c81db8a7c4701c8b0735ff27d8c991
-  templates/finalize/evidence-item.html: 724e5d1412c86cedc6b4e062f92f2f72ff5058c5d85fbeb4c143d236c70992e3
-  templates/finalize/evidence.html: a8bbc2b75c21cfc69a690f990960cb2132233959eb23c3dab15d391d2a65b89a
-  templates/finalize/executive.html: 878152f1f3aa8e716d6938ceae791772a7e98183a2fa437d3813820f519cea62
-  templates/finalize/technical.html: b530e83342e95f1ed8ce4c6f8d254c6fb2435ef69da5a0783a997ff5accf5f3c
+  templates/finalize/content.md: e2c06f042b7e268ec4368b2a04922a824d1f6357960f3cf0852f85fceff1de99
+  templates/finalize/evidence-item.html: 2052a44bd92dea563bb8a4186b712a8ae2c7c954520a6bc147529ae929d056eb
+  templates/finalize/evidence.html: 7fc4486b6d36fa8996c58d005a08d5701e045a0b77e9478c100bbc8470633a08
+  templates/finalize/executive.html: 5d46eeb1b0eeadb9f091ec32428b72d15ca789cfb4929d89fcbb84e34ad97cdf
+  templates/finalize/fonts/Inter.woff2: d0c4a8f48d56c09131ae634ae45dc1028ec42a1b9b34dbc051c88716e8970dda
+  templates/finalize/fonts/OFL-Inter.txt: 262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a
+  templates/finalize/fonts/OFL-Outfit.txt: c676351bf8576b9aba743cd5eaa8c0e7ee0d51f805d720447b4df4ddb6a2e416
+  templates/finalize/fonts/Outfit.woff2: 5b7371e6d79b43ab5deada7726751c79cbc5d59e75341aab4db2361c212bc695
+  templates/finalize/fonts/README.md: 7266e333bc35bae5bfe8f9a457a892d7e50099a4905a4f510f8e91ce53aa0ddd
+  templates/finalize/technical.html: 0d81ec1a47c2921d45f2e3fd8c8ffd7ed4d46c25068ca5c3a13da269137a0660
   templates/memory/decision.md: 88c15b81cbc0f342643e6e2406a4e0e9cedb55f5824b30d7c76ea74126c00397
   templates/memory/file.md: b7d729ae0b90f6b9a247359c7218a0b45590a8b13336bae370d3381d5d08ec0a
   templates/memory/issue.md: c2c3c539046f99bb139ba108e764196410c000327d13bdf77bc78a650f661f9f

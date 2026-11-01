@@ -1314,6 +1314,7 @@ impl Tasks {
             detail.push_str(&format!("; modelo: {model}"));
         }
         self.record_step(&file, "início", in_progress, &detail)?;
+        TaskDoc::at(&file).store_document_hashes()?;
         println!("Tarefa {task} iniciada: status '{in_progress}'. Coletando o baseline:");
         let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
         self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
@@ -2094,9 +2095,13 @@ impl Tasks {
         }
         let doc = TaskDoc::at(&file);
         if doc.folder() {
-            for name in [&layout().executive, &layout().technical] {
-                if !template_leftovers(&read(&doc.part(name))?).is_empty() {
+            for (key, name) in layout().document_files() {
+                let text = read(&doc.part(name))?;
+                if !template_leftovers(&text).is_empty() {
                     problems.push_str(&format!("- o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe\n"));
+                } else if doc.get(key).ok().as_deref() == Some(sha256_hex(text.as_bytes()).as_str())
+                {
+                    problems.push_str(&format!("- o documento {name} de {task} não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe\n"));
                 }
             }
         }
@@ -2858,7 +2863,7 @@ impl Tasks {
     ) -> Result<Vec<String>> {
         let id = task_id_of(file);
         let content = TaskDoc::at(file).text()?;
-        // Na tarefa em pasta, o executivo e o técnico são escritos na finalização, e o card é gerado.
+        // Na tarefa em pasta, o card é gerado, e o executivo e o técnico são conferidos nos arquivos.
         let folder = is_task_folder(file);
         let checked = if folder {
             before_section(&content, &self.cfg("description_section")?)
@@ -2871,7 +2876,16 @@ impl Tasks {
             .collect();
         errors.extend(self.fixed_section_errors(&content)?);
         errors.extend(self.subsection_errors(&content, folder)?);
-        if !folder {
+        if folder {
+            let doc = TaskDoc::at(file);
+            for name in [&layout().executive, &layout().technical] {
+                if !template_leftovers(&read(&doc.part(name))?).is_empty() {
+                    errors.push(format!(
+                        "o documento {name} de {id} ainda está no template; escreva-o com o que a tarefa vai fazer"
+                    ));
+                }
+            }
+        } else {
             errors.extend(self.description_errors(&content)?);
         }
         let running = self.is_running(&status_of(file));
@@ -3217,6 +3231,8 @@ pub(crate) struct TaskLayout {
     pub(crate) readme: String,
     /// Conteúdo do template do `README.md` da tarefa; vazio sem o template, e então o README não é gerado.
     pub(crate) readme_template: String,
+    record_section: String,
+    card_heading: String,
     pub(crate) evidence_dir: String,
     pub(crate) execution_section: String,
     pub(crate) description_section: String,
@@ -3247,12 +3263,22 @@ impl TaskLayout {
             description_section: get("description_section", "Descrição"),
             executive_heading: get("executive_summary_subsection", "Resumo executivo"),
             technical_heading: get("technical_details_subsection", "Detalhes técnicos"),
+            record_section: get("record_section", "Registro de execução"),
+            card_heading: get("card_subsection", "Card"),
         }
     }
 
     /// Arquivos de execução, na ordem em que entram no texto da tarefa.
     fn execution_files(&self) -> [&str; 3] {
         [&self.execution, &self.verification, &self.criteria]
+    }
+
+    /// Campo do estado com o hash de cada documento no início da tarefa, e o arquivo.
+    fn document_files(&self) -> [(&'static str, &str); 2] {
+        [
+            ("executive_hash", &self.executive),
+            ("technical_hash", &self.technical),
+        ]
     }
 
     /// Campo do estado que guarda o hash de cada arquivo de execução.
@@ -3452,6 +3478,18 @@ impl<'a> TaskDoc<'a> {
         Ok(())
     }
 
+    /// Grava no estado o hash do executivo e do técnico, para o `finish` exigir que mudem. Sem
+    /// efeito no arquivo único.
+    fn store_document_hashes(&self) -> Result<()> {
+        if !self.folder() {
+            return Ok(());
+        }
+        for (key, name) in layout().document_files() {
+            self.put(key, &self.part_hash(name)?)?;
+        }
+        Ok(())
+    }
+
     /// Grava o `state_hash` do estado como está.
     fn refresh_state_hash(&self) -> Result<()> {
         let path = self.part(&layout().state);
@@ -3571,7 +3609,12 @@ impl<'a> TaskDoc<'a> {
         if !self.folder() {
             return write(self.file, content);
         }
+        let layout = layout();
         for (name, text) in split_task_text(content) {
+            // Os comandos nunca escrevem o executivo nem o técnico: regravá-los só poderia estragá-los.
+            if name == layout.executive || name == layout.technical {
+                continue;
+            }
             let path = self.part(&name);
             let current = read(&path).unwrap_or_default();
             let text = text.trim_matches('\n');
@@ -3648,7 +3691,19 @@ pub(crate) fn split_task_text(content: &str) -> Vec<(String, String)> {
         if is_fence(line) {
             in_code = !in_code;
         }
-        if !in_code {
+        let in_document = current
+            .as_deref()
+            .is_some_and(|name| name == layout.executive || name == layout.technical);
+        // O executivo e o técnico são texto livre: só o título do registro, o do card (arquivo
+        // único) ou, no executivo, o do técnico encerram o documento; os demais títulos ficam nele.
+        let subsection = line.strip_prefix("### ").map(str::trim);
+        let ends_document = line
+            .strip_prefix("## ")
+            .is_some_and(|heading| heading.trim() == layout.record_section)
+            || subsection == Some(layout.card_heading.as_str())
+            || (current.as_deref() == Some(layout.executive.as_str())
+                && subsection == Some(layout.technical_heading.as_str()));
+        if !in_code && !(in_document && !ends_document) {
             if let Some(heading) = line.strip_prefix("### ") {
                 current = file_of(heading.trim()).map(str::to_string);
                 // Executivo e técnico guardam só o texto, sem o título.

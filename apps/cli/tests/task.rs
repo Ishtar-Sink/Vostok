@@ -3257,6 +3257,8 @@ fn folder_format_keeps_the_evidence_inside_the_task() {
     );
     let criteria = read(&project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
     write(&project, &format!("{FOLDER}/criterios.md"), &criteria);
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
+    append(&project, &format!("{FOLDER}/tecnico.md"), "\nFeito.\n");
     task(&project, &["finish"]).assert().success();
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
     assert!(read(&project, &format!("{FOLDER}/registro.md")).contains("| conclusão | done |"));
@@ -3583,6 +3585,7 @@ fn describe_finish_refuses_the_technical_document_still_in_the_template() {
         &format!("{FOLDER}/tecnico.md"),
         "Criado o novo.txt.\n",
     );
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
     task(&project, &["finish"]).assert().success();
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
 }
@@ -3605,6 +3608,8 @@ fn describe_finish_refuses_the_executive_document_still_in_the_template() {
 #[test]
 fn describe_finish_accepts_a_migrated_task_with_the_documents_written() {
     let project = folder_validated();
+    // Migrada depois do início: sem os hashes do `start`, vale só a checagem de template.
+    drop_document_hashes(&project);
     task(&project, &["finish"]).assert().success();
     assert_eq!(
         read(&project, &format!("{FOLDER}/executivo.md")),
@@ -3826,4 +3831,166 @@ fn migrate_refuses_an_unrecorded_manual_edit_and_migrates_nothing() {
         &project,
         "vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt"
     ));
+}
+
+// --- Executivo e técnico preservados e enriquecidos (SPEC-024) ---
+
+const STRUCTURED_EXECUTIVE: &str = "## O que mudou\n\nTexto do executivo.\n";
+const STRUCTURED_TECHNICAL: &str = "## O que foi feito\n\nTexto do técnico.\n";
+
+fn write_documents(project: &Project, executive: &str, technical: &str) {
+    write(project, &format!("{FOLDER}/executivo.md"), executive);
+    write(project, &format!("{FOLDER}/tecnico.md"), technical);
+}
+
+#[test]
+fn docs_finish_keeps_structured_documents() {
+    let project = folder_started();
+    write_documents(&project, STRUCTURED_EXECUTIVE, STRUCTURED_TECHNICAL);
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    let criteria = read(&project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(&project, &format!("{FOLDER}/criterios.md"), &criteria);
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/executivo.md")),
+        STRUCTURED_EXECUTIVE
+    );
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/tecnico.md")),
+        STRUCTURED_TECHNICAL
+    );
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(record.starts_with("## Registro de execução\n"), "{record}");
+    assert!(!record.contains("O que mudou"), "{record}");
+    assert!(record.contains("| conclusão | done |"), "{record}");
+}
+
+const TITLED_EXECUTIVE: &str =
+    "# TASK-01: Tarefa\n\nAbertura.\n\n## O que muda\n\nTexto.\n\n### Detalhe\n\nMais texto.\n";
+const CODED_TECHNICAL: &str =
+    "Abertura.\n\n```text\n## não é título\n# nem este\n```\n\n## Abordagem\n\nTexto.\n";
+
+#[test]
+fn docs_commands_keep_structured_documents() {
+    let project = folder_task("pending");
+    write_documents(&project, TITLED_EXECUTIVE, CODED_TECHNICAL);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "2. Confira o arquivo.\n",
+    );
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    project
+        .vostok()
+        .args([
+            "task",
+            "adjust",
+            "record",
+            "SPEC-001",
+            "TASK-01",
+            "passo novo",
+        ])
+        .assert()
+        .success();
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/executivo.md")),
+        TITLED_EXECUTIVE
+    );
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/tecnico.md")),
+        CODED_TECHNICAL
+    );
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(!record.contains("Abertura."), "{record}");
+    assert!(record.contains("| passo novo |"), "{record}");
+}
+
+#[test]
+fn docs_approve_refuses_a_document_in_the_template() {
+    let project = folder_task("pending");
+    write(
+        &project,
+        &format!("{FOLDER}/tecnico.md"),
+        "<!-- Escrito no planejamento. -->\n\n#{TASK_TECHNICAL}\n",
+    );
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    let stderr = failure_stderr(&mut nested(&project, "approve", "approve"));
+    assert!(
+        stderr.contains("o documento tecnico.md de TASK-01 ainda está no template; escreva-o com o que a tarefa vai fazer"),
+        "{stderr}"
+    );
+    assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: pending\n"));
+}
+
+fn state_line(project: &Project, key: &str) -> String {
+    read(project, &format!("{FOLDER}/estado.yml"))
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{key}: ")).map(str::to_string))
+        .unwrap_or_default()
+}
+
+/// Remove do estado os hashes do início, como numa tarefa iniciada antes da SPEC-024.
+fn drop_document_hashes(project: &Project) {
+    let path = format!("{FOLDER}/estado.yml");
+    let state: String = read(project, &path)
+        .lines()
+        .filter(|line| !line.starts_with("executive_hash:") && !line.starts_with("technical_hash:"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(project, &path, &state);
+}
+
+#[test]
+fn docs_start_stores_the_document_hashes() {
+    let project = folder_started();
+    assert_eq!(state_line(&project, "executive_hash").len(), 64);
+    assert_eq!(state_line(&project, "technical_hash").len(), 64);
+}
+
+#[test]
+fn docs_finish_refuses_documents_not_enriched() {
+    let project = folder_validated();
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    for name in ["executivo.md", "tecnico.md"] {
+        assert!(
+            stderr.contains(&format!("o documento {name} de TASK-01 não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe")),
+            "{stderr}"
+        );
+    }
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(!stderr.contains("executivo.md"), "{stderr}");
+    assert!(
+        stderr.contains("o documento tecnico.md de TASK-01 não foi enriquecido"),
+        "{stderr}"
+    );
+    append(&project, &format!("{FOLDER}/tecnico.md"), "\nFeito.\n");
+    task(&project, &["finish"]).assert().success();
+}
+
+#[test]
+fn docs_finish_without_start_hashes_checks_only_the_template() {
+    let project = folder_validated();
+    drop_document_hashes(&project);
+    task(&project, &["finish"]).assert().success();
+    assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
 }

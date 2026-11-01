@@ -1476,6 +1476,8 @@ fn fill_folder_task(project: &Project) {
         &format!("{TASK_FOLDER}/criterios.md"),
         "### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n",
     );
+    write_file(project, &format!("{TASK_FOLDER}/executivo.md"), "Resumo.\n");
+    write_file(project, &format!("{TASK_FOLDER}/tecnico.md"), "Detalhes.\n");
 }
 
 #[test]

@@ -117,11 +117,17 @@ fn folder_files(text: &str) -> Vec<(&'static str, String)> {
         ),
         (
             "executivo.md",
-            between_lines(text, "### Resumo executivo", "### Detalhes técnicos"),
+            format!(
+                "## Plano\n\n{}",
+                between_lines(text, "### Resumo executivo", "### Detalhes técnicos")
+            ),
         ),
         (
             "tecnico.md",
-            between_lines(text, "### Detalhes técnicos", "### Card"),
+            format!(
+                "## Plano\n\n```text\n## não é título\n```\n\n{}",
+                between_lines(text, "### Detalhes técnicos", "### Card")
+            ),
         ),
         ("registro.md", between("## Registro de execução", "\0")),
     ]
@@ -313,6 +319,22 @@ impl Scenario {
         let mut args = vec!["task", command, SPEC, id];
         args.extend_from_slice(extra);
         self.run(&args);
+        if command == "start" {
+            self.enrich_documents(id);
+        }
+    }
+
+    /// Na tarefa em pasta, enriquece o executivo e o técnico depois do início, como a
+    /// `finish-task` faz; fora da transcrição.
+    fn enrich_documents(&mut self, id: &str) {
+        if !in_folder(self, id) {
+            return;
+        }
+        for name in ["executivo.md", "tecnico.md"] {
+            let path = format!("{}/{name}", task_folder(id));
+            let text = self.read(&path);
+            self.write(&path, &format!("{text}\n## Feito\n\nEnriquecido.\n"));
+        }
     }
 
     /// `vostok task <grupo> <comando> SPEC-001 <id>`.
@@ -473,13 +495,24 @@ fn normalize(text: &str, root: &std::path::Path) -> String {
     let text = text.replace(root.to_str().unwrap(), "<ROOT>");
     let text = drop_edited_files(&text);
     let text = drop_migration_rows(&text);
-    let text = text.replace(SOURCES_DOCUMENTS, "");
+    let text = drop_sources_documents(&text);
     replace_commit_header(&replace_hashes(&replace_dates(&text)))
 }
 
 /// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.
-const SOURCES_DOCUMENTS: &str =
-    "**Resumo executivo**\n\nResumo.\n\n**Detalhes técnicos**\n\nDetalhes.\n\n";
+fn drop_sources_documents(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("**Resumo executivo**\n") {
+        let end = rest[start..]
+            .find("**Registro de execução**")
+            .map_or(rest.len(), |offset| start + offset);
+        out.push_str(&rest[..start]);
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
 
 /// RF-12: a spec migrada ganha no registro a linha da migração; ela sai e as linhas seguintes
 /// voltam ao número que teriam sem ela.

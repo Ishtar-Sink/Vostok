@@ -69,7 +69,7 @@ Execute:
 vostok context load --skill adjust-task --persona arquiteto --persona engenheiro --persona qa-lead
 ```
 
-Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-plan](../approve-plan/SKILL.md).
+Os formatos de cada subseção da tarefa estão no passo 4 da skill [approve-plan](../approve-plan/SKILL.md). Na tarefa em pasta, leia só o arquivo do alvo com `vostok task load <SPEC_ID> <TASK_ID> --part <execucao|verificacao|criterios|executivo|tecnico>`; o `vostok task adjust record-manual` cita o arquivo editado à mão.
 
 ### 2. Identificar a tarefa
 
@@ -133,7 +133,7 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t
 
 ### 7. Editar a tarefa
 
-Aplique os ajustes nas seções "Execução" e "Descrição", nos formatos da `approve-plan`. Mantenha "Execução" e "Descrição" coerentes: um critério de conclusão novo também entra nos "Critérios de aceite" do card.
+Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções "Execução" e "Descrição", mantendo as duas coerentes (um critério de conclusão novo também entra nos "Critérios de aceite" do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação.
 
 ### 8. Validar
 

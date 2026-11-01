@@ -252,3 +252,23 @@ regression_alert:
 # evidência pode ter o subitem "Tempo-limite: <segundos>" (0 sem limite), aprovado pelo usuário com a
 # tarefa. Não vale para os comandos de "Baseline" nem para a finalização.
 evidence_baseline_timeout: 120
+
+# Arquivos da tarefa em pasta (`paths.tasks`/<SPEC_ID>/<TASK_ID>/). `estado.yml`, `registro.md` e o
+# README são gravados só pelo vostok; o executivo e o técnico são escritos na finalização da tarefa.
+# Tarefas no arquivo único `<TASK_ID>.md` continuam lidas como antes.
+task_files:
+  state: estado.yml
+  readme: README.md
+  execution: execucao.md
+  verification: verificacao.md
+  criteria: criterios.md
+  executive: executivo.md
+  technical: tecnico.md
+  record: registro.md
+
+# Subpasta da tarefa em pasta com as evidências, o baseline e a validação.
+task_evidence_dir: evidencias
+
+# Pasta dos templates dos demais arquivos da tarefa em pasta: um por arquivo de `task_files`, com o
+# nome em minúsculas (README.md vira readme.md).
+task_folder_template_dir: task

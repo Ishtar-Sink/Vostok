@@ -66,7 +66,7 @@ Sem citação, considere as specs com tarefas `pending`. Se houver mais de uma, 
 
 Com citação, use as tarefas citadas. Com pedido explícito de todas, use `--all`.
 
-Sem citação: leia o front-matter das tarefas da spec, liste as que estão com status `pending` e **PARE**. Pergunte quais aprovar, com o template `question`, usando a [lista de tarefas pendentes](#lista-de-tarefas-pendentes) e as opções "todas", "só algumas (diga quais)" e "nenhuma". Não aprove nada antes da resposta. Sem tarefas `pending`, informe que não há tarefas para aprovar e encerre.
+Sem citação: leia o estado das tarefas da spec (`vostok task status <SPEC_ID>`; o `estado.yml` na tarefa em pasta, o front-matter no formato antigo), liste as que estão com status `pending` e **PARE**. Pergunte quais aprovar, com o template `question`, usando a [lista de tarefas pendentes](#lista-de-tarefas-pendentes) e as opções "todas", "só algumas (diga quais)" e "nenhuma". Não aprove nada antes da resposta. Sem tarefas `pending`, informe que não há tarefas para aprovar e encerre.
 
 ### 4. Conferir os impedimentos
 
@@ -76,7 +76,7 @@ Execute, com os IDs ou `--all`:
 vostok task approve validate <SPEC_ID> <TASK_ID ...>
 ```
 
-O comando lista os impedimentos de cada tarefa, sem alterar nada. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:
+O comando lista os impedimentos de cada tarefa, sem alterar nada. Na tarefa em pasta, a aprovação cobre `execucao.md`, `verificacao.md` e `criterios.md`; mudar depois só `executivo.md` ou `tecnico.md` não derruba a aprovação. Se houver algum, **PARE** e responda com o template `blocker`, com a mensagem do comando:
 
 | Impedimento | Como resolver |
 |---|---|

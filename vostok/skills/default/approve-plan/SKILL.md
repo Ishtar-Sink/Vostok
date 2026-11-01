@@ -20,9 +20,9 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 ## Termos
 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
-- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/TASK-NN.md`, criado pelo comando a partir do plano.
+- **Tarefa:** a pasta `vostok/work/tasks/<SPEC_ID>/TASK-NN/`, criada pelo comando a partir do plano, com `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências), `criterios.md` (Concluída quando), `executivo.md`, `tecnico.md`, `estado.yml`, `registro.md`, o `README.md` gerado e a subpasta `evidencias/`. Specs planejadas antes têm o arquivo único `TASK-NN.md`; `vostok task migrate <SPEC_ID>` as converte.
 - **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): "Ler", "Mudar", "Passos", "Baseline", "Verificação", "Evidências" e "Concluída quando".
-- **Descrição:** a seção da tarefa para leitura humana: "Resumo executivo", "Detalhes técnicos" e "Card".
+- **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos na finalização da tarefa (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção "Descrição" do arquivo único.
 - **Planejada:** a spec com status `planned`, depois da aprovação do plano. Não é mais ajustada nem planejada.
 - **Impedimento:** o que impede a aprovação: spec fora de `approved` ou alterada, plano desatualizado, edição manual sem registro ou problema de validação.
 
@@ -100,13 +100,17 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
-Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` do arquivo:
+Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). `executivo.md` e `tecnico.md` ficam com as variáveis: são escritos na finalização da tarefa, a partir do que foi feito, e o `vostok task finish` os exige. Não escreva card nem README: o `vostok` os gera.
 
 **Execução** (para o agente):
 
 - **`#{TASK_READ}`:** lista de `` - `caminho` `` com o que ler antes de mudar: arquivos afetados, vizinhos que servem de exemplo e a spec. Para arquivo com mais de 400 linhas, o item cita a função, o teste ou a faixa de linhas que importam (`` - `caminho` (fn nome, teste nome) ``): quem executa lê por busca e trecho, nunca o arquivo inteiro.
 - **`#{TASK_CHANGE}`:** lista no formato `` - `caminho` (ação): motivo ``, com caminhos relativos à raiz do projeto e ação `criar`, `alterar` ou `remover`. `criar` só para caminhos que ainda não existem; as demais, só para caminhos existentes ou criados por uma tarefa de que esta depende, direta ou indiretamente.
-- **`#{TASK_STEPS}`:** passos numerados, na ordem, cada um com uma ação concreta.
+- **`#{TASK_STEPS}`:** passos numerados, na ordem, em formato fixo: cada passo com o caminho, a ação e a conferência, para que um modelo mais simples siga sem decidir nada. Decisões de desenho vão para os "Detalhes técnicos" do plano, não para os passos.
+
+  ```markdown
+  1. `apps/cli/src/commands/task.rs` (alterar): em `fn start`, marque `in_progress` antes do baseline. Confira: `cargo test --test task -- start_progress_`.
+  ```
 - **`#{TASK_BASELINE}`:** lista de `` - `comando` ``, ao menos um, com os comandos rodados antes da mudança e de novo depois, para comparar o resultado. O baseline detecta regressão: mede o que já existe, que a tarefa toca e não pode quebrar. Para cada `alterar` de "Mudar", inclua os testes, o lint e a checagem de tipos que cobrem esses arquivos, e as saídas atuais que eles produzem. Para cada `remover`, inclua o que referencia o caminho (build, imports, links). Meça isso e nunca a entrega da tarefa: nem os caminhos `criar` (o `vostok plan approve validate` recusa), nem o texto ou os testes que a tarefa acrescenta; quando a saída lista testes, filtre os nomes novos da tarefa e tire o resumo de contagem (`grep -v '^test result'` ou equivalente), que muda com os testes novos. Prefira comandos focados no que a tarefa toca à suíte inteira, e ordene saídas que mudam de ordem entre execuções. Só comandos estáveis: sem data, sem caminho temporário e sem nada que mude entre execuções. Na finalização, linhas novas com o mesmo código de saída não bloqueiam (acréscimo), salvo as que contêm um texto de `regression_alert` em `config/tasks.yml` (`FAILED`, `error`, `warning`, `panicked`); linha que some, saída reordenada ou código diferente bloqueiam. Um comando que a tarefa muda de propósito, como uma contagem que ela aumenta, leva o motivo: `` - `ls rules/agent | wc -l` (muda): o número de regras passa de 5 para 6 ``. A diferença aparece com o motivo sem bloquear; nunca use `(muda)` para esconder uma regressão.
 - **`#{TASK_VERIFY}`:** bloco `bash` com os comandos que comprovam a tarefa (testes, validações) e o resultado esperado. Os comandos são focados nos caminhos de "Mudar": a suíte inteira fica para a tarefa de integração. Rode cada comando de teste uma vez no planejamento e confira que ele seleciona só esse escopo e que os filtros e o reporter fazem efeito. Um comando cuja saída é evidência leva antes a linha `# evidência: <arquivo>`; o item de evidência `(automática, da verificação)` reaproveita essa saída em vez de repetir o comando.
 
@@ -129,7 +133,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
   ```
 - **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação.
 
-**Descrição** (para pessoas):
+**Descrição** (para pessoas; só no formato antigo, de arquivo único):
 
 - **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.

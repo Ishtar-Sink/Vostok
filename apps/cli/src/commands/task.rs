@@ -2026,11 +2026,10 @@ impl Tasks {
         }
         TaskDoc::at(&file).set("evidence_result", "passed")?;
         let folder = dir
-            .parent()
-            .and_then(Path::file_name)
-            .unwrap_or_default()
+            .strip_prefix(file.parent().unwrap_or(Path::new("")))
+            .unwrap_or(&dir)
             .to_string_lossy();
-        let mut detail = format!("{} evidência(s) em {folder}/{task}/", items.len());
+        let mut detail = format!("{} evidência(s) em {folder}/", items.len());
         if !same.is_empty() {
             let names: Vec<&str> = same.iter().map(|(name, _)| name.as_str()).collect();
             detail.push_str(&format!(
@@ -2661,6 +2660,14 @@ impl Tasks {
             .collect();
         let approved_field = self.spec_cfg("approved_hash_field")?;
         let approved = TaskDoc::at(file).get(&approved_field).unwrap_or_default();
+        let hash_field = self.spec_cfg("content_hash_field")?;
+        let never_hashed = matches!(
+            TaskDoc::at(file)
+                .get(&hash_field)
+                .unwrap_or_default()
+                .as_str(),
+            "" | "null" | "-"
+        );
         let still_approved = approved == self.content_hash(&content)?;
         let description = content
             .lines()
@@ -2697,8 +2704,16 @@ impl Tasks {
             )?;
         }
         self.record_step(&folder, "migração", "pasta", "formato antigo convertido")?;
+        let doc = TaskDoc::at(&folder);
         if still_approved {
-            TaskDoc::at(&folder).put(&approved_field, &self.task_hash(&folder)?)?;
+            doc.put(&approved_field, &self.task_hash(&folder)?)?;
+        }
+        // Sem hash no formato antigo, a tarefa segue à espera do registro da edição manual.
+        if never_hashed {
+            doc.put(&hash_field, "null")?;
+            for (key, _) in layout.hashed_files() {
+                doc.put(key, "null")?;
+            }
         }
         Ok(folder)
     }

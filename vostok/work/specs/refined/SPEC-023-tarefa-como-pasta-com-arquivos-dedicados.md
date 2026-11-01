@@ -1,10 +1,10 @@
 ---
 id: SPEC-023
 title: "Tarefa como pasta com arquivos dedicados"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-01T11:34:34Z
-updated_at: 2026-11-01T11:58:10Z
+updated_at: 2026-11-01T13:50:38Z
 tags: []
 type: improvement
 source: "draft/SPEC-023-tarefa-como-pasta-com-arquivos-dedicados.md"

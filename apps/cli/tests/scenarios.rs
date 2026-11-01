@@ -14,7 +14,20 @@ const RECORD_VARIABLE: &str = "VOSTOK_SCENARIOS_RECORD";
 const AUTOMATIC_EVIDENCE: &str = "- `saida.txt` (automática): `cat leitura.txt`\n  - Prova: o arquivo é lido.\n  - Trecho: a linha `ok`.\n  - Falha: arquivo ausente.";
 const EXPECTING_EVIDENCE: &str = "- `saida.txt` (automática): `cat leitura.txt`\n  - Prova: o arquivo é lido.\n  - Trecho: a linha `ok`.\n  - Falha: arquivo ausente.\n  - Espera: ok";
 
-// --- Acesso ao formato da tarefa: só estas quatro funções o conhecem ---
+// --- Acesso ao formato da tarefa: só estas funções o conhecem ---
+
+/// Formato em que o cenário grava as tarefas. O resultado tem de ser o mesmo nos três.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Format {
+    /// Arquivo único `TASK-NN.md`.
+    Single,
+    /// Pasta `TASK-NN/`, gravada direto.
+    Folder,
+    /// Arquivo único convertido com `vostok task migrate` antes do primeiro comando.
+    Migrated,
+}
+
+const FORMATS: [Format; 3] = [Format::Single, Format::Folder, Format::Migrated];
 
 /// Dados de uma tarefa de cenário; o que não é informado tem um valor padrão que passa em tudo.
 struct TaskSource<'a> {
@@ -43,6 +56,91 @@ fn task_path(id: &str) -> String {
     format!("vostok/work/tasks/{SPEC}/{id}.md")
 }
 
+fn task_folder(id: &str) -> String {
+    format!("vostok/work/tasks/{SPEC}/{id}")
+}
+
+/// A tarefa está em pasta (gravada assim ou já migrada).
+fn in_folder(scenario: &Scenario, id: &str) -> bool {
+    scenario
+        .project
+        .root()
+        .join(task_folder(id))
+        .join("estado.yml")
+        .exists()
+}
+
+/// Arquivo da tarefa com os campos do estado.
+fn state_path(scenario: &Scenario, id: &str) -> String {
+    if in_folder(scenario, id) {
+        format!("{}/estado.yml", task_folder(id))
+    } else {
+        task_path(id)
+    }
+}
+
+/// Arquivo da tarefa que contém `text`: o arquivo único ou o arquivo da pasta com o trecho.
+fn task_file_with(scenario: &Scenario, id: &str, text: &str) -> String {
+    if !in_folder(scenario, id) {
+        return task_path(id);
+    }
+    ["execucao.md", "verificacao.md", "criterios.md"]
+        .iter()
+        .map(|name| format!("{}/{name}", task_folder(id)))
+        .find(|path| scenario.read(path).contains(text))
+        .unwrap_or_else(|| panic!("'{text}' não está nos arquivos de {id}"))
+}
+
+/// Divide o texto da tarefa nos arquivos da pasta: o front-matter no estado e cada seção no seu
+/// arquivo; o card fica de fora.
+fn folder_files(text: &str) -> Vec<(&'static str, String)> {
+    let between = |start: &str, end: &str| -> String {
+        let from = text.find(start).unwrap();
+        let to = end_of(text, from, end);
+        format!("{}\n", text[from..to].trim_matches('\n'))
+    };
+    let state = text
+        .strip_prefix("---\n")
+        .and_then(|rest| rest.split_once("\n---\n"))
+        .map(|(state, _)| format!("{state}\n"))
+        .unwrap();
+    vec![
+        ("estado.yml", state),
+        ("execucao.md", between("### Ler", "### Baseline")),
+        (
+            "verificacao.md",
+            between("### Baseline", "### Concluída quando"),
+        ),
+        (
+            "criterios.md",
+            between("### Concluída quando", "## Descrição"),
+        ),
+        (
+            "executivo.md",
+            between_lines(text, "### Resumo executivo", "### Detalhes técnicos"),
+        ),
+        (
+            "tecnico.md",
+            between_lines(text, "### Detalhes técnicos", "### Card"),
+        ),
+        ("registro.md", between("## Registro de execução", "\0")),
+    ]
+}
+
+/// Fim do trecho que começa em `from`: o início de `end`, ou o fim do texto.
+fn end_of(text: &str, from: usize, end: &str) -> usize {
+    text[from..]
+        .find(end)
+        .map_or(text.len(), |offset| from + offset)
+}
+
+/// Texto entre os dois títulos, sem eles.
+fn between_lines(text: &str, start: &str, end: &str) -> String {
+    let from = text.find(start).unwrap() + start.len();
+    let to = end_of(text, from, end);
+    format!("{}\n", text[from..to].trim_matches('\n'))
+}
+
 fn write_task(scenario: &mut Scenario, source: &TaskSource) {
     let TaskSource {
         id,
@@ -55,13 +153,19 @@ fn write_task(scenario: &mut Scenario, source: &TaskSource) {
     let text = format!(
         "---\nid: {id}\nspec: {SPEC}\ntitle: \"Tarefa {id}\"\nprofile: mecanica\npersona: desenvolvedor\ndepends_on: {depends_on}\nwave: 1\ncovers: [RF-01]\ntype: tarefa\nlabels: [{SPEC}, mecanica]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# {id}: Tarefa {id}\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `feito.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n{baseline}\n\n### Verificação\n\n```bash\n{verification}\n```\n\n### Evidências\n\n{evidence}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa {id}\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** {SPEC}, mecanica\n- **Estimativa:** mecanica\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n"
     );
-    scenario.write(&task_path(id), &text);
+    if scenario.format == Format::Folder {
+        for (name, content) in folder_files(&text) {
+            scenario.write(&format!("{}/{name}", task_folder(id)), &content);
+        }
+    } else {
+        scenario.write(&task_path(id), &text);
+    }
 }
 
 /// Valor de um campo do cabeçalho da tarefa.
 fn state_of(scenario: &Scenario, id: &str, field: &str) -> String {
     scenario
-        .read(&task_path(id))
+        .read(&state_path(scenario, id))
         .lines()
         .find_map(|line| line.strip_prefix(&format!("{field}: ")))
         .unwrap_or("(ausente)")
@@ -70,7 +174,11 @@ fn state_of(scenario: &Scenario, id: &str, field: &str) -> String {
 
 /// Linhas da tabela "Registro de execução", sem o cabeçalho.
 fn record_rows(scenario: &Scenario, id: &str) -> Vec<String> {
-    let text = scenario.read(&task_path(id));
+    let text = if in_folder(scenario, id) {
+        scenario.read(&format!("{}/registro.md", task_folder(id)))
+    } else {
+        scenario.read(&task_path(id))
+    };
     let section = text.split("## Registro de execução").nth(1).unwrap_or("");
     section
         .lines()
@@ -86,19 +194,32 @@ fn evidence_root(id: &str) -> String {
     format!("vostok/work/tasks/{SPEC}/evidence/{id}")
 }
 
+/// Pasta das evidências da tarefa em pasta.
+fn folder_evidence_root(id: &str) -> String {
+    format!("{}/evidencias", task_folder(id))
+}
+
 // --- Executor de cenário ---
 
 struct Scenario {
     name: &'static str,
+    format: Format,
+    /// A spec ainda espera a conversão (variante migrada).
+    pending_migration: bool,
+    /// O cenário marca o ponto da conversão com `migrate_here`.
+    deferred_migration: bool,
     project: Project,
     transcript: String,
     tasks: Vec<String>,
 }
 
 impl Scenario {
-    fn new(name: &'static str) -> Self {
+    fn new(name: &'static str, format: Format) -> Self {
         let mut scenario = Self {
             name,
+            format,
+            pending_migration: format == Format::Migrated,
+            deferred_migration: false,
             project: Project::new(),
             transcript: String::new(),
             tasks: Vec::new(),
@@ -133,8 +254,41 @@ impl Scenario {
         self.tasks.push(source.id.to_string());
     }
 
+    /// Na variante migrada, a conversão acontece no ponto marcado, e não antes do primeiro comando.
+    fn defer_migration(&mut self) {
+        self.deferred_migration = true;
+    }
+
+    /// Converte a spec para pasta, fora da transcrição. Sem efeito nas outras variantes.
+    fn migrate_here(&mut self) {
+        if !self.pending_migration {
+            return;
+        }
+        self.pending_migration = false;
+        let output = self
+            .project
+            .vostok()
+            .args(["task", "migrate", SPEC])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "migração falhou: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    /// Troca `from` por `to` no arquivo da tarefa que tem o trecho.
+    fn edit_task(&mut self, id: &str, from: &str, to: &str) {
+        let path = task_file_with(self, id, from);
+        self.replace(&path, from, to);
+    }
+
     /// Roda `vostok <args>` e acrescenta o comando, o código de saída e as duas saídas.
     fn run(&mut self, args: &[&str]) {
+        if !self.deferred_migration {
+            self.migrate_here();
+        }
         let output = self.project.vostok().args(args).output().unwrap();
         self.transcript
             .push_str(&format!("$ vostok {}\n", args.join(" ")));
@@ -173,11 +327,7 @@ impl Scenario {
     }
 
     fn mark_done_criteria(&mut self, id: &str) {
-        self.replace(
-            &task_path(id),
-            "- [ ] Pronto (RF-01).",
-            "- [x] Pronto (RF-01).",
-        );
+        self.edit_task(id, "- [ ] Pronto (RF-01).", "- [x] Pronto (RF-01).");
     }
 
     fn write_state(&mut self) {
@@ -213,7 +363,12 @@ impl Scenario {
     }
 
     fn evidence_files(&self, id: &str) -> Vec<String> {
-        let root = self.project.root().join(evidence_root(id));
+        let relative = if in_folder(self, id) {
+            folder_evidence_root(id)
+        } else {
+            evidence_root(id)
+        };
+        let root = self.project.root().join(relative);
         let mut files = Vec::new();
         collect_files(&root, &root, &mut files);
         files.sort();
@@ -226,8 +381,10 @@ impl Scenario {
         let transcript = normalize(&self.transcript, self.project.root());
         let path = fixture_path(self.name);
         if std::env::var(RECORD_VARIABLE).as_deref() == Ok("1") {
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(&path, transcript).unwrap();
+            if self.format == Format::Single {
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(&path, transcript).unwrap();
+            }
             return;
         }
         let expected = fs::read_to_string(&path).unwrap_or_else(|_| {
@@ -238,8 +395,9 @@ impl Scenario {
         });
         assert!(
             expected == transcript,
-            "cenário {} difere da fixture:\n{}",
+            "cenário {} ({:?}) difere da fixture:\n{}",
             self.name,
+            self.format,
             differing_lines(&expected, &transcript)
         );
     }
@@ -302,10 +460,68 @@ fn normalize(text: &str, root: &std::path::Path) -> String {
                 &format!("{root_text}/{}", evidence_root(&id)),
                 "<EVIDENCIAS>",
             )
-            .replace(&evidence_root(&id), "<EVIDENCIAS>");
+            .replace(&evidence_root(&id), "<EVIDENCIAS>")
+            .replace(
+                &format!("{root_text}/{}", folder_evidence_root(&id)),
+                "<EVIDENCIAS>",
+            )
+            .replace(&folder_evidence_root(&id), "<EVIDENCIAS>")
+            .replace(&format!("{id}/evidencias/"), &format!("evidence/{id}/"))
+            .replace(&format!("{root_text}/{}", task_folder(&id)), "<TAREFA>")
+            .replace(&task_folder(&id), "<TAREFA>");
     }
     let text = text.replace(root.to_str().unwrap(), "<ROOT>");
+    let text = drop_edited_files(&text);
+    let text = drop_migration_rows(&text);
+    let text = text.replace(SOURCES_DOCUMENTS, "");
     replace_commit_header(&replace_hashes(&replace_dates(&text)))
+}
+
+/// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.
+const SOURCES_DOCUMENTS: &str =
+    "**Resumo executivo**\n\nResumo.\n\n**Detalhes técnicos**\n\nDetalhes.\n\n";
+
+/// RF-12: a spec migrada ganha no registro a linha da migração; ela sai e as linhas seguintes
+/// voltam ao número que teriam sem ela.
+fn drop_migration_rows(text: &str) -> String {
+    let mut shift = 0;
+    let mut lines = Vec::new();
+    for line in text.lines() {
+        if line.starts_with("| # ") || line.starts_with("## ") {
+            shift = 0;
+        }
+        if line.contains("| migração | pasta | formato antigo convertido |") {
+            shift += 1;
+            continue;
+        }
+        let renumbered = line
+            .strip_prefix("| ")
+            .and_then(|rest| rest.split_once(" |"))
+            .and_then(|(number, rest)| Some((number.parse::<usize>().ok()?, rest)))
+            .filter(|_| shift > 0)
+            .map(|(number, rest)| format!("| {} |{rest}", number - shift));
+        lines.push(renumbered.unwrap_or_else(|| line.to_string()));
+    }
+    format!("{}\n", lines.join("\n"))
+}
+
+/// RF-07: no formato de pasta, a edição manual cita os arquivos editados
+/// (`Edição manual: execucao.md`); a citação sai para comparar com o formato atual.
+fn drop_edited_files(text: &str) -> String {
+    let lines: Vec<String> = text
+        .lines()
+        .map(|line| {
+            let Some(start) = line.find("Edição manual: ") else {
+                return line.to_string();
+            };
+            let cited = start + "Edição manual".len();
+            let end = line[cited..]
+                .find(" |")
+                .map_or(line.len(), |offset| cited + offset);
+            format!("{}{}", &line[..cited], &line[end..])
+        })
+        .collect();
+    format!("{}\n", lines.join("\n"))
 }
 
 /// Datas `AAAA-MM-DD` e horas ISO `AAAA-MM-DDTHH:MM:SSZ` viram `<DATA>`.
@@ -395,211 +611,229 @@ fn passing_task<'a>(id: &'a str, verification: &'a str) -> TaskSource<'a> {
 
 #[test]
 fn scenario_full_flow() {
-    let mut s = Scenario::new("full-flow");
-    s.add_task(&TaskSource {
-        evidence: AUTOMATIC_EVIDENCE,
-        verification: "echo verificado",
-        ..TaskSource::new("TASK-01")
-    });
-    s.add_task(&TaskSource {
-        depends_on: "[TASK-01]",
-        verification: "echo verificado de novo",
-        ..TaskSource::new("TASK-02")
-    });
-    s.approve("TASK-01");
-    s.approve("TASK-02");
-    for id in ["TASK-01", "TASK-02"] {
-        s.task("start", id, &[]);
-        s.mark_done_criteria(id);
-        s.write("leitura.txt", "ok\n");
-        s.task("tests", id, &[]);
-        s.task("regression", id, &[]);
-        s.task("evidence", id, &[]);
-        s.task("finish", id, &[]);
+    for format in FORMATS {
+        let mut s = Scenario::new("full-flow", format);
+        s.add_task(&TaskSource {
+            evidence: AUTOMATIC_EVIDENCE,
+            verification: "echo verificado",
+            ..TaskSource::new("TASK-01")
+        });
+        s.add_task(&TaskSource {
+            depends_on: "[TASK-01]",
+            verification: "echo verificado de novo",
+            ..TaskSource::new("TASK-02")
+        });
+        s.approve("TASK-01");
+        s.approve("TASK-02");
+        for id in ["TASK-01", "TASK-02"] {
+            s.task("start", id, &[]);
+            s.mark_done_criteria(id);
+            s.write("leitura.txt", "ok\n");
+            s.task("tests", id, &[]);
+            s.task("regression", id, &[]);
+            s.task("evidence", id, &[]);
+            s.task("finish", id, &[]);
+        }
+        s.run(&["finalize", "sources", SPEC]);
+        s.finish();
     }
-    s.run(&["finalize", "sources", SPEC]);
-    s.finish();
 }
 
 #[test]
 fn scenario_failing_tests_block_and_resume() {
-    let mut s = Scenario::new("failing-tests-block-and-resume");
-    s.add_task(&passing_task("TASK-01", "test -f feito.txt"));
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.task("tests", "TASK-01", &[]);
-    s.task("tests", "TASK-01", &[]);
-    s.task("tests", "TASK-01", &[]);
-    s.write("feito.txt", "ok\n");
-    s.task("resume", "TASK-01", &["criei o arquivo que faltava"]);
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("failing-tests-block-and-resume", format);
+        s.add_task(&passing_task("TASK-01", "test -f feito.txt"));
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.mark_done_criteria("TASK-01");
+        s.task("tests", "TASK-01", &[]);
+        s.task("tests", "TASK-01", &[]);
+        s.task("tests", "TASK-01", &[]);
+        s.write("feito.txt", "ok\n");
+        s.task("resume", "TASK-01", &["criei o arquivo que faltava"]);
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_regression_block_and_accept() {
-    let mut s = Scenario::new("regression-block-and-accept");
-    s.write("valor.txt", "a\n");
-    s.add_task(&TaskSource {
-        baseline: "- `cat valor.txt`",
-        ..passing_task("TASK-01", "true")
-    });
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.write("valor.txt", "b\n");
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task(
-        "resume",
-        "TASK-01",
-        &["--accept-regression", "1", "diferença esperada"],
-    );
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("regression-block-and-accept", format);
+        s.defer_migration();
+        s.write("valor.txt", "a\n");
+        s.add_task(&TaskSource {
+            baseline: "- `cat valor.txt`",
+            ..passing_task("TASK-01", "true")
+        });
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.migrate_here();
+        s.mark_done_criteria("TASK-01");
+        s.write("valor.txt", "b\n");
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task(
+            "resume",
+            "TASK-01",
+            &["--accept-regression", "1", "diferença esperada"],
+        );
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_regression_growth_passes() {
-    let mut s = Scenario::new("regression-growth-passes");
-    s.write("lista.txt", "um\n");
-    s.add_task(&TaskSource {
-        baseline: "- `cat lista.txt`",
-        ..passing_task("TASK-01", "true")
-    });
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.write("lista.txt", "um\ndois\n");
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("regression-growth-passes", format);
+        s.write("lista.txt", "um\n");
+        s.add_task(&TaskSource {
+            baseline: "- `cat lista.txt`",
+            ..passing_task("TASK-01", "true")
+        });
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.mark_done_criteria("TASK-01");
+        s.write("lista.txt", "um\ndois\n");
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_failing_evidence() {
-    let mut s = Scenario::new("failing-evidence");
-    s.add_task(&TaskSource {
-        evidence: EXPECTING_EVIDENCE,
-        ..passing_task("TASK-01", "true")
-    });
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.write("leitura.txt", "outro\n");
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("failing-evidence", format);
+        s.add_task(&TaskSource {
+            evidence: EXPECTING_EVIDENCE,
+            ..passing_task("TASK-01", "true")
+        });
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.mark_done_criteria("TASK-01");
+        s.write("leitura.txt", "outro\n");
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_requires_and_timeout() {
-    let mut s = Scenario::new("requires-and-timeout");
-    let evidence = "- `esperada.txt` (automática): `test -s feito.txt && echo pronto`\n  - Prova: o arquivo novo é lido.\n  - Trecho: o conteúdo.\n  - Falha: arquivo ausente.\n  - Requer: `feito.txt`\n- `lenta.txt` (automática): `echo começo; sleep 5; echo fim`\n  - Prova: o comando roda.\n  - Trecho: começo.\n  - Falha: vazio.\n  - Tempo-limite: 1";
-    s.add_task(&TaskSource {
-        evidence,
-        ..passing_task("TASK-01", "true")
-    });
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.write("feito.txt", "pronto\n");
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("requires-and-timeout", format);
+        let evidence = "- `esperada.txt` (automática): `test -s feito.txt && echo pronto`\n  - Prova: o arquivo novo é lido.\n  - Trecho: o conteúdo.\n  - Falha: arquivo ausente.\n  - Requer: `feito.txt`\n- `lenta.txt` (automática): `echo começo; sleep 5; echo fim`\n  - Prova: o comando roda.\n  - Trecho: começo.\n  - Falha: vazio.\n  - Tempo-limite: 1";
+        s.add_task(&TaskSource {
+            evidence,
+            ..passing_task("TASK-01", "true")
+        });
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.mark_done_criteria("TASK-01");
+        s.write("feito.txt", "pronto\n");
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_start_refused() {
-    let mut s = Scenario::new("start-refused");
-    s.add_task(&passing_task("TASK-01", "true"));
-    s.add_task(&TaskSource {
-        depends_on: "[TASK-01]",
-        ..passing_task("TASK-02", "true")
-    });
-    s.approve("TASK-02");
-    s.task("start", "TASK-02", &[]);
-    s.approve("TASK-01");
-    s.replace(
-        &task_path("TASK-01"),
-        "1. Crie o arquivo.",
-        "1. Crie outro arquivo.",
-    );
-    s.task("start", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("start-refused", format);
+        s.add_task(&passing_task("TASK-01", "true"));
+        s.add_task(&TaskSource {
+            depends_on: "[TASK-01]",
+            ..passing_task("TASK-02", "true")
+        });
+        s.approve("TASK-02");
+        s.task("start", "TASK-02", &[]);
+        s.approve("TASK-01");
+        s.edit_task("TASK-01", "1. Crie o arquivo.", "1. Crie outro arquivo.");
+        s.task("start", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_finish_refused() {
-    let mut s = Scenario::new("finish-refused");
-    s.add_task(&passing_task("TASK-01", "true"));
-    s.approve("TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.task("tests", "TASK-01", &[]);
-    s.task("regression", "TASK-01", &[]);
-    s.task("evidence", "TASK-01", &[]);
-    s.task("finish", "TASK-01", &[]);
-    s.mark_done_criteria("TASK-01");
-    s.task("finish", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("finish-refused", format);
+        s.add_task(&passing_task("TASK-01", "true"));
+        s.approve("TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.task("tests", "TASK-01", &[]);
+        s.task("regression", "TASK-01", &[]);
+        s.task("evidence", "TASK-01", &[]);
+        s.task("finish", "TASK-01", &[]);
+        s.mark_done_criteria("TASK-01");
+        s.task("finish", "TASK-01", &[]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_manual_edit_and_adjust() {
-    let mut s = Scenario::new("manual-edit-and-adjust");
-    s.add_task(&passing_task("TASK-01", "true"));
-    s.approve("TASK-01");
-    s.replace(
-        &task_path("TASK-01"),
-        "1. Crie o arquivo.",
-        "1. Crie o arquivo com calma.",
-    );
-    s.nested("adjust", "validate", "TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.nested("adjust", "record-manual", "TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.nested("approve", "approve", "TASK-01");
-    s.task("start", "TASK-01", &[]);
-    s.replace(
-        &task_path("TASK-01"),
-        "1. Crie o arquivo com calma.",
-        "1. Crie o arquivo e confira.",
-    );
-    s.nested("adjust", "record-manual", "TASK-01");
-    s.run(&[
-        "task",
-        "adjust",
-        "record",
-        SPEC,
-        "TASK-01",
-        "passo ajustado durante a execução",
-    ]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("manual-edit-and-adjust", format);
+        s.add_task(&passing_task("TASK-01", "true"));
+        s.approve("TASK-01");
+        s.edit_task(
+            "TASK-01",
+            "1. Crie o arquivo.",
+            "1. Crie o arquivo com calma.",
+        );
+        s.nested("adjust", "validate", "TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.nested("adjust", "record-manual", "TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.nested("approve", "approve", "TASK-01");
+        s.task("start", "TASK-01", &[]);
+        s.edit_task(
+            "TASK-01",
+            "1. Crie o arquivo com calma.",
+            "1. Crie o arquivo e confira.",
+        );
+        s.nested("adjust", "record-manual", "TASK-01");
+        s.run(&[
+            "task",
+            "adjust",
+            "record",
+            SPEC,
+            "TASK-01",
+            "passo ajustado durante a execução",
+        ]);
+        s.finish();
+    }
 }
 
 #[test]
 fn scenario_tests_without_baseline() {
-    let mut s = Scenario::new("tests-without-baseline");
-    s.add_task(&TaskSource {
-        status: "in_progress",
-        ..passing_task("TASK-01", "true")
-    });
-    s.task("tests", "TASK-01", &[]);
-    s.task("baseline", "TASK-01", &[]);
-    s.task("tests", "TASK-01", &[]);
-    s.finish();
+    for format in FORMATS {
+        let mut s = Scenario::new("tests-without-baseline", format);
+        s.add_task(&TaskSource {
+            status: "in_progress",
+            ..passing_task("TASK-01", "true")
+        });
+        s.task("tests", "TASK-01", &[]);
+        s.task("baseline", "TASK-01", &[]);
+        s.task("tests", "TASK-01", &[]);
+        s.finish();
+    }
 }

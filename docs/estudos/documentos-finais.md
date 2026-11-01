@@ -48,7 +48,93 @@ Os documentos funcionam de 400 px a 1280 px ou mais, sem rolagem horizontal da p
 
 ## Estudo de conteúdo
 
-Escrito na TASK-02.
+### Referências
+
+As referências públicas sobre leitura em tela concordam num ponto: o leitor não lê de ponta a ponta antes de decidir se o texto vale a pena. Nos testes do Nielsen Norman Group, 79% dos usuários varreram uma página nova e só 16% leram palavra por palavra; a varredura em forma de F é o padrão mais comum, e ela piora quando o texto não oferece títulos e palavras de apoio ([NN/g, padrões de varredura](https://www.nngroup.com/articles/text-scanning-patterns-eyetracking/)). A resposta clássica é a pirâmide invertida, que põe a conclusão primeiro e o detalhe depois, porque o leitor só continua rolando quando espera encontrar o que precisa mais abaixo ([NN/g, pirâmide invertida](https://www.nngroup.com/articles/inverted-pyramid/)). A comunicação militar americana chegou à mesma regra com o nome BLUF, *bottom line up front*: a mensagem abre com a decisão ou o resultado, e o resto sustenta ([BLUF](https://en.wikipedia.org/wiki/BLUF_(communication))).
+
+Sobre listas, as fontes se dividem de forma útil. O NN/g recomenda listas como apoio à varredura, mas para itens curtos e paralelos; quando cada item fica longo, a lista deixa de ajudar e vira um parágrafo quebrado ([NN/g, listas](https://www.nngroup.com/articles/presenting-bulleted-lists/); [NN/g, conteúdo longo](https://www.nngroup.com/articles/formatting-long-form-content/)). Guias de estilo de produto fixam um teto prático de cerca de cinco itens e mandam usar tabela acima de dez ([Anaplan](https://designsystem.anaplan.com/toolkit/anaplan-writing-style/formatting/lists/)). Do outro lado, Edward Tufte, em *The Cognitive Style of PowerPoint*, mostra que a lista hierárquica fragmenta o raciocínio, esconde a relação de causa entre os itens e dá aparência de rigor sem o conteúdo ([resumo do ensaio](https://www.davidmays.org/BookNotes05/TufCogn.html)). A Amazon levou isso à prática ao trocar as apresentações por memorandos narrativos de seis páginas, "com frases de verdade, verbos e substantivos, não só tópicos" ([Anecdote, estrutura do memorando](https://www.anecdote.com/2018/05/amazons-six-page-narrative-structure/)). O GOV.UK, que escreve para todo tipo de leitor, apoia as duas coisas: linguagem simples e frases curtas, com estrutura pensada a partir de como as pessoas leem ([Writing for GOV.UK](https://www.gov.uk/guidance/content-design/writing-for-gov-uk)).
+
+Para o documento técnico, três modelos servem de base. O registro de decisão de arquitetura (ADR) de Michael Nygard organiza cada decisão em contexto, decisão e consequências, o que obriga a dizer por que, e não só o quê ([modelo de Nygard](https://docs.rke2.io/adrs/record-architecture-decisions)). O Diátaxis separa a documentação em tutorial, guia prático, referência e explicação, e mostra que misturar os tipos é a causa mais comum de documento confuso ([Canonical sobre o Diátaxis](https://ubuntu.com/blog/diataxis-a-new-foundation-for-canonical-documentation)). E os guias de runbook de SRE pedem, para quem dá sustentação, o sintoma, como diagnosticar, como mitigar e como desfazer, com os comandos de leitura antes dos que alteram algo ([guia de runbooks](https://drdroid.io/guides/runbooks-guide-for-sre-on-call-teams)).
+
+### Diagnóstico do conteúdo atual
+
+O conteúdo da SPEC-023 (`vostok/work/.archive/SPEC-023/content.md`) tem cerca de 2.500 palavras, mas 86 linhas de lista contra pouco mais de uma dezena de parágrafos. Os três problemas são de forma, não de esforço.
+
+O primeiro é que o modelo pede lista onde o leitor precisa de explicação. No técnico, "O que foi feito" é uma lista de dez itens com uma frase cada ("Camada `TaskDoc`: cerca de 80 pontos de leitura e gravação passaram por ela"), que diz o quê mas não por quê nem como as peças se ligam. "Arquitetura e componentes" lista funções sem contar o caminho de uma operação. É exatamente a fragmentação que Tufte descreve: cada item é verdadeiro, mas o leitor precisa montar sozinho o raciocínio.
+
+O segundo é que o executivo responde às perguntas erradas. Ele tem "Indicadores de valor", "Recorte" e "Entregas" com campos fixos (impacto, o que mudou, valor, como perceber), mas não tem uma seção de objetivo, isto é, qual era o problema antes. Sem o problema, o valor não tem com que se comparar, e o leitor não técnico não entende por que a entrega importa. O "Panorama" tenta resolver tudo em um parágrafo denso e cheio de nomes de arquivo.
+
+O terceiro é que faltam as partes de sustentação. O técnico não diz como operar o que foi entregue, como diagnosticar uma falha, onde estão os testes que protegem o comportamento nem quais limites ficaram conhecidos. "Pontos de atenção" cumpre parte disso, mas em lista e misturado com riscos de projeto. O de evidências repete "Como chegar" e "Como ler" em uma linha cada, sem dizer o que a evidência prova em relação a um requisito.
+
+### Regra de formato
+
+A regra que concilia as referências com a preferência do usuário ("não sou fã dos bullets, mas pode ser que em excesso não me incomode tanto") é: **prosa por padrão, lista e tabela só quando a forma do conteúdo pede**.
+
+Prosa é o padrão para tudo o que tem causa, consequência ou contraste: objetivo, valor, decisões, como funciona, riscos. Cada seção abre com uma frase que já responde à pergunta da seção, no espírito do BLUF, e o resto do parágrafo sustenta. Parágrafos têm de duas a cinco frases e tratam de uma ideia só; um texto de várias ideias vira vários parágrafos, não uma lista.
+
+Lista entra em três casos: passos em ordem (numerada), itens curtos e paralelos que o leitor vai consultar um a um (como os arquivos de um mapa de código) e nada além de sete itens; acima disso, ou quando os itens têm dois ou mais atributos, vira tabela. Nenhum item de lista passa de duas linhas; se precisa de mais, é parágrafo. Lista aninhada não entra.
+
+Tabela entra para comparar (antes e depois, opções de uma decisão), para números e para o mapa entre requisito e evidência. Negrito marca só o número ou o termo que o leitor que varre a página deve achar, no máximo um ou dois por parágrafo.
+
+Títulos são frases curtas e informativas da própria seção, sempre os mesmos entre specs, para o leitor aprender onde está cada coisa. A linguagem do executivo não leva caminho de arquivo, comando nem nome de função; o técnico leva, sempre em código.
+
+### Executivo
+
+O executivo é para quem decide ou acompanha sem ler código. Ele precisa ser lido em três a cinco minutos e responder, nesta ordem, o que se fez, por que e o que muda. O tamanho total esperado fica entre 400 e 800 palavras.
+
+| Seção | Propósito | Formato | Tamanho |
+|---|---|---|---|
+| Em resumo | A conclusão do documento inteiro: o que foi entregue e o ganho principal | Prosa, um parágrafo | 2 a 4 frases |
+| Objetivo | O problema ou a necessidade antes da entrega, e quem era afetado | Prosa | 1 ou 2 parágrafos |
+| O que foi entregue | Cada entrega contada pelo que passou a ser possível, não pelo que foi programado | Prosa, um parágrafo por entrega, com o nome da entrega em negrito no início | 1 parágrafo de 2 a 4 frases por entrega |
+| Valor e impacto | O que melhora para quem usa, com números quando houver | Prosa, e tabela antes e depois quando houver comparação medida | 1 ou 2 parágrafos, tabela de até 6 linhas |
+| Ganhos secundários | Efeitos úteis que não eram o objetivo, como defeitos achados, base para próximas entregas | Prosa; lista curta só se forem itens independentes | 1 parágrafo ou até 4 itens |
+| Riscos e limites | O que ficou de fora e o que ainda pode dar errado, em linguagem de negócio | Prosa | 1 parágrafo |
+| Próximos passos | O que vem a seguir, se houver; omitida quando não houver | Lista numerada curta ou um parágrafo | até 4 itens |
+
+A seção de "Indicadores" deixa de existir sozinha: números entram em "Valor e impacto", dentro do texto ou da tabela antes e depois, para o número nunca aparecer sem a frase que diz o que ele significa. "Recorte" vira parte de "Riscos e limites".
+
+### Técnico
+
+O técnico é para quem vai manter, revisar ou dar sustentação ao que foi entregue, inclusive sem ter acompanhado a spec; ele funciona como a transferência de conhecimento da entrega. Segue a separação do Diátaxis: as seções de explicação (o que, por que, como) vêm primeiro, e as de referência (operação, mapa do código) depois, sem misturar instrução com justificativa. O tamanho esperado fica entre 1.000 e 2.000 palavras, conforme o tamanho da spec.
+
+| Seção | Propósito | Formato | Tamanho |
+|---|---|---|---|
+| Em resumo | O que foi construído e como as partes se conectam, para quem só vai ler isso | Prosa | 1 parágrafo de 3 a 5 frases |
+| Contexto | Como era antes e qual limitação técnica motivou a mudança | Prosa | 1 ou 2 parágrafos |
+| Como funciona | O desenho da solução seguindo o caminho de uma operação real, do comando ao arquivo gravado | Prosa, com bloco de código ou diagrama quando ajudar | 2 a 5 parágrafos |
+| Decisões | Cada decisão no formato do ADR: o contexto, o que foi decidido, a alternativa descartada e a consequência | Um parágrafo por decisão, com a decisão em negrito no início; tabela só para comparar opções | 1 parágrafo de 3 a 5 frases por decisão |
+| O que foi feito | As mudanças por tarefa ou por tema, ligando cada uma ao requisito que atende | Prosa, um parágrafo por tema, com os IDs (RF, RN) citados | 1 parágrafo por tema |
+| Operação e diagnóstico | Como usar o que foi entregue, os sintomas de falha conhecidos, como diagnosticar e como desfazer | Passos numerados para operar; tabela sintoma, causa provável e o que fazer para diagnóstico | até 8 passos, tabela de até 8 linhas |
+| Mapa do código | Onde fica cada parte e quais testes a protegem | Tabela caminho, papel e testes | uma linha por componente |
+| Limites e dívidas | O que não foi feito de propósito, o que ficou frágil e o que pede atenção numa próxima mudança | Prosa; lista só se forem itens independentes | 1 a 3 parágrafos ou até 6 itens |
+| Referências | A spec, os commits e os documentos relacionados | Lista de links | sem limite |
+
+"Aprendizados" e "Pontos de atenção" deixam de ser seções próprias: o que era aprendizado de desenho vai para "Decisões", e o que era atenção vai para "Limites e dívidas" ou "Operação e diagnóstico", conforme seja dívida ou sintoma.
+
+### Evidências
+
+O documento de evidências responde a uma pergunta só: o que prova que cada requisito foi cumprido. Hoje ele é organizado por arquivo de evidência; passa a abrir com um mapa e só depois mostrar as peças.
+
+| Seção | Propósito | Formato | Tamanho |
+|---|---|---|---|
+| Em resumo | Quantas evidências, de quantas tarefas, e se todas passaram | Prosa | 1 ou 2 frases |
+| Mapa de cobertura | Cada requisito e critério de aceite com a evidência que o prova | Tabela ID, o que foi verificado e evidência | uma linha por ID |
+| Uma seção por evidência | A evidência em si, com o que ela prova, como reproduzir e o que observar | Uma frase "Prova", o comando em bloco de código e uma frase "Como ler" | 3 partes curtas por evidência |
+
+A frase "Prova" é a novidade: diz em linguagem direta qual requisito a evidência sustenta, para o leitor não precisar inferir pelo nome do arquivo.
+
+### O que o `finalize validate` confere
+
+O `finalize validate` já confere que todas as seções do modelo existem, que nenhuma está vazia, que não sobrou variável do modelo e que cada evidência tem o seu bloco com "Como chegar" e "Como ler". Com o novo conteúdo, ele pode conferir, sem julgar o texto, o que é mecânico:
+
+1. as novas seções de cada documento presentes e não vazias, com "Próximos passos" aceitando "Não se aplica.";
+2. no técnico, o mapa do código como tabela com pelo menos uma linha e "Operação e diagnóstico" com pelo menos um passo ou uma linha de tabela;
+3. no de evidências, o mapa de cobertura citando todos os IDs de requisito da spec, e cada bloco de evidência com "Prova";
+4. no executivo, nenhum caminho de arquivo nem comando em código, que é sinal de linguagem técnica no documento errado;
+5. nenhum item de lista acima de um tamanho (por exemplo, 300 caracteres), sinal de parágrafo disfarçado de lista.
+
+O resto fica como orientação na skill `finalize-spec`, porque depende de julgamento: abrir cada seção pela conclusão, preferir prosa, um parágrafo por ideia, números sempre com a frase que os explica, decisões com alternativa e consequência, e os tamanhos das tabelas acima, que são faixas de referência e não limites rígidos. A contagem de palavras por documento não deve virar erro, porque uma spec pequena tem documentos menores; no máximo, um aviso quando o executivo passa de 1.000 palavras.
 
 ## Escolha do modelo
 

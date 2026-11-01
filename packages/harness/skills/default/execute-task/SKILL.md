@@ -21,8 +21,8 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
 - **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`.
-- **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `evidence/<TASK_ID>/baseline/`. A `finish-task` os executa de novo e compara, para achar regressões.
-- **Registro:** a seção "Registro de execução" da tarefa, com uma linha por etapa, escrita só pelos comandos.
+- **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `<TASK_ID>/evidencias/baseline/` (no formato antigo, `evidence/<TASK_ID>/baseline/`). A `finish-task` os executa de novo e compara, para achar regressões.
+- **Registro:** o `registro.md` da tarefa em pasta (no formato antigo, a seção "Registro de execução"), com uma linha por etapa, escrito só pelos comandos. `estado.yml`, `registro.md` e `README.md` nunca são editados à mão.
 - **Onda:** as tarefas da spec com o mesmo `wave`, mostrado pelo `vostok task status`; podem rodar em paralelo.
 - **Perfil e modelo:** o bloco "Modelo" do `vostok task load`: perfil, descrição e apelido de reserva da ferramenta em uso.
 - **Arquivos em comum:** caminhos que aparecem em "Mudar" de mais de uma tarefa da onda.

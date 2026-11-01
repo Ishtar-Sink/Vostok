@@ -1,0 +1,66 @@
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task start SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+- [1] echo base
+- [evidência esperada.txt] não executada: feito.txt ainda não existe
+- [evidência lenta.txt] echo começo; sleep 5; echo fim (tempo-limite 1 s)
+Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0; 2 evidência(s) automática(s) gravada(s) para comparação
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 0
+--- stdout
+Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+
+$ vostok task regression SPEC-001 TASK-01
+exit: 0
+--- stdout
+Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.
+
+$ vostok task evidence SPEC-001 TASK-01
+exit: 0
+--- stdout
+Evidências de TASK-01 gravadas em <EVIDENCIAS>: 2 item(ns). Resultado: passed.
+
+$ vostok task finish SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 concluída: status 'done'.
+Todas as tarefas de SPEC-001 concluídas: spec marcada como 'implemented'.
+
+## estado TASK-01
+status: done
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+approved_hash preenchido: true
+
+## registro TASK-01
+| 1 | <DATA> | início | in_progress | aprovada em <DATA> |
+| 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0; 2 evidência(s) automática(s) gravada(s) para comparação |
+| 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | <DATA> | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | <DATA> | evidências | passed | 2 evidência(s) em evidence/TASK-01/ |
+| 6 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
+
+## evidências TASK-01
+baseline/01.out
+baseline/evidence/esperada.txt
+baseline/evidence/lenta.txt
+esperada.txt
+lenta.txt
+validation/regression/01.out
+validation/tests.out
+

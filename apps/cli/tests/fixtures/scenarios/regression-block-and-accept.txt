@@ -1,0 +1,87 @@
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task start SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+- [1] cat valor.txt
+Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 0
+--- stdout
+Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+
+$ vostok task regression SPEC-001 TASK-01
+exit: 1
+--- stdout
+Comandos com resultado diferente do baseline (saídas em <EVIDENCIAS>/validation/regression):
+- [1] cat valor.txt
+    < a
+    ---
+    > b
+Para aceitar uma diferença como esperada, com a decisão do usuário: vostok task resume SPEC-001 TASK-01 --accept-regression <N> "decisão"
+--- stderr
+Erro: a tarefa TASK-01 ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário
+
+$ vostok task resume SPEC-001 TASK-01 --accept-regression 1 diferença esperada
+exit: 0
+--- stdout
+Tarefa TASK-01 retomada: status 'validating', diferença aceita. Execute vostok task regression e, com ela aprovada, vostok task finish.
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 0
+--- stdout
+Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+
+$ vostok task regression SPEC-001 TASK-01
+exit: 0
+--- stdout
+Sem regressão em TASK-01: 0 igual(is) ao baseline, 1 aceito(s) pelo usuário.
+
+$ vostok task evidence SPEC-001 TASK-01
+exit: 0
+--- stdout
+Evidências de TASK-01: Não se aplica. Resultado: passed.
+
+$ vostok task finish SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 concluída: status 'done'.
+Todas as tarefas de SPEC-001 concluídas: spec marcada como 'implemented'.
+
+## estado TASK-01
+status: done
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+approved_hash preenchido: true
+
+## registro TASK-01
+| 1 | <DATA> | início | in_progress | aprovada em <DATA> |
+| 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | <DATA> | regressão | failed | comandos diferentes do baseline; bloqueada |
+| 5 | <DATA> | retomada | validating | decisão do usuário: diferença esperada; aceito(s): 1 |
+| 6 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 7 | <DATA> | regressão | passed | 0 igual(is) ao baseline, 1 aceito(s) pelo usuário |
+| 8 | <DATA> | evidências | passed | Não se aplica. |
+| 9 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
+
+## evidências TASK-01
+baseline/01.out
+validation/regression/01.out
+validation/regression/accepted
+validation/regression/accepted-01.diff
+validation/tests.out
+

@@ -1,0 +1,32 @@
+$ vostok task tests SPEC-001 TASK-01
+exit: 1
+--- stderr
+Erro: o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPEC-001 TASK-01
+
+$ vostok task baseline SPEC-001 TASK-01
+exit: 0
+--- stdout
+- [1] echo base
+Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 0
+--- stdout
+Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+
+## estado TASK-01
+status: validating
+attempts: 0
+tests_result: passed
+regression_result: null
+evidence_result: null
+approved_hash preenchido: false
+
+## registro TASK-01
+| 1 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 2 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+
+## evidências TASK-01
+baseline/01.out
+validation/tests.out
+

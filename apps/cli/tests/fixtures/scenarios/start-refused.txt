@@ -1,0 +1,58 @@
+$ vostok task adjust record-manual SPEC-001 TASK-02
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-02: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-02
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-02
+
+$ vostok task start SPEC-001 TASK-02
+exit: 1
+--- stderr
+Erro: a tarefa TASK-02 não pode ser iniciada; nada foi alterado:
+a dependência TASK-01 está com status 'pending'; ela precisa estar 'done' antes
+
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task start SPEC-001 TASK-01
+exit: 1
+--- stderr
+Erro: a tarefa TASK-01 não pode ser iniciada; nada foi alterado:
+a tarefa TASK-01 mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo
+
+## estado TASK-01
+status: approved
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+approved_hash preenchido: true
+
+## registro TASK-01
+
+## evidências TASK-01
+
+## estado TASK-02
+status: approved
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+approved_hash preenchido: true
+
+## registro TASK-02
+
+## evidências TASK-02
+

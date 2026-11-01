@@ -16,7 +16,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 ## Termos
 
 - **Spec finalizável:** spec com status `implemented` e todas as tarefas `done`.
-- **Fontes:** o que o `vostok finalize sources` imprime (spec, registro e histórico de cada tarefa, evidências, caminhos alterados, memória e commits do período) mais o código dos caminhos alterados.
+- **Fontes:** o que o `vostok finalize sources` imprime (spec, registro e histórico de cada tarefa, evidências, caminhos alterados, memória e commits do período, e, nas tarefas em pasta, o `executivo.md` e o `tecnico.md` de cada uma) mais o código dos caminhos alterados. O executivo e o técnico das tarefas são a base da síntese; o `tecnico.html` já inclui o técnico de cada tarefa.
 - **Conteúdo:** o arquivo `<paths.finalize>/<SPEC_ID>/content.md`, criado a partir de `templates/finalize/content.md` e escrito pelo agente. É a única entrada de texto dos documentos.
 - **Documentos:** `executivo.html`, `tecnico.html` e `evidencias.html`, gerados pelo `vostok finalize build` a partir do conteúdo, da spec e das tarefas.
 - **Arquivo:** a pasta `<paths.archive>/<SPEC_ID>/`, fora do git, para onde vão a spec, o conteúdo, as tarefas, as evidências e os documentos.

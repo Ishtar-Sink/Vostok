@@ -1,0 +1,89 @@
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task start SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+- [1] echo base
+Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 1
+--- stdout
+Testes de TASK-01 falharam (código de saída 1), tentativa 1 de 2. Últimas linhas da saída (<EVIDENCIAS>/validation/tests.out):
+    comando com falha (código 1): test -f feito.txt
+--- stderr
+Erro: os testes de TASK-01 falharam; corrija e execute vostok task tests de novo
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 1
+--- stdout
+Testes de TASK-01 falharam (código de saída 1), tentativa 2 de 2. Últimas linhas da saída (<EVIDENCIAS>/validation/tests.out):
+    comando com falha (código 1): test -f feito.txt
+--- stderr
+Erro: a tarefa TASK-01 ficou bloqueada depois de 2 tentativas. PARE: responda com o template `blocker`, mostrando as falhas, e aguarde a decisão do usuário
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 1
+--- stderr
+Erro: a tarefa TASK-01 está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume
+
+$ vostok task resume SPEC-001 TASK-01 criei o arquivo que faltava
+exit: 0
+--- stdout
+Tarefa TASK-01 retomada: status 'validating', tentativas e resultados zerados. Aplique a decisão e valide de novo, começando por vostok task tests.
+
+$ vostok task tests SPEC-001 TASK-01
+exit: 0
+--- stdout
+Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+
+$ vostok task regression SPEC-001 TASK-01
+exit: 0
+--- stdout
+Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.
+
+$ vostok task evidence SPEC-001 TASK-01
+exit: 0
+--- stdout
+Evidências de TASK-01: Não se aplica. Resultado: passed.
+
+$ vostok task finish SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 concluída: status 'done'.
+Todas as tarefas de SPEC-001 concluídas: spec marcada como 'implemented'.
+
+## estado TASK-01
+status: done
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+approved_hash preenchido: true
+
+## registro TASK-01
+| 1 | <DATA> | início | in_progress | aprovada em <DATA> |
+| 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | <DATA> | testes | failed | tentativa 1 de 2 |
+| 4 | <DATA> | testes | failed | tentativa 2 de 2; bloqueada |
+| 5 | <DATA> | retomada | validating | decisão do usuário: criei o arquivo que faltava |
+| 6 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 7 | <DATA> | regressão | passed | 1 comando(s) iguais ao baseline |
+| 8 | <DATA> | evidências | passed | Não se aplica. |
+| 9 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
+
+## evidências TASK-01
+baseline/01.out
+validation/regression/01.out
+validation/tests.out
+

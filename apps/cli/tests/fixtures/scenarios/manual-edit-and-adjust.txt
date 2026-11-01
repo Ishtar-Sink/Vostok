@@ -1,0 +1,76 @@
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 1 registrado em TASK-01: Edição manual
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task adjust validate SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 válida: <TAREFA>
+
+$ vostok task start SPEC-001 TASK-01
+exit: 1
+--- stderr
+Erro: a tarefa TASK-01 não pode ser iniciada; nada foi alterado:
+a tarefa TASK-01 mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo
+
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 2 registrado em TASK-01: Edição manual
+Aprovação de TASK-01 derrubada: o status voltou para 'pending'; aprove-a de novo antes de executar.
+
+$ vostok task start SPEC-001 TASK-01
+exit: 1
+--- stderr
+Erro: a tarefa TASK-01 não pode ser iniciada; nada foi alterado:
+a tarefa TASK-01 está com status 'pending'; só tarefas com status 'approved' são executadas. Peça a aprovação ao usuário (skill approve-task)
+
+$ vostok task approve approve SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefas de SPEC-001 aprovadas:
+- TASK-01
+
+$ vostok task start SPEC-001 TASK-01
+exit: 0
+--- stdout
+Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+- [1] echo base
+Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0
+
+$ vostok task adjust record-manual SPEC-001 TASK-01
+exit: 0
+--- stdout
+Ajuste manual 3 registrado em TASK-01: Edição manual
+Ajuste em execução: TASK-01 voltou para 'in_progress', com tentativas e resultados zerados e o baseline mantido.
+
+$ vostok task adjust record SPEC-001 TASK-01 passo ajustado durante a execução
+exit: 0
+--- stdout
+Ajuste 4 registrado em TASK-01: <TAREFA>
+Ajuste em execução: TASK-01 voltou para 'in_progress', com tentativas e resultados zerados e o baseline mantido.
+
+## estado TASK-01
+status: in_progress
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+approved_hash preenchido: true
+
+## registro TASK-01
+| 1 | <DATA> | início | in_progress | aprovada em <DATA> |
+| 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | <DATA> | ajuste | in_progress | Edição manual |
+| 4 | <DATA> | ajuste | in_progress | passo ajustado durante a execução |
+
+## evidências TASK-01
+baseline/01.out
+

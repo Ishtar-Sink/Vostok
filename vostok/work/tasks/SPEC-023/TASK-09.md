@@ -9,16 +9,17 @@ wave: 1
 covers: [RF-15, RF-16, RF-17, CT-15]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: c824fcfbe2c395ef7a851b6814dde76b78a260353e391006c345b143fef04f27
+status: done
+content_hash: 10c53c3ce3e8a3b185487adf6a76ba6ceab2e0fcc0baa4c304d2793fb8ee86d4
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: c824fcfbe2c395ef7a851b6814dde76b78a260353e391006c345b143fef04f27
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: sonnet
 ---
 
 # TASK-09: Orientação das skills para a tarefa em pasta
@@ -98,11 +99,11 @@ Resultado esperado: os testes de `base` passam.
 
 ### Concluída quando
 
-- [ ] As seis skills descrevem a tarefa em pasta, o formato fixo dos passos e o subagente da `finish-task` (RF-15 a RF-17, CT-15).
+- [x] As seis skills descrevem a tarefa em pasta, o formato fixo dos passos e o subagente da `finish-task` (RF-15 a RF-17, CT-15).
 
   > Como comprovar: abrir os seis diffs e ver os trechos novos.
 
-- [ ] Os testes de `base` continuam passando.
+- [x] Os testes de `base` continuam passando.
 
   > Como comprovar: a Verificação termina com código 0.
 
@@ -131,6 +132,12 @@ Só texto, a partir dos contratos da spec. O perfil "simples" da spec é o `meca
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: sonnet |
+| 2 | 2026-11-01 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | 2026-11-01 | evidências | passed | 6 evidência(s) em evidence/TASK-09/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

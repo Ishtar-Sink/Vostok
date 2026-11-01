@@ -9,16 +9,17 @@ wave: 1
 covers: [CT-16]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: 4aaa05afd1adc6ed670dbe0100b7df190b79e26453ece2f77a0bb13d2e728133
+status: done
+content_hash: 0e59177a67ece780517c57638e7b1476774952af01fe016fc1a4beea1bd61a55
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 4aaa05afd1adc6ed670dbe0100b7df190b79e26453ece2f77a0bb13d2e728133
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: sonnet
 ---
 
 # TASK-01: Cenários de referência no formato atual
@@ -71,11 +72,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] Os dez cenários, felizes e de falha, têm fixture gravada com o código atual (CT-16).
+- [x] Os dez cenários, felizes e de falha, têm fixture gravada com o código atual (CT-16).
 
   > Como comprovar: em `scenarios-tests.txt`, ver os dez testes `scenario_` aprovados.
 
-- [ ] O acesso ao formato está só em `write_task`, `state_of`, `record_rows` e `evidence_root`.
+- [x] O acesso ao formato está só em `write_task`, `state_of`, `record_rows` e `evidence_root`.
 
   > Como comprovar: abrir `apps/cli/tests/scenarios.rs` e ver que os cenários não citam caminhos do formato.
 
@@ -105,6 +106,12 @@ Teste de integração novo com transcrição normalizada por cenário, gravada e
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: sonnet |
+| 2 | 2026-11-01 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

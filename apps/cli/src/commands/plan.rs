@@ -11,9 +11,10 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use super::task::{
-    created_of, dashdash_commands, dashdash_warning, delivery_errors, evidence_item,
-    evidence_name_problem, evidence_rule_errors, expected_change, new_folders, new_kind_name,
-    normalized_evidence_name, verify_block, EvidenceKinds, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
+    before_section, created_of, dashdash_commands, dashdash_warning, delivery_errors,
+    evidence_item, evidence_name_problem, evidence_rule_errors, expected_change, init_layout,
+    is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name, task_entries,
+    task_template_dir, verify_block, EvidenceKinds, TaskDoc, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -83,10 +84,11 @@ const TITLE_COLUMN: &str = "Título";
 const TYPE_COLUMN: &str = "Tipo";
 const DEPENDS_COLUMN: &str = "Dependências";
 const COVERS_COLUMN: &str = "Cobre";
+const DESCRIPTION_COLUMN: &str = "Descrição";
 const LEGACY_COLUMNS: [&str; 7] = [
     ID_COLUMN,
     TITLE_COLUMN,
-    "Descrição",
+    DESCRIPTION_COLUMN,
     TYPE_COLUMN,
     LEVEL_COLUMN,
     DEPENDS_COLUMN,
@@ -154,6 +156,7 @@ struct Workspace {
 
 impl Workspace {
     fn new(harness: Harness) -> Self {
+        init_layout(&harness);
         Self { harness }
     }
 
@@ -284,6 +287,14 @@ impl Workspace {
     fn store_hash(&self, path: &Path) -> Result<()> {
         let content = read(path)?;
         write(path, &self.with_stored_hash(&content)?)
+    }
+
+    /// Hash da tarefa: na pasta, o dos arquivos de execução; no arquivo único, o do conteúdo.
+    fn store_task_hash(&self, file: &Path) -> Result<()> {
+        if is_task_folder(file) {
+            return TaskDoc::at(file).store_hashes(&self.spec_setting("content_hash_field")?);
+        }
+        self.store_hash(file)
     }
 
     fn hash_unchanged(&self, path: &Path) -> Result<bool> {
@@ -981,8 +992,8 @@ impl Workspace {
                 target.display()
             );
         }
-        let template = read(&self.template("task_template")?)?;
         let pending = self.task_setting("status.pending")?;
+        let file_templates = self.folder_templates()?;
 
         // As tarefas são montadas em memória e gravadas juntas: ou todas existem, ou nenhuma.
         let mut files = Vec::new();
@@ -1000,6 +1011,7 @@ impl Workspace {
                 ("SPEC_ID", spec_id.to_string()),
                 ("TASK_TITLE", task.title.clone()),
                 ("TASK_TITLE_YAML", yaml_escape(&task.title)),
+                ("TASK_DESCRIPTION_YAML", yaml_escape(&task.description)),
                 ("TASK_EFFORT", task.effort.clone()),
                 ("TASK_PROFILE", task.profile.clone()),
                 ("TASK_PERSONA", task.persona.clone()),
@@ -1013,20 +1025,58 @@ impl Workspace {
                 ("TASK_STATUS", pending.clone()),
                 ("TASK_BLOCKED_BY", blocked_by),
             ]);
-            let content = self.with_stored_hash(&render_lines(&template, &values))?;
-            files.push((format!("{}.md", task.id), content));
+            for (name, file_template) in &file_templates {
+                files.push((
+                    format!("{}/{name}", task.id),
+                    render_lines(file_template, &values),
+                ));
+            }
         }
-        fs::create_dir_all(&target)
-            .with_context(|| format!("não foi possível criar {}", target.display()))?;
         for (name, content) in &files {
-            write(&target.join(name), content)?;
+            let path = target.join(name);
+            fs::create_dir_all(path.parent().unwrap_or(&target))
+                .with_context(|| format!("não foi possível criar {}", target.display()))?;
+            write(&path, content)?;
+        }
+        let field = self.spec_setting("content_hash_field")?;
+        let ids: BTreeSet<&str> = files
+            .iter()
+            .filter_map(|(name, _)| name.split('/').next())
+            .collect();
+        for id in &ids {
+            TaskDoc::at(&target.join(id)).store_hashes(&field)?;
         }
         println!("Tarefas de {spec_id} criadas em {}:", target.display());
-        let names: BTreeSet<&String> = files.iter().map(|(name, _)| name).collect();
-        for name in names {
-            println!("- {name}");
+        for id in ids {
+            println!("- {id}/");
         }
         Ok(())
+    }
+
+    /// Templates dos arquivos de texto da tarefa em pasta, com o nome do arquivo de destino.
+    fn folder_templates(&self) -> Result<Vec<(String, String)>> {
+        let layout = layout();
+        let dir = self
+            .harness
+            .path("templates")?
+            .join(task_template_dir(&self.harness.config_file("tasks.yml")));
+        [
+            &layout.state,
+            &layout.record,
+            &layout.execution,
+            &layout.verification,
+            &layout.criteria,
+            &layout.executive,
+            &layout.technical,
+        ]
+        .into_iter()
+        .map(|name| {
+            let template = dir.join(name.to_lowercase());
+            let content = fs::read_to_string(&template)
+                .with_context(|| format!("template não encontrado: {}", template.display()))?;
+            Ok((name.clone(), content))
+        })
+        .collect()
     }
 
     fn approve_validate(&self, spec_id: &str) -> Result<()> {
@@ -1039,7 +1089,7 @@ impl Workspace {
             ));
         }
         let mut renames = Vec::new();
-        for file in markdown_files(&self.tasks_dir(spec_id)?) {
+        for file in task_entries(&self.tasks_dir(spec_id)?)? {
             renames.extend(self.evidence_renames(&file)?.1);
         }
         print_renames(
@@ -1050,9 +1100,9 @@ impl Workspace {
             "Tarefas de {spec_id} válidas: {}",
             self.tasks_dir(spec_id)?.display()
         );
-        for file in markdown_files(&self.tasks_dir(spec_id)?) {
+        for file in task_entries(&self.tasks_dir(spec_id)?)? {
             let task = file_stem(&file);
-            for command in dashdash_commands(&self.verification(&read(&file)?)?) {
+            for command in dashdash_commands(&self.verification(&task_text(&file)?)?) {
                 println!("{}", dashdash_warning(&task, &command));
             }
         }
@@ -1074,13 +1124,13 @@ impl Workspace {
         // As tarefas já estão detalhadas e validadas: o nome com caminho vira o nome do arquivo e o
         // hash passa a valer para a aprovação delas.
         let mut renames = Vec::new();
-        for file in markdown_files(&self.tasks_dir(spec_id)?) {
+        for file in task_entries(&self.tasks_dir(spec_id)?)? {
             let (content, warnings) = self.evidence_renames(&file)?;
             if !warnings.is_empty() {
-                write(&file, &content)?;
+                TaskDoc::at(&file).write_text(&content)?;
             }
             renames.extend(warnings);
-            self.store_hash(&file)?;
+            self.store_task_hash(&file)?;
         }
         print_renames(
             "Nomes de evidência com caminho trocados pelo nome do arquivo:",
@@ -1124,8 +1174,8 @@ impl Workspace {
         let mut errors = Vec::new();
         let none = HashSet::new();
         for task in &tasks {
-            let file = dir.join(format!("{}.md", task.id));
-            if !file.is_file() {
+            let file = task_path(&dir, &task.id);
+            if !file.exists() {
                 errors.push(format!(
                     "{}: arquivo da tarefa ausente em {}",
                     task.id,
@@ -1136,7 +1186,7 @@ impl Workspace {
             let created = upstream.get(&task.id).unwrap_or(&none);
             errors.extend(self.task_errors(&file, &task.covers, created)?);
         }
-        for file in markdown_files(&dir) {
+        for file in task_entries(&dir)? {
             let name = file_stem(&file);
             if !ids.contains(&name) {
                 errors.push(format!("{name}: tarefa que não existe no plano"));
@@ -1157,9 +1207,9 @@ impl Workspace {
             for dependency in depends.split(", ").filter(|dep| !dep.is_empty()) {
                 graph.add_dependency(&task.id, dependency);
             }
-            let file = dir.join(format!("{}.md", task.id));
-            if file.is_file() {
-                for (action, path) in self.change_items(&read(&file)?)? {
+            let file = task_path(dir, &task.id);
+            if file.exists() {
+                for (action, path) in self.change_items(&task_text(&file)?)? {
                     if action == "criar" {
                         graph.add_created(&task.id, &path);
                     }
@@ -1192,15 +1242,24 @@ impl Workspace {
         plan_covers: &str,
         upstream: &HashSet<String>,
     ) -> Result<Vec<String>> {
-        let content = read(file)?;
+        let content = task_text(file)?;
         let id = file_stem(file);
-        let mut errors: Vec<String> = template_leftovers(&content)
+        // Na tarefa em pasta, o executivo e o técnico são escritos na finalização, e o card é gerado.
+        let folder = is_task_folder(file);
+        let checked = if folder {
+            before_section(&content, &self.task_setting("description_section")?)
+        } else {
+            content.clone()
+        };
+        let mut errors: Vec<String> = template_leftovers(&checked)
             .into_iter()
             .map(|(line, text)| format!("variável sem preencher: {line}:{text}"))
             .collect();
         errors.extend(self.fixed_section_errors(&content)?);
-        errors.extend(self.subsection_errors(&content)?);
-        errors.extend(self.description_errors(&content)?);
+        errors.extend(self.subsection_errors(&content, folder)?);
+        if !folder {
+            errors.extend(self.description_errors(&content)?);
+        }
         errors.extend(self.change_errors(&content, upstream)?);
         errors.extend(self.done_errors(&content)?);
         let created: Vec<String> = self
@@ -1212,7 +1271,7 @@ impl Workspace {
         let folders = new_folders(&self.harness.path("root")?, &created);
         errors.extend(self.baseline_errors(&content, &created, &folders)?);
         errors.extend(self.evidence_errors(&content)?);
-        let covers = field(file, "covers").replace(['[', ']'], "");
+        let covers = task_field(file, "covers").replace(['[', ']'], "");
         if sorted_list(&covers) != sorted_list(plan_covers) {
             errors.push(format!(
                 "cobertura '{covers}' diferente da do plano '{plan_covers}'"
@@ -1242,9 +1301,15 @@ impl Workspace {
         Ok(errors)
     }
 
-    fn subsection_errors(&self, content: &str) -> Result<Vec<String>> {
+    /// Subseções obrigatórias; na tarefa em pasta, só as de execução.
+    fn subsection_errors(&self, content: &str, folder: bool) -> Result<Vec<String>> {
         let mut errors = Vec::new();
-        for section in ["execution", "description"] {
+        let sections: &[&str] = if folder {
+            &["execution"]
+        } else {
+            &["execution", "description"]
+        };
+        for section in sections {
             let title = self.task_setting(&format!("{section}_section"))?;
             for sub in self.task_list(&format!("{section}_subsections"))? {
                 match markdown_subsection(content, &title, &sub) {
@@ -1504,7 +1569,7 @@ impl Workspace {
         let execution = format!("## {}", self.task_setting("execution_section")?);
         let evidence = format!("### {}", self.task_setting("evidence_subsection")?);
         let id = file_stem(file);
-        let content = read(file)?;
+        let content = task_text(file)?;
         let mut warnings = Vec::new();
         let (mut in_execution, mut in_evidence) = (false, false);
         let mut lines = Vec::new();
@@ -2082,6 +2147,7 @@ impl CreatedPaths {
 struct PlanTask {
     id: String,
     title: String,
+    description: String,
     kind: String,
     persona: String,
     effort: String,
@@ -2116,6 +2182,7 @@ fn plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTask> {
                 Some(PlanTask {
                     id: cell(ID_COLUMN),
                     title: cell(TITLE_COLUMN),
+                    description: cell(DESCRIPTION_COLUMN),
                     kind: cell(TYPE_COLUMN),
                     persona,
                     effort: profile.clone(),
@@ -2146,12 +2213,13 @@ fn legacy_plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTa
             let mut next = || fields.next().unwrap_or_default();
             let id = next();
             let title = next();
-            let _description = next();
+            let description = next();
             let kind = next();
             let effort = next();
             Some(PlanTask {
                 id,
                 title,
+                description,
                 kind,
                 persona: "-".to_string(),
                 profile: legacy
@@ -2181,7 +2249,11 @@ fn is_persona(value: &str) -> bool {
 /// equivalente de `effort`. `None` quando a tarefa não tem nenhum dos dois.
 pub fn task_profile(harness: &Harness, file: &Path) -> Option<String> {
     let legacy = config_map(&harness.config_file("tasks.yml"), "profile_legacy");
-    profile_from(&field(file, "profile"), &field(file, "effort"), &legacy)
+    profile_from(
+        &task_field(file, "profile"),
+        &task_field(file, "effort"),
+        &legacy,
+    )
 }
 
 fn profile_from(profile: &str, effort: &str, legacy: &HashMap<String, String>) -> Option<String> {
@@ -2596,6 +2668,26 @@ fn read(path: &Path) -> Result<String> {
 
 fn write(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content).with_context(|| format!("não foi possível gravar {}", path.display()))
+}
+
+/// Texto da tarefa, nos dois formatos.
+fn task_text(file: &Path) -> Result<String> {
+    TaskDoc::at(file).text()
+}
+
+/// Valor de um campo do estado da tarefa, ou vazio se não existir.
+fn task_field(file: &Path, key: &str) -> String {
+    TaskDoc::at(file).get(key).unwrap_or_default()
+}
+
+/// Caminho da tarefa: a pasta `TASK-NN/` ou, nas tarefas antigas, o arquivo `TASK-NN.md`.
+fn task_path(dir: &Path, id: &str) -> PathBuf {
+    let folder = dir.join(id);
+    if is_task_folder(&folder) {
+        folder
+    } else {
+        dir.join(format!("{id}.md"))
+    }
 }
 
 /// Valor de uma chave do front-matter, ou vazio se não existir.

@@ -502,9 +502,12 @@ fn profile_legacy_plan_creates_tasks_with_the_equivalent_profile() {
         .args(["plan", "approve", "create-tasks", "SPEC-001"])
         .assert()
         .success();
-    let task =
-        std::fs::read_to_string(project.root().join("vostok/work/tasks/SPEC-001/TASK-01.md"))
-            .unwrap();
+    let task = std::fs::read_to_string(
+        project
+            .root()
+            .join("vostok/work/tasks/SPEC-001/TASK-01/estado.yml"),
+    )
+    .unwrap();
     assert!(task.contains("\nprofile: julgamento\n"), "{task}");
     assert!(task.contains("\npersona: -\n"), "{task}");
     assert!(
@@ -531,9 +534,12 @@ fn profile_new_plan_creates_tasks_with_profile_and_persona() {
         .args(["plan", "approve", "create-tasks", "SPEC-001"])
         .assert()
         .success();
-    let task =
-        std::fs::read_to_string(project.root().join("vostok/work/tasks/SPEC-001/TASK-01.md"))
-            .unwrap();
+    let task = std::fs::read_to_string(
+        project
+            .root()
+            .join("vostok/work/tasks/SPEC-001/TASK-01/estado.yml"),
+    )
+    .unwrap();
     assert!(task.contains("\nprofile: padrao\n"), "{task}");
     assert!(task.contains("\npersona: desenvolvedor\n"), "{task}");
     assert!(!task.contains("\neffort:"), "{task}");
@@ -1044,7 +1050,7 @@ fn waves_create_tasks_writes_the_wave_field() {
         std::fs::read_to_string(
             project
                 .root()
-                .join(format!("vostok/work/tasks/SPEC-001/{id}.md")),
+                .join(format!("vostok/work/tasks/SPEC-001/{id}/estado.yml")),
         )
         .unwrap()
     };
@@ -1105,7 +1111,7 @@ fn waves_plan_without_the_column_stays_valid() {
         std::fs::read_to_string(
             project
                 .root()
-                .join(format!("vostok/work/tasks/SPEC-001/{id}.md")),
+                .join(format!("vostok/work/tasks/SPEC-001/{id}/estado.yml")),
         )
         .unwrap()
     };
@@ -1423,4 +1429,190 @@ fn evidence_timeout_text_is_refused_by_the_plan_validation() {
         stderr.contains("a evidência saida.txt tem Tempo-limite que não é um número de segundos"),
         "{stderr}"
     );
+}
+
+// --- Tarefas criadas em pastas (SPEC-023) ---
+
+const TASK_FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01";
+
+fn read_in(project: &Project, relative: &str) -> String {
+    std::fs::read_to_string(project.root().join(relative)).unwrap_or_default()
+}
+
+fn created_folder_task() -> Project {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+            "| TASK-01 | 0 | 2 | sim | não | não |",
+        ),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    project
+}
+
+/// Preenche os arquivos de execução da TASK-01 como o detalhamento faria.
+fn fill_folder_task(project: &Project) {
+    write_file(
+        project,
+        &format!("{TASK_FOLDER}/execucao.md"),
+        "### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n",
+    );
+    write_file(
+        project,
+        &format!("{TASK_FOLDER}/verificacao.md"),
+        "### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\nNão se aplica.\n",
+    );
+    write_file(
+        project,
+        &format!("{TASK_FOLDER}/criterios.md"),
+        "### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n",
+    );
+}
+
+#[test]
+fn create_folder_creates_each_task_as_a_folder_with_the_files_of_the_contract() {
+    let project = created_folder_task();
+    for name in [
+        "estado.yml",
+        "execucao.md",
+        "verificacao.md",
+        "criterios.md",
+        "executivo.md",
+        "tecnico.md",
+        "registro.md",
+        "README.md",
+    ] {
+        assert!(
+            project.root().join(TASK_FOLDER).join(name).is_file(),
+            "{name}"
+        );
+    }
+    assert!(!project
+        .root()
+        .join("vostok/work/tasks/SPEC-001/TASK-01.md")
+        .exists());
+    let state = read_in(&project, &format!("{TASK_FOLDER}/estado.yml"));
+    assert!(
+        state.starts_with("id: TASK-01\nspec: SPEC-001\n"),
+        "{state}"
+    );
+    assert!(state.contains("\nstatus: pending\n"), "{state}");
+    assert!(!state.contains("---"), "{state}");
+    let execution = read_in(&project, &format!("{TASK_FOLDER}/execucao.md"));
+    assert!(
+        execution.starts_with("### Ler\n\n#{TASK_READ}"),
+        "{execution}"
+    );
+    assert!(read_in(&project, &format!("{TASK_FOLDER}/executivo.md")).contains("#{TASK_EXECUTIVE}"));
+    assert!(read_in(&project, &format!("{TASK_FOLDER}/tecnico.md")).contains("#{TASK_TECHNICAL}"));
+    let record = read_in(&project, &format!("{TASK_FOLDER}/registro.md"));
+    assert!(record.starts_with("## Registro de execução\n"), "{record}");
+    assert!(record.contains("## Histórico de ajustes\n"), "{record}");
+}
+
+#[test]
+fn create_folder_keeps_the_plan_description_in_the_state_for_the_card() {
+    let project = created_folder_task();
+    let state = read_in(&project, &format!("{TASK_FOLDER}/estado.yml"));
+    assert!(state.contains("\ndescription: \""), "{state}");
+    let readme = read_in(&project, &format!("{TASK_FOLDER}/README.md"));
+    assert!(readme.starts_with("# TASK-01: "), "{readme}");
+    assert!(readme.contains("- **Status:** pending\n"), "{readme}");
+    assert!(readme.contains("- **Onda:** 1\n"), "{readme}");
+    assert!(readme.contains("- **Bloqueada por:** -\n"), "{readme}");
+    assert!(!readme.contains("#{"), "{readme}");
+}
+
+#[test]
+fn create_folder_validation_asks_for_the_execution_files_but_not_for_the_description() {
+    let project = created_folder_task();
+    let stderr = String::from_utf8(
+        project
+            .vostok()
+            .args(["plan", "approve", "validate", "SPEC-001"])
+            .output()
+            .unwrap()
+            .stderr,
+    )
+    .unwrap();
+    assert!(
+        stderr.contains("TASK-01: variável sem preencher"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("TASK_EXECUTIVE"), "{stderr}");
+    fill_folder_task(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn create_folder_mark_planned_stores_the_hashes_of_the_execution_files() {
+    let project = created_folder_task();
+    fill_folder_task(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "mark-planned", "SPEC-001"])
+        .assert()
+        .success();
+    let state = read_in(&project, &format!("{TASK_FOLDER}/estado.yml"));
+    for key in ["content_hash", "execution_hash", "state_hash"] {
+        let value = state
+            .lines()
+            .find_map(|line| line.strip_prefix(&format!("{key}: ")))
+            .unwrap_or_default();
+        assert_eq!(value.len(), 64, "{key}: {state}");
+    }
+}
+
+#[test]
+fn create_folder_readme_follows_the_status_and_the_criteria() {
+    let project = created_folder_task();
+    fill_folder_task(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "mark-planned", "SPEC-001"])
+        .assert()
+        .success();
+    project
+        .vostok()
+        .args(["task", "approve", "approve", "SPEC-001", "TASK-01"])
+        .assert()
+        .success();
+    let readme = read_in(&project, &format!("{TASK_FOLDER}/README.md"));
+    assert!(readme.contains("- **Status:** approved\n"), "{readme}");
+    assert!(
+        readme.contains("- **Critérios de aceite:**\n  - [ ] Pronto (RF-01).\n"),
+        "{readme}"
+    );
+    assert!(!readme.contains("Como comprovar"), "{readme}");
+}
+
+#[test]
+fn create_folder_refuses_the_spec_when_a_task_exists_in_both_formats() {
+    let project = created_folder_task();
+    write_file(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-01.md",
+        "---\nid: TASK-01\n---\n",
+    );
+    let output = project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("nos dois formatos"), "{stderr}");
 }

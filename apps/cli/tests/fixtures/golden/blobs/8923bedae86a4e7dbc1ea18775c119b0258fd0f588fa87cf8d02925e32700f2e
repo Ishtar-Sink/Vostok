@@ -1,0 +1,25 @@
+id: TASK-01
+spec: SPEC-008
+title: "Criar script"
+description: "Cria o script."
+profile: simples
+persona: -
+depends_on: []
+wave: 1
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-008, simples]
+status: pending
+content_hash: c683a57398500dcccd87346790e944dc43b1f96487d58250e2dce64492198d7d
+adjustments: 0
+adjusted_at: null
+approved_at: null
+approved_hash: null
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 6efb14e65c73631b0dde0121cdf9fde480d8fad70e37079f41db6e155b3fa7b1
+verification_hash: d9715df79f58b4909aef45a6d9cd272d40267a931c3a9b8469836a61cc1bc58b
+criteria_hash: 9a12d75c1448bb52661383b76147f06f18cd35677ed091ef92dda1d731251b0c
+state_hash: d727cdd327f4bd801b6df6d2a803fafdb3e84a078608652b7590a3b65dda9952

@@ -3299,3 +3299,178 @@ fn folder_format_refuses_a_missing_execution_file() {
         "{stderr}"
     );
 }
+
+// --- Hash por arquivo, edição manual e carregamento por arquivo (SPEC-023) ---
+
+fn folder_approved() -> Project {
+    let project = folder_task("pending");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    project
+}
+
+fn append(project: &Project, relative: &str, extra: &str) {
+    let current = read(project, relative);
+    write(project, relative, &format!("{current}{extra}"));
+}
+
+#[test]
+fn part_hash_ignores_the_files_of_people() {
+    let project = folder_approved();
+    append(
+        &project,
+        &format!("{FOLDER}/executivo.md"),
+        "Mais um parágrafo.\n",
+    );
+    append(
+        &project,
+        &format!("{FOLDER}/tecnico.md"),
+        "Mais um detalhe.\n",
+    );
+    task(&project, &["start"]).assert().success();
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(output.contains("Nenhuma edição manual."), "{output}");
+}
+
+#[test]
+fn part_hash_stores_the_hash_of_each_execution_file_in_the_state() {
+    let project = folder_approved();
+    let state = read(&project, &format!("{FOLDER}/estado.yml"));
+    for key in [
+        "execution_hash",
+        "verification_hash",
+        "criteria_hash",
+        "state_hash",
+    ] {
+        let value = state
+            .lines()
+            .find_map(|line| line.strip_prefix(&format!("{key}: ")))
+            .unwrap_or_default();
+        assert_eq!(value.len(), 64, "{key}: {state}");
+    }
+}
+
+#[test]
+fn part_hash_record_manual_cites_the_edited_execution_file() {
+    let project = folder_approved();
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "2. Confira o arquivo.\n",
+    );
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(output.contains("Edição manual: execucao.md"), "{output}");
+    assert!(!output.contains("verificacao.md"), "{output}");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("| manual | Edição manual: execucao.md |"),
+        "{record}"
+    );
+    let again = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(again.contains("Nenhuma edição manual."), "{again}");
+}
+
+#[test]
+fn part_hash_record_manual_cites_every_edited_execution_file() {
+    let project = folder_approved();
+    append(&project, &format!("{FOLDER}/verificacao.md"), "\n");
+    append(
+        &project,
+        &format!("{FOLDER}/criterios.md"),
+        "- [ ] Outro (RF-01).\n",
+    );
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(output.contains("criterios.md"), "{output}");
+    assert!(!output.contains("execucao.md"), "{output}");
+}
+
+#[test]
+fn part_hash_treats_an_edited_state_file_as_a_manual_edit() {
+    let project = folder_approved();
+    let state = read(&project, &format!("{FOLDER}/estado.yml"))
+        .replace("effort: simples", "effort: padrao");
+    write(&project, &format!("{FOLDER}/estado.yml"), &state);
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(output.contains("Edição manual: estado.yml"), "{output}");
+    let again = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(again.contains("Nenhuma edição manual."), "{again}");
+}
+
+#[test]
+fn part_hash_keeps_the_state_edit_visible_after_a_script_writes_the_state() {
+    let project = folder_approved();
+    let state = read(&project, &format!("{FOLDER}/estado.yml"))
+        .replace("effort: simples", "effort: padrao");
+    write(&project, &format!("{FOLDER}/estado.yml"), &state);
+    task(&project, &["start"]).assert().success();
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(output.contains("estado.yml"), "{output}");
+}
+
+#[test]
+fn part_hash_does_not_cite_files_in_the_single_file_format() {
+    let project = task_with_evidence("pending", "Não se aplica.");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    let edited =
+        read(&project, TASK_PATH).replace("1. Crie o arquivo.", "1. Crie o arquivo agora.");
+    write(&project, TASK_PATH, &edited);
+    let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(
+        output.contains("registrado em TASK-01: Edição manual"),
+        "{output}"
+    );
+    assert!(
+        !output.contains(".yml") && !output.contains("execucao.md"),
+        "{output}"
+    );
+}
+
+#[test]
+fn part_hash_load_brings_only_the_files_of_the_agent() {
+    let project = folder_started();
+    let output = success_stdout(&mut task(&project, &["load"]));
+    assert!(output.contains("status: in_progress"), "{output}");
+    assert!(output.contains("### Ler"), "{output}");
+    assert!(output.contains("### Baseline"), "{output}");
+    assert!(output.contains("### Concluída quando"), "{output}");
+    assert!(!output.contains("Detalhes."), "{output}");
+    assert!(!output.contains("Resumo."), "{output}");
+    assert!(!output.contains("Registro de execução"), "{output}");
+}
+
+#[test]
+fn part_hash_load_part_prints_only_that_file() {
+    let project = folder_started();
+    let technical = success_stdout(&mut task(&project, &["load", "--part", "tecnico"]));
+    assert_eq!(technical, "Detalhes.\n");
+    let execution = success_stdout(&mut task(&project, &["load", "--part", "execucao"]));
+    assert!(execution.starts_with("### Ler\n"), "{execution}");
+    assert!(!execution.contains("### Baseline"), "{execution}");
+    let criteria = success_stdout(&mut task(&project, &["load", "--part", "criterios"]));
+    assert!(criteria.starts_with("### Concluída quando\n"), "{criteria}");
+}
+
+#[test]
+fn part_hash_load_part_prints_the_equivalent_subsections_of_the_single_file_format() {
+    let project = task_with_evidence("pending", "Não se aplica.");
+    let executive = success_stdout(&mut task(&project, &["load", "--part", "executivo"]));
+    assert_eq!(executive, "Resumo.\n");
+    let verification = success_stdout(&mut task(&project, &["load", "--part", "verificacao"]));
+    assert!(verification.starts_with("### Baseline\n"), "{verification}");
+    assert!(verification.contains("### Evidências"), "{verification}");
+    assert!(
+        !verification.contains("### Concluída quando"),
+        "{verification}"
+    );
+}
+
+#[test]
+fn part_hash_load_refuses_an_unknown_part() {
+    let project = folder_started();
+    let stderr = failure_stderr(&mut task(&project, &["load", "--part", "registro"]));
+    assert!(stderr.contains("execucao"), "{stderr}");
+}

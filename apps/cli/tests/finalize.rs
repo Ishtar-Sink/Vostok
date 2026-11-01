@@ -264,3 +264,145 @@ fn before_skipped_shows_the_interrupted_line() {
     assert!(html.contains("parcial &lt;x&gt;"), "{html}");
     assert!(line < html.find("Depois da tarefa").unwrap());
 }
+
+// --- Tarefas em pasta (SPEC-023) ---
+
+fn write_folder_task(project: &Project, id: &str) -> std::path::PathBuf {
+    let folder = project.harness().join("work/tasks/SPEC-001").join(id);
+    fs::create_dir_all(folder.join("evidencias")).unwrap();
+    let files = [
+        (
+            "estado.yml",
+            format!("id: {id}\ntitle: Tarefa em pasta\nstatus: done\n"),
+        ),
+        (
+            "execucao.md",
+            "### Ler\n\n- `a.rs`\n\n### Mudar\n\n- `src/novo.rs` (criar): novo\n\n### Passos\n\n1. Fazer.\n".to_string(),
+        ),
+        (
+            "verificacao.md",
+            "### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `echo depois`\n".to_string(),
+        ),
+        ("criterios.md", "### Concluída quando\n\n- [x] Feito.\n".to_string()),
+        ("executivo.md", "Resumo <executivo> da pasta.\n".to_string()),
+        ("tecnico.md", "Detalhe **técnico** com <tag> e `x`.\n".to_string()),
+        (
+            "registro.md",
+            "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-14 | conclusão | done | ok |\n".to_string(),
+        ),
+        ("evidencias/saida.txt", "saida da pasta <ok>\n".to_string()),
+    ];
+    for (name, text) in files {
+        fs::write(folder.join(name), text).unwrap();
+    }
+    folder
+}
+
+/// Monta uma spec com uma tarefa em pasta e roda `create` e `build`.
+fn built_folder_project() -> Project {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    write_folder_task(&project, "TASK-01");
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let content_path = project.harness().join("work/finalize/SPEC-001/content.md");
+    let content = fs::read_to_string(&content_path)
+        .unwrap()
+        .replace("#{EVIDENCE_01_HOW}", "rodar.")
+        .replace("#{EVIDENCE_01_READ}", "ler.");
+    fs::write(&content_path, fill_variables(&content)).unwrap();
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    project
+}
+
+#[test]
+fn finalize_folder_sources_lists_the_executive_and_the_technical_of_each_task() {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    write_folder_task(&project, "TASK-01");
+    let output = project
+        .vostok()
+        .args(["finalize", "sources", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("### TASK-01: Tarefa em pasta"), "{stdout}");
+    assert!(stdout.contains("- **Status:** done"), "{stdout}");
+    assert!(
+        stdout.contains("**Resumo executivo**\n\nResumo <executivo> da pasta."),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("**Detalhes técnicos**\n\nDetalhe **técnico** com <tag> e `x`."),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("| 1 | 2026-10-14 | conclusão | done | ok |"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("evidencias/saida.txt` (automática): existe"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn finalize_folder_build_puts_the_technical_of_each_task_in_the_technical_document() {
+    let project = built_folder_project();
+    let dir = project.harness().join("work/finalize/SPEC-001");
+    let technical = fs::read_to_string(dir.join("tecnico.html")).unwrap();
+    assert!(
+        technical.contains("<h3>TASK-01: Tarefa em pasta</h3>"),
+        "{technical}"
+    );
+    assert!(
+        technical.contains("<strong>técnico</strong>"),
+        "{technical}"
+    );
+    assert!(technical.contains("&lt;tag&gt;"), "{technical}");
+    assert!(!technical.contains("<tag>"), "{technical}");
+    let evidence = fs::read_to_string(dir.join("evidencias.html")).unwrap();
+    assert!(evidence.contains("saida da pasta &lt;ok&gt;"), "{evidence}");
+}
+
+#[test]
+fn finalize_folder_archive_moves_the_task_folders_with_their_evidence() {
+    let project = built_folder_project();
+    project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .assert()
+        .success();
+    let tasks = project.harness().join("work/tasks/SPEC-001");
+    assert!(!tasks.exists());
+    let archived = project
+        .harness()
+        .join("work/.archive/SPEC-001/tasks/TASK-01");
+    assert!(archived.join("estado.yml").is_file());
+    assert!(archived.join("tecnico.md").is_file());
+    assert!(archived.join("evidencias/saida.txt").is_file());
+}
+
+#[test]
+fn finalize_folder_mixed_formats_are_refused() {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    write_folder_task(&project, "TASK-01");
+    write_task(&project, "TASK-02", "done");
+    let stderr = failure_stderr(project.vostok().args(["finalize", "sources", "SPEC-001"]));
+    assert!(stderr.contains("tarefas nos dois formatos"), "{stderr}");
+}

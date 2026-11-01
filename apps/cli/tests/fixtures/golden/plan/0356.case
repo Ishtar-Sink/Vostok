@@ -27,7 +27,39 @@ Tarefas de SPEC-009 válidas: <ROOT>/packages/harness/work/tasks/SPEC-009
 
 @exit 1
 0
-@pre 344
+@pre 2132
+D packages/harness/templates/task/execucao.md
+D packages/harness/templates/task/verificacao.md
+D packages/harness/templates/task/criterios.md
+D packages/harness/templates/task/executivo.md
+D packages/harness/templates/task/tecnico.md
+D packages/harness/templates/task/readme.md
+D packages/harness/templates/task/estado.yml
+D packages/harness/templates/task/registro.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/README.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/criterios.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/estado.yml
+D packages/harness/work/tasks/SPEC-009/TASK-01/execucao.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/executivo.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/registro.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/tecnico.md
+D packages/harness/work/tasks/SPEC-009/TASK-01/verificacao.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/README.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/criterios.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/estado.yml
+D packages/harness/work/tasks/SPEC-009/TASK-02/execucao.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/executivo.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/registro.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/tecnico.md
+D packages/harness/work/tasks/SPEC-009/TASK-02/verificacao.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/README.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/criterios.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/estado.yml
+D packages/harness/work/tasks/SPEC-009/TASK-03/execucao.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/executivo.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/registro.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/tecnico.md
+D packages/harness/work/tasks/SPEC-009/TASK-03/verificacao.md
 W 0f62bcaac2911872b9e1bf8752773e01adbafb3cb100af526be1d02c00d15b47 packages/harness/work/tasks/SPEC-009/TASK-01.md
 W db48afb58b1c0f7dc1cdd4763e059615354fa560acece1f160862849bb49e0a1 packages/harness/work/tasks/SPEC-009/TASK-02.md
 W 9ebdcf42eff013ec7e7e0d615401ba2afdb6605789e9ad0eea32e2c2ced3e088 packages/harness/work/tasks/SPEC-009/TASK-03.md

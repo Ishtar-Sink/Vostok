@@ -89,11 +89,22 @@ fn problem_list(title: &str, problems: &[String]) -> String {
 struct Task {
     path: PathBuf,
     content: String,
+    /// Arquivo de estado da tarefa em pasta; `None` no arquivo único.
+    state: Option<PathBuf>,
+    executive: String,
+    technical: String,
 }
 
 impl Task {
     fn field(&self, key: &str) -> Option<String> {
-        frontmatter_get(&self.path, key).ok()
+        match &self.state {
+            Some(state) => state_field(state, key),
+            None => frontmatter_get(&self.path, key).ok(),
+        }
+    }
+
+    fn is_folder(&self) -> bool {
+        self.state.is_some()
     }
 
     fn id(&self) -> String {
@@ -111,6 +122,139 @@ impl Task {
     fn stem(&self) -> String {
         file_stem(&self.path)
     }
+}
+
+/// Nomes dos arquivos e dos títulos da tarefa em pasta, lidos de `config/tasks.yml`.
+struct TaskFiles {
+    state: String,
+    execution: String,
+    verification: String,
+    criteria: String,
+    executive: String,
+    technical: String,
+    record: String,
+    evidence_dir: String,
+    execution_section: String,
+    description_section: String,
+    executive_heading: String,
+    technical_heading: String,
+}
+
+impl TaskFiles {
+    fn read(config: &Path) -> Self {
+        let get = |key: &str, default: &str| {
+            config_get(config, key)
+                .ok()
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| default.to_string())
+        };
+        Self {
+            state: get("task_files.state", "estado.yml"),
+            execution: get("task_files.execution", "execucao.md"),
+            verification: get("task_files.verification", "verificacao.md"),
+            criteria: get("task_files.criteria", "criterios.md"),
+            executive: get("task_files.executive", "executivo.md"),
+            technical: get("task_files.technical", "tecnico.md"),
+            record: get("task_files.record", "registro.md"),
+            evidence_dir: get("task_evidence_dir", "evidencias"),
+            execution_section: get("execution_section", "Execução"),
+            description_section: get("description_section", "Descrição"),
+            executive_heading: get("executive_summary_subsection", "Resumo executivo"),
+            technical_heading: get("technical_details_subsection", "Detalhes técnicos"),
+        }
+    }
+
+    /// Tarefa em pasta: tem o arquivo de estado.
+    fn is_folder(&self, path: &Path) -> bool {
+        path.join(&self.state).is_file()
+    }
+}
+
+/// Tarefas de uma spec, em ordem alfabética: arquivos `TASK-NN.md` ou pastas `TASK-NN/`.
+fn load_tasks(dir: &Path, files: &TaskFiles) -> Result<Vec<Task>> {
+    let mut folders: Vec<PathBuf> = fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|entry| entry.path())
+                .filter(|path| files.is_folder(path))
+                .collect()
+        })
+        .unwrap_or_default();
+    let documents = md_files(dir);
+    if !documents.is_empty() && !folders.is_empty() {
+        let spec = file_name(dir);
+        bail!("a spec {spec} tem tarefas nos dois formatos; execute: vostok task migrate {spec}");
+    }
+    folders.sort();
+    if folders.is_empty() {
+        return Ok(documents.into_iter().map(load_task_file).collect());
+    }
+    Ok(folders
+        .into_iter()
+        .map(|folder| load_task_folder(folder, files))
+        .collect())
+}
+
+fn load_task_file(path: PathBuf) -> Task {
+    let content = fs::read_to_string(&path).unwrap_or_default();
+    Task {
+        path,
+        content,
+        state: None,
+        executive: String::new(),
+        technical: String::new(),
+    }
+}
+
+/// Monta o texto da tarefa em pasta com os mesmos títulos do arquivo único, para as leituras serem
+/// iguais nos dois formatos.
+fn load_task_folder(folder: PathBuf, files: &TaskFiles) -> Task {
+    let part = |name: &str| {
+        let text = fs::read_to_string(folder.join(name)).unwrap_or_default();
+        text.trim_matches('\n').to_string()
+    };
+    let state_path = folder.join(&files.state);
+    let executive = part(&files.executive);
+    let technical = part(&files.technical);
+    let title = state_field(&state_path, "title").unwrap_or_default();
+    let content = format!(
+        "---\n{}\n---\n\n# {}: {title}\n\n## {}\n\n{}\n\n{}\n\n{}\n\n## {}\n\n### {}\n\n{executive}\n\n### {}\n\n{technical}\n\n{}\n",
+        part(&files.state),
+        file_name(&folder),
+        files.execution_section,
+        part(&files.execution),
+        part(&files.verification),
+        part(&files.criteria),
+        files.description_section,
+        files.executive_heading,
+        files.technical_heading,
+        part(&files.record),
+    );
+    Task {
+        path: folder,
+        content,
+        state: Some(state_path),
+        executive,
+        technical,
+    }
+}
+
+/// Valor de uma linha `chave: valor` do estado, sem aspas, como no front-matter.
+fn state_field(state: &Path, key: &str) -> Option<String> {
+    let prefix = format!("{key}:");
+    let text = fs::read_to_string(state).ok()?;
+    text.lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .map(|rest| {
+            let value = rest.trim();
+            if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+                return value[1..value.len() - 1]
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\");
+            }
+            value.trim_matches('\'').to_string()
+        })
 }
 
 /// Uma spec que pode ser finalizada, com as tarefas e os caminhos da configuração.
@@ -141,13 +285,8 @@ impl Finalization {
             bail!("spec {id} não encontrada entre as refinadas");
         };
         let tasks_dir = harness.path("tasks")?.join(id);
-        let tasks = md_files(&tasks_dir)
-            .into_iter()
-            .map(|path| {
-                let content = fs::read_to_string(&path).unwrap_or_default();
-                Task { path, content }
-            })
-            .collect();
+        let files = TaskFiles::read(&harness.config_file("tasks.yml"));
+        let tasks = load_tasks(&tasks_dir, &files)?;
         let root = harness.path("root")?;
         let root = crate::support::lexical(&root);
         let finalization = Self {
@@ -262,6 +401,10 @@ impl Finalization {
     }
 
     fn task_evidence_dir(&self, task: &Task) -> Result<PathBuf> {
+        if task.is_folder() {
+            let files = TaskFiles::read(&self.harness.config_file("tasks.yml"));
+            return Ok(task.path.join(files.evidence_dir));
+        }
         let parent = task.path.parent().unwrap_or(Path::new(""));
         Ok(parent
             .join(self.task_setting("evidence_dir")?)
@@ -497,6 +640,9 @@ impl Finalization {
             push_line(out, &format!("### {}: {}", task.id(), task.title()));
             push_line(out, "");
             push_line(out, &format!("- **Status:** {}", task.status()));
+            if task.is_folder() {
+                self.sources_task_texts(out, task);
+            }
             for heading in [&record, &history] {
                 push_line(out, "");
                 push_line(out, &format!("**{heading}**"));
@@ -521,6 +667,27 @@ impl Finalization {
             }
         }
         Ok(())
+    }
+
+    /// Executivo e técnico da tarefa em pasta, com o conteúdo dos arquivos.
+    fn sources_task_texts(&self, out: &mut String, task: &Task) {
+        let files = TaskFiles::read(&self.harness.config_file("tasks.yml"));
+        for (heading, text) in [
+            (&files.executive_heading, &task.executive),
+            (&files.technical_heading, &task.technical),
+        ] {
+            push_line(out, "");
+            push_line(out, &format!("**{heading}**"));
+            push_line(out, "");
+            push_line(
+                out,
+                if text.is_empty() {
+                    "Não se aplica."
+                } else {
+                    text
+                },
+            );
+        }
     }
 
     fn adjustment_history_heading(&self) -> Result<String> {
@@ -1628,7 +1795,7 @@ impl Finalization {
                 "ARCHITECTURE",
                 section_html(&part, "Arquitetura e componentes"),
             ),
-            ("DONE", section_html(&part, "O que foi feito")),
+            ("DONE", self.done_html(&part)),
             ("REQUIREMENTS", captured(&self.requirements_html()?)),
             ("FILES", captured(&self.files_html()?)),
             ("DIFFS", DIFFS_MARKER.to_string()),
@@ -1641,6 +1808,28 @@ impl Finalization {
         let template = read_template(&self.templates_dir()?.join(TECHNICAL_TEMPLATE), errors);
         let html = render_lines(&template, &values.into_iter().collect());
         Ok(splice(&html, DIFFS_MARKER, diffs.as_bytes()))
+    }
+
+    /// "O que foi feito" seguido do técnico de cada tarefa em pasta.
+    fn done_html(&self, part: &str) -> String {
+        let done = section_html(part, "O que foi feito");
+        let tasks: String = self
+            .tasks
+            .iter()
+            .filter(|task| task.is_folder() && !task.technical.is_empty())
+            .map(|task| {
+                format!(
+                    "<h3>{}: {}</h3>\n{}",
+                    html_escape(&task.id()),
+                    html_escape(&task.title()),
+                    block_html(&task.technical)
+                )
+            })
+            .collect();
+        if tasks.is_empty() {
+            return done;
+        }
+        format!("{done}\n{}", captured(&tasks))
     }
 
     /// CSS dos tokens: `:root` com o tema escuro e as fontes e `:root[data-theme="light"]` com o claro.

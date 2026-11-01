@@ -16,7 +16,7 @@ use crate::harness::Harness;
 use crate::models;
 use crate::support::{
     config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
-    frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection,
+    frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection, render,
     sha256_hex, template_leftovers, EvidenceFields,
 };
 
@@ -26,6 +26,9 @@ pub enum TaskCommand {
     Load {
         spec_id: Option<String>,
         task_id: Option<String>,
+        /// Imprime só um arquivo da tarefa: execucao, verificacao, criterios, executivo ou tecnico.
+        #[arg(long)]
+        part: Option<String>,
     },
     /// Imprime as tabelas das tarefas e das ondas de uma spec.
     Status { spec_id: Option<String> },
@@ -228,9 +231,16 @@ const BRIEF_RULES: [&str; 3] = [
 pub fn run(command: TaskCommand) -> Result<()> {
     let tasks = Tasks::new(Harness::from_current_dir()?)?;
     match command {
-        TaskCommand::Load { spec_id, task_id } => {
+        TaskCommand::Load {
+            spec_id,
+            task_id,
+            part,
+        } => {
             let (spec, task) = filled(spec_id, task_id, LOAD_USAGE)?;
-            tasks.load(&spec, &task)
+            match part {
+                Some(part) => tasks.load_part(&spec, &task, &part),
+                None => tasks.load(&spec, &task),
+            }
         }
         TaskCommand::Status { spec_id } => {
             let spec = spec_id
@@ -394,7 +404,7 @@ impl Tasks {
             blocked: status("blocked")?,
             done: status("done")?,
         };
-        let _ = TASK_LAYOUT.set(TaskLayout::read(&config));
+        init_layout(&harness);
         Ok(Self {
             harness,
             tasks_root,
@@ -642,6 +652,30 @@ impl Tasks {
 
     fn load(&self, spec: &str, task: &str) -> Result<()> {
         print!("{}", self.load_text(spec, task)?);
+        Ok(())
+    }
+
+    /// Imprime um arquivo da tarefa; no arquivo único, a subseção equivalente.
+    fn load_part(&self, spec: &str, task: &str, part: &str) -> Result<()> {
+        let file = self.existing_task(spec, task)?;
+        let doc = TaskDoc::at(&file);
+        let name = doc
+            .part_file(part)
+            .ok_or_else(|| anyhow!("parte inválida: '{part}'; use {}", TASK_PARTS.join(", ")))?;
+        let text = if doc.folder() {
+            read(&doc.part(name))?
+        } else {
+            split_task_text(&doc.text()?)
+                .into_iter()
+                .find_map(|(file_name, text)| (file_name == name).then_some(text))
+                .ok_or_else(|| {
+                    anyhow!(
+                        "a tarefa {task} não tem a parte '{part}': {}",
+                        file.display()
+                    )
+                })?
+        };
+        println!("{}", text.trim_matches('\n'));
         Ok(())
     }
 
@@ -1212,7 +1246,7 @@ impl Tasks {
         let approved_hash = TaskDoc::at(file)
             .get(&self.spec_cfg("approved_hash_field")?)
             .unwrap_or_default();
-        if approved_hash != self.content_hash(&TaskDoc::at(file).text()?)? {
+        if approved_hash != self.task_hash(file)? {
             blockers.push(format!(
                 "a tarefa {task} mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
             ));
@@ -2478,16 +2512,32 @@ impl Tasks {
         Ok(sha256_hex(body.as_bytes()))
     }
 
+    /// Hash de aprovação e de edição manual: na pasta, só os arquivos de execução (o executivo e o
+    /// técnico ficam fora); no arquivo único, o conteúdo sem o registro de execução.
+    fn task_hash(&self, file: &Path) -> Result<String> {
+        let doc = TaskDoc::at(file);
+        if doc.folder() {
+            doc.check()?;
+            return doc.execution_hash();
+        }
+        self.content_hash(&doc.text()?)
+    }
+
     fn hash_is_current(&self, file: &Path) -> Result<bool> {
-        let stored = TaskDoc::at(file)
+        let doc = TaskDoc::at(file);
+        let stored = doc
             .get(&self.spec_cfg("content_hash_field")?)
             .unwrap_or_default();
-        Ok(stored == self.content_hash(&TaskDoc::at(file).text()?)?)
+        Ok(stored == self.task_hash(file)? && !(doc.folder() && doc.state_edited()?))
     }
 
     fn store_hash(&self, file: &Path) -> Result<()> {
-        let hash = self.content_hash(&TaskDoc::at(file).text()?)?;
-        TaskDoc::at(file).put(&self.spec_cfg("content_hash_field")?, &hash)
+        let doc = TaskDoc::at(file);
+        let field = self.spec_cfg("content_hash_field")?;
+        if doc.folder() {
+            return doc.store_hashes(&field);
+        }
+        doc.put(&field, &self.task_hash(file)?)
     }
 
     /// Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo.
@@ -2533,13 +2583,21 @@ impl Tasks {
         TaskDoc::at(file).put("adjusted_at", &now)?;
         TaskDoc::at(file).put("updated_at", &now)?;
         self.store_hash(file)?;
+        if TaskDoc::at(file).folder() {
+            TaskDoc::at(file).refresh_state_hash()?;
+        }
         Ok(count)
     }
 
     /// Resumo de um ajuste manual, com as seções alteradas desde o último commit quando houver.
     fn manual_summary(&self, file: &Path) -> Result<String> {
         let summary = self.spec_cfg("manual_adjustment_summary")?;
-        let sections = changed_sections(file, &self.history_heading()?)?;
+        let doc = TaskDoc::at(file);
+        let sections = if doc.folder() {
+            doc.edited_files()?.join(", ")
+        } else {
+            changed_sections(file, &self.history_heading()?)?
+        };
         Ok(if sections.is_empty() {
             summary
         } else {
@@ -2890,21 +2948,36 @@ fn task_id_of(file: &Path) -> String {
         .into_owned()
 }
 
+/// Partes que `vostok task load --part` aceita.
+const TASK_PARTS: [&str; 5] = [
+    "execucao",
+    "verificacao",
+    "criterios",
+    "executivo",
+    "tecnico",
+];
+
+/// Campo do estado com o hash do próprio `estado.yml`, sem esta linha.
+const STATE_HASH_KEY: &str = "state_hash";
+
 /// Nomes dos arquivos e das seções da tarefa em pasta, lidos de `config/tasks.yml` na criação de
 /// `Tasks`; sem as chaves (projetos antigos), os nomes do contrato.
-struct TaskLayout {
-    state: String,
-    execution: String,
-    verification: String,
-    criteria: String,
-    executive: String,
-    technical: String,
-    record: String,
-    evidence_dir: String,
-    execution_section: String,
-    description_section: String,
-    executive_heading: String,
-    technical_heading: String,
+pub(crate) struct TaskLayout {
+    pub(crate) state: String,
+    pub(crate) execution: String,
+    pub(crate) verification: String,
+    pub(crate) criteria: String,
+    pub(crate) executive: String,
+    pub(crate) technical: String,
+    pub(crate) record: String,
+    pub(crate) readme: String,
+    /// Conteúdo do template do `README.md` da tarefa; vazio sem o template, e então o README não é gerado.
+    pub(crate) readme_template: String,
+    pub(crate) evidence_dir: String,
+    pub(crate) execution_section: String,
+    pub(crate) description_section: String,
+    pub(crate) executive_heading: String,
+    pub(crate) technical_heading: String,
 }
 
 impl TaskLayout {
@@ -2923,6 +2996,8 @@ impl TaskLayout {
             executive: get("task_files.executive", "executivo.md"),
             technical: get("task_files.technical", "tecnico.md"),
             record: get("task_files.record", "registro.md"),
+            readme: get("task_files.readme", "README.md"),
+            readme_template: String::new(),
             evidence_dir: get("task_evidence_dir", "evidencias"),
             execution_section: get("execution_section", "Execução"),
             description_section: get("description_section", "Descrição"),
@@ -2935,16 +3010,46 @@ impl TaskLayout {
     fn execution_files(&self) -> [&str; 3] {
         [&self.execution, &self.verification, &self.criteria]
     }
+
+    /// Campo do estado que guarda o hash de cada arquivo de execução.
+    fn hashed_files(&self) -> [(&'static str, &str); 3] {
+        [
+            ("execution_hash", &self.execution),
+            ("verification_hash", &self.verification),
+            ("criteria_hash", &self.criteria),
+        ]
+    }
 }
 
 static TASK_LAYOUT: std::sync::OnceLock<TaskLayout> = std::sync::OnceLock::new();
 
-fn layout() -> &'static TaskLayout {
+/// Fixa os nomes dos arquivos da tarefa e o template do README, lidos da configuração do harness.
+pub(crate) fn init_layout(harness: &Harness) {
+    let config = harness.config_file("tasks.yml");
+    let mut layout = TaskLayout::read(&config);
+    layout.readme_template = harness
+        .path("templates")
+        .ok()
+        .map(|templates| templates.join(task_template_dir(&config)))
+        .and_then(|dir| fs::read_to_string(dir.join(layout.readme.to_lowercase())).ok())
+        .unwrap_or_default();
+    let _ = TASK_LAYOUT.set(layout);
+}
+
+/// Pasta dos templates da tarefa em pasta, relativa a `paths.templates`.
+pub(crate) fn task_template_dir(config: &Path) -> String {
+    config_get(config, "task_folder_template_dir")
+        .ok()
+        .filter(|dir| !dir.is_empty())
+        .unwrap_or_else(|| "task".to_string())
+}
+
+pub(crate) fn layout() -> &'static TaskLayout {
     TASK_LAYOUT.get_or_init(|| TaskLayout::read(Path::new("")))
 }
 
 /// Pasta de tarefa no formato novo: tem o arquivo de estado.
-fn is_task_folder(path: &Path) -> bool {
+pub(crate) fn is_task_folder(path: &Path) -> bool {
     path.join(&layout().state).is_file()
 }
 
@@ -2952,25 +3057,25 @@ fn is_task_folder(path: &Path) -> bool {
 /// por aqui. No arquivo único `TASK-NN.md`, o estado é o front-matter. Na pasta `TASK-NN/`, o estado
 /// fica em `estado.yml`, o registro e o histórico em `registro.md`, e o texto é montado dos arquivos
 /// com os mesmos títulos do arquivo único, para os comandos lerem os dois formatos igual.
-struct TaskDoc<'a> {
+pub(crate) struct TaskDoc<'a> {
     file: &'a Path,
 }
 
 impl<'a> TaskDoc<'a> {
-    fn at(file: &'a Path) -> Self {
+    pub(crate) fn at(file: &'a Path) -> Self {
         Self { file }
     }
 
-    fn folder(&self) -> bool {
+    pub(crate) fn folder(&self) -> bool {
         is_task_folder(self.file)
     }
 
-    fn part(&self, name: &str) -> PathBuf {
+    pub(crate) fn part(&self, name: &str) -> PathBuf {
         self.file.join(name)
     }
 
     /// Recusa a pasta sem algum arquivo de execução ou sem o registro.
-    fn check(&self) -> Result<()> {
+    pub(crate) fn check(&self) -> Result<()> {
         if !self.folder() {
             return Ok(());
         }
@@ -2992,7 +3097,7 @@ impl<'a> TaskDoc<'a> {
     }
 
     /// Valor de um campo do estado.
-    fn get(&self, key: &str) -> Result<String> {
+    pub(crate) fn get(&self, key: &str) -> Result<String> {
         if !self.folder() {
             return frontmatter_get(self.file, key);
         }
@@ -3013,33 +3118,181 @@ impl<'a> TaskDoc<'a> {
         self.put(key, value)
     }
 
-    /// Grava um campo do estado, acrescentando-o se ainda não existir.
+    /// Grava um campo do estado, acrescentando-o se ainda não existir. Com o `state_hash` em dia, ele
+    /// acompanha a gravação; com uma edição manual pendente, fica como está para ela aparecer.
     fn put(&self, key: &str, value: &str) -> Result<()> {
         if !self.folder() {
             return frontmatter_put(self.file, key, value);
         }
         let path = self.part(&layout().state);
-        let prefix = format!("{key}:");
-        let mut found = false;
-        let mut lines: Vec<String> = read(&path)?
-            .lines()
-            .map(|line| {
-                if !found && line.starts_with(&prefix) {
-                    found = true;
-                    format!("{key}: {value}")
-                } else {
-                    line.to_string()
-                }
-            })
-            .collect();
-        if !found {
-            lines.push(format!("{key}: {value}"));
+        let in_sync = self.state_in_sync()?;
+        let mut lines = state_lines(&read(&path)?);
+        upsert_line(&mut lines, key, value);
+        if in_sync {
+            let digest = state_digest(&lines);
+            upsert_line(&mut lines, STATE_HASH_KEY, &digest);
         }
+        write(&path, &format!("{}\n", lines.join("\n")))?;
+        self.write_readme()
+    }
+
+    /// Grava os hashes da tarefa em pasta: o de aprovação, o de cada arquivo de execução e o do
+    /// estado. A edição manual do estado ainda não registrada não é apagada.
+    pub(crate) fn store_hashes(&self, content_hash_field: &str) -> Result<()> {
+        self.put(content_hash_field, &self.execution_hash()?)?;
+        for (key, name) in layout().hashed_files() {
+            self.put(key, &self.part_hash(name)?)?;
+        }
+        if !self.state_edited()? {
+            self.refresh_state_hash()?;
+        }
+        Ok(())
+    }
+
+    /// Refaz o `README.md` da tarefa pelo template: estado, links dos arquivos e card, com os
+    /// critérios de `criterios.md`. Sem o template ou sem os arquivos de execução, não grava nada.
+    fn write_readme(&self) -> Result<()> {
+        let layout = layout();
+        if layout.readme_template.is_empty() || self.check().is_err() {
+            return Ok(());
+        }
+        let field = |key: &str| {
+            let value = self.get(key).unwrap_or_default();
+            if matches!(value.as_str(), "" | "null") {
+                "-".to_string()
+            } else {
+                value
+            }
+        };
+        let list = |key: &str| {
+            let value = self.get(key).unwrap_or_default().replace(['[', ']'], "");
+            if value.trim().is_empty() {
+                "-".to_string()
+            } else {
+                value
+            }
+        };
+        let profile = match field("profile").as_str() {
+            "-" => field("effort"),
+            profile => profile.to_string(),
+        };
+        let criteria: Vec<String> = read(&self.part(&layout.criteria))?
+            .lines()
+            .filter(|line| line.starts_with("- ["))
+            .map(|line| format!("  {line}"))
+            .collect();
+        let criteria = if criteria.is_empty() {
+            "  - -".to_string()
+        } else {
+            criteria.join("\n")
+        };
+        let values = HashMap::from([
+            ("TASK_ID", task_id_of(self.file)),
+            ("SPEC_ID", field("spec")),
+            ("TASK_TITLE", field("title")),
+            ("TASK_STATUS", field("status")),
+            ("TASK_WAVE", field("wave")),
+            ("TASK_DEPENDS", list("depends_on")),
+            ("TASK_BLOCKED_BY", list("depends_on")),
+            ("TASK_TYPE", field("type")),
+            ("TASK_PROFILE", profile),
+            ("TASK_LABELS", list("labels")),
+            ("TASK_CARD_DESCRIPTION", field("description")),
+            ("TASK_CARD_CRITERIA", criteria),
+        ]);
+        let text = format!("{}\n", render(&layout.readme_template, &values).trim_end());
+        let path = self.part(&layout.readme);
+        if read(&path).unwrap_or_default() != text {
+            write(&path, &text)?;
+        }
+        Ok(())
+    }
+
+    /// Grava o `state_hash` do estado como está.
+    fn refresh_state_hash(&self) -> Result<()> {
+        let path = self.part(&layout().state);
+        let mut lines = state_lines(&read(&path)?);
+        let digest = state_digest(&lines);
+        upsert_line(&mut lines, STATE_HASH_KEY, &digest);
         write(&path, &format!("{}\n", lines.join("\n")))
     }
 
+    /// `estado.yml` bate com o `state_hash` gravado; sem ele, nunca foi conferido.
+    fn state_in_sync(&self) -> Result<bool> {
+        Ok(self
+            .stored_state_hash()?
+            .is_some_and(|stored| stored == self.current_state_hash()))
+    }
+
+    /// `estado.yml` mudou desde o último `state_hash` gravado.
+    fn state_edited(&self) -> Result<bool> {
+        Ok(self
+            .stored_state_hash()?
+            .is_some_and(|stored| stored != self.current_state_hash()))
+    }
+
+    fn stored_state_hash(&self) -> Result<Option<String>> {
+        Ok(self
+            .get(STATE_HASH_KEY)
+            .ok()
+            .filter(|value| !matches!(value.as_str(), "" | "null" | "-")))
+    }
+
+    fn current_state_hash(&self) -> String {
+        let text = read(&self.part(&layout().state)).unwrap_or_default();
+        state_digest(&state_lines(&text))
+    }
+
+    /// Hash dos arquivos de execução juntos, na ordem; é o hash de aprovação e de edição manual.
+    fn execution_hash(&self) -> Result<String> {
+        let mut bytes = Vec::new();
+        for name in layout().execution_files() {
+            bytes.extend(self.part_bytes(name)?);
+        }
+        Ok(sha256_hex(&bytes))
+    }
+
+    fn part_hash(&self, name: &str) -> Result<String> {
+        Ok(sha256_hex(&self.part_bytes(name)?))
+    }
+
+    fn part_bytes(&self, name: &str) -> Result<Vec<u8>> {
+        let path = self.part(name);
+        fs::read(&path).with_context(|| format!("não foi possível ler {}", path.display()))
+    }
+
+    /// Arquivos de execução cujo hash gravado no estado não bate com o conteúdo, e o `estado.yml`
+    /// se ele mudou. Arquivo sem hash gravado nunca foi conferido e fica de fora.
+    fn edited_files(&self) -> Result<Vec<String>> {
+        let mut edited = Vec::new();
+        for (key, name) in layout().hashed_files() {
+            let stored = self.get(key).unwrap_or_default();
+            if !matches!(stored.as_str(), "" | "null" | "-") && stored != self.part_hash(name)? {
+                edited.push(name.to_string());
+            }
+        }
+        if self.state_edited()? {
+            edited.push(layout().state.clone());
+        }
+        Ok(edited)
+    }
+
+    /// Nome do arquivo de uma parte (`execucao`, `verificacao`, `criterios`, `executivo`, `tecnico`).
+    fn part_file(&self, part: &str) -> Option<&'static str> {
+        let layout = layout();
+        match part {
+            "execucao" => Some(&layout.execution),
+            "verificacao" => Some(&layout.verification),
+            "criterios" => Some(&layout.criteria),
+            "executivo" => Some(&layout.executive),
+            "tecnico" => Some(&layout.technical),
+            _ => None,
+        }
+        .map(String::as_str)
+    }
+
     /// Texto da tarefa, com as seções que os comandos leem.
-    fn text(&self) -> Result<String> {
+    pub(crate) fn text(&self) -> Result<String> {
         if !self.folder() {
             return read(self.file);
         }
@@ -3070,7 +3323,7 @@ impl<'a> TaskDoc<'a> {
 
     /// Regrava o texto da tarefa (registro, histórico ou nomes de evidência). Na pasta, cada
     /// trecho volta ao seu arquivo, e só os arquivos que mudaram são gravados.
-    fn write_text(&self, content: &str) -> Result<()> {
+    pub(crate) fn write_text(&self, content: &str) -> Result<()> {
         if !self.folder() {
             return write(self.file, content);
         }
@@ -3086,6 +3339,31 @@ impl<'a> TaskDoc<'a> {
     }
 }
 
+fn state_lines(text: &str) -> Vec<String> {
+    text.lines().map(str::to_string).collect()
+}
+
+/// Troca o valor da chave, ou a acrescenta no fim se ainda não existir.
+fn upsert_line(lines: &mut Vec<String>, key: &str, value: &str) {
+    let prefix = format!("{key}:");
+    let line = format!("{key}: {value}");
+    match lines.iter_mut().find(|line| line.starts_with(&prefix)) {
+        Some(found) => *found = line,
+        None => lines.push(line),
+    }
+}
+
+/// Hash do estado sem a linha do próprio hash.
+fn state_digest(lines: &[String]) -> String {
+    let prefix = format!("{STATE_HASH_KEY}:");
+    let body: String = lines
+        .iter()
+        .filter(|line| !line.starts_with(&prefix))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    sha256_hex(body.as_bytes())
+}
+
 /// Valor de uma linha `chave: valor` do estado, sem aspas, como no front-matter.
 fn state_value(rest: &str) -> String {
     let value = rest.trim();
@@ -3098,7 +3376,7 @@ fn state_value(rest: &str) -> String {
 }
 
 /// Divide o texto montado por `TaskDoc::text` de volta nos arquivos da pasta, pelos títulos.
-fn split_task_text(content: &str) -> Vec<(String, String)> {
+pub(crate) fn split_task_text(content: &str) -> Vec<(String, String)> {
     let layout = layout();
     let file_of = |heading: &str| -> Option<&str> {
         match heading {
@@ -3160,7 +3438,7 @@ fn split_task_text(content: &str) -> Vec<(String, String)> {
 }
 
 /// Texto antes da seção `## <title>`; o texto inteiro se ela não existir.
-fn before_section(content: &str, title: &str) -> String {
+pub(crate) fn before_section(content: &str, title: &str) -> String {
     let heading = format!("\n## {title}\n");
     content.find(&heading).map_or_else(
         || content.to_string(),
@@ -3170,7 +3448,7 @@ fn before_section(content: &str, title: &str) -> String {
 
 /// Tarefas de uma pasta de spec, em ordem alfabética: arquivos `TASK-NN.md` ou pastas `TASK-NN/`.
 /// Recusa a spec com os dois formatos.
-fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
     let files = markdown_files(dir)?;
     let mut folders: Vec<PathBuf> = fs::read_dir(dir)
         .with_context(|| format!("não foi possível ler {}", dir.display()))?

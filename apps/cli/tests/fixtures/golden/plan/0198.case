@@ -63,7 +63,33 @@ TASK-02: 'Evidências' sem nenhum item no formato e sem o texto 'Não se aplica.
 
 @exit 1
 1
-@pre 0
+@pre 1545
+D packages/harness/templates/task/execucao.md
+D packages/harness/templates/task/verificacao.md
+D packages/harness/templates/task/criterios.md
+D packages/harness/templates/task/executivo.md
+D packages/harness/templates/task/tecnico.md
+D packages/harness/templates/task/readme.md
+D packages/harness/templates/task/estado.yml
+D packages/harness/templates/task/registro.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/README.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/criterios.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/estado.yml
+D packages/harness/work/tasks/SPEC-008/TASK-01/execucao.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/executivo.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/registro.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/tecnico.md
+D packages/harness/work/tasks/SPEC-008/TASK-01/verificacao.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/README.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/criterios.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/estado.yml
+D packages/harness/work/tasks/SPEC-008/TASK-02/execucao.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/executivo.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/registro.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/tecnico.md
+D packages/harness/work/tasks/SPEC-008/TASK-02/verificacao.md
+W 70958fdd5eb10b6cf115826baf05e3684788c8912897fc23afd98b68791616f6 packages/harness/work/tasks/SPEC-008/TASK-01.md
+W e6c5fa2321bb9af886629fb74dcefd6304f31861d50f1c596d01d2c3e1b8758c packages/harness/work/tasks/SPEC-008/TASK-02.md
 
 @post 0
 

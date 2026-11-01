@@ -20,19 +20,42 @@ SPEC-008
 <OUTSIDE>
 @stdin 0
 
-@stdout 102
+@stdout 98
 Tarefas de SPEC-008 criadas em <ROOT>/packages/harness/work/tasks/SPEC-008:
-- TASK-01.md
-- TASK-02.md
+- TASK-01/
+- TASK-02/
 
 @stderr 0
 
 @exit 1
 0
-@pre 135
+@pre 1024
+W 6efb14e65c73631b0dde0121cdf9fde480d8fad70e37079f41db6e155b3fa7b1 packages/harness/templates/task/execucao.md
+W d9715df79f58b4909aef45a6d9cd272d40267a931c3a9b8469836a61cc1bc58b packages/harness/templates/task/verificacao.md
+W 9a12d75c1448bb52661383b76147f06f18cd35677ed091ef92dda1d731251b0c packages/harness/templates/task/criterios.md
+W e285c4ebc9eb2588715ace4b4f07cd12560d761dee902cc4216558a93bbfaf4e packages/harness/templates/task/executivo.md
+W 11d7d4c0b15be1da4b92b402dae28dff9ffc4a0e1a1ee2f152fd56c202615862 packages/harness/templates/task/tecnico.md
+W ffd2fb1e5bf724f7299da3662254796e033f947c92f51fb4c62cd22b07fd8938 packages/harness/templates/task/readme.md
+W f1ae07c08a02d5b496ba51c1cbf0b4ad94d0341243c9626330f97731e2862b9d packages/harness/templates/task/estado.yml
+W 3f42a7f39b7d92b863d8882fa0a24cb6d0a3989dbaec1323567263b64c7b0411 packages/harness/templates/task/registro.md
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/
 D packages/harness/work/tasks/SPEC-008/
-@post 260
-W 70958fdd5eb10b6cf115826baf05e3684788c8912897fc23afd98b68791616f6 packages/harness/work/tasks/SPEC-008/TASK-01.md
-W e6c5fa2321bb9af886629fb74dcefd6304f31861d50f1c596d01d2c3e1b8758c packages/harness/work/tasks/SPEC-008/TASK-02.md
+@post 2017
+W 80b1b0a538bf0d306c70f68e8a6756272900f7a35a1005755f1e54953e89609c packages/harness/work/tasks/SPEC-008/TASK-01/README.md
+W 9a12d75c1448bb52661383b76147f06f18cd35677ed091ef92dda1d731251b0c packages/harness/work/tasks/SPEC-008/TASK-01/criterios.md
+W 8923bedae86a4e7dbc1ea18775c119b0258fd0f588fa87cf8d02925e32700f2e packages/harness/work/tasks/SPEC-008/TASK-01/estado.yml
+W 6efb14e65c73631b0dde0121cdf9fde480d8fad70e37079f41db6e155b3fa7b1 packages/harness/work/tasks/SPEC-008/TASK-01/execucao.md
+W e285c4ebc9eb2588715ace4b4f07cd12560d761dee902cc4216558a93bbfaf4e packages/harness/work/tasks/SPEC-008/TASK-01/executivo.md
+W 3f42a7f39b7d92b863d8882fa0a24cb6d0a3989dbaec1323567263b64c7b0411 packages/harness/work/tasks/SPEC-008/TASK-01/registro.md
+W 11d7d4c0b15be1da4b92b402dae28dff9ffc4a0e1a1ee2f152fd56c202615862 packages/harness/work/tasks/SPEC-008/TASK-01/tecnico.md
+W d9715df79f58b4909aef45a6d9cd272d40267a931c3a9b8469836a61cc1bc58b packages/harness/work/tasks/SPEC-008/TASK-01/verificacao.md
+W 0fd6b583b7413c0283750a0572178606d57f74154643264dfd7f357d03bed328 packages/harness/work/tasks/SPEC-008/TASK-02/README.md
+W 9a12d75c1448bb52661383b76147f06f18cd35677ed091ef92dda1d731251b0c packages/harness/work/tasks/SPEC-008/TASK-02/criterios.md
+W 5717fb09597f1a170dd438e4df0a961d3928977e6aca86e9f665d96c7bf1af07 packages/harness/work/tasks/SPEC-008/TASK-02/estado.yml
+W 6efb14e65c73631b0dde0121cdf9fde480d8fad70e37079f41db6e155b3fa7b1 packages/harness/work/tasks/SPEC-008/TASK-02/execucao.md
+W e285c4ebc9eb2588715ace4b4f07cd12560d761dee902cc4216558a93bbfaf4e packages/harness/work/tasks/SPEC-008/TASK-02/executivo.md
+W 3f42a7f39b7d92b863d8882fa0a24cb6d0a3989dbaec1323567263b64c7b0411 packages/harness/work/tasks/SPEC-008/TASK-02/registro.md
+W 11d7d4c0b15be1da4b92b402dae28dff9ffc4a0e1a1ee2f152fd56c202615862 packages/harness/work/tasks/SPEC-008/TASK-02/tecnico.md
+W d9715df79f58b4909aef45a6d9cd272d40267a931c3a9b8469836a61cc1bc58b packages/harness/work/tasks/SPEC-008/TASK-02/verificacao.md
 D packages/harness/work/tasks/
+

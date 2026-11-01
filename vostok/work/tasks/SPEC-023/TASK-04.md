@@ -9,16 +9,17 @@ wave: 4
 covers: [RF-06, RF-07, RF-08, CT-06, CT-07, CT-08]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: 260b60068b3856e8755b7d5960353137ab9426261c31308ba0497081faf1450e
+status: done
+content_hash: 2fcf33ec31602506f71307e907e06dd69ff8bbec4c61575c5eab292e7f44b0f5
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 260b60068b3856e8755b7d5960353137ab9426261c31308ba0497081faf1450e
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: sonnet
 ---
 
 # TASK-04: Hash, edição manual e carregamento por arquivo
@@ -69,15 +70,15 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] Editar o executivo ou o técnico não pede nova aprovação (RF-06, CT-06).
+- [x] Editar o executivo ou o técnico não pede nova aprovação (RF-06, CT-06).
 
   > Como comprovar: em `part-hash-tests.txt`, ver aprovado o teste do executivo editado.
 
-- [ ] O `record-manual` cita o arquivo que mudou (RF-07, CT-07).
+- [x] O `record-manual` cita o arquivo que mudou (RF-07, CT-07).
 
   > Como comprovar: em `part-hash-tests.txt`, ver aprovado o teste com `execucao.md`.
 
-- [ ] `load` traz só os arquivos do agente e `--part` um arquivo (RF-08, CT-08).
+- [x] `load` traz só os arquivos do agente e `--part` um arquivo (RF-08, CT-08).
 
   > Como comprovar: em `part-hash-tests.txt`, ver aprovado o teste do carregamento.
 
@@ -108,6 +109,12 @@ Abordagem: hashes por arquivo no `estado.yml`, com o hash do próprio estado par
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: sonnet |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-04/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

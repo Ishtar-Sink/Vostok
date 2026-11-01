@@ -9,16 +9,17 @@ wave: 4
 covers: [RF-13, RF-14, CT-13, CT-14]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: 83808dc24a26e520584650c641f15405aec2e0e517880c530b67060b82b82a8d
+status: done
+content_hash: d0264732b0bc25c010b5d0e4b9dc47af4e8444bc8348bb406eec31f3728b31a7
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 83808dc24a26e520584650c641f15405aec2e0e517880c530b67060b82b82a8d
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: sonnet
 ---
 
 # TASK-08: Finalização da spec com pastas
@@ -70,11 +71,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] `sources`, `build` e `archive` funcionam com tarefas em pasta (RF-13, CT-13).
+- [x] `sources`, `build` e `archive` funcionam com tarefas em pasta (RF-13, CT-13).
 
   > Como comprovar: em `finalize-folder-tests.txt`, ver aprovados os testes das fontes e do arquivo.
 
-- [ ] O `tecnico.html` traz o técnico de cada tarefa (RF-14, CT-14).
+- [x] O `tecnico.html` traz o técnico de cada tarefa (RF-14, CT-14).
 
   > Como comprovar: em `finalize-folder-tests.txt`, ver aprovado o teste do documento.
 
@@ -105,6 +106,12 @@ Abordagem: a `finalize.rs` reconhece o formato de pasta pela mesma regra da `Tas
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: sonnet |
+| 2 | 2026-11-01 | baseline | coletado | 1 comando(s); códigos de saída: 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 0 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-08/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

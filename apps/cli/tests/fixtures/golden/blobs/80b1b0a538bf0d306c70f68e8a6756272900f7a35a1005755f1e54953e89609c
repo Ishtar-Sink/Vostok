@@ -1,0 +1,28 @@
+# TASK-01: Criar script
+
+Arquivo gerado pelo vostok a cada mudança de estado; não edite.
+
+- **Spec:** SPEC-008
+- **Status:** pending
+- **Onda:** 1
+- **Dependências:** -
+
+## Arquivos
+
+- [Execução](execucao.md): o que ler, mudar e os passos.
+- [Verificação](verificacao.md): baseline, comandos e evidências.
+- [Critérios](criterios.md): quando a tarefa está concluída.
+- [Resumo executivo](executivo.md)
+- [Detalhes técnicos](tecnico.md)
+- [Registro](registro.md): etapas da execução e histórico de ajustes.
+
+## Card
+
+- **Título:** Criar script
+- **Tipo:** tarefa
+- **Descrição:** Cria o script.
+- **Critérios de aceite:**
+  - -
+- **Rótulos:** SPEC-008, simples
+- **Estimativa:** simples
+- **Bloqueada por:** -

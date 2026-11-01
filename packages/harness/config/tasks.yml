@@ -79,7 +79,11 @@ task_types:
 
 # Templates, relativos a `paths.templates` (main.yml).
 plan_template: plan/plan.md
+# Estado e registro da tarefa em pasta (`estado.yml` e `registro.md`).
 task_template: task/task.md
+# Pasta dos templates dos demais arquivos da tarefa em pasta: um por arquivo de `task_files`, com o
+# nome em minúsculas (README.md vira readme.md).
+task_folder_template_dir: task
 
 # --- Níveis antigos (v0.1.x) ---
 # Os níveis só valem para planos com a coluna "Nível", feitos antes dos perfis de execução. O nível é

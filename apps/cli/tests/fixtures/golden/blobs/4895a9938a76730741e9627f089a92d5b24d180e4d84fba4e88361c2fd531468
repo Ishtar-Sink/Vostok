@@ -1,0 +1,28 @@
+# TASK-02: b
+
+Arquivo gerado pelo vostok a cada mudança de estado; não edite.
+
+- **Spec:** SPEC-009
+- **Status:** pending
+- **Onda:** 2
+- **Dependências:** TASK-01
+
+## Arquivos
+
+- [Execução](execucao.md): o que ler, mudar e os passos.
+- [Verificação](verificacao.md): baseline, comandos e evidências.
+- [Critérios](criterios.md): quando a tarefa está concluída.
+- [Resumo executivo](executivo.md)
+- [Detalhes técnicos](tecnico.md)
+- [Registro](registro.md): etapas da execução e histórico de ajustes.
+
+## Card
+
+- **Título:** b
+- **Tipo:** tarefa
+- **Descrição:** b
+- **Critérios de aceite:**
+  - -
+- **Rótulos:** SPEC-009, simples
+- **Estimativa:** simples
+- **Bloqueada por:** TASK-01

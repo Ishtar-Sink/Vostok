@@ -9,16 +9,18 @@ wave: 4
 covers: [RF-01, RF-04, CT-01, CT-04]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: 704bb93feeb88ff2e9e7c9bfea652cb48fa6087ad4f6faa0d409060228d9d440
-adjustments: 0
-adjusted_at: null
+status: done
+content_hash: fadcff081d8bdb98a332e2b4dd8c90dbb8dfb59361cf5378bcc1a86a63806309
+adjustments: 1
+adjusted_at: 2026-11-01T13:06:57Z
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 704bb93feeb88ff2e9e7c9bfea652cb48fa6087ad4f6faa0d409060228d9d440
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: sonnet
+updated_at: 2026-11-01T13:06:57Z
 ---
 
 # TASK-05: Tarefas criadas em pastas com README gerado
@@ -44,6 +46,9 @@ evidence_result: null
 - `packages/harness/templates/task/executivo.md` (criar): executivo da tarefa
 - `packages/harness/templates/task/tecnico.md` (criar): técnico da tarefa
 - `packages/harness/templates/task/readme.md` (criar): README gerado
+- `packages/harness/templates/task/estado.yml` (criar): estado inicial da tarefa em pasta
+- `packages/harness/templates/task/registro.md` (criar): tabelas vazias de registro e histórico
+- `packages/harness/config/tasks.yml` (alterar): chave `task_folder_template_dir`
 - `apps/cli/tests/fixtures/golden/plan` (alterar): casos do `create-tasks` com as pastas
 - `apps/cli/tests/fixtures/golden/blobs` (alterar): conteúdos novos dos casos atualizados
 
@@ -81,11 +86,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] O `create-tasks` cria as tarefas como pastas com os arquivos do contrato (RF-01, CT-01).
+- [x] O `create-tasks` cria as tarefas como pastas com os arquivos do contrato (RF-01, CT-01).
 
   > Como comprovar: em `create-folder-tests.txt`, ver aprovado o teste da criação.
 
-- [ ] O `README.md` é refeito com o status e os critérios (RF-04, CT-04).
+- [x] O `README.md` é refeito com o status e os critérios (RF-04, CT-04).
 
   > Como comprovar: em `create-folder-tests.txt`, ver aprovado o teste do README.
 
@@ -115,8 +120,16 @@ Abordagem: templates por arquivo, criação pela `plan.rs` e README refeito na g
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: sonnet |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | ajuste | in_progress | templates próprios de estado.yml e registro.md e a chave task_folder_template_dir entram em Mudar; o task.md volta ao original (decisão do usuário) |
+| 4 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 5 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 6 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-05/ |
+| 7 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 
 | # | Data | Origem | Resumo |
 |---|---|---|---|
+| 1 | 2026-11-01 | agente | templates próprios de estado.yml e registro.md e a chave task_folder_template_dir entram em Mudar; o task.md volta ao original (decisão do usuário) |

@@ -9,16 +9,17 @@ wave: 3
 covers: [RF-02, RF-03, RF-05, CT-02, CT-03, CT-05]
 type: tarefa
 labels: [SPEC-023, julgamento]
-status: approved
-content_hash: 3b2f2f6a2d87066782211b353a0fbb29103f9fc679db62448dcde4e966fd1c98
+status: done
+content_hash: b4ee4a51c2bc7a147e2b78bb8810620a631bd221086209dd6f280e77928561bd
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 3b2f2f6a2d87066782211b353a0fbb29103f9fc679db62448dcde4e966fd1c98
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-03: Formato de pasta na camada da tarefa
@@ -72,15 +73,15 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] Tarefa em pasta guarda o estado em `estado.yml` e o registro em `registro.md` (RF-02, RF-03, CT-02, CT-03).
+- [x] Tarefa em pasta guarda o estado em `estado.yml` e o registro em `registro.md` (RF-02, RF-03, CT-02, CT-03).
 
   > Como comprovar: em `folder-format-tests.txt`, ver aprovados os testes de estado e registro.
 
-- [ ] As evidências da tarefa em pasta ficam em `evidencias/` (RF-05, CT-05).
+- [x] As evidências da tarefa em pasta ficam em `evidencias/` (RF-05, CT-05).
 
   > Como comprovar: em `folder-format-tests.txt`, ver aprovado o teste das evidências.
 
-- [ ] Spec com os dois formatos é recusada (CB-01).
+- [x] Spec com os dois formatos é recusada (CB-01).
 
   > Como comprovar: em `folder-format-tests.txt`, ver aprovado o teste da spec mista.
 
@@ -111,6 +112,12 @@ Abordagem: a `TaskDoc` da TASK-02 ganha o segundo formato, escolhido pela presen
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: opus |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-03/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

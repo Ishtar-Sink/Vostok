@@ -3166,3 +3166,136 @@ fn task_layer_status_lists_the_tasks_of_the_spec() {
     let output = stdout(project.vostok().args(["task", "status", "SPEC-001"]));
     assert!(output.contains("| TASK-01 | Tarefa |"), "{output}");
 }
+
+// --- Formato de pasta (SPEC-023) ---
+
+const FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01";
+
+/// Grava a TASK-01 em pasta, com o status dado e um `cat valor.txt` no Baseline.
+fn folder_task(status: &str) -> Project {
+    let project = Project::new();
+    write(&project, "valor.txt", "a\n");
+    let files = [
+        ("estado.yml", format!("id: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n")),
+        ("execucao.md", "### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n".to_string()),
+        ("verificacao.md", "### Baseline\n\n- `cat valor.txt`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha.\n  - Falha: arquivo ausente.\n".to_string()),
+        ("criterios.md", "### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n".to_string()),
+        ("executivo.md", "Resumo.\n".to_string()),
+        ("tecnico.md", "Detalhes.\n".to_string()),
+        ("registro.md", "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n".to_string()),
+    ];
+    for (name, content) in files {
+        write(&project, &format!("{FOLDER}/{name}"), &content);
+    }
+    project
+}
+
+fn folder_started() -> Project {
+    let project = folder_task("pending");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    project
+}
+
+#[test]
+fn folder_format_keeps_the_state_in_estado_yml() {
+    let project = folder_started();
+    let state = read(&project, &format!("{FOLDER}/estado.yml"));
+    assert!(state.contains("\nstatus: in_progress\n"), "{state}");
+    let approved = state
+        .lines()
+        .find_map(|line| line.strip_prefix("approved_hash: "))
+        .unwrap_or_default();
+    assert_eq!(approved.len(), 64, "{state}");
+    for name in ["execucao.md", "verificacao.md", "criterios.md"] {
+        assert!(!read(&project, &format!("{FOLDER}/{name}")).starts_with("---"));
+    }
+    assert!(!exists(&project, "vostok/work/tasks/SPEC-001/TASK-01.md"));
+}
+
+#[test]
+fn folder_format_records_the_steps_in_registro_md() {
+    let project = folder_started();
+    task(&project, &["tests"]).assert().success();
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("| 1 |") && record.contains("| início | in_progress |"),
+        "{record}"
+    );
+    assert!(record.contains("| baseline | coletado |"), "{record}");
+    assert!(record.contains("| testes | passed |"), "{record}");
+    assert!(record.contains("## Histórico de ajustes\n"), "{record}");
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/executivo.md")),
+        "Resumo.\n"
+    );
+}
+
+#[test]
+fn folder_format_keeps_the_evidence_inside_the_task() {
+    let project = folder_started();
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    assert!(exists(
+        &project,
+        &format!("{FOLDER}/evidencias/baseline/01.out")
+    ));
+    assert!(exists(
+        &project,
+        &format!("{FOLDER}/evidencias/validation/tests.out")
+    ));
+    assert!(exists(&project, &format!("{FOLDER}/evidencias/saida.txt")));
+    assert!(!exists(&project, "vostok/work/tasks/SPEC-001/evidence"));
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    let criteria = read(&project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(&project, &format!("{FOLDER}/criterios.md"), &criteria);
+    task(&project, &["finish"]).assert().success();
+    assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
+    assert!(read(&project, &format!("{FOLDER}/registro.md")).contains("| conclusão | done |"));
+    let verification = read(&project, &format!("{FOLDER}/verificacao.md"));
+    assert!(
+        verification.starts_with("### Baseline\n\n- `cat valor.txt`\n"),
+        "{verification}"
+    );
+    assert!(
+        verification.ends_with("  - Falha: arquivo ausente.\n"),
+        "{verification}"
+    );
+    assert!(read(&project, &format!("{FOLDER}/execucao.md")).starts_with("### Ler\n"));
+}
+
+#[test]
+fn folder_format_refuses_a_spec_with_both_formats() {
+    let project = folder_task("pending");
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02.md",
+        &complete_task("pending", "Não se aplica.").replace("TASK-01", "TASK-02"),
+    );
+    let stderr = failure_stderr(project.vostok().args(["task", "status", "SPEC-001"]));
+    assert!(
+        stderr.contains(
+            "a spec SPEC-001 tem tarefas nos dois formatos; execute: vostok task migrate SPEC-001"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn folder_format_refuses_a_missing_execution_file() {
+    let project = folder_task("pending");
+    std::fs::remove_file(project.root().join(format!("{FOLDER}/verificacao.md"))).unwrap();
+    let stderr = failure_stderr(&mut nested(&project, "approve", "validate"));
+    assert!(
+        stderr.contains("não tem o arquivo verificacao.md"),
+        "{stderr}"
+    );
+}

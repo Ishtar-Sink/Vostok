@@ -394,6 +394,7 @@ impl Tasks {
             blocked: status("blocked")?,
             done: status("done")?,
         };
+        let _ = TASK_LAYOUT.set(TaskLayout::read(&config));
         Ok(Self {
             harness,
             tasks_root,
@@ -554,19 +555,27 @@ impl Tasks {
         crate::support::existing_dir(&root)
     }
 
+    /// Caminho da tarefa: a pasta `TASK-NN/` com o estado, ou o arquivo único `TASK-NN.md`.
     fn task_file(&self, spec: &str, task: &str) -> PathBuf {
-        self.tasks_root.join(spec).join(format!("{task}.md"))
+        let folder = self.tasks_root.join(spec).join(task);
+        if is_task_folder(&folder) {
+            folder
+        } else {
+            self.tasks_root.join(spec).join(format!("{task}.md"))
+        }
     }
 
     /// Caminho da tarefa, sem validar os IDs (`load-task.sh` e `check-done.sh`).
     fn existing_task(&self, spec: &str, task: &str) -> Result<PathBuf> {
         let file = self.task_file(spec, task);
-        if !file.is_file() {
+        if !file.exists() {
             bail!(
                 "tarefa {task} da spec {spec} não encontrada: {}",
                 file.display()
             );
         }
+        task_entries(file.parent().unwrap_or(Path::new("")))?;
+        TaskDoc::at(&file).check()?;
         Ok(file)
     }
 
@@ -577,9 +586,11 @@ impl Tasks {
         }
         self.check_task_id(task)?;
         let file = self.task_file(spec, task);
-        if !file.is_file() {
+        if !file.exists() {
             bail!("tarefa {task} não encontrada em {spec}");
         }
+        task_entries(file.parent().unwrap_or(Path::new("")))?;
+        TaskDoc::at(&file).check()?;
         Ok(file)
     }
 
@@ -602,6 +613,9 @@ impl Tasks {
     }
 
     fn evidence_dir(&self, file: &Path) -> Result<PathBuf> {
+        if is_task_folder(file) {
+            return Ok(file.join(&layout().evidence_dir));
+        }
         Ok(file
             .parent()
             .unwrap_or(Path::new(""))
@@ -954,7 +968,7 @@ impl Tasks {
         for id in ids {
             self.check_task_id(id)?;
             let file = self.task_file(spec, id);
-            if !file.is_file() {
+            if !file.exists() {
                 bail!("tarefa {id} não encontrada em {spec}");
             }
             if !files.contains(&file) {
@@ -1215,7 +1229,7 @@ impl Tasks {
         }
         for dependency in dependencies_of(file) {
             let dependency_file = self.task_file(spec, &dependency);
-            if !dependency_file.is_file() {
+            if !dependency_file.exists() {
                 blockers.push(format!("a dependência {dependency} não existe em {spec}"));
                 continue;
             }
@@ -2551,13 +2565,22 @@ impl Tasks {
     ) -> Result<Vec<String>> {
         let id = task_id_of(file);
         let content = TaskDoc::at(file).text()?;
-        let mut errors: Vec<String> = template_leftovers(&content)
+        // Na tarefa em pasta, o executivo e o técnico são escritos na finalização, e o card é gerado.
+        let folder = is_task_folder(file);
+        let checked = if folder {
+            before_section(&content, &self.cfg("description_section")?)
+        } else {
+            content.clone()
+        };
+        let mut errors: Vec<String> = template_leftovers(&checked)
             .into_iter()
             .map(|(line, text)| format!("variável sem preencher: {line}:{text}"))
             .collect();
         errors.extend(self.fixed_section_errors(&content)?);
-        errors.extend(self.subsection_errors(&content)?);
-        errors.extend(self.description_errors(&content)?);
+        errors.extend(self.subsection_errors(&content, folder)?);
+        if !folder {
+            errors.extend(self.description_errors(&content)?);
+        }
         let running = self.is_running(&status_of(file));
         errors.extend(self.change_errors(&content, upstream, running)?);
         errors.extend(self.done_errors(&content)?);
@@ -2590,9 +2613,15 @@ impl Tasks {
         Ok(errors)
     }
 
-    fn subsection_errors(&self, content: &str) -> Result<Vec<String>> {
+    /// Subseções obrigatórias; na tarefa em pasta, só as de execução (a descrição é escrita depois).
+    fn subsection_errors(&self, content: &str, folder: bool) -> Result<Vec<String>> {
         let mut errors = Vec::new();
-        for kind in ["execution", "description"] {
+        let kinds: &[&str] = if folder {
+            &["execution"]
+        } else {
+            &["execution", "description"]
+        };
+        for kind in kinds {
             let section = self.cfg(&format!("{kind}_section"))?;
             for sub in self.cfg_list(&format!("{kind}_subsections"))? {
                 match markdown_subsection(content, &section, &sub) {
@@ -2861,8 +2890,68 @@ fn task_id_of(file: &Path) -> String {
         .into_owned()
 }
 
+/// Nomes dos arquivos e das seções da tarefa em pasta, lidos de `config/tasks.yml` na criação de
+/// `Tasks`; sem as chaves (projetos antigos), os nomes do contrato.
+struct TaskLayout {
+    state: String,
+    execution: String,
+    verification: String,
+    criteria: String,
+    executive: String,
+    technical: String,
+    record: String,
+    evidence_dir: String,
+    execution_section: String,
+    description_section: String,
+    executive_heading: String,
+    technical_heading: String,
+}
+
+impl TaskLayout {
+    fn read(config: &Path) -> Self {
+        let get = |key: &str, default: &str| {
+            config_get(config, key)
+                .ok()
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| default.to_string())
+        };
+        Self {
+            state: get("task_files.state", "estado.yml"),
+            execution: get("task_files.execution", "execucao.md"),
+            verification: get("task_files.verification", "verificacao.md"),
+            criteria: get("task_files.criteria", "criterios.md"),
+            executive: get("task_files.executive", "executivo.md"),
+            technical: get("task_files.technical", "tecnico.md"),
+            record: get("task_files.record", "registro.md"),
+            evidence_dir: get("task_evidence_dir", "evidencias"),
+            execution_section: get("execution_section", "Execução"),
+            description_section: get("description_section", "Descrição"),
+            executive_heading: get("executive_summary_subsection", "Resumo executivo"),
+            technical_heading: get("technical_details_subsection", "Detalhes técnicos"),
+        }
+    }
+
+    /// Arquivos de execução, na ordem em que entram no texto da tarefa.
+    fn execution_files(&self) -> [&str; 3] {
+        [&self.execution, &self.verification, &self.criteria]
+    }
+}
+
+static TASK_LAYOUT: std::sync::OnceLock<TaskLayout> = std::sync::OnceLock::new();
+
+fn layout() -> &'static TaskLayout {
+    TASK_LAYOUT.get_or_init(|| TaskLayout::read(Path::new("")))
+}
+
+/// Pasta de tarefa no formato novo: tem o arquivo de estado.
+fn is_task_folder(path: &Path) -> bool {
+    path.join(&layout().state).is_file()
+}
+
 /// Uma tarefa no disco. Os comandos leem e gravam o estado, o texto e o registro de uma tarefa só
-/// por aqui; hoje a tarefa é o arquivo único `TASK-NN.md`, com o estado no front-matter.
+/// por aqui. No arquivo único `TASK-NN.md`, o estado é o front-matter. Na pasta `TASK-NN/`, o estado
+/// fica em `estado.yml`, o registro e o histórico em `registro.md`, e o texto é montado dos arquivos
+/// com os mesmos títulos do arquivo único, para os comandos lerem os dois formatos igual.
 struct TaskDoc<'a> {
     file: &'a Path,
 }
@@ -2872,35 +2961,231 @@ impl<'a> TaskDoc<'a> {
         Self { file }
     }
 
+    fn folder(&self) -> bool {
+        is_task_folder(self.file)
+    }
+
+    fn part(&self, name: &str) -> PathBuf {
+        self.file.join(name)
+    }
+
+    /// Recusa a pasta sem algum arquivo de execução ou sem o registro.
+    fn check(&self) -> Result<()> {
+        if !self.folder() {
+            return Ok(());
+        }
+        let layout = layout();
+        for name in layout
+            .execution_files()
+            .into_iter()
+            .chain([layout.record.as_str()])
+        {
+            if !self.part(name).is_file() {
+                bail!(
+                    "a tarefa {} não tem o arquivo {name}: {}",
+                    task_id_of(self.file),
+                    self.part(name).display()
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Valor de um campo do estado.
     fn get(&self, key: &str) -> Result<String> {
-        frontmatter_get(self.file, key)
+        if !self.folder() {
+            return frontmatter_get(self.file, key);
+        }
+        let path = self.part(&layout().state);
+        let prefix = format!("{key}:");
+        read(&path)?
+            .lines()
+            .find_map(|line| line.strip_prefix(&prefix).map(state_value))
+            .ok_or_else(|| anyhow!("Chave '{key}' não encontrada em {}", path.display()))
     }
 
     /// Grava um campo existente do estado.
     fn set(&self, key: &str, value: &str) -> Result<()> {
-        frontmatter_set(self.file, key, value)
+        if !self.folder() {
+            return frontmatter_set(self.file, key, value);
+        }
+        self.get(key)?;
+        self.put(key, value)
     }
 
     /// Grava um campo do estado, acrescentando-o se ainda não existir.
     fn put(&self, key: &str, value: &str) -> Result<()> {
-        frontmatter_put(self.file, key, value)
+        if !self.folder() {
+            return frontmatter_put(self.file, key, value);
+        }
+        let path = self.part(&layout().state);
+        let prefix = format!("{key}:");
+        let mut found = false;
+        let mut lines: Vec<String> = read(&path)?
+            .lines()
+            .map(|line| {
+                if !found && line.starts_with(&prefix) {
+                    found = true;
+                    format!("{key}: {value}")
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect();
+        if !found {
+            lines.push(format!("{key}: {value}"));
+        }
+        write(&path, &format!("{}\n", lines.join("\n")))
     }
 
     /// Texto da tarefa, com as seções que os comandos leem.
     fn text(&self) -> Result<String> {
-        read(self.file)
+        if !self.folder() {
+            return read(self.file);
+        }
+        self.check()?;
+        let layout = layout();
+        let part = |name: &str| -> Result<String> {
+            Ok(trim_newlines(&read(&self.part(name))?).to_string())
+        };
+        let optional =
+            |name: &str| trim_newlines(&read(&self.part(name)).unwrap_or_default()).to_string();
+        let state = part(&layout.state)?;
+        let title = self.get("title").unwrap_or_default();
+        Ok(format!(
+            "---\n{state}\n---\n\n# {}: {title}\n\n## {}\n\n{}\n\n{}\n\n{}\n\n## {}\n\n### {}\n\n{}\n\n### {}\n\n{}\n\n{}\n",
+            task_id_of(self.file),
+            layout.execution_section,
+            part(&layout.execution)?,
+            part(&layout.verification)?,
+            part(&layout.criteria)?,
+            layout.description_section,
+            layout.executive_heading,
+            optional(&layout.executive),
+            layout.technical_heading,
+            optional(&layout.technical),
+            part(&layout.record)?,
+        ))
     }
 
-    /// Regrava o texto da tarefa (registro e histórico).
+    /// Regrava o texto da tarefa (registro, histórico ou nomes de evidência). Na pasta, cada
+    /// trecho volta ao seu arquivo, e só os arquivos que mudaram são gravados.
     fn write_text(&self, content: &str) -> Result<()> {
-        write(self.file, content)
+        if !self.folder() {
+            return write(self.file, content);
+        }
+        for (name, text) in split_task_text(content) {
+            let path = self.part(&name);
+            let current = read(&path).unwrap_or_default();
+            let text = text.trim_matches('\n');
+            if current.trim_matches('\n') != text {
+                write(&path, &format!("{text}\n"))?;
+            }
+        }
+        Ok(())
     }
 }
 
-/// Tarefas de uma pasta de spec, em ordem alfabética.
+/// Valor de uma linha `chave: valor` do estado, sem aspas, como no front-matter.
+fn state_value(rest: &str) -> String {
+    let value = rest.trim();
+    if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+        return value[1..value.len() - 1]
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+    }
+    value.trim_matches('\'').to_string()
+}
+
+/// Divide o texto montado por `TaskDoc::text` de volta nos arquivos da pasta, pelos títulos.
+fn split_task_text(content: &str) -> Vec<(String, String)> {
+    let layout = layout();
+    let file_of = |heading: &str| -> Option<&str> {
+        match heading {
+            "Ler" | "Mudar" | "Passos" => Some(&layout.execution),
+            "Baseline" | "Verificação" | "Evidências" => Some(&layout.verification),
+            "Concluída quando" => Some(&layout.criteria),
+            _ if heading == layout.executive_heading => Some(&layout.executive),
+            _ if heading == layout.technical_heading => Some(&layout.technical),
+            _ => None,
+        }
+    };
+    let mut parts: Vec<(String, String)> = Vec::new();
+    let mut current: Option<String> = None;
+    let mut in_code = false;
+    let mut in_front_matter = false;
+    for (index, line) in content.lines().enumerate() {
+        if index == 0 && line == "---" {
+            in_front_matter = true;
+            continue;
+        }
+        if in_front_matter {
+            in_front_matter = line != "---";
+            continue;
+        }
+        if is_fence(line) {
+            in_code = !in_code;
+        }
+        if !in_code {
+            if let Some(heading) = line.strip_prefix("### ") {
+                current = file_of(heading.trim()).map(str::to_string);
+                // Executivo e técnico guardam só o texto, sem o título.
+                if current
+                    .as_deref()
+                    .is_some_and(|name| name == layout.executive || name == layout.technical)
+                {
+                    parts.push((current.clone().unwrap_or_default(), String::new()));
+                    continue;
+                }
+            } else if let Some(heading) = line.strip_prefix("## ") {
+                // Depois da execução e da descrição, tudo é registro e histórico.
+                let heading = heading.trim();
+                current = (heading != layout.execution_section
+                    && heading != layout.description_section)
+                    .then(|| layout.record.clone());
+            } else if line.starts_with("# ") {
+                current = None;
+            }
+        }
+        let Some(name) = &current else { continue };
+        match parts.iter_mut().rev().find(|(part, _)| part == name) {
+            Some((_, text)) => {
+                text.push_str(line);
+                text.push('\n');
+            }
+            None => parts.push((name.clone(), format!("{line}\n"))),
+        }
+    }
+    parts
+}
+
+/// Texto antes da seção `## <title>`; o texto inteiro se ela não existir.
+fn before_section(content: &str, title: &str) -> String {
+    let heading = format!("\n## {title}\n");
+    content.find(&heading).map_or_else(
+        || content.to_string(),
+        |index| content[..index + 1].to_string(),
+    )
+}
+
+/// Tarefas de uma pasta de spec, em ordem alfabética: arquivos `TASK-NN.md` ou pastas `TASK-NN/`.
+/// Recusa a spec com os dois formatos.
 fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
-    markdown_files(dir)
+    let files = markdown_files(dir)?;
+    let mut folders: Vec<PathBuf> = fs::read_dir(dir)
+        .with_context(|| format!("não foi possível ler {}", dir.display()))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| is_task_folder(path))
+        .collect();
+    if !files.is_empty() && !folders.is_empty() {
+        let spec = dir.file_name().unwrap_or_default().to_string_lossy();
+        bail!("a spec {spec} tem tarefas nos dois formatos; execute: vostok task migrate {spec}");
+    }
+    if folders.is_empty() {
+        return Ok(files);
+    }
+    folders.sort();
+    Ok(folders)
 }
 
 fn status_of(file: &Path) -> String {

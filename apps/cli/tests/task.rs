@@ -3474,3 +3474,144 @@ fn part_hash_load_refuses_an_unknown_part() {
     let stderr = failure_stderr(&mut task(&project, &["load", "--part", "registro"]));
     assert!(stderr.contains("execucao"), "{stderr}");
 }
+
+// --- Material do executivo e do técnico (SPEC-023) ---
+
+/// Tarefa em pasta pronta para concluir: verificação, regressão e evidências passed e critérios
+/// marcados, com a spec refinada que o `finish` marca como implementada.
+fn folder_validated() -> Project {
+    let project = folder_started();
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    let criteria = read(&project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(&project, &format!("{FOLDER}/criterios.md"), &criteria);
+    project
+}
+
+#[test]
+fn describe_prints_the_steps_the_diff_the_evidence_and_the_record() {
+    let project = folder_started();
+    git(project.root(), &["init", "-q"]);
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", "inicial"]);
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    let output = stdout(&mut task(&project, &["describe"]));
+    assert!(
+        output.starts_with("# Instrução\n\nEscreva `executivo.md`"),
+        "{output}"
+    );
+    assert!(output.contains("# TASK-01: Tarefa\n"), "{output}");
+    assert!(
+        output.contains("### Passos\n\n1. Crie o arquivo.\n"),
+        "{output}"
+    );
+    assert!(
+        output.contains("- `novo.txt` (criar): novo, ainda não rastreado\n"),
+        "{output}"
+    );
+    assert!(output.contains("- Testes: passed\n"), "{output}");
+    assert!(
+        output.contains("- `saida.txt` (automática): gravada\n"),
+        "{output}"
+    );
+    assert!(output.contains("| testes | passed |"), "{output}");
+    assert!(output.contains("## Histórico de ajustes\n"), "{output}");
+}
+
+#[test]
+fn describe_summarizes_the_diff_of_a_tracked_file() {
+    let project = folder_started();
+    write(&project, "novo.txt", "um\n");
+    git(project.root(), &["init", "-q"]);
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", "inicial"]);
+    write(&project, "novo.txt", "um\ndois\n");
+    let output = stdout(&mut task(&project, &["describe"]));
+    assert!(
+        output.contains("- `novo.txt` (criar): 1 file changed, 1 insertion(+)\n"),
+        "{output}"
+    );
+}
+
+#[test]
+fn describe_works_in_the_single_file_format() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let output = stdout(&mut task(&project, &["describe"]));
+    assert!(
+        output.starts_with("# Instrução\n\nEscreva a subseção \"Resumo executivo\""),
+        "{output}"
+    );
+    assert!(output.contains("# TASK-01: Tarefa\n"), "{output}");
+    assert!(output.contains("- Testes: -\n"), "{output}");
+    assert!(output.contains("## Registro de execução\n"), "{output}");
+}
+
+#[test]
+fn describe_refuses_a_task_that_is_not_running() {
+    let project = folder_task("pending");
+    let stderr = failure_stderr(&mut task(&project, &["describe"]));
+    assert!(
+        stderr.contains("a descrição só sai para tarefa 'in_progress' ou 'validating'"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn describe_finish_refuses_the_technical_document_still_in_the_template() {
+    let project = folder_validated();
+    write(
+        &project,
+        &format!("{FOLDER}/tecnico.md"),
+        "<!-- Escrito na finalização da tarefa. -->\n\n#{TASK_TECHNICAL}\n",
+    );
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("o documento tecnico.md de TASK-01 ainda está no template; escreva-o a partir de vostok task describe"),
+        "{stderr}"
+    );
+    assert!(!read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
+    write(
+        &project,
+        &format!("{FOLDER}/tecnico.md"),
+        "Criado o novo.txt.\n",
+    );
+    task(&project, &["finish"]).assert().success();
+    assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
+}
+
+#[test]
+fn describe_finish_refuses_the_executive_document_still_in_the_template() {
+    let project = folder_validated();
+    write(
+        &project,
+        &format!("{FOLDER}/executivo.md"),
+        "#{TASK_EXECUTIVE}\n",
+    );
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("o documento executivo.md de TASK-01"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn describe_finish_accepts_a_migrated_task_with_the_documents_written() {
+    let project = folder_validated();
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/executivo.md")),
+        "Resumo.\n"
+    );
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/tecnico.md")),
+        "Detalhes.\n"
+    );
+}

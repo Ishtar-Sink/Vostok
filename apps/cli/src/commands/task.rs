@@ -61,6 +61,11 @@ pub enum TaskCommand {
         spec_id: Option<String>,
         task_id: Option<String>,
     },
+    /// Imprime o material para escrever o executivo e o técnico da tarefa.
+    Describe {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+    },
     /// Executa a verificação sem registrar.
     Check {
         spec_id: Option<String>,
@@ -158,6 +163,7 @@ pub enum ApproveCommand {
 }
 
 const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
+const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
 const LOAD_USAGE: &str = "Uso: vostok task load <SPEC_ID> <TASK_ID>";
 const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>";
 const APPROVE_USAGE: &str =
@@ -271,6 +277,10 @@ pub fn run(command: TaskCommand) -> Result<()> {
         TaskCommand::Brief { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
             tasks.brief(&spec, &task)
+        }
+        TaskCommand::Describe { spec_id, task_id } => {
+            let (spec, task) = given(spec_id, task_id, DESCRIBE_USAGE)?;
+            tasks.describe(&spec, &task)
         }
         TaskCommand::Check { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
@@ -662,19 +672,12 @@ impl Tasks {
         let name = doc
             .part_file(part)
             .ok_or_else(|| anyhow!("parte inválida: '{part}'; use {}", TASK_PARTS.join(", ")))?;
-        let text = if doc.folder() {
-            read(&doc.part(name))?
-        } else {
-            split_task_text(&doc.text()?)
-                .into_iter()
-                .find_map(|(file_name, text)| (file_name == name).then_some(text))
-                .ok_or_else(|| {
-                    anyhow!(
-                        "a tarefa {task} não tem a parte '{part}': {}",
-                        file.display()
-                    )
-                })?
-        };
+        let text = part_text(&doc, name)?.ok_or_else(|| {
+            anyhow!(
+                "a tarefa {task} não tem a parte '{part}': {}",
+                file.display()
+            )
+        })?;
         println!("{}", text.trim_matches('\n'));
         Ok(())
     }
@@ -761,6 +764,84 @@ impl Tasks {
         if let Some(section) = markdown_section(&TaskDoc::at(&file).text()?, &record) {
             text.push_str(&format!("\n## {record}\n{}\n", trim_newlines(&section)));
         }
+        print!("{text}");
+        Ok(())
+    }
+
+    /// Material do executivo e do técnico: a instrução, o que a tarefa pedia, o diff resumido dos
+    /// caminhos de "Mudar", as evidências com o resultado e o registro.
+    fn describe(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        if status != self.status.in_progress && status != self.status.validating {
+            bail!(
+                "a tarefa {task} está com status '{status}'; a descrição só sai para tarefa '{}' ou '{}'",
+                self.status.in_progress,
+                self.status.validating
+            );
+        }
+        let doc = TaskDoc::at(&file);
+        let layout = layout();
+        let content = doc.text()?;
+        let field = |key: &str| {
+            let value = doc.get(key).unwrap_or_default();
+            if matches!(value.as_str(), "" | "-" | "null") {
+                "-".to_string()
+            } else {
+                value
+            }
+        };
+        let (executive, technical) = if doc.folder() {
+            (
+                format!("`{}`", layout.executive),
+                format!("`{}`", layout.technical),
+            )
+        } else {
+            (
+                format!("a subseção \"{}\"", layout.executive_heading),
+                format!("a subseção \"{}\"", layout.technical_heading),
+            )
+        };
+        let guide = DESCRIBE_GUIDE
+            .replace("<EXECUTIVE>", &executive)
+            .replace("<TECHNICAL>", &technical);
+        let mut text = format!(
+            "# Instrução\n\n{guide}\n\n# {task}: {}\n\n{}\n\n## {}\n\n{}\n",
+            field("title"),
+            field("description"),
+            layout.execution,
+            trim_newlines(&part_text(&doc, &layout.execution)?.unwrap_or_default())
+        );
+        let root = self.project_root()?;
+        text.push_str("\n## Arquivos de Mudar\n\n");
+        for (action, path) in change_items(&self.subsection(&content, "change_subsection")?) {
+            text.push_str(&format!(
+                "- `{path}` ({action}): {}\n",
+                path_stat(&path, &root)
+            ));
+        }
+        text.push_str(&format!(
+            "\n## Evidências\n\n- Testes: {}\n- Regressão: {}\n- Evidências: {}\n",
+            field("tests_result"),
+            field("regression_result"),
+            field("evidence_result")
+        ));
+        let dir = self.evidence_dir(&file)?;
+        let evidences = self.subsection(&content, "evidence_subsection")?;
+        for (name, kind, _) in evidences
+            .lines()
+            .filter(|line| has_text(line) && !is_indented(line))
+            .filter_map(evidence_item)
+        {
+            let state = if dir.join(name).exists() {
+                "gravada"
+            } else {
+                "ausente"
+            };
+            text.push_str(&format!("- `{name}` ({kind}): {state}\n"));
+        }
+        let record = part_text(&doc, &layout.record)?.unwrap_or_default();
+        text.push_str(&format!("\n{}\n", trim_newlines(&record)));
         print!("{text}");
         Ok(())
     }
@@ -2003,6 +2084,14 @@ impl Tasks {
         for problem in self.persist_problems(spec, task, &file)? {
             problems.push_str(&format!("- {problem}\n"));
         }
+        let doc = TaskDoc::at(&file);
+        if doc.folder() {
+            for name in [&layout().executive, &layout().technical] {
+                if !template_leftovers(&read(&doc.part(name))?).is_empty() {
+                    problems.push_str(&format!("- o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe\n"));
+                }
+            }
+        }
         if !problems.is_empty() {
             bail!("a tarefa {task} não pode ser concluída; nada foi alterado:\n{problems}");
         }
@@ -2947,6 +3036,9 @@ fn task_id_of(file: &Path) -> String {
         .to_string_lossy()
         .into_owned()
 }
+
+/// Instrução do `vostok task describe`.
+const DESCRIBE_GUIDE: &str = "Escreva <EXECUTIVE> para quem não é técnico: o que a tarefa entregou e por que importa, sem código. Escreva <TECHNICAL> para quem mantém o código: o que mudou em cada arquivo, as decisões e como foi verificado. Descreva o que foi feito, a partir do material abaixo, sem copiar os passos.";
 
 /// Partes que `vostok task load --part` aceita.
 const TASK_PARTS: [&str; 5] = [
@@ -4389,6 +4481,38 @@ fn git_text(root: &Path, args: &[&str]) -> Option<String> {
         .status
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Resumo do diff de `path` contra o `HEAD` (a última linha do `git diff --stat`), ou por que
+/// não há resumo.
+fn path_stat(path: &str, root: &Path) -> String {
+    if git_text(root, &["rev-parse", "--is-inside-work-tree"]).is_none() {
+        return "fora de um repositório git".to_string();
+    }
+    if git_text(root, &["ls-files", "--error-unmatch", "--", path]).is_none() {
+        return if root.join(path).exists() {
+            "novo, ainda não rastreado".to_string()
+        } else {
+            "não existe".to_string()
+        };
+    }
+    match git_text(root, &["diff", "--stat", "HEAD", "--", path]) {
+        Some(stat) if !stat.is_empty() => {
+            stat.lines().last().unwrap_or_default().trim().to_string()
+        }
+        Some(_) => "sem alteração".to_string(),
+        None => "sem diff".to_string(),
+    }
+}
+
+/// Texto de um arquivo da tarefa; no arquivo único, as subseções equivalentes. `None` quando falta.
+fn part_text(doc: &TaskDoc, name: &str) -> Result<Option<String>> {
+    if doc.folder() {
+        return Ok(Some(read(&doc.part(name))?));
+    }
+    Ok(split_task_text(&doc.text()?)
+        .into_iter()
+        .find_map(|(file_name, text)| (file_name == name).then_some(text)))
 }
 
 /// Diff de `path` contra o `HEAD`, ou do conteúdo inteiro quando o arquivo não é rastreado: o

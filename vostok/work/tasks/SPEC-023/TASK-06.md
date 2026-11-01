@@ -9,16 +9,17 @@ wave: 5
 covers: [RF-09, RF-10, CT-09, CT-10]
 type: tarefa
 labels: [SPEC-023, padrao]
-status: approved
-content_hash: 0cdc671e5341abd84c8c95e55c3777d2dd8cef1aa0d94de14cda34dde1a59fef
+status: done
+content_hash: 6e02c0cc82cd0b28547800b973b5f8c01fc3e971c3aea49730d7a8cd58492ff3
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 0cdc671e5341abd84c8c95e55c3777d2dd8cef1aa0d94de14cda34dde1a59fef
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: claude-opus-5-5
 ---
 
 # TASK-06: Briefing dos documentos e exigência no finish
@@ -68,11 +69,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] O `describe` traz passos, diff, evidências e registro (RF-09, CT-09).
+- [x] O `describe` traz passos, diff, evidências e registro (RF-09, CT-09).
 
   > Como comprovar: em `describe-tests.txt`, ver aprovado o teste da saída.
 
-- [ ] O `finish` exige o executivo e o técnico escritos (RF-10, CT-10).
+- [x] O `finish` exige o executivo e o técnico escritos (RF-10, CT-10).
 
   > Como comprovar: em `describe-tests.txt`, ver aprovado o teste da recusa.
 
@@ -102,6 +103,12 @@ Abordagem: briefing montado pelo `vostok` com os fatos (diff, evidências, regis
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: claude-opus-5-5 |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-06/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

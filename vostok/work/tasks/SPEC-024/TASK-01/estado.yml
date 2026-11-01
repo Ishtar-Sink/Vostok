@@ -1,0 +1,27 @@
+id: TASK-01
+spec: SPEC-024
+title: "Documentos preservados e exigidos no código"
+description: "A gravação da pasta deixa o executivo e o técnico intactos, a aprovação recusa os dois no template e o finish exige o enriquecimento desde o start."
+profile: julgamento
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-01, RF-02, RF-03, RF-05, RF-06, RF-07, CT-01, CT-02, CT-03, CT-04, CT-05, CT-06, CT-08, CB-01, CB-02, CB-03, CB-04, CB-05, CB-06, CB-07, CB-08]
+type: bug
+labels: [SPEC-024, julgamento]
+status: done
+content_hash: 0fa63a3f287eec6f45f023690a61e7f29b9e3fb815bd56357663df7052331082
+adjustments: 1
+adjusted_at: 2026-11-01T21:27:16Z
+approved_at: 2026-11-01T21:24:07Z
+approved_hash: 26a4ae575e0282315156912b9e9a67a72884eed69c208507c5efc2acd742665f
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+execution_hash: c7ebcb48aafa1c371e7ac037f5aca9c938cf3830ce72eb482be3dfbfb9a82199
+verification_hash: ce0a529df4138dabdff44698fdff39c2243c8ac99dd80d85cb4ed702bc156526
+criteria_hash: d5f0e9708fbb735af44a8620cb9d221533f3d894ac74bea64f931ad774efad67
+state_hash: 560820b3a7cddab345a8ef50cede8bf2016fce59214464683dc7922dae93b13c
+model: claude-opus-5-5
+updated_at: 2026-11-01T21:27:16Z

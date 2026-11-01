@@ -17,7 +17,7 @@ use crate::models;
 use crate::support::{
     config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
     frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection, render,
-    sha256_hex, template_leftovers, EvidenceFields,
+    sha256_hex, template_leftovers, yaml_escape, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -61,6 +61,8 @@ pub enum TaskCommand {
         spec_id: Option<String>,
         task_id: Option<String>,
     },
+    /// Converte as tarefas da spec para o formato de pasta.
+    Migrate { spec_id: Option<String> },
     /// Imprime o material para escrever o executivo e o técnico da tarefa.
     Describe {
         spec_id: Option<String>,
@@ -164,6 +166,7 @@ pub enum ApproveCommand {
 
 const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
 const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
+const MIGRATE_USAGE: &str = "Uso: vostok task migrate <SPEC_ID>";
 const LOAD_USAGE: &str = "Uso: vostok task load <SPEC_ID> <TASK_ID>";
 const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>";
 const APPROVE_USAGE: &str =
@@ -277,6 +280,12 @@ pub fn run(command: TaskCommand) -> Result<()> {
         TaskCommand::Brief { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
             tasks.brief(&spec, &task)
+        }
+        TaskCommand::Migrate { spec_id } => {
+            let spec = spec_id
+                .filter(|spec| !spec.is_empty())
+                .ok_or_else(|| usage(MIGRATE_USAGE))?;
+            tasks.migrate(&spec)
         }
         TaskCommand::Describe { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, DESCRIBE_USAGE)?;
@@ -2572,6 +2581,128 @@ impl Tasks {
         Ok(problems)
     }
 
+    // --- Migração para o formato de pasta ---
+
+    /// Converte as tarefas `TASK-NN.md` da spec em pastas `TASK-NN/`, com as evidências dentro.
+    /// Tudo ou nada: as pastas são montadas à parte e só entram no lugar depois de todas prontas.
+    fn migrate(&self, spec: &str) -> Result<()> {
+        if !is_spec_id(spec) {
+            bail!("ID de spec inválido: '{spec}'");
+        }
+        let dir = self.tasks_root.join(spec);
+        if !dir.is_dir() {
+            bail!(
+                "a spec {spec} não tem tarefas em {}; só specs em andamento são migradas",
+                dir.display()
+            );
+        }
+        let files = task_entries(&dir)?;
+        if files.iter().all(|file| is_task_folder(file)) {
+            println!("A spec {spec} já está no formato de pasta; nada mudou.");
+            return Ok(());
+        }
+        for file in &files {
+            let stored = TaskDoc::at(file)
+                .get(&self.spec_cfg("content_hash_field")?)
+                .unwrap_or_default();
+            if !matches!(stored.as_str(), "" | "null" | "-") && stored != self.task_hash(file)? {
+                bail!(
+                    "a tarefa {} tem edição manual sem registro; registre o ajuste (skill adjust-task) antes de migrar; nada foi migrado",
+                    task_id_of(file)
+                );
+            }
+        }
+        let staging = dir.join(MIGRATION_DIR);
+        if staging.exists() {
+            fs::remove_dir_all(&staging)?;
+        }
+        let staged = files
+            .iter()
+            .map(|file| self.stage_folder(file, &staging))
+            .collect::<Result<Vec<PathBuf>>>();
+        let staged = match staged {
+            Ok(staged) => staged,
+            Err(error) => {
+                let _ = fs::remove_dir_all(&staging);
+                return Err(error.context("nada foi migrado"));
+            }
+        };
+        let evidence_root = dir.join(self.cfg("evidence_dir")?);
+        for (file, folder) in files.iter().zip(&staged) {
+            let task = task_id_of(file);
+            let evidence = evidence_root.join(&task);
+            if evidence.is_dir() {
+                fs::rename(&evidence, folder.join(&layout().evidence_dir))?;
+            }
+            fs::remove_file(file)?;
+            fs::rename(folder, dir.join(&task))?;
+        }
+        fs::remove_dir(&staging)?;
+        if evidence_root.is_dir() && fs::read_dir(&evidence_root)?.next().is_none() {
+            fs::remove_dir(&evidence_root)?;
+        }
+        println!(
+            "Spec {spec} migrada para o formato de pasta: {} tarefa(s).",
+            files.len()
+        );
+        Ok(())
+    }
+
+    /// Monta a pasta da tarefa em `staging`: o front-matter vira o estado, cada trecho vai para o
+    /// seu arquivo e o card dá lugar ao `README.md`. A aprovação que valia continua valendo.
+    fn stage_folder(&self, file: &Path, staging: &Path) -> Result<PathBuf> {
+        let layout = layout();
+        let task = task_id_of(file);
+        let content = read(file)?;
+        let mut state: Vec<String> = frontmatter_lines(&content)
+            .ok_or_else(|| anyhow!("a tarefa {task} não tem front-matter: {}", file.display()))?
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let approved_field = self.spec_cfg("approved_hash_field")?;
+        let approved = TaskDoc::at(file).get(&approved_field).unwrap_or_default();
+        let still_approved = approved == self.content_hash(&content)?;
+        let description = content
+            .lines()
+            .find_map(|line| line.trim().strip_prefix(CARD_DESCRIPTION))
+            .unwrap_or_default();
+        upsert_line(
+            &mut state,
+            "description",
+            &format!("\"{}\"", yaml_escape(description.trim())),
+        );
+        let folder = staging.join(&task);
+        fs::create_dir_all(&folder)
+            .with_context(|| format!("não foi possível criar {}", folder.display()))?;
+        write(
+            &folder.join(&layout.state),
+            &format!("{}\n", state.join("\n")),
+        )?;
+        let parts = split_task_text(&content);
+        for name in [
+            &layout.execution,
+            &layout.verification,
+            &layout.criteria,
+            &layout.executive,
+            &layout.technical,
+            &layout.record,
+        ] {
+            let text = parts
+                .iter()
+                .find_map(|(part, text)| (part == name).then_some(text.as_str()))
+                .unwrap_or_default();
+            write(
+                &folder.join(name),
+                &format!("{}\n", text.trim_matches('\n')),
+            )?;
+        }
+        self.record_step(&folder, "migração", "pasta", "formato antigo convertido")?;
+        if still_approved {
+            TaskDoc::at(&folder).put(&approved_field, &self.task_hash(&folder)?)?;
+        }
+        Ok(folder)
+    }
+
     // --- Hash, registro de execução e histórico de ajustes ---
 
     /// Hash do conteúdo depois do front-matter. Em tarefas, sem o "Registro de execução", escrito só
@@ -3036,6 +3167,12 @@ fn task_id_of(file: &Path) -> String {
         .to_string_lossy()
         .into_owned()
 }
+
+/// Pasta onde `vostok task migrate` monta as tarefas antes de pô-las no lugar.
+const MIGRATION_DIR: &str = ".migracao";
+
+/// Início da linha do card com a descrição da tarefa.
+const CARD_DESCRIPTION: &str = "- **Descrição:** ";
 
 /// Instrução do `vostok task describe`.
 const DESCRIBE_GUIDE: &str = "Escreva <EXECUTIVE> para quem não é técnico: o que a tarefa entregou e por que importa, sem código. Escreva <TECHNICAL> para quem mantém o código: o que mudou em cada arquivo, as decisões e como foi verificado. Descreva o que foi feito, a partir do material abaixo, sem copiar os passos.";

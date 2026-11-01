@@ -9,16 +9,17 @@ wave: 5
 covers: [RF-12, CT-12]
 type: tarefa
 labels: [SPEC-023, julgamento]
-status: approved
-content_hash: 4a7baddd7ece25ef983f9739e753e9da0df3759a999ffd4e97b60f0c9d06b0eb
+status: done
+content_hash: bbdfec024511bfbd99c5a2583cff14801f5a0bf8643374285984c60883bffba0
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 4a7baddd7ece25ef983f9739e753e9da0df3759a999ffd4e97b60f0c9d06b0eb
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: claude-opus-5-5
 ---
 
 # TASK-07: Migração das tarefas para pastas
@@ -70,11 +71,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] Uma spec em andamento migra com estado, registro, aprovação e evidências preservados (RF-12, CT-12, CB-03).
+- [x] Uma spec em andamento migra com estado, registro, aprovação e evidências preservados (RF-12, CT-12, CB-03).
 
   > Como comprovar: em `migrate-tests.txt`, ver aprovado o teste da spec com duas tarefas.
 
-- [ ] Spec já migrada não muda (CB-02).
+- [x] Spec já migrada não muda (CB-02).
 
   > Como comprovar: em `migrate-tests.txt`, ver aprovado o teste da segunda migração.
 
@@ -105,6 +106,12 @@ Abordagem: conversão por spec inteira (inferência E), tudo ou nada, com recál
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: claude-opus-5-5 |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-07/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

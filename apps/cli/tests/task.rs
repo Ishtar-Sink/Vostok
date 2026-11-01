@@ -3615,3 +3615,215 @@ fn describe_finish_accepts_a_migrated_task_with_the_documents_written() {
         "Detalhes.\n"
     );
 }
+
+// --- Migração para o formato de pasta (SPEC-023) ---
+
+const MIGRATE_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`\n  - Prova: o comando roda.\n  - Trecho: a linha.\n  - Falha: arquivo ausente.";
+
+/// `vostok task <args...> SPEC-001 <task>`.
+fn on(project: &Project, task: &str, args: &[&str]) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.arg("task").args(args).args(["SPEC-001", task]);
+    command
+}
+
+fn migrate(project: &Project, spec: &str) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "migrate", spec]);
+    command
+}
+
+/// Valida a tarefa no formato atual: verificação, regressão, evidências e critérios marcados.
+fn validate_single(project: &Project, task: &str) {
+    for step in ["tests", "regression", "evidence"] {
+        on(project, task, &[step]).assert().success();
+    }
+    let path = format!("vostok/work/tasks/SPEC-001/{task}.md");
+    let content = read(project, &path).replace("- [ ] Pronto (RF-01)", "- [x] Pronto (RF-01)");
+    write(project, &path, &content);
+}
+
+/// Spec no formato atual com a TASK-01 concluída e a TASK-02 em execução, com o baseline coletado.
+fn single_file_spec() -> Project {
+    let project = Project::new();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    for task in ["TASK-01", "TASK-02"] {
+        write(
+            &project,
+            &format!("vostok/work/tasks/SPEC-001/{task}.md"),
+            &complete_task("pending", MIGRATE_EVIDENCE).replace("TASK-01", task),
+        );
+        on(&project, task, &["adjust", "record-manual"])
+            .assert()
+            .success();
+        on(&project, task, &["approve", "approve"])
+            .assert()
+            .success();
+        on(&project, task, &["start"]).assert().success();
+    }
+    validate_single(&project, "TASK-01");
+    on(&project, "TASK-01", &["finish"]).assert().success();
+    project
+}
+
+fn state_field(project: &Project, task: &str, key: &str) -> String {
+    read(
+        project,
+        &format!("vostok/work/tasks/SPEC-001/{task}/estado.yml"),
+    )
+    .lines()
+    .find_map(|line| line.strip_prefix(&format!("{key}: ")).map(str::to_string))
+    .unwrap_or_default()
+}
+
+#[test]
+fn migrate_converts_a_spec_in_progress_keeping_state_record_approval_and_evidence() {
+    let project = single_file_spec();
+    let output = success_stdout(&mut migrate(&project, "SPEC-001"));
+    assert!(
+        output.contains("Spec SPEC-001 migrada para o formato de pasta: 2 tarefa(s)."),
+        "{output}"
+    );
+    let tasks = "vostok/work/tasks/SPEC-001";
+    for task in ["TASK-01", "TASK-02"] {
+        assert!(!exists(&project, &format!("{tasks}/{task}.md")));
+        for name in [
+            "estado.yml",
+            "execucao.md",
+            "verificacao.md",
+            "criterios.md",
+            "executivo.md",
+            "tecnico.md",
+            "registro.md",
+            "README.md",
+        ] {
+            assert!(
+                exists(&project, &format!("{tasks}/{task}/{name}")),
+                "{task}/{name}"
+            );
+        }
+        let record = read(&project, &format!("{tasks}/{task}/registro.md"));
+        assert!(record.contains("| início | in_progress |"), "{record}");
+        assert!(
+            record.contains("| migração | pasta | formato antigo convertido |"),
+            "{record}"
+        );
+        assert!(record.contains("## Histórico de ajustes\n"), "{record}");
+    }
+    assert!(!exists(&project, &format!("{tasks}/evidence")));
+    assert!(exists(
+        &project,
+        &format!("{tasks}/TASK-01/evidencias/saida.txt")
+    ));
+    assert!(exists(
+        &project,
+        &format!("{tasks}/TASK-02/evidencias/baseline/01.out")
+    ));
+    assert_eq!(state_field(&project, "TASK-01", "status"), "done");
+    assert_eq!(state_field(&project, "TASK-01", "tests_result"), "passed");
+    assert_eq!(state_field(&project, "TASK-02", "status"), "in_progress");
+    assert_eq!(
+        state_field(&project, "TASK-02", "approved_hash"),
+        state_field(&project, "TASK-02", "content_hash")
+    );
+    assert!(read(&project, &format!("{tasks}/TASK-01/README.md")).contains("Descrição."));
+    assert!(!read(&project, &format!("{tasks}/TASK-01/registro.md")).contains("**Título:**"));
+
+    for step in ["tests", "regression", "evidence"] {
+        on(&project, "TASK-02", &[step]).assert().success();
+    }
+    let criteria = format!("{tasks}/TASK-02/criterios.md");
+    let content = read(&project, &criteria).replace("- [ ]", "- [x]");
+    write(&project, &criteria, &content);
+    on(&project, "TASK-02", &["finish"]).assert().success();
+    assert_eq!(state_field(&project, "TASK-02", "status"), "done");
+}
+
+#[test]
+fn migrate_carries_the_documents_of_the_single_file_format() {
+    let project = single_file_spec();
+    migrate(&project, "SPEC-001").assert().success();
+    let folder = "vostok/work/tasks/SPEC-001/TASK-01";
+    assert_eq!(
+        read(&project, &format!("{folder}/executivo.md")),
+        "Resumo.\n"
+    );
+    assert_eq!(
+        read(&project, &format!("{folder}/tecnico.md")),
+        "Detalhes.\n"
+    );
+    assert!(read(&project, &format!("{folder}/execucao.md")).starts_with("### Ler\n"));
+    assert!(read(&project, &format!("{folder}/criterios.md")).starts_with("### Concluída quando\n"));
+}
+
+#[test]
+fn migrate_keeps_an_approval_valid_for_a_task_not_started() {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", MIGRATE_EVIDENCE),
+    );
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    migrate(&project, "SPEC-001").assert().success();
+    task(&project, &["start"]).assert().success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "in_progress");
+}
+
+#[test]
+fn migrate_leaves_a_spec_already_migrated_unchanged() {
+    let project = single_file_spec();
+    migrate(&project, "SPEC-001").assert().success();
+    let state = read(&project, "vostok/work/tasks/SPEC-001/TASK-02/estado.yml");
+    let record = read(&project, "vostok/work/tasks/SPEC-001/TASK-02/registro.md");
+    let output = success_stdout(&mut migrate(&project, "SPEC-001"));
+    assert!(
+        output.contains("A spec SPEC-001 já está no formato de pasta; nada mudou."),
+        "{output}"
+    );
+    assert_eq!(
+        read(&project, "vostok/work/tasks/SPEC-001/TASK-02/estado.yml"),
+        state
+    );
+    assert_eq!(
+        read(&project, "vostok/work/tasks/SPEC-001/TASK-02/registro.md"),
+        record
+    );
+}
+
+#[test]
+fn migrate_refuses_a_spec_without_tasks() {
+    let project = Project::new();
+    let stderr = failure_stderr(&mut migrate(&project, "SPEC-009"));
+    assert!(
+        stderr.contains("a spec SPEC-009 não tem tarefas em"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn migrate_refuses_an_unrecorded_manual_edit_and_migrates_nothing() {
+    let project = single_file_spec();
+    let path = "vostok/work/tasks/SPEC-001/TASK-02.md";
+    let content = read(&project, path).replace("1. Crie o arquivo.", "1. Crie o arquivo depressa.");
+    write(&project, path, &content);
+    let stderr = failure_stderr(&mut migrate(&project, "SPEC-001"));
+    assert!(
+        stderr.contains("a tarefa TASK-02 tem edição manual sem registro"),
+        "{stderr}"
+    );
+    assert!(exists(&project, "vostok/work/tasks/SPEC-001/TASK-01.md"));
+    assert!(!exists(&project, "vostok/work/tasks/SPEC-001/TASK-01"));
+    assert!(!exists(&project, "vostok/work/tasks/SPEC-001/.migracao"));
+    assert!(exists(
+        &project,
+        "vostok/work/tasks/SPEC-001/evidence/TASK-01/saida.txt"
+    ));
+}

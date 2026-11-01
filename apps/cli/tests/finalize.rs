@@ -300,9 +300,14 @@ fn write_folder_task(project: &Project, id: &str) -> std::path::PathBuf {
 
 /// Monta uma spec com uma tarefa em pasta e roda `create` e `build`.
 fn built_folder_project() -> Project {
+    built_folder_project_with(|_| {})
+}
+
+/// Como `built_folder_project`, com `prepare` mexendo na pasta da tarefa antes do `create`.
+fn built_folder_project_with(prepare: impl FnOnce(&std::path::Path)) -> Project {
     let project = Project::new();
     write_spec(&project, "implemented");
-    write_folder_task(&project, "TASK-01");
+    prepare(&write_folder_task(&project, "TASK-01"));
     project
         .vostok()
         .args(["finalize", "create", "SPEC-001"])
@@ -405,4 +410,91 @@ fn finalize_folder_mixed_formats_are_refused() {
     write_task(&project, "TASK-02", "done");
     let stderr = failure_stderr(project.vostok().args(["finalize", "sources", "SPEC-001"]));
     assert!(stderr.contains("tarefas nos dois formatos"), "{stderr}");
+}
+
+/// Os três documentos gerados de uma spec com uma tarefa em pasta.
+fn built_documents(project: &Project) -> Vec<(&'static str, String)> {
+    let dir = project.harness().join("work/finalize/SPEC-001");
+    ["executivo.html", "tecnico.html", "evidencias.html"]
+        .into_iter()
+        .map(|name| (name, fs::read_to_string(dir.join(name)).unwrap()))
+        .collect()
+}
+
+/// Cores hexadecimais (`#abc`, `#aabbcc` ou `#aabbccdd`) de um texto, em minúsculas.
+fn hex_colors(text: &str) -> Vec<String> {
+    let mut colors = Vec::new();
+    for (index, _) in text.match_indices('#') {
+        let rest = &text[index + 1..];
+        let digits = rest.bytes().take_while(u8::is_ascii_hexdigit).count();
+        let next = rest[digits..].chars().next();
+        let ends = next.is_none_or(|c| !(c.is_alphanumeric() || c == '-' || c == '_'));
+        if [3, 6, 8].contains(&digits) && ends {
+            colors.push(rest[..digits].to_ascii_lowercase());
+        }
+    }
+    colors
+}
+
+#[test]
+fn visual_documents_default_to_the_light_theme() {
+    let project = built_folder_project();
+    for (name, html) in built_documents(&project) {
+        assert!(html.contains("<html lang=\"pt-BR\">"), "{name}");
+        assert!(html.contains(":root {\n  color-scheme: light;"), "{name}");
+        assert!(
+            html.contains(":root[data-theme=\"dark\"] {\n  color-scheme: dark;"),
+            "{name}"
+        );
+        assert!(html.contains("prefers-color-scheme: dark"), "{name}");
+    }
+}
+
+#[test]
+fn visual_documents_have_no_external_requests() {
+    let project = built_folder_project();
+    for (name, html) in built_documents(&project) {
+        assert!(!html.contains("http://"), "{name}");
+        assert!(!html.contains("https://"), "{name}");
+        assert!(!html.contains("<link"), "{name}");
+        assert_eq!(
+            html.matches("src: url(data:font/woff2;base64,").count(),
+            2,
+            "{name}: Inter e Outfit embutidas"
+        );
+    }
+}
+
+#[test]
+fn visual_task_technical_headings_render_as_headings() {
+    let project = built_folder_project_with(|folder| {
+        fs::write(
+            folder.join("tecnico.md"),
+            "Detalhe inicial.\n\n## O que foi feito\n\nTexto.\n\n### Parte\n\n```rust\nlet x = 1 < 2;\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+        )
+        .unwrap();
+    });
+    let technical = &built_documents(&project)[1].1;
+    assert!(technical.contains("<h4>O que foi feito</h4>"), "{technical}");
+    assert!(technical.contains("<h5>Parte</h5>"), "{technical}");
+    assert!(
+        technical.contains("<pre><code>let x = 1 &lt; 2;</code></pre>"),
+        "{technical}"
+    );
+    assert!(technical.contains("<th>A</th>"), "{technical}");
+    assert!(!technical.contains("## O que foi feito"), "{technical}");
+    assert!(!technical.contains("```"), "{technical}");
+}
+
+#[test]
+fn visual_colors_come_only_from_documents_yml() {
+    let project = built_folder_project();
+    let config = fs::read_to_string(project.harness().join("config/documents.yml")).unwrap();
+    let allowed = hex_colors(&config);
+    assert!(!allowed.is_empty());
+    for (name, html) in built_documents(&project) {
+        for color in hex_colors(&html) {
+            assert!(allowed.contains(&color), "{name}: #{color} fora de documents.yml");
+        }
+    }
 }

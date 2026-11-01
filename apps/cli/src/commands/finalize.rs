@@ -45,6 +45,12 @@ const DIFFS_MARKER: &str = "@@FINALIZE_DIFFS@@";
 const MEDIA_MARKER: &str = "@@FINALIZE_MEDIA@@";
 const ITEMS_MARKER: &str = "@@FINALIZE_ITEMS@@";
 const NO_DATE: &str = "data não registrada";
+/// Nível do `<h>` de um `#` no conteúdo: os títulos seguem o Markdown.
+const SECTION_HEADING: usize = 1;
+/// Nível do `<h>` de um `#` no técnico de uma tarefa, abaixo do `<h3>` com o título dela: `##` vira `<h4>`.
+const TASK_HEADING: usize = 3;
+/// Fontes embutidas nos documentos, em `templates/finalize/fonts/`: família e arquivo.
+const FONTS: [(&str, &str); 2] = [("Inter", "Inter.woff2"), ("Outfit", "Outfit.woff2")];
 
 pub fn run(command: FinalizeCommand) -> Result<()> {
     let result = dispatch(command);
@@ -1455,6 +1461,7 @@ enum Block {
     Paragraph(String),
     List(&'static str),
     Table { rows: Vec<String>, header: bool },
+    Code(String),
 }
 
 fn close_block(block: &mut Block, out: &mut String) {
@@ -1464,6 +1471,9 @@ fn close_block(block: &mut Block, out: &mut String) {
             push_line(out, &format!("<p>{}</p>", inline(&html_escape(&text))));
         }
         Block::List(tag) => push_line(out, &format!("</{tag}>")),
+        Block::Code(code) => {
+            push_line(out, &format!("<pre><code>{}</code></pre>", html_escape(&code)));
+        }
         Block::Table { rows, header } => {
             push_line(out, "<table>");
             if header {
@@ -1481,6 +1491,15 @@ fn close_block(block: &mut Block, out: &mut String) {
     }
 }
 
+/// Nível e texto de um título Markdown de `#` a `###`.
+fn heading(line: &str) -> Option<(usize, &str)> {
+    let depth = line.bytes().take_while(|byte| *byte == b'#').count();
+    if !(1..=3).contains(&depth) {
+        return None;
+    }
+    line[depth..].strip_prefix(' ').map(|title| (depth, awk_trim(title)))
+}
+
 fn ordered_item(line: &str) -> Option<&str> {
     let digits = line.bytes().take_while(u8::is_ascii_digit).count();
     (digits > 0)
@@ -1496,13 +1515,43 @@ fn open_list(block: &mut Block, tag: &'static str, out: &mut String) {
     }
 }
 
-/// Converte o Markdown restrito do conteúdo em HTML: parágrafos, listas, tabelas, `código` e **negrito**.
-/// Todo o texto sai escapado; linhas que são só um comentário são descartadas.
+/// Converte o Markdown restrito do conteúdo em HTML: títulos, parágrafos, listas, tabelas, blocos de
+/// código, `código` e **negrito**. Todo o texto sai escapado; linhas que são só um comentário são descartadas.
 fn markdown_html(markdown: &str) -> String {
+    markdown_html_at(markdown, SECTION_HEADING)
+}
+
+/// Como `markdown_html`, com `#` virando `<h{level}>` e cada `#` a mais descendo um nível, até `<h6>`.
+fn markdown_html_at(markdown: &str, level: usize) -> String {
     let mut out = String::new();
     let mut block = Block::None;
     for line in markdown.lines().map(strip_cr) {
+        if let Block::Code(code) = &mut block {
+            if line.trim_start().starts_with("```") {
+                close_block(&mut block, &mut out);
+            } else {
+                if !code.is_empty() {
+                    code.push('\n');
+                }
+                code.push_str(line);
+            }
+            continue;
+        }
+        if line.trim_start().starts_with("```") {
+            close_block(&mut block, &mut out);
+            block = Block::Code(String::new());
+            continue;
+        }
         if is_comment_line(line) {
+            continue;
+        }
+        if let Some((depth, title)) = heading(line) {
+            close_block(&mut block, &mut out);
+            let tag = (level + depth - 1).min(6);
+            push_line(
+                &mut out,
+                &format!("<h{tag}>{}</h{tag}>", inline(&html_escape(title))),
+            );
             continue;
         }
         if awk_trim(line).is_empty() {
@@ -1560,7 +1609,12 @@ fn markdown_html(markdown: &str) -> String {
 
 /// HTML de uma seção, com cada tabela num contêiner que rola na horizontal.
 fn block_html(markdown: &str) -> String {
-    markdown_html(markdown)
+    block_html_at(markdown, SECTION_HEADING)
+}
+
+/// Como `block_html`, com os títulos a partir de `<h{level}>`.
+fn block_html_at(markdown: &str, level: usize) -> String {
+    markdown_html_at(markdown, level)
         .lines()
         .map(|line| match line {
             "<table>" => "<div class=\"tw\"><table>\n".to_string(),
@@ -1581,6 +1635,49 @@ fn inline_html(text: &str) -> String {
         })
         .collect();
     captured(&html)
+}
+
+/// CSS dos tokens de um `documents.yml` anterior aos tokens da organização (sem a chave `bg`), como era:
+/// `:root` com o tema escuro e as fontes e `:root[data-theme="light"]` com o claro. Vale para o harness
+/// que ainda não passou pelo `vostok update`, cujos templates também são os antigos.
+fn legacy_css_tokens(
+    dark: &[(String, String)],
+    light: &[(String, String)],
+    font: &[(String, String)],
+) -> String {
+    let variable =
+        |(key, value): &(String, String)| format!("  --{}: {value};\n", key.replace('_', "-"));
+    let mut css = String::from(":root {\n  color-scheme: dark;\n");
+    css.extend(dark.iter().map(variable));
+    css.extend(
+        font.iter()
+            .map(|(key, value)| format!("  --font-{}: {value};\n", key.replace('_', "-"))),
+    );
+    css.push_str("}\n:root[data-theme=\"light\"] {\n  color-scheme: light;\n");
+    css.extend(light.iter().map(variable));
+    css.push('}');
+    css
+}
+
+/// Coluna de números da faixa do resumo: cada item `- **<valor>** <rótulo>` de `## Em números` vira um
+/// bloco. Sem a seção ou sem itens nesse formato, fica vazia e a faixa ocupa a largura toda.
+fn numbers_html(part: &str) -> String {
+    let facts: String = section_of(part, "Em números")
+        .lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("- **")?;
+            let (value, label) = rest.split_once("**")?;
+            Some(format!(
+                "<div class=\"fact\"><b>{}</b><span>{}</span></div>\n",
+                html_escape(value),
+                inline(&html_escape(awk_trim(label)))
+            ))
+        })
+        .collect();
+    if facts.is_empty() {
+        return String::new();
+    }
+    captured(&format!("<div class=\"facts\">\n{facts}</div>\n"))
 }
 
 /// HTML capturado de uma seção da parte, como `$(... | finalize_block_html)`.
@@ -1757,6 +1854,7 @@ impl Finalization {
         let mut values = self.header_values(&header, "Resumo executivo", tokens);
         values.extend([
             ("LEDE", section_html(&part, "Panorama")),
+            ("NUMBERS", numbers_html(&part)),
             (
                 "VALUE_KPIS",
                 captured(&value_kpis_html(&section_of(&part, "Indicadores de valor"))),
@@ -1791,6 +1889,7 @@ impl Finalization {
         let mut values = self.header_values(&header, "Documento técnico", tokens);
         values.extend([
             ("OVERVIEW", section_html(&part, "Visão geral")),
+            ("NUMBERS", numbers_html(&part)),
             (
                 "ARCHITECTURE",
                 section_html(&part, "Arquitetura e componentes"),
@@ -1822,7 +1921,7 @@ impl Finalization {
                     "<h3>{}: {}</h3>\n{}",
                     html_escape(&task.id()),
                     html_escape(&task.title()),
-                    block_html(&task.technical)
+                    block_html_at(&task.technical, TASK_HEADING)
                 )
             })
             .collect();
@@ -1832,28 +1931,65 @@ impl Finalization {
         format!("{done}\n{}", captured(&tasks))
     }
 
-    /// CSS dos tokens: `:root` com o tema escuro e as fontes e `:root[data-theme="light"]` com o claro.
+    /// CSS dos tokens e das fontes: `:root` com o tema claro, o escuro pela preferência do sistema e
+    /// por `data-theme="dark"`, os gradientes de `calm_*` e `brand_*` e as fontes embutidas em base64.
     fn css_tokens(&self, errors: &mut String) -> Option<String> {
         let config = self.documents_config();
-        let dark = config_group(&config, "dark", errors);
         let light = config_group(&config, "light", errors);
+        let dark = config_group(&config, "dark", errors);
         let font = config_group(&config, "font", errors);
         if dark.is_empty() || light.is_empty() {
             errors.push_str("config/documents.yml sem os grupos 'dark' e 'light'\n");
             return None;
         }
-        let variable =
-            |(key, value): &(String, String)| format!("  --{}: {value};\n", key.replace('_', "-"));
-        let mut css = String::from(":root {\n  color-scheme: dark;\n");
-        css.extend(dark.iter().map(variable));
+        if !light.iter().any(|(key, _)| key == "bg") {
+            return Some(legacy_css_tokens(&dark, &light, &font));
+        }
+        let theme = |pairs: &[(String, String)]| {
+            let mut css: String = pairs
+                .iter()
+                .map(|(key, value)| format!("  --{}: {value};\n", key.replace('_', "-")))
+                .collect();
+            for gradient in ["calm", "brand"] {
+                css.push_str(&format!(
+                    "  --{gradient}: linear-gradient(135deg, var(--{gradient}-from), var(--{gradient}-to));\n"
+                ));
+            }
+            css
+        };
+        let mut css = self.font_faces();
+        css.push_str(":root {\n  color-scheme: light;\n");
+        css.push_str(&theme(&light));
         css.extend(
             font.iter()
                 .map(|(key, value)| format!("  --font-{}: {value};\n", key.replace('_', "-"))),
         );
-        css.push_str("}\n:root[data-theme=\"light\"] {\n  color-scheme: light;\n");
-        css.extend(light.iter().map(variable));
+        let dark = theme(&dark);
+        css.push_str("}\n@media (prefers-color-scheme: dark) {\n:root:not([data-theme=\"light\"]) {\n  color-scheme: dark;\n");
+        css.push_str(&dark);
+        css.push_str("}\n}\n:root[data-theme=\"dark\"] {\n  color-scheme: dark;\n");
+        css.push_str(&dark);
         css.push('}');
         Some(css)
+    }
+
+    /// `@font-face` de cada fonte de `templates/finalize/fonts/`, embutida em base64. Uma fonte que não
+    /// está instalada (harness anterior ao `vostok update`) fica de fora, e vale a reserva do sistema.
+    fn font_faces(&self) -> String {
+        let Ok(dir) = self.templates_dir() else {
+            return String::new();
+        };
+        let mut css = String::new();
+        for (family, file) in FONTS {
+            let path = dir.join("finalize/fonts").join(file);
+            if let Ok(bytes) = fs::read(&path) {
+                css.push_str(&format!(
+                    "@font-face {{ font-family: \"{family}\"; src: url(data:font/woff2;base64,{}) format(\"woff2\"); font-weight: 100 900; font-style: normal; font-display: swap; }}\n",
+                    base64(&bytes)
+                ));
+            }
+        }
+        css
     }
 
     /// Indicadores de execução: tarefas concluídas, tarefas com testes aprovados e evidências geradas.

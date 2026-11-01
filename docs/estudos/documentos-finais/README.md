@@ -7,3 +7,4 @@ Três modelos para a escolha da TASK-04 da SPEC-025, com o mesmo conteúdo: o ex
 - **Modelo C, Dossiê em blocos:** [executivo](modelo-c/executivo.html) e [técnico](modelo-c/tecnico.html)
 
 Cada página é um arquivo único, sem requisição externa, com tema claro padrão e botão para o escuro. As fontes Outfit e Inter (OFL) vão embutidas inteiras, cerca de 620 KB por página, porque o subconjunto não pôde ser gerado: o `fonttools` não está instalado e o download dele não foi autorizado. Com o subconjunto, o tamanho cai; isso fica para a TASK-05.
+- **Modelo escolhido (TASK-04), C com o índice do B:** [executivo](modelo-c-indice/executivo.html) e [técnico](modelo-c-indice/tecnico.html)

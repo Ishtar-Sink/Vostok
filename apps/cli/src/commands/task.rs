@@ -634,7 +634,7 @@ impl Tasks {
     fn load_text(&self, spec: &str, task: &str) -> Result<String> {
         let file = self.existing_task(spec, task)?;
         let section = self.cfg("execution_section")?;
-        let content = read(&file)?;
+        let content = TaskDoc::at(&file).text()?;
         let front_matter = frontmatter_lines(&content)
             .ok_or_else(|| anyhow!("a tarefa {task} não tem front-matter: {}", file.display()))?;
         let execution = markdown_section(&content, &section).ok_or_else(|| {
@@ -687,7 +687,8 @@ impl Tasks {
                 Err(_) => eprintln!("Aviso: '{rule}' não encontrado em {}", root.display()),
             }
         }
-        let persona = match frontmatter_get(&file, "persona")
+        let persona = match TaskDoc::at(&file)
+            .get("persona")
             .unwrap_or_default()
             .as_str()
         {
@@ -709,7 +710,7 @@ impl Tasks {
         text.push_str(&format!("\n# Roteiro\n\n{route}\n# Tarefa\n\n"));
         text.push_str(&self.load_text(spec, task)?);
         let record = self.cfg("record_section")?;
-        if let Some(section) = markdown_section(&read(&file)?, &record) {
+        if let Some(section) = markdown_section(&TaskDoc::at(&file).text()?, &record) {
             text.push_str(&format!("\n## {record}\n{}\n", trim_newlines(&section)));
         }
         print!("{text}");
@@ -723,7 +724,7 @@ impl Tasks {
         let dir = self.tasks_root.join(spec);
         let prefix = format!("{}-", self.cfg("id.prefix")?);
         let files: Vec<PathBuf> = if dir.is_dir() {
-            markdown_files(&dir)?
+            task_entries(&dir)?
                 .into_iter()
                 .filter(|file| task_id_of(file).starts_with(&prefix))
                 .collect()
@@ -734,7 +735,7 @@ impl Tasks {
             bail!("a spec {spec} não tem tarefas em {}", dir.display());
         }
         let field = |file: &Path, key: &str| {
-            let value = frontmatter_get(file, key).unwrap_or_default();
+            let value = TaskDoc::at(file).get(key).unwrap_or_default();
             if matches!(value.as_str(), "" | "-" | "null") {
                 "-".to_string()
             } else {
@@ -769,7 +770,7 @@ impl Tasks {
             };
             text.push_str(&format!(
                 "| {id} | {} | {} | {profile} | {model} | {wave} | {status} |\n",
-                escape_pipes(&frontmatter_get(file, "title").unwrap_or_default()),
+                escape_pipes(&TaskDoc::at(file).get("title").unwrap_or_default()),
                 escape_pipes(&field(file, "persona")),
             ));
             waves.push((wave, id, status));
@@ -804,7 +805,7 @@ impl Tasks {
     fn check_done(&self, spec: &str, task: &str) -> Result<String> {
         let file = self.existing_task(spec, task)?;
         let sub = self.cfg("done_subsection")?;
-        let content = read(&file)?;
+        let content = TaskDoc::at(&file).text()?;
         let text = markdown_subsection(&content, &self.cfg("execution_section")?, &sub)
             .ok_or_else(|| {
                 anyhow!(
@@ -883,7 +884,7 @@ impl Tasks {
         let default = self.evidence_baseline_timeout();
         let mut lines = Vec::new();
         for file in files {
-            let text = self.subsection(&read(file)?, "evidence_subsection")?;
+            let text = self.subsection(&TaskDoc::at(file).text()?, "evidence_subsection")?;
             let mut timeouts: Vec<(String, u64)> =
                 evidence_timeouts(&text, &self.evidence_from_verify())
                     .into_iter()
@@ -914,7 +915,8 @@ impl Tasks {
 
     /// Avisos dos comandos da "Verificação" com argumentos depois de `--` (RF-02); não recusam.
     fn print_dashdash_warnings(&self, file: &Path) -> Result<()> {
-        let block = verify_block(&self.subsection(&read(file)?, "verify_subsection")?);
+        let block =
+            verify_block(&self.subsection(&TaskDoc::at(file).text()?, "verify_subsection")?);
         for command in dashdash_commands(&block) {
             println!("{}", dashdash_warning(&task_id_of(file), &command));
         }
@@ -933,7 +935,7 @@ impl Tasks {
             if !ids.is_empty() {
                 bail!("use --all ou TASK_IDs, não os dois");
             }
-            let pending: Vec<PathBuf> = markdown_files(&dir)?
+            let pending: Vec<PathBuf> = task_entries(&dir)?
                 .into_iter()
                 .filter(|file| status_of(file) == self.status.pending)
                 .collect();
@@ -990,9 +992,9 @@ impl Tasks {
         let approved_at = self.spec_cfg("approved_at_field")?;
         let approved_hash = self.spec_cfg("approved_hash_field")?;
         for file in files {
-            frontmatter_set(file, "status", &self.status.approved)?;
-            frontmatter_put(file, &approved_at, &now)?;
-            frontmatter_put(file, &approved_hash, &frontmatter_get(file, &hash_field)?)?;
+            TaskDoc::at(file).set("status", &self.status.approved)?;
+            TaskDoc::at(file).put(&approved_at, &now)?;
+            TaskDoc::at(file).put(&approved_hash, &TaskDoc::at(file).get(&hash_field)?)?;
         }
         Ok(())
     }
@@ -1087,7 +1089,7 @@ impl Tasks {
         // O nome com caminho vira o nome do arquivo antes do registro, que grava o hash.
         let (content, renames) = self.evidence_renames(&file)?;
         if !renames.is_empty() {
-            write(&file, &content)?;
+            TaskDoc::at(&file).write_text(&content)?;
         }
         print_renames(
             "Nomes de evidência com caminho trocados pelo nome do arquivo:",
@@ -1105,9 +1107,9 @@ impl Tasks {
         if status_of(file) != self.status.approved {
             return Ok(());
         }
-        frontmatter_set(file, "status", &self.status.pending)?;
-        frontmatter_put(file, &self.spec_cfg("approved_at_field")?, "null")?;
-        frontmatter_put(file, &self.spec_cfg("approved_hash_field")?, "null")?;
+        TaskDoc::at(file).set("status", &self.status.pending)?;
+        TaskDoc::at(file).put(&self.spec_cfg("approved_at_field")?, "null")?;
+        TaskDoc::at(file).put(&self.spec_cfg("approved_hash_field")?, "null")?;
         println!(
             "Aprovação de {task} derrubada: o status voltou para '{}'; aprove-a de novo antes de executar.",
             self.status.pending
@@ -1122,7 +1124,7 @@ impl Tasks {
             return Ok(());
         }
         let in_progress = &self.status.in_progress;
-        frontmatter_set(file, "status", in_progress)?;
+        TaskDoc::at(file).set("status", in_progress)?;
         reset_results(file)?;
         self.record_step(file, "ajuste", in_progress, summary)?;
         println!(
@@ -1164,11 +1166,13 @@ impl Tasks {
         // A tarefa aparece em execução antes da coleta, que pode demorar; se a coleta falhar, ela
         // continua em execução sem baseline, e o `vostok task baseline` coleta de novo.
         let in_progress = &self.status.in_progress;
-        frontmatter_set(&file, "status", in_progress)?;
-        let approved_at = frontmatter_get(&file, "approved_at").unwrap_or_else(|_| "?".into());
+        TaskDoc::at(&file).set("status", in_progress)?;
+        let approved_at = TaskDoc::at(&file)
+            .get("approved_at")
+            .unwrap_or_else(|_| "?".into());
         let mut detail = format!("aprovada em {approved_at}");
         if let Some(model) = model {
-            frontmatter_put(&file, "model", model)?;
+            TaskDoc::at(&file).put("model", model)?;
             detail.push_str(&format!("; modelo: {model}"));
         }
         self.record_step(&file, "início", in_progress, &detail)?;
@@ -1191,14 +1195,15 @@ impl Tasks {
             )]);
         }
         let mut blockers = Vec::new();
-        let approved_hash =
-            frontmatter_get(file, &self.spec_cfg("approved_hash_field")?).unwrap_or_default();
-        if approved_hash != self.content_hash(&read(file)?)? {
+        let approved_hash = TaskDoc::at(file)
+            .get(&self.spec_cfg("approved_hash_field")?)
+            .unwrap_or_default();
+        if approved_hash != self.content_hash(&TaskDoc::at(file).text()?)? {
             blockers.push(format!(
                 "a tarefa {task} mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
             ));
         }
-        let evidence = self.subsection(&read(file)?, "evidence_subsection")?;
+        let evidence = self.subsection(&TaskDoc::at(file).text()?, "evidence_subsection")?;
         for problem in evidence
             .lines()
             .filter(|line| !is_indented(line))
@@ -1266,7 +1271,7 @@ impl Tasks {
                 dir.display()
             );
         }
-        let content = read(file)?;
+        let content = TaskDoc::at(file).text()?;
         let commands = self.baseline_commands(&content)?;
         if commands.is_empty() {
             bail!("a tarefa {task} não tem comandos em 'Baseline'");
@@ -1375,7 +1380,7 @@ impl Tasks {
     /// Saída gravada de cada comando rotulado, pelo texto do comando, só com os testes aprovados.
     fn labeled_outputs(&self, file: &Path, content: &str) -> Result<HashMap<String, Vec<u8>>> {
         let mut outputs = HashMap::new();
-        if frontmatter_get(file, "tests_result").unwrap_or_default() != "passed" {
+        if TaskDoc::at(file).get("tests_result").unwrap_or_default() != "passed" {
             return Ok(outputs);
         }
         let block = verify_block(&self.subsection(content, "verify_subsection")?);
@@ -1434,7 +1439,8 @@ impl Tasks {
     fn check(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
-        let block = verify_block(&self.subsection(&read(&file)?, "verify_subsection")?);
+        let block =
+            verify_block(&self.subsection(&TaskDoc::at(&file).text()?, "verify_subsection")?);
         if !has_text(&block) {
             bail!(
                 "a tarefa {task} não tem um bloco `bash` em '{}'",
@@ -1460,7 +1466,8 @@ impl Tasks {
         if !self.evidence_dir(&file)?.join("baseline").is_dir() {
             bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
         }
-        let block = verify_block(&self.subsection(&read(&file)?, "verify_subsection")?);
+        let block =
+            verify_block(&self.subsection(&TaskDoc::at(&file).text()?, "verify_subsection")?);
         if !has_text(&block) {
             bail!(
                 "a tarefa {task} não tem um bloco `bash` em '{}'",
@@ -1472,8 +1479,8 @@ impl Tasks {
         let validating = &self.status.validating;
 
         if code == 0 {
-            frontmatter_set(&file, "status", validating)?;
-            frontmatter_set(&file, "tests_result", "passed")?;
+            TaskDoc::at(&file).set("status", validating)?;
+            TaskDoc::at(&file).set("tests_result", "passed")?;
             self.record_step(
                 &file,
                 "testes",
@@ -1487,24 +1494,24 @@ impl Tasks {
             return Ok(());
         }
 
-        let attempts = number_or_zero(&frontmatter_get(&file, "attempts").unwrap_or_default()) + 1;
+        let attempts = number_or_zero(&TaskDoc::at(&file).get("attempts").unwrap_or_default()) + 1;
         let max_attempts = number_or_zero(&self.cfg("max_attempts")?);
-        frontmatter_set(&file, "tests_result", "failed")?;
-        frontmatter_set(&file, "regression_result", "null")?;
-        frontmatter_set(&file, "evidence_result", "null")?;
-        frontmatter_set(&file, "attempts", &attempts.to_string())?;
+        TaskDoc::at(&file).set("tests_result", "failed")?;
+        TaskDoc::at(&file).set("regression_result", "null")?;
+        TaskDoc::at(&file).set("evidence_result", "null")?;
+        TaskDoc::at(&file).set("attempts", &attempts.to_string())?;
         println!(
             "Testes de {task} falharam (código de saída {code}), tentativa {attempts} de {max_attempts}. Últimas linhas da saída ({}):",
             output_path.display()
         );
         print!("{}", indented_tail(&fs::read(&output_path)?, 30));
         if attempts >= max_attempts {
-            frontmatter_set(&file, "status", &self.status.blocked)?;
+            TaskDoc::at(&file).set("status", &self.status.blocked)?;
             let detail = format!("tentativa {attempts} de {max_attempts}; bloqueada");
             self.record_step(&file, "testes", "failed", &detail)?;
             bail!("a tarefa {task} ficou bloqueada depois de {attempts} tentativas. PARE: responda com o template `blocker`, mostrando as falhas, e aguarde a decisão do usuário");
         }
-        frontmatter_set(&file, "status", validating)?;
+        TaskDoc::at(&file).set("status", validating)?;
         let detail = format!("tentativa {attempts} de {max_attempts}");
         self.record_step(&file, "testes", "failed", &detail)?;
         bail!("os testes de {task} falharam; corrija e execute vostok task tests de novo")
@@ -1518,7 +1525,7 @@ impl Tasks {
         if !base.is_dir() {
             bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
         }
-        let content = read(&file)?;
+        let content = TaskDoc::at(&file).text()?;
         let commands = self.baseline_commands(&content)?;
         let reasons = self.baseline_reasons(&content)?;
         let reused = self.labeled_outputs(&file, &content)?;
@@ -1635,8 +1642,8 @@ impl Tasks {
         }
 
         if changed.is_empty() {
-            frontmatter_set(&file, "status", &self.status.validating)?;
-            frontmatter_set(&file, "regression_result", "passed")?;
+            TaskDoc::at(&file).set("status", &self.status.validating)?;
+            TaskDoc::at(&file).set("regression_result", "passed")?;
             let mut detail = if accepted_count == 0 {
                 format!("{equal} comando(s) iguais ao baseline")
             } else {
@@ -1658,8 +1665,8 @@ impl Tasks {
             print!("{grown}{expected_changes}{ignored}");
             return Ok(());
         }
-        frontmatter_set(&file, "regression_result", "failed")?;
-        frontmatter_set(&file, "status", &self.status.blocked)?;
+        TaskDoc::at(&file).set("regression_result", "failed")?;
+        TaskDoc::at(&file).set("status", &self.status.blocked)?;
         self.record_step(
             &file,
             "regressão",
@@ -1677,7 +1684,7 @@ impl Tasks {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
         let dir = self.evidence_dir(&file)?;
-        let content = read(&file)?;
+        let content = TaskDoc::at(&file).text()?;
         let text = self.subsection(&content, "evidence_subsection")?;
         let items: Vec<&str> = text
             .lines()
@@ -1689,7 +1696,7 @@ impl Tasks {
 
         let trimmed: Vec<&str> = items.iter().map(|line| line.trim()).collect();
         if trimmed.join("\n") == none {
-            frontmatter_set(&file, "evidence_result", "passed")?;
+            TaskDoc::at(&file).set("evidence_result", "passed")?;
             self.record_step(&file, "evidências", "passed", &none)?;
             println!("Evidências de {task}: {none} Resultado: passed.");
             return Ok(());
@@ -1844,7 +1851,7 @@ impl Tasks {
             let review = print_review(name, &fs::read(dir.join(name))?);
             self.record_step(&file, "conferência", "usuário", &review)?;
         }
-        let record = read(&file)?;
+        let record = TaskDoc::at(&file).text()?;
         let unreviewed: Vec<&String> = prints
             .iter()
             .filter(|name| {
@@ -1853,7 +1860,7 @@ impl Tasks {
             })
             .collect();
         if !unreviewed.is_empty() {
-            frontmatter_set(&file, "evidence_result", "pending")?;
+            TaskDoc::at(&file).set("evidence_result", "pending")?;
             self.record_step(
                 &file,
                 "evidências",
@@ -1868,7 +1875,7 @@ impl Tasks {
             return Ok(());
         }
         if !missing.is_empty() {
-            frontmatter_set(&file, "evidence_result", "pending")?;
+            TaskDoc::at(&file).set("evidence_result", "pending")?;
             self.record_step(
                 &file,
                 "evidências",
@@ -1879,7 +1886,7 @@ impl Tasks {
             print_same_as_baseline(&same);
             return Ok(());
         }
-        frontmatter_set(&file, "evidence_result", "passed")?;
+        TaskDoc::at(&file).set("evidence_result", "passed")?;
         let folder = dir
             .parent()
             .and_then(Path::file_name)
@@ -1915,7 +1922,7 @@ impl Tasks {
         root: &Path,
     ) -> Result<Option<Vec<u8>>> {
         let target = self.evidence_dir(file)?.join(name);
-        let tests_passed = frontmatter_get(file, "tests_result").unwrap_or_default() == "passed";
+        let tests_passed = TaskDoc::at(file).get("tests_result").unwrap_or_default() == "passed";
         let output = self.verify_dir(file)?.join(name);
         if tests_passed && output.is_file() {
             let output = fs::read(&output)?;
@@ -1937,7 +1944,7 @@ impl Tasks {
         self.require_running(&file, task)?;
         let mut problems = String::new();
         for key in ["tests_result", "regression_result", "evidence_result"] {
-            let value = frontmatter_get(&file, key).unwrap_or_default();
+            let value = TaskDoc::at(&file).get(key).unwrap_or_default();
             if value != "passed" {
                 problems.push_str(&format!("- {key}: '{value}' (precisa ser 'passed')\n"));
             }
@@ -1953,7 +1960,7 @@ impl Tasks {
         }
 
         let done = &self.status.done;
-        frontmatter_set(&file, "status", done)?;
+        TaskDoc::at(&file).set("status", done)?;
         self.record_step(
             &file,
             "conclusão",
@@ -1962,7 +1969,7 @@ impl Tasks {
         )?;
         println!("Tarefa {task} concluída: status '{done}'.");
 
-        let unfinished: Vec<String> = markdown_files(file.parent().unwrap_or(Path::new("")))?
+        let unfinished: Vec<String> = task_entries(file.parent().unwrap_or(Path::new("")))?
             .iter()
             .filter(|other| status_of(other) != *done)
             .map(|other| task_id_of(other))
@@ -2034,7 +2041,7 @@ impl Tasks {
             detail.push_str(&format!("; aceito(s): {}", numbers.join(", ")));
         }
         let validating = &self.status.validating;
-        frontmatter_set(&file, "status", validating)?;
+        TaskDoc::at(&file).set("status", validating)?;
         if acceptances.is_empty() {
             reset_results(&file)?;
             self.record_step(&file, "retomada", validating, &detail)?;
@@ -2042,8 +2049,8 @@ impl Tasks {
             return Ok(());
         }
         // O aceite não muda código nem testes: testes e evidências continuam valendo.
-        frontmatter_set(&file, "attempts", "0")?;
-        frontmatter_set(&file, "regression_result", "null")?;
+        TaskDoc::at(&file).set("attempts", "0")?;
+        TaskDoc::at(&file).set("regression_result", "null")?;
         self.record_step(&file, "retomada", validating, &detail)?;
         println!("Tarefa {task} retomada: status '{validating}', diferença aceita. Execute vostok task regression e, com ela aprovada, vostok task finish.");
         Ok(())
@@ -2104,7 +2111,7 @@ impl Tasks {
         let root = self.project_root()?;
         let target = settings.target(&root, spec, task);
         let source = self.evidence_dir(&file)?;
-        let content = read(&file)?;
+        let content = TaskDoc::at(&file).text()?;
         let evidences = self.evidence_entries(&content)?;
 
         let mut files: Vec<String> = Vec::new();
@@ -2317,7 +2324,7 @@ impl Tasks {
                 _ => format!("- {name}{}", note_of(name)),
             })
             .collect();
-        let title = frontmatter_get(file, "title").unwrap_or_default();
+        let title = TaskDoc::at(file).get("title").unwrap_or_default();
         let mut values: HashMap<&str, String> = HashMap::from([
             ("TASK_ID", task.to_string()),
             ("TASK_TITLE", title),
@@ -2325,11 +2332,13 @@ impl Tasks {
             ("DATE", today.to_string()),
             (
                 "TESTS_RESULT",
-                frontmatter_get(file, "tests_result").unwrap_or_default(),
+                TaskDoc::at(file).get("tests_result").unwrap_or_default(),
             ),
             (
                 "REGRESSION_RESULT",
-                frontmatter_get(file, "regression_result").unwrap_or_default(),
+                TaskDoc::at(file)
+                    .get("regression_result")
+                    .unwrap_or_default(),
             ),
             ("ACCEPTED", accepted_text),
             ("SUPPORT_FILES", support.join("\n")),
@@ -2406,7 +2415,7 @@ impl Tasks {
             )]);
         };
         let mut problems = Vec::new();
-        for evidence in self.evidence_entries(&read(file)?)? {
+        for evidence in self.evidence_entries(&TaskDoc::at(file).text()?)? {
             if !guide
                 .lines()
                 .any(|line| line == format!("## {}", evidence.name))
@@ -2456,20 +2465,21 @@ impl Tasks {
     }
 
     fn hash_is_current(&self, file: &Path) -> Result<bool> {
-        let stored =
-            frontmatter_get(file, &self.spec_cfg("content_hash_field")?).unwrap_or_default();
-        Ok(stored == self.content_hash(&read(file)?)?)
+        let stored = TaskDoc::at(file)
+            .get(&self.spec_cfg("content_hash_field")?)
+            .unwrap_or_default();
+        Ok(stored == self.content_hash(&TaskDoc::at(file).text()?)?)
     }
 
     fn store_hash(&self, file: &Path) -> Result<()> {
-        let hash = self.content_hash(&read(file)?)?;
-        frontmatter_put(file, &self.spec_cfg("content_hash_field")?, &hash)
+        let hash = self.content_hash(&TaskDoc::at(file).text()?)?;
+        TaskDoc::at(file).put(&self.spec_cfg("content_hash_field")?, &hash)
     }
 
     /// Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo.
     fn record_step(&self, file: &Path, step: &str, result: &str, detail: &str) -> Result<()> {
         let section = self.cfg("record_section")?;
-        let content = read(file)?;
+        let content = TaskDoc::at(file).text()?;
         let count = markdown_section(&content, &section)
             .map(|text| text.lines().filter(|line| is_numbered_row(line)).count())
             .unwrap_or(0);
@@ -2483,13 +2493,13 @@ impl Tasks {
         );
         let updated = insert_table_row(&content, &format!("## {section}"), &row, false)
             .ok_or_else(|| anyhow!("seção '## {section}' sem a tabela; nada registrado"))?;
-        write(file, &updated)?;
+        TaskDoc::at(file).write_text(&updated)?;
         self.store_hash(file)
     }
 
     /// Registra um ajuste: linha no histórico, contagem, datas e, por último, o hash. Devolve o número.
     fn record_adjustment(&self, file: &Path, origin: &str, summary: &str) -> Result<u64> {
-        let count = number_or_zero(&frontmatter_get(file, "adjustments").unwrap_or_default()) + 1;
+        let count = number_or_zero(&TaskDoc::at(file).get("adjustments").unwrap_or_default()) + 1;
         let now = utc_now();
         let heading = self.history_heading()?;
         let row = format!(
@@ -2497,12 +2507,17 @@ impl Tasks {
             &now[..10],
             escape_pipes(summary)
         );
-        let updated = insert_table_row(&read(file)?, &format!("## {heading}"), &row, true)
-            .ok_or_else(|| anyhow!("seção ausente: '## {heading}'; nenhum ajuste registrado"))?;
-        write(file, &updated)?;
-        frontmatter_put(file, "adjustments", &count.to_string())?;
-        frontmatter_put(file, "adjusted_at", &now)?;
-        frontmatter_put(file, "updated_at", &now)?;
+        let updated = insert_table_row(
+            &TaskDoc::at(file).text()?,
+            &format!("## {heading}"),
+            &row,
+            true,
+        )
+        .ok_or_else(|| anyhow!("seção ausente: '## {heading}'; nenhum ajuste registrado"))?;
+        TaskDoc::at(file).write_text(&updated)?;
+        TaskDoc::at(file).put("adjustments", &count.to_string())?;
+        TaskDoc::at(file).put("adjusted_at", &now)?;
+        TaskDoc::at(file).put("updated_at", &now)?;
         self.store_hash(file)?;
         Ok(count)
     }
@@ -2535,7 +2550,7 @@ impl Tasks {
         names: EvidenceNames,
     ) -> Result<Vec<String>> {
         let id = task_id_of(file);
-        let content = read(file)?;
+        let content = TaskDoc::at(file).text()?;
         let mut errors: Vec<String> = template_leftovers(&content)
             .into_iter()
             .map(|(line, text)| format!("variável sem preencher: {line}:{text}"))
@@ -2813,7 +2828,7 @@ impl Tasks {
     /// Tarefa com o nome de evidência com caminho trocado pelo nome do arquivo, e os avisos.
     fn evidence_renames(&self, file: &Path) -> Result<(String, Vec<String>)> {
         Ok(renamed_evidence(
-            &read(file)?,
+            &TaskDoc::at(file).text()?,
             &self.cfg("execution_section")?,
             &self.cfg("evidence_subsection")?,
             &task_id_of(file),
@@ -2822,7 +2837,7 @@ impl Tasks {
 
     /// Caminhos que a tarefa cria ("Mudar" com a ação `criar`).
     fn created_paths(&self, file: &Path) -> Result<Vec<String>> {
-        let content = read(file)?;
+        let content = TaskDoc::at(file).text()?;
         Ok(created_of(&change_items(
             &self.subsection(&content, "change_subsection")?,
         )))
@@ -2846,13 +2861,56 @@ fn task_id_of(file: &Path) -> String {
         .into_owned()
 }
 
+/// Uma tarefa no disco. Os comandos leem e gravam o estado, o texto e o registro de uma tarefa só
+/// por aqui; hoje a tarefa é o arquivo único `TASK-NN.md`, com o estado no front-matter.
+struct TaskDoc<'a> {
+    file: &'a Path,
+}
+
+impl<'a> TaskDoc<'a> {
+    fn at(file: &'a Path) -> Self {
+        Self { file }
+    }
+
+    /// Valor de um campo do estado.
+    fn get(&self, key: &str) -> Result<String> {
+        frontmatter_get(self.file, key)
+    }
+
+    /// Grava um campo existente do estado.
+    fn set(&self, key: &str, value: &str) -> Result<()> {
+        frontmatter_set(self.file, key, value)
+    }
+
+    /// Grava um campo do estado, acrescentando-o se ainda não existir.
+    fn put(&self, key: &str, value: &str) -> Result<()> {
+        frontmatter_put(self.file, key, value)
+    }
+
+    /// Texto da tarefa, com as seções que os comandos leem.
+    fn text(&self) -> Result<String> {
+        read(self.file)
+    }
+
+    /// Regrava o texto da tarefa (registro e histórico).
+    fn write_text(&self, content: &str) -> Result<()> {
+        write(self.file, content)
+    }
+}
+
+/// Tarefas de uma pasta de spec, em ordem alfabética.
+fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
+    markdown_files(dir)
+}
+
 fn status_of(file: &Path) -> String {
-    frontmatter_get(file, "status").unwrap_or_default()
+    TaskDoc::at(file).get("status").unwrap_or_default()
 }
 
 /// Dependências do front-matter (`depends_on: [TASK-01, TASK-02]`).
 fn dependencies_of(file: &Path) -> Vec<String> {
-    frontmatter_get(file, "depends_on")
+    TaskDoc::at(file)
+        .get("depends_on")
         .unwrap_or_default()
         .replace(['[', ']'], "")
         .split(',')
@@ -2863,9 +2921,9 @@ fn dependencies_of(file: &Path) -> Vec<String> {
 }
 
 fn reset_results(file: &Path) -> Result<()> {
-    frontmatter_set(file, "attempts", "0")?;
+    TaskDoc::at(file).set("attempts", "0")?;
     for key in ["tests_result", "regression_result", "evidence_result"] {
-        frontmatter_set(file, key, "null")?;
+        TaskDoc::at(file).set(key, "null")?;
     }
     Ok(())
 }
@@ -2900,7 +2958,7 @@ fn upstream_paths(
 ) -> Result<HashSet<String>> {
     let mut dependencies: HashMap<String, Vec<String>> = HashMap::new();
     let mut created: HashMap<String, Vec<String>> = HashMap::new();
-    for file in markdown_files(dir)? {
+    for file in task_entries(dir)? {
         let task = task_id_of(&file);
         dependencies.insert(task.clone(), dependencies_of(&file));
         created.insert(task, created_paths(&file)?);
@@ -3057,7 +3115,7 @@ fn changed_sections(file: &Path, skip_heading: &str) -> Result<String> {
     let mut in_front_matter = false;
     let mut in_code = false;
     let mut heading = "";
-    let content = read(file)?;
+    let content = TaskDoc::at(file).text()?;
     for (index, line) in content.lines().enumerate() {
         let line = line.trim_end_matches('\r');
         if index == 0 && line == "---" {

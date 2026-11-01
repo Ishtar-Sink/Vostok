@@ -3106,3 +3106,63 @@ fn evidence_timeout_below_the_default_is_not_listed() {
     let output = timeout_approval(&timeout_evidence("echo ok", "\n  - Tempo-limite: 30"));
     assert!(!output.contains("tempo-limite"), "{output}");
 }
+
+// --- Camada da tarefa (SPEC-023) ---
+
+/// Texto da tarefa depois do front-matter, sem o registro.
+fn task_body(project: &Project) -> String {
+    let text = read(project, TASK_PATH);
+    let body = text
+        .splitn(3, "---\n")
+        .nth(2)
+        .unwrap_or_default()
+        .to_string();
+    body.split("## Registro de execução")
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+#[test]
+fn task_layer_state_change_keeps_the_rest_of_the_task() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let before = task_body(&project);
+    task(&project, &["tests"]).assert().success();
+    assert!(read(&project, TASK_PATH).contains("\ntests_result: passed\n"));
+    assert_eq!(task_body(&project), before);
+}
+
+#[test]
+fn task_layer_record_appends_a_numbered_row() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    let text = read(&project, TASK_PATH);
+    let rows: Vec<&str> = text
+        .lines()
+        .filter(|line| {
+            line.starts_with("| ") && line.as_bytes().get(2).is_some_and(u8::is_ascii_digit)
+        })
+        .collect();
+    assert_eq!(rows.len(), 3, "{text}");
+    assert!(rows[1].starts_with("| 2 |") && rows[1].contains("| testes | passed |"));
+    assert!(rows[2].starts_with("| 3 |") && rows[2].contains("| regressão | passed |"));
+}
+
+#[test]
+fn task_layer_evidence_folder_is_the_current_one() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    assert!(exists(&project, &format!("{EVIDENCE_DIR}/baseline/01.out")));
+    task(&project, &["tests"]).assert().success();
+    assert!(exists(
+        &project,
+        &format!("{EVIDENCE_DIR}/validation/tests.out")
+    ));
+}
+
+#[test]
+fn task_layer_status_lists_the_tasks_of_the_spec() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let output = stdout(project.vostok().args(["task", "status", "SPEC-001"]));
+    assert!(output.contains("| TASK-01 | Tarefa |"), "{output}");
+}

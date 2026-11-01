@@ -9,16 +9,17 @@ wave: 2
 covers: [RF-11, CT-11]
 type: tarefa
 labels: [SPEC-023, julgamento]
-status: approved
-content_hash: 79ac2ae0db3570a0d068ae67827faad16c3a44ed7c6ec114cd80fbc066834278
+status: done
+content_hash: d4dec8156c820db4a4ff93851140ef63fec9ca8e13006fd5d0fdc1a1d04c30a1
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-01T12:01:26Z
 approved_hash: 79ac2ae0db3570a0d068ae67827faad16c3a44ed7c6ec114cd80fbc066834278
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+model: opus
 ---
 
 # TASK-02: Camada da tarefa com o formato atual
@@ -72,11 +73,11 @@ Resultado esperado: toda a suíte passa, inclusive os goldens e os cenários, e 
 
 ### Concluída quando
 
-- [ ] Os comandos leem e gravam a tarefa só pela `TaskDoc` (RF-11).
+- [x] Os comandos leem e gravam a tarefa só pela `TaskDoc` (RF-11).
 
   > Como comprovar: em `task-layer-tests.txt`, ver aprovados os testes `task_layer_`.
 
-- [ ] Cenários e goldens passam sem atualização de fixture (CT-11).
+- [x] Cenários e goldens passam sem atualização de fixture (CT-11).
 
   > Como comprovar: em `task-layer-tests.txt`, ver os dez `scenario_` aprovados, e a Verificação termina com código 0.
 
@@ -106,6 +107,12 @@ Abordagem: struct `TaskDoc` dentro de `task.rs`, para não criar módulo fora do
 
 | # | Data | Etapa | Resultado | Detalhe |
 |---|---|---|---|---|
+| 1 | 2026-11-01 | início | in_progress | aprovada em 2026-11-01T12:01:26Z; modelo: opus |
+| 2 | 2026-11-01 | baseline | coletado | 2 comando(s); códigos de saída: 0, 0 |
+| 3 | 2026-11-01 | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 4 | 2026-11-01 | regressão | passed | 1 comando(s) iguais ao baseline; 1 com acréscimo |
+| 5 | 2026-11-01 | evidências | passed | 1 evidência(s) em evidence/TASK-02/ |
+| 6 | 2026-11-01 | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## Histórico de ajustes
 

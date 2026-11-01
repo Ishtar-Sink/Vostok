@@ -1,0 +1,25 @@
+id: TASK-01
+spec: SPEC-025
+title: "Estudo visual"
+description: "Análise da identidade do Ishtar Sink, do Atria e dos documentos atuais, com três direções visuais."
+profile: padrao
+persona: ui-ux-designer
+depends_on: []
+wave: 1
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-025, padrao]
+status: approved
+content_hash: bef7bba33e8015b1932ff410e3b5385835ce6c399056d16d5bef609a89ce6b7b
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-01T22:37:51Z
+approved_hash: bef7bba33e8015b1932ff410e3b5385835ce6c399056d16d5bef609a89ce6b7b
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: cf97270a1585fcc5e6f688989e0331e6f758629c8a3a94b8355f4126c9ea39f6
+verification_hash: 543f1c74af230cbf5668dd0c7775059c5b8e0941105065904f26134a77d36414
+criteria_hash: 26ab2e6b9255dc0528fcafbd1c8ab17dbdb8b659b35ebf9462ba6779dfaeabf7
+state_hash: 35d2d21858fcc7f9a35f098bf69b06e9cad117ee915b3db74c249642abc902e6

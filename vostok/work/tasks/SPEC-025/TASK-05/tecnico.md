@@ -1,0 +1,3 @@
+<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
+
+Aplica o modelo da TASK-04 aos templates de packages/harness/templates/finalize e troca os tokens de documents.yml pelos de 2026-10, com o claro como padrão. As fontes em subconjunto entram como data: no CSS gerado. markdown_html passa a converter títulos, rebaixando um nível no técnico das tarefas, o que corrige o defeito visto na SPEC-024. Os 28 casos golden da finalização que rodam o build são regravados (a lista está em Mudar). Esta tarefa será ajustada depois da TASK-04 com os detalhes do modelo; os passos aqui definem só o que não depende da escolha. Divide finalize.rs e tests/finalize.rs com a TASK-06, que vem depois.

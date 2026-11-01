@@ -1,0 +1,25 @@
+id: TASK-02
+spec: SPEC-025
+title: "Estudo de conteúdo"
+description: "Seções de cada documento, a regra de prosa, lista e tabela e o KT do técnico."
+profile: padrao
+persona: arquiteto
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-05, RF-08, CT-04]
+type: tarefa
+labels: [SPEC-025, padrao]
+status: approved
+content_hash: f0392304bb8a0c09d1680bafbc35f39a38b18df60fda28655f5644787f6f3dfe
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-01T22:37:51Z
+approved_hash: f0392304bb8a0c09d1680bafbc35f39a38b18df60fda28655f5644787f6f3dfe
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: ab106ee7f5a0106b923337a7b19d23cdab20021be877245a500fdffe279b471d
+verification_hash: 462f23b28885df4168000c90f0265e9b953a3d010e8eb65d139028b46fc65259
+criteria_hash: cda3b53d0c2480c10d12d824224602881dc7890becfa4226d707cffd13bdfd4e
+state_hash: ead80c55554c2ad4bae1fafc1d3cc5bae9587eb645e20aa93b3aab09e8c5ad44

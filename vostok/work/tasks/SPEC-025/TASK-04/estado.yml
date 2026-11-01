@@ -1,0 +1,25 @@
+id: TASK-04
+spec: SPEC-025
+title: "Escolha do modelo"
+description: "Registro do modelo escolhido e da aprovação do estudo de conteúdo pelo usuário."
+profile: mecanica
+persona: arquiteto
+depends_on: [TASK-03]
+wave: 4
+covers: [RF-04, CT-03]
+type: tarefa
+labels: [SPEC-025, mecanica]
+status: approved
+content_hash: 94596f80665d806c917ec17e251005b8568ef599ea76b03ad9b70815478fe745
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-01T22:37:51Z
+approved_hash: 94596f80665d806c917ec17e251005b8568ef599ea76b03ad9b70815478fe745
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: a9c6fb02470cc926d4360548686de5f45c13b8011c60792e91c0eca24314d8ae
+verification_hash: 7645394ddbe6b527801cf745a34971c808bb97bf091ea22439c105e21919f488
+criteria_hash: aeba33ba0f66935ff0c11df1648bbaa225987369ec35eea4399324c7f22e5bf3
+state_hash: 182b2ac7ea8dd767973ce5058cb9d93a0bbf15b640ef9026e09766998eb1e733

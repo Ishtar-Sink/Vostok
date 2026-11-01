@@ -1,0 +1,3 @@
+<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
+
+Seis HTML autossuficientes em docs/estudos/documentos-finais/modelo-{a,b,c}/, um par por direção da TASK-01, com o conteúdo da SPEC-023 reescrito no modelo da TASK-02. As fontes vão em subconjunto como data: (sem CDN, regra da organização); os tokens são os de 2026-10 num bloco CSS que cita a origem (inferência C da spec). As evidências são prints do Chrome headless do cache do Playwright, conferidos pelo usuário na finalização: um print por página e um do executivo em 400 px por modelo. Depende da TASK-02.

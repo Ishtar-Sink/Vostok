@@ -1,0 +1,25 @@
+id: TASK-03
+spec: SPEC-025
+title: "Três protótipos"
+description: "Seis páginas: três modelos, um com abas, cada um com executivo e técnico de uma spec real reescrita."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-02]
+wave: 3
+covers: [RF-02, RF-03, CT-02]
+type: tarefa
+labels: [SPEC-025, padrao]
+status: approved
+content_hash: 0242390e30db906b37ad8e8b507699fe4f6d7844ff52d689958a0d0263adee2a
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-01T22:37:51Z
+approved_hash: 0242390e30db906b37ad8e8b507699fe4f6d7844ff52d689958a0d0263adee2a
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: fc4d10dde6080ac1c6546fff20c60ed2ee6b616e4f2cc5069abc2995958dd4c3
+verification_hash: 7e57c84cb1a0f3f2e14dcf5b679af349c998d1a3ea034e2f36ef7e774be31a0d
+criteria_hash: acd6efae61778040d41211690fc82fe53f3c7cdec7e4823b64a8306aaf11c769
+state_hash: 6c429e8158ab2ea5b55a3de521a67e4ab7b2f200888cc8c1f80870793f864ae5

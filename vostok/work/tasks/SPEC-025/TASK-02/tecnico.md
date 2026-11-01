@@ -1,0 +1,3 @@
+<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
+
+Altera a seção reservada pela TASK-01 em docs/estudos/documentos-finais.md. Parte do conteúdo real da SPEC-023 (content.md arquivado e HTML publicados) para mostrar o que falta. O KT do técnico inclui operação e diagnóstico, mapa do código e limites e dívidas (resposta 2 da 2ª rodada da spec), e o estudo propõe as demais seções. O resultado precisa ser verificável: cada seção com propósito, formato e tamanho, e a separação entre o que o finalize validate confere e o que fica na skill, porque isso vira a TASK-06. Depende da TASK-01, que cria o arquivo.

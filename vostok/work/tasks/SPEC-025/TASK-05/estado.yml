@@ -1,0 +1,25 @@
+id: TASK-05
+spec: SPEC-025
+title: "Modelo visual nos documentos"
+description: "Os três documentos gerados no modelo escolhido, com os tokens da organização e os títulos do técnico das tarefas."
+profile: julgamento
+persona: ui-ux-designer
+depends_on: [TASK-04]
+wave: 5
+covers: [RF-09, RF-10, RF-12, CT-07, CT-09, CT-10]
+type: historia
+labels: [SPEC-025, julgamento]
+status: approved
+content_hash: 689ed8e8731728aff19514532691ff184bdbeec0395141d3fc2bc2dec582a666
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-01T22:37:51Z
+approved_hash: 689ed8e8731728aff19514532691ff184bdbeec0395141d3fc2bc2dec582a666
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 8e5eb1049bee58ac617c8126cc9f5e65bfdaa54f2f5d77e9bcceb780386a04a2
+verification_hash: ca45e170ee396140334a3070ed2a85ab44f9011ededba6f39217b56746abe572
+criteria_hash: 8e6afc7365721fd69458667f13c2c2f51ae927c57c1c162f44a120e335bc983b
+state_hash: 042aec6bca2152721b53e76243b50bf8e07189c4afb04842f5b027cd64a866b4

@@ -17,7 +17,7 @@ fn ct01_version_is_0_1_0() {
         .arg("--version")
         .assert()
         .success()
-        .stdout("vostok 0.2.9\n");
+        .stdout("vostok 0.2.10\n");
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 20, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 21, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))

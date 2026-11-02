@@ -28,7 +28,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 
 ## Regras
 
-[approve-plan-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
+[approve-plan-01]: Só aprove a pedido do usuário (no chat ou por um pedido `aprovar-plano` do painel). Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
 [approve-plan-02]: Nunca aprove um plano sobre o qual tenha dúvida de ser o correto. Na dúvida, pergunte (passo 2).
 [approve-plan-03]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; mudanças no plano são feitas pela skill `adjust-plan`.
 [approve-plan-04]: Nunca edite o plano, a spec nem o front-matter das tarefas. Nas tarefas, só substitua as variáveis `#{...}`.

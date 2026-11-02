@@ -23,7 +23,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 
 ## Regras
 
-[finalize-spec-01]: Só finalize a pedido do usuário, com a spec citada ou confirmada por ele (RN-01).
+[finalize-spec-01]: Só finalize a pedido do usuário, com a spec citada ou confirmada por ele (RN-01); o pedido `finalizar-spec` do painel cita a spec.
 [finalize-spec-02]: Os documentos são sintetizados, não cópias: escreva cada seção do conteúdo a partir das fontes, sem colar trechos da spec ou das tarefas (RN-02).
 [finalize-spec-03]: O executivo é para quem decide sem ler código: objetivo, entregas, valor e impacto, ganhos secundários, riscos e próximos passos, em linguagem de negócio, sem caminhos, comandos, nomes de funções nem IDs de requisito, de 400 a 800 palavras.
 [finalize-spec-04]: O técnico é a transferência de conhecimento de quem vai manter: o quê, por quê e como, mais operação e diagnóstico, mapa do código e limites e dívidas, de 1.000 a 2.000 palavras, e "Referências" com o motivo de cada item.

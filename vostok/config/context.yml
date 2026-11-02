@@ -81,3 +81,5 @@ skills:
   triage-harness-issue: []
   customize-documents:
     - config/documents.yml
+  process-requests:
+    - config/tasks.yml

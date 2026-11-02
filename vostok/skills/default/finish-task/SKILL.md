@@ -36,8 +36,8 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 [finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
 [finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
-[finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
-[finish-task-09]: A conferência de um print é sempre do usuário, nunca do agente. Nunca execute `--reviewed` sem a confirmação dele.
+[finish-task-08]: Só finalize a pedido do usuário (no chat ou por um pedido `finalizar-tarefa` do painel, que vale como o pedido dele), uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
+[finish-task-09]: A conferência de um print é sempre do usuário, nunca do agente. Nunca execute `--reviewed` sem a confirmação dele; o pedido do painel não confere print.
 
 ## Checklist
 

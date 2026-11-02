@@ -21,3 +21,7 @@ paths:
 harness:
   repository: Ishtar-Sink/Vostok
   tool: claude-code   # claude-code | codex | cursor | gemini-cli | copilot
+
+# Trava de aval: com `true`, concluir, aprovar, arquivar e fazer commit exigem o aval do painel
+# (`vostok painel`) registrado no `avais.log`. Desligada por padrão.
+approval_lock: false

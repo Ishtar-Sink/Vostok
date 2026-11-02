@@ -1,0 +1,28 @@
+id: TASK-03
+spec: SPEC-029
+title: "Montar a base do frontend do painel"
+description: "`apps/painel` com Vite e Preact com compat, os tokens e componentes do Atria, a marca, o menu lateral, o roteador, a API compartilhada e uma página provisória por feature."
+profile: padrao
+persona: ui-ux-designer
+depends_on: []
+wave: 1
+covers: [RF-03, RF-04, CT-03]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: done
+content_hash: c1f497c92b50870cfa79494925c36ca6c10dfb275bd18fe52c88b017c6c3e6b7
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 9d34b76192497c1ceed481a139eba6c408709a3fa7649228b0a8cbf7abc604e5
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+execution_hash: 258ede9e4e74999a39808c873181b547b38b552493da072bd66efb0b2820814b
+verification_hash: a18e29e493a639e524b2c289d2e26ccabe191f156e2749add81b0766a2e13e1f
+criteria_hash: fdf19d190d7c45ad5b4f1511187f27abbcdeab2bcdd74fcaf178b6a1133fb9a6
+state_hash: a367c29c4c333a05977ba042140583a0e044af97680abaf16ffc80003ea2b403
+model: claude-sonnet-5-5
+executive_hash: 383c33302e03679db7a6009b6704838eb2dc286665715108e7bb7274d68a7e88
+technical_hash: 2f7c80e1167a4f077d90e1fe3b854797d32b71728b27f216ae93f19cfa58272a

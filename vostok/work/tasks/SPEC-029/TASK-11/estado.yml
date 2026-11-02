@@ -1,0 +1,25 @@
+id: TASK-11
+spec: SPEC-029
+title: "Integrar o painel e a release"
+description: "Testes de integração do painel em duas pastas, passo de Node e bundle na release e conferência do limite de 6,0 MB e 2,3 MB."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-04, TASK-05, TASK-06, TASK-07, TASK-08, TASK-09, TASK-10]
+wave: 3
+covers: [RF-01, RF-13, CT-01, CT-15]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: 0ce322001d7bebbd28eba77d8146200af96189194b80955c7de02ad6f8f85ea0
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 0ce322001d7bebbd28eba77d8146200af96189194b80955c7de02ad6f8f85ea0
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 9b58f712049c3701586b842950ae8c9c22e638c88c0f38a0687c215ee16b6128
+verification_hash: 0af185b5431fae895def529e6520fcb31c2aa00d09acf088febb92bbe05d5173
+criteria_hash: d0d6f0db75a17d5e4989fa7600700dea6a2024c2539fa1623c977102c785a643
+state_hash: c6e49b860c7169c20fa5ef1294a0e920d2c211f84fc802fbcf69513cb703300e

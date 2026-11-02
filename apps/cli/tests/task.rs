@@ -1317,6 +1317,24 @@ fn approved_task(baseline: &str) -> Project {
     project
 }
 
+#[test]
+fn approve_records_origin_chat() {
+    let project = approved_task("- `true`");
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\napproved_by: chat\n"), "{content}");
+}
+
+#[test]
+fn adjust_drops_approved_by() {
+    let project = approved_task("- `true`");
+    let content = read(&project, TASK_PATH).replace("Resumo.", "Resumo alterado.");
+    write(&project, TASK_PATH, &content);
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nstatus: pending\n"), "{content}");
+    assert!(content.contains("\napproved_by: null\n"), "{content}");
+}
+
 fn in_progress_without_baseline() -> Project {
     let project = Project::new();
     write(

@@ -125,6 +125,39 @@ fn approve_unknown_spec_fails() {
     );
 }
 
+#[test]
+fn spec_approve_records_origin_chat() {
+    let project = Project::new();
+    let spec = |args: &[&str]| {
+        let mut command = project.vostok();
+        command.args(["spec"]).args(args);
+        command.assert().success();
+    };
+    spec(&["new", "Exemplo"]);
+    spec(&["refine", "SPEC-001", "improvement"]);
+    let file = project
+        .harness()
+        .join("work/specs/refined/SPEC-001-exemplo.md");
+    let filler = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/fill-refined.py"
+    );
+    std::process::Command::new("python3")
+        .arg(filler)
+        .arg(&file)
+        .status()
+        .expect("preenche a spec")
+        .success()
+        .then_some(())
+        .expect("fill-refined.py terminou com erro");
+    fs::write(project.root().join("AGENTS.md"), "").unwrap();
+    spec(&["adjust", "record-manual", "SPEC-001"]);
+    assert!(!fs::read_to_string(&file).unwrap().contains("approved_by"));
+    spec(&["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\napproved_by: chat\n"), "{content}");
+}
+
 // --- Componentes afetados prontos para o plano (SPEC-015) ---
 
 fn refined_with_components(project: &Project, components: &str, contracts: &str) {

@@ -1,0 +1,25 @@
+id: TASK-08
+spec: SPEC-029
+title: "Criar as telas de specs, spec, plano e quadro"
+description: "A lista de specs, a spec com índice e ações, o plano e o quadro kanban, com o botão de editar."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-03]
+wave: 2
+covers: [RF-03, RF-09, CT-03, CB-07]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: 9a15d2e327571ee394c40135f1006f3f703542feb46a603df1994ff265e313c3
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 9a15d2e327571ee394c40135f1006f3f703542feb46a603df1994ff265e313c3
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: e11f99f7f89e4b18b6e5c665717010e741b9661dec408f120ed1d0c6a055fdda
+verification_hash: d86d80f941ef1ebe66fef7a473be34e661c029d720e09344584543413b0a247b
+criteria_hash: adc2b5c0caff8b5a2548351d9c8408b11ef222bf20a197bcefa7d536751ed6c8
+state_hash: ae3e2f2dfabbbe4e1928f1f991dcf8877d5779bbe581293382ea59f61638d7e9

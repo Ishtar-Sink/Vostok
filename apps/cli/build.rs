@@ -1,9 +1,11 @@
 //! Copia para `OUT_DIR/harness` só o conteúdo distribuível de `packages/harness` (RN-01),
-//! que `src/embedded.rs` embute no binário.
+//! que `src/embedded.rs` embute no binário. Com a feature `painel`, gera o bundle de `apps/painel`
+//! quando pode e liga o cfg `painel_bundle` só com ele pronto.
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Pastas e arquivos de primeiro nível que fazem parte do harness distribuído.
 const TOP_LEVEL: &[&str] = &[
@@ -39,6 +41,46 @@ fn main() {
     }
     neutralize_sequences(&target.join("config/sequences.yml"));
     neutralize_context(&target.join("config/context.yml"), &target);
+    prepare_painel_bundle(&manifest_dir.join("../painel"));
+}
+
+/// Sem Node, o `vostok` compila sem o bundle e `vostok painel` explica como obtê-lo (RF-12).
+fn prepare_painel_bundle(painel: &Path) {
+    println!("cargo::rustc-check-cfg=cfg(painel_bundle)");
+    if std::env::var_os("CARGO_FEATURE_PAINEL").is_none() {
+        return;
+    }
+    for watched in ["src", "index.html", "package.json"] {
+        println!("cargo:rerun-if-changed={}", painel.join(watched).display());
+    }
+    let index = painel.join("dist/index.html");
+    if !index.is_file() {
+        if let Err(reason) = build_painel(painel) {
+            println!("cargo:warning=painel sem bundle: {reason}");
+        }
+    }
+    if index.is_file() {
+        println!("cargo:rustc-cfg=painel_bundle");
+    }
+}
+
+fn build_painel(painel: &Path) -> Result<(), String> {
+    if !painel.join("package.json").is_file() {
+        return Err(format!("{} não tem package.json", painel.display()));
+    }
+    for args in [&["install", "--frozen-lockfile"][..], &["build"][..]] {
+        let status = Command::new("pnpm")
+            .arg("--dir")
+            .arg(painel)
+            .args(args)
+            .stdout(std::io::stderr())
+            .status()
+            .map_err(|error| format!("pnpm indisponível ({error})"))?;
+        if !status.success() {
+            return Err(format!("`pnpm {}` falhou ({status})", args.join(" ")));
+        }
+    }
+    Ok(())
 }
 
 fn env(name: &str) -> String {

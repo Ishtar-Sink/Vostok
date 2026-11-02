@@ -1,0 +1,26 @@
+.root {
+  padding: calc(var(--space) * 8) calc(var(--space) * 4);
+  border-radius: var(--radius-lg);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-family: var(--font-body);
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 var(--space);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.description {
+  margin: 0 auto;
+  max-width: 62ch;
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+}
+
+.action {
+  margin-top: calc(var(--space) * 4);
+}

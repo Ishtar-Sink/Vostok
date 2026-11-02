@@ -1,0 +1,33 @@
+/* O formulário do protótipo é um cartão (`.form.card`): fundo, borda, raio, sombra e 20 px de respiro. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+  width: 100%;
+  max-width: calc(var(--space) * 220);
+  margin-inline: auto;
+  padding: var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--elevation-1);
+  box-shadow: var(--shadow-md);
+}
+
+.grid > [data-span='full'] {
+  grid-column: 1 / -1;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -7,6 +7,7 @@ pub mod documents;
 pub mod finalize;
 pub mod init;
 pub mod memory;
+pub mod painel;
 pub mod plan;
 pub mod rules;
 pub mod skill;

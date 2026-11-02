@@ -96,6 +96,16 @@ const LEGACY_COLUMNS: [&str; 7] = [
 ];
 const JUDGMENT_FACTS: [&str; 3] = ["public_contract", "inference", "high_risk"];
 
+/// `vostok plan adjust record-manual` para uma edição gravada pelo painel. Devolve os problemas que
+/// o `vostok plan adjust validate` acusaria (vazio quando válido).
+pub fn record_manual_at(project: &Path, spec_id: &str) -> Result<Vec<String>> {
+    let workspace = Workspace::new(Harness::locate(project)?);
+    workspace.record_manual(spec_id)?;
+    let plan = workspace.plan_to_adjust(spec_id)?;
+    let spec = workspace.find_spec(spec_id)?;
+    workspace.all_errors(spec_id, &plan, &read(&plan)?, &spec)
+}
+
 pub fn run(command: PlanCommand) -> Result<()> {
     let workspace = Workspace::new(Harness::from_current_dir()?);
     match command {

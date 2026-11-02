@@ -1,0 +1,25 @@
+id: TASK-06
+spec: SPEC-029
+title: "Implementar as ações do painel"
+description: "Aprovação com aval, edição com hash e registro manual, gravação de configuração e gravação de pedidos, com as recusas 400, 403 e 409."
+profile: julgamento
+persona: desenvolvedor
+depends_on: [TASK-01, TASK-02]
+wave: 2
+covers: [RF-06, RF-09, RF-10, RF-11, CT-04, CT-08, CT-09, CT-10, CT-11, CT-12, CB-02, CB-03, CB-04]
+type: tarefa
+labels: [SPEC-029, julgamento]
+status: approved
+content_hash: 9fd575d5ccde84d0f249f8323e0cd55a247bcb509f042feb98ba7d278f024731
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 9fd575d5ccde84d0f249f8323e0cd55a247bcb509f042feb98ba7d278f024731
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 6f0ff1f31e6725f9415d51b72e12cf6e16a44906d7009e84e0a0fc9a49748c33
+verification_hash: 8623b47c8f955da63d5852a262ce4c9a826b18d63a1e1d636d655d6fad624a3e
+criteria_hash: 9265027b6ec3c723682ba5f19f65c648e54614df15da5b2f76b077c6155756dd
+state_hash: c9ed580b1a14cd810524501933a30fb4e4d556cae1aedd81d402fbacc144be08

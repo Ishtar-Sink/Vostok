@@ -1,0 +1,25 @@
+id: TASK-10
+spec: SPEC-029
+title: "Criar a tela de configurações"
+description: "As opções de `vostok/config/` com nomes da interface, controles por tipo e o botão de salvar."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-03]
+wave: 2
+covers: [RF-10, CT-11]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: 8cb5578e4ef8a490255f6050c62e7478e4bb4628773c9deda6f2886d4b1ca44f
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 8cb5578e4ef8a490255f6050c62e7478e4bb4628773c9deda6f2886d4b1ca44f
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 0b50a10315039112c8c2ef63eb4e0fedfba64be7557ae136a4966b4d22becea6
+verification_hash: 875b0cab90b0d81ba729fcd361cb9b93634fefeb193c627ab45990e5dd086b5b
+criteria_hash: 9f5ce11c3a1a15990d8b9e31a716abf13a6e8e3c18a6fd50923d24010ac75996
+state_hash: c9b935d61ffb2de363798c5c294fb2bd7d7002ebde490046997d154e01633eab

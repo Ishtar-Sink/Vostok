@@ -6,3 +6,5 @@ vostok/.state/
 vostok/work/.archive/
 vostok/work/**/evidence
 vostok/work/**/evidencias
+apps/painel/node_modules/
+apps/painel/dist/

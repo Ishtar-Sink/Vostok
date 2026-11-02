@@ -1,0 +1,25 @@
+id: TASK-04
+spec: SPEC-029
+title: "Implementar a API de leitura e a marca"
+description: "As rotas de leitura (`visao`, `specs`, `planos`, `tarefas`, `documentos`, `configuracoes`, `marca`, `fonte`, `arquivo`) leem os arquivos de `vostok/` a cada requisição."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-02]
+wave: 2
+covers: [RF-02, RF-04, CT-03, CB-05]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: a84ac06b3c98fe91152897de97df05047c8bfc725cb51ac4c12823e4f384eabd
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: a84ac06b3c98fe91152897de97df05047c8bfc725cb51ac4c12823e4f384eabd
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: e15bc4f032ff004b0ee666144748b93a1aa57b284e761979b2d5e328d56a1e6d
+verification_hash: f719983ab41427ece32132f414e1807099dc9ef190e683073b6aa745a75c5bf1
+criteria_hash: b50f6c56c8211b49dbe1bdf2013716b82301fe88daa11299f77403db4f858844
+state_hash: 4914631f35a86eb937076ced78b8118509e71acd6689b0fa43aab516f3ff8b63

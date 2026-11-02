@@ -1,0 +1,25 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space) * 2);
+}
+
+.control {
+  width: calc(var(--space) * 5);
+  height: calc(var(--space) * 5);
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.label {
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  color: var(--text);
+  cursor: pointer;
+}

@@ -6,5 +6,7 @@ pub mod embedded;
 pub mod harness;
 pub mod manifest;
 pub mod models;
+#[cfg(feature = "painel")]
+pub mod painel;
 pub mod routing;
 pub mod support;

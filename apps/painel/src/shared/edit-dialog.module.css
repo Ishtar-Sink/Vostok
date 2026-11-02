@@ -1,0 +1,16 @@
+.path { margin: 0 0 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); color: var(--text-faint); overflow-wrap: anywhere; }
+.editor,
+.columns textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-sm); line-height: 1.55; resize: vertical; }
+.editor:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.conflict { display: grid; gap: 12px; }
+.conflict > p { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--warning-soft); color: var(--warning); font-size: var(--font-size-sm); }
+.columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.columns label { display: grid; gap: 6px; font-size: var(--font-size-sm); color: var(--text-muted); min-width: 0; }
+.saved { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--success-soft); color: var(--success); }
+.error { margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); font-size: var(--font-size-sm); white-space: pre-wrap; }
+@media (max-width: 720px) {
+  .columns { grid-template-columns: minmax(0, 1fr); }
+}
+.problems { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--warning-soft); color: var(--warning); font-size: var(--font-size-sm); }
+.problems p { margin: 0 0 6px; }
+.problems ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; overflow-wrap: anywhere; }

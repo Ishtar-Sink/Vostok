@@ -1,0 +1,43 @@
+/* `dialog` e `dialog .form-actions` do protótipo: 480 e 560 px de largura máxima. */
+.root {
+  max-width: min(calc(var(--space) * 120), calc(100vw - var(--s8)));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--elevation-3);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.wide {
+  max-width: min(calc(var(--space) * 140), calc(100vw - var(--s8)));
+}
+
+.root::backdrop {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.inner {
+  padding: var(--s6);
+}
+
+.title {
+  margin: 0 0 var(--s2);
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.body {
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}

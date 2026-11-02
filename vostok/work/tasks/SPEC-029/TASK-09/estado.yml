@@ -1,0 +1,25 @@
+id: TASK-09
+spec: SPEC-029
+title: "Criar as telas de tarefa e documentos"
+description: "A tarefa com o conteúdo para pessoas primeiro, as evidências e a edição, e os documentos das specs arquivadas."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-03]
+wave: 2
+covers: [RF-03, RF-09, CT-03]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: 15a2431401e77d4bc115be0722fcd193da40dd5bd29b335a814f6f7577f398a8
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: 15a2431401e77d4bc115be0722fcd193da40dd5bd29b335a814f6f7577f398a8
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 86babad1016562002df60c267793442eb365e268329fa47b256f7e6ad94cada6
+verification_hash: e8465f0433433ea599959a550d05837f735785f8a485a0b8ac6f2f536b094485
+criteria_hash: c3ebc28d12fc45b27236f239db5103482f529709ab3f6b8c8644190456730c47
+state_hash: f74c410caa37ff15dc7f939c110bbd31599d892a13ffddbeb1813dfbdf6e57e2

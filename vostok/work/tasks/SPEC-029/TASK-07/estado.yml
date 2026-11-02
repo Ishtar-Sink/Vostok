@@ -1,0 +1,25 @@
+id: TASK-07
+spec: SPEC-029
+title: "Criar as telas de painel e pendências"
+description: "O painel com indicadores e atividade, e as pendências com as ações de aprovar e pedir ao agente."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-03]
+wave: 2
+covers: [RF-03, RF-06, RF-11, CT-03]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: ff33a91b50f2adfe0d640b2f6893e91ff419e3270531285e4a61fc91d8f3dc37
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: ff33a91b50f2adfe0d640b2f6893e91ff419e3270531285e4a61fc91d8f3dc37
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 1a4a16dbdd32ae8edb47a5fae0fd6fad46af9b528fa013917d0b89eed101d14d
+verification_hash: 13b3b34edfe1cc656f1138714d4e3385b7e503db0b44106f7e3e49e152562cd8
+criteria_hash: e9ed4e2976e507f575d1e1a5007cc8a249c5666e52503245420ca63622b11769
+state_hash: 6f6c86953d904d1351ce945ee3e34ba57eb27dea17bd532aa07bb148dfd01f66

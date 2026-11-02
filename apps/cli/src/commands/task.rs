@@ -237,6 +237,59 @@ const BRIEF_RULES: [&str; 3] = [
     "rules/project/language.md",
 ];
 
+/// Campo do estado com a origem da aprovação.
+pub const APPROVED_BY_FIELD: &str = "approved_by";
+
+/// Quem aprovou. Nunca vem da linha de comando: a CLI grava sempre `chat`, e só o painel, no mesmo
+/// processo, grava `painel`.
+#[derive(Clone, Copy)]
+pub enum Origin {
+    Chat,
+    Panel,
+}
+
+impl Origin {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Origin::Chat => "chat",
+            Origin::Panel => "painel",
+        }
+    }
+}
+
+/// Aprovação pelo painel: as mesmas conferências e gravações de `vostok task approve approve`, com a
+/// origem `painel`. Devolve cada tarefa aprovada com o hash aprovado, para o registro de avais.
+pub fn approve_from_panel(
+    project: &Path,
+    spec: &str,
+    ids: &[String],
+) -> Result<Vec<(String, String)>> {
+    let tasks = Tasks::new(Harness::locate(project)?)?;
+    let files = tasks.selected_tasks(spec, ids, false)?;
+    let problems = tasks.approval_problems(spec, &files)?;
+    if !problems.is_empty() {
+        bail!(
+            "as tarefas de {spec} não podem ser aprovadas; nenhuma foi alterada:\n{}",
+            problems.join("\n")
+        );
+    }
+    tasks.approve(&files, Origin::Panel)?;
+    let hash_field = tasks.spec_cfg("approved_hash_field")?;
+    files
+        .iter()
+        .map(|file| Ok((task_id_of(file), TaskDoc::at(file).get(&hash_field)?)))
+        .collect()
+}
+
+/// `vostok task adjust record-manual` para uma edição gravada pelo painel. Devolve os problemas que
+/// o `vostok task adjust validate` acusaria, para o painel mostrar na hora.
+pub fn record_manual_at(project: &Path, spec: &str, task: &str) -> Result<Vec<String>> {
+    let tasks = Tasks::new(Harness::locate(project)?)?;
+    tasks.record_manual(spec, task)?;
+    let file = tasks.adjustable_task(spec, task)?;
+    tasks.errors_of(spec, &file, EvidenceNames::Normalizable)
+}
+
 pub fn run(command: TaskCommand) -> Result<()> {
     let tasks = Tasks::new(Harness::from_current_dir()?)?;
     match command {
@@ -1001,7 +1054,7 @@ impl Tasks {
             );
         }
         if apply {
-            self.approve(&files)?;
+            self.approve(&files, Origin::Chat)?;
             println!("Tarefas de {spec} aprovadas:");
         } else {
             println!("Tarefas de {spec} que podem ser aprovadas:");
@@ -1124,7 +1177,7 @@ impl Tasks {
         Ok(problems)
     }
 
-    fn approve(&self, files: &[PathBuf]) -> Result<()> {
+    fn approve(&self, files: &[PathBuf], origin: Origin) -> Result<()> {
         let now = utc_now();
         let hash_field = self.spec_cfg("content_hash_field")?;
         let approved_at = self.spec_cfg("approved_at_field")?;
@@ -1133,6 +1186,7 @@ impl Tasks {
             TaskDoc::at(file).set("status", &self.status.approved)?;
             TaskDoc::at(file).put(&approved_at, &now)?;
             TaskDoc::at(file).put(&approved_hash, &TaskDoc::at(file).get(&hash_field)?)?;
+            TaskDoc::at(file).put(APPROVED_BY_FIELD, origin.as_str())?;
         }
         Ok(())
     }
@@ -1248,6 +1302,7 @@ impl Tasks {
         TaskDoc::at(file).set("status", &self.status.pending)?;
         TaskDoc::at(file).put(&self.spec_cfg("approved_at_field")?, "null")?;
         TaskDoc::at(file).put(&self.spec_cfg("approved_hash_field")?, "null")?;
+        TaskDoc::at(file).put(APPROVED_BY_FIELD, "null")?;
         println!(
             "Aprovação de {task} derrubada: o status voltou para '{}'; aprove-a de novo antes de executar.",
             self.status.pending

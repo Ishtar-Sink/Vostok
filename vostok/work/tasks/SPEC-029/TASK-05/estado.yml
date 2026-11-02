@@ -1,0 +1,25 @@
+id: TASK-05
+spec: SPEC-029
+title: "Implementar a atualização ao vivo"
+description: "O WebSocket `/api/ao-vivo` avisa `mudou` às abas quando a versão de `vostok/work/` muda, conferida a cada 500 ms."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-02]
+wave: 2
+covers: [RF-05, CT-13, CB-06]
+type: tarefa
+labels: [SPEC-029, padrao]
+status: approved
+content_hash: ba6115b38748b18d4c21c10da723edfaabac62b9bdc49a1dc135912bdc3b9065
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T13:33:10Z
+approved_hash: ba6115b38748b18d4c21c10da723edfaabac62b9bdc49a1dc135912bdc3b9065
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: be0ffa84b721a8abdd1b1f86a6a80877d8be95f22aef1bd82a538048bd319563
+verification_hash: c9b49401d5c23e30964e9e6d8a0c081f76180dda035af5492c59f1f0369621ca
+criteria_hash: 48ce729576c9d6f913eb1808e59e069a8222ed43b804c836c1fc2e5aaf96cd3d
+state_hash: 2da2667d45736836b20c81721d4143cab546c0325245244fea10e16286c3eacc

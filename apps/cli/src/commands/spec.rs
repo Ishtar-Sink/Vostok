@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Result};
 use clap::Subcommand;
 
+use crate::commands::task::{Origin, APPROVED_BY_FIELD};
 use crate::harness::Harness;
 use crate::support::{
     clean_title, config_block, config_get, config_list, config_set, frontmatter_get,
@@ -70,6 +71,29 @@ pub enum ApproveCommand {
     Approve { spec_id: String },
 }
 
+/// Aprovação pelo painel: as mesmas conferências e gravações de `vostok spec approve approve`, com a
+/// origem `painel`. Devolve o hash aprovado, para o registro de avais.
+pub fn approve_from_panel(project: &Path, spec_id: &str) -> Result<String> {
+    approve(
+        &Specs {
+            harness: Harness::locate(project)?,
+        },
+        spec_id,
+        Origin::Panel,
+    )
+}
+
+/// `vostok spec adjust record-manual` para uma edição gravada pelo painel. Devolve os problemas de
+/// validação da spec (vazio quando válida).
+pub fn record_manual_at(project: &Path, spec_id: &str) -> Result<Vec<String>> {
+    record_manual(
+        &Specs {
+            harness: Harness::locate(project)?,
+        },
+        spec_id,
+    )
+}
+
 pub fn run(command: SpecCommand) -> Result<()> {
     let specs = Specs {
         harness: Harness::from_current_dir()?,
@@ -81,7 +105,7 @@ pub fn run(command: SpecCommand) -> Result<()> {
         SpecCommand::Validate { spec_id } => validate_refined(&specs, &spec_id),
         SpecCommand::MarkRefined { spec_id } => mark_refined(&specs, &spec_id),
         SpecCommand::Adjust(AdjustCommand::RecordManual { spec_id }) => {
-            record_manual(&specs, &spec_id)
+            record_manual(&specs, &spec_id).map(drop)
         }
         SpecCommand::Adjust(AdjustCommand::Validate { spec_id }) => {
             validate_adjustable(&specs, &spec_id)
@@ -93,7 +117,9 @@ pub fn run(command: SpecCommand) -> Result<()> {
         SpecCommand::Approve(ApproveCommand::Validate { spec_id }) => {
             validate_approval(&specs, &spec_id)
         }
-        SpecCommand::Approve(ApproveCommand::Approve { spec_id }) => approve(&specs, &spec_id),
+        SpecCommand::Approve(ApproveCommand::Approve { spec_id }) => {
+            approve(&specs, &spec_id, Origin::Chat).map(drop)
+        }
     }
 }
 
@@ -863,13 +889,13 @@ fn find_adjustable(specs: &Specs, spec_id: &str) -> Result<PathBuf> {
     Ok(refined)
 }
 
-fn record_manual(specs: &Specs, spec_id: &str) -> Result<()> {
+fn record_manual(specs: &Specs, spec_id: &str) -> Result<Vec<String>> {
     let refined = find_adjustable(specs, spec_id)?;
     let hash_field = specs.setting("content_hash_field")?;
     let stored = frontmatter_get(&refined, &hash_field).unwrap_or_default();
     if stored == content_hash(&refined)? {
         println!("Nenhuma edição manual.");
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     let summary = manual_summary(specs, &refined)?;
@@ -882,7 +908,7 @@ fn record_manual(specs: &Specs, spec_id: &str) -> Result<()> {
     if !errors.is_empty() {
         println!("Problemas de validação:\n{}", errors.join("\n"));
     }
-    Ok(())
+    Ok(errors)
 }
 
 fn validate_adjustable(specs: &Specs, spec_id: &str) -> Result<()> {
@@ -945,6 +971,7 @@ fn drop_approval(specs: &Specs, file: &Path, spec_id: &str) -> Result<()> {
     frontmatter_set(file, "status", &refined_status)?;
     frontmatter_put(file, &specs.setting("approved_at_field")?, "null")?;
     frontmatter_put(file, &specs.setting("approved_hash_field")?, "null")?;
+    frontmatter_put(file, APPROVED_BY_FIELD, "null")?;
     println!("Aprovação de {spec_id} derrubada: o status voltou para '{refined_status}'.");
     Ok(())
 }
@@ -1197,7 +1224,7 @@ fn validate_approval(specs: &Specs, spec_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
+fn approve(specs: &Specs, spec_id: &str, origin: Origin) -> Result<String> {
     let refined = find_approvable(specs, spec_id)?;
     let blockers = approval_blockers(specs, spec_id, &refined)?;
     if !blockers.is_empty() {
@@ -1213,6 +1240,7 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
     frontmatter_put(&refined, &specs.setting("approved_at_field")?, &now)?;
     frontmatter_put(&refined, &specs.setting("approved_hash_field")?, &hash)?;
     frontmatter_put(&refined, "updated_at", &now)?;
+    frontmatter_put(&refined, APPROVED_BY_FIELD, origin.as_str())?;
     println!("Spec {spec_id} aprovada: {}", refined.display());
 
     // O rascunho só é removido depois de a aprovação estar gravada.
@@ -1232,7 +1260,7 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
             draft_dir.display()
         ),
     }
-    Ok(())
+    Ok(hash)
 }
 
 // --- Caminhos e datas ---

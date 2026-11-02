@@ -504,7 +504,7 @@ fn replace_volatile(text: &str) -> String {
         if boundary {
             let len = bytes[index..]
                 .iter()
-                .take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+                .take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains::<u8>(b))
                 .count();
             let ends = !bytes
                 .get(index + len)
@@ -531,7 +531,16 @@ pub fn normalize(text: &str, root: &Path) -> String {
     let text = text
         .replace(root.to_str().unwrap(), "<ROOT>")
         .replace(GOLDEN_ROOT, "<ROOT>");
-    replace_volatile(&replace_tmp(&text))
+    let text = replace_volatile(&replace_tmp(&text));
+    // Os scripts bash nunca gravaram o campo `approved_by`, que só a CLI grava (e limpa com `null`).
+    text.split_inclusive('\n')
+        .filter(|line| {
+            !matches!(
+                line.trim_end_matches('\n'),
+                "approved_by: chat" | "approved_by: null"
+            )
+        })
+        .collect()
 }
 
 // --- Reprodução ---

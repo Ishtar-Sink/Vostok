@@ -7,3 +7,15 @@
 **Riscos.** Quebrar as rotas da SPEC-029: os testes de `painel::actions` e `painel_server` continuam na verificação.
 
 **Arquivos em comum na onda.** Nenhum.
+
+
+**O que foi feito.** Em `apps/cli/src/painel/actions.rs`:
+- `record_aval` grava a quinta coluna (`aprovar` na aprovação);
+- `REQUEST_ACTIONS` tem 11 ações, com `fazer-commit`;
+- `request` grava o aval de `finalizar-tarefa` (`approved_hash`), `aprovar-plano` e `finalizar-spec` (`content_hash`) e `fazer-commit` (SHA-256 do texto do pedido).
+
+Sem o hash do alvo, a resposta é 422 sem criar nada. Uma falha ao gravar o aval responde 500 e apaga o pedido.
+
+**Fora do previsto.** O 422 vale também para plano e spec sem `content_hash`; a tarefa só previa o caso da tarefa sem aprovação. O teste `every_accepted_action_is_written_with_the_next_number` ganhou o ajudante `approve_task_and_write_targets`, porque os pedidos travados passaram a exigir os alvos.
+
+**Verificação.** Passaram os 33 testes de `painel::actions` e os 10 de `painel_server`, com clippy sem avisos. A regressão mostrou só o acréscimo dos 6 testes novos. A evidência é `painel-aval.txt`.

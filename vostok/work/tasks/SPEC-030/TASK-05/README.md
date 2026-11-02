@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Regras de `boundaries.md` e das seis skills aceitam o pedido do painel com aval como pedido do usuário.
 - **Critérios de aceite:**
-  - [ ] `boundaries.md` e as seis skills aceitam o pedido do painel com aval como pedido do usuário (RF-16, CT-17).
-  - [ ] A regra proíbe o agente de gravar aval, `approved_by` ou chamar as rotas do painel (RN-01).
+  - [x] `boundaries.md` e as seis skills aceitam o pedido do painel com aval como pedido do usuário (RF-16, CT-17).
+  - [x] A regra proíbe o agente de gravar aval, `approved_by` ou chamar as rotas do painel (RN-01).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

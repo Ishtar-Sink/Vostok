@@ -23,7 +23,7 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 
 ## Regras
 
-[approve-task-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
+[approve-task-01]: Só aprove a pedido do usuário (no chat ou por um pedido do painel). Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
 [approve-task-02]: Aprove só as tarefas citadas. Sem citação, não aprove nenhuma: pergunte quais (passo 3).
 [approve-task-03]: Use `--all` só quando o usuário pedir explicitamente todas as tarefas ("aprova todas", "aprova todas as tarefas da SPEC-002"). "Aprova as tarefas" não é pedido de todas.
 [approve-task-04]: Nunca edite as tarefas nem o front-matter nesta skill. Quem grava a aprovação é o comando.

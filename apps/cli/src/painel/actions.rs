@@ -24,6 +24,15 @@ const REQUEST_ACTIONS: &[&str] = &[
     "desbloquear-tarefa",
     "finalizar-spec",
     "responder-pergunta",
+    "fazer-commit",
+];
+
+/// Pedidos que o agente só cumpre com aval: o painel grava o aval junto do pedido (RF-10).
+const LOCKED_ACTIONS: &[&str] = &[
+    "finalizar-tarefa",
+    "aprovar-plano",
+    "finalizar-spec",
+    "fazer-commit",
 ];
 
 /// Arquivos da tarefa que só o `vostok` grava (RN-03).
@@ -248,7 +257,7 @@ fn approve(painel: &Painel, spec_id: &str, tasks: &str) -> Reply {
         Err(error) => return text(422, &format!("{error:#}")),
     };
     for (id, hash) in &approved {
-        if let Err(error) = record_aval(painel, id, hash) {
+        if let Err(error) = record_aval(painel, id, hash, "aprovar") {
             return text(
                 500,
                 &format!("aprovado, mas o aval não foi gravado: {error}"),
@@ -259,13 +268,13 @@ fn approve(painel: &Painel, spec_id: &str, tasks: &str) -> Reply {
     json(format!("{{\"aprovadas\":[{}]}}", ids.join(",")))
 }
 
-/// O `avais.log` só recebe acréscimos (RN-05): data, ID, hash aprovado e origem.
-fn record_aval(painel: &Painel, id: &str, hash: &str) -> io::Result<()> {
+/// O `avais.log` só recebe acréscimos (RN-05): data, ID, hash aprovado, origem e ação.
+fn record_aval(painel: &Painel, id: &str, hash: &str, action: &str) -> io::Result<()> {
     let mut log = OpenOptions::new()
         .create(true)
         .append(true)
         .open(painel.work.join(AVAIS_LOG))?;
-    writeln!(log, "{}\t{id}\t{hash}\tpainel", utc_datetime())
+    writeln!(log, "{}\t{id}\t{hash}\tpainel\t{action}", utc_datetime())
 }
 
 // --- pedidos ---
@@ -286,7 +295,17 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
         return text(400, "spec ou tarefa inválida");
     }
     let text_of_user = String::from_utf8_lossy(body);
-    match write_request(&painel.work.join(REQUESTS_DIR), |id| {
+    let locked = LOCKED_ACTIONS.contains(&action.as_str());
+    let target = if locked {
+        match locked_target(painel, &action, &spec_id, &task_id) {
+            Ok(target) => Some(target),
+            Err(reply) => return reply,
+        }
+    } else {
+        None
+    };
+    let dir = painel.work.join(REQUESTS_DIR);
+    let created = write_request(&dir, |id| {
         request_markdown(
             id,
             &action,
@@ -295,10 +314,85 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
             text_of_user.trim(),
             &utc_datetime(),
         )
-    }) {
-        Ok(id) => json(format!("{{\"id\":{}}}", json_string(&id))),
-        Err(error) => text(500, &error.to_string()),
+    });
+    let id = match created {
+        Ok(id) => id,
+        Err(error) => return text(500, &error.to_string()),
+    };
+    if let Some(target) = target {
+        let (aval_id, hash) = match target {
+            AvalTarget::Hashed(aval_id, hash) => (aval_id, hash),
+            AvalTarget::Request => (id.clone(), sha256_hex(text_of_user.trim().as_bytes())),
+        };
+        if let Err(error) = record_aval(painel, &aval_id, &hash, &action) {
+            let _ = fs::remove_file(dir.join(format!("{id}.md")));
+            return text(500, &format!("o aval não foi gravado: {error}"));
+        }
     }
+    json(format!("{{\"id\":{}}}", json_string(&id)))
+}
+
+/// Alvo do aval de um pedido travado: o hash já conhecido, ou o texto do próprio pedido.
+enum AvalTarget {
+    Hashed(String, String),
+    Request,
+}
+
+fn locked_target(
+    painel: &Painel,
+    action: &str,
+    spec_id: &str,
+    task_id: &str,
+) -> Result<AvalTarget, Reply> {
+    match action {
+        "fazer-commit" => Ok(AvalTarget::Request),
+        "finalizar-tarefa" => {
+            let hash = task_approved_hash(painel, spec_id, task_id)
+                .ok_or_else(|| text(422, "a tarefa não está aprovada"))?;
+            Ok(AvalTarget::Hashed(format!("{spec_id}/{task_id}"), hash))
+        }
+        "aprovar-plano" => {
+            let plan = painel.work.join("plans").join(format!("{spec_id}.md"));
+            let hash = frontmatter_get(&plan, "content_hash")
+                .ok()
+                .filter(|hash| !hash.is_empty() && hash != "null")
+                .ok_or_else(|| text(422, "o plano não tem content_hash"))?;
+            Ok(AvalTarget::Hashed(spec_id.to_string(), hash))
+        }
+        _ => {
+            let hash = refined_spec(painel, spec_id)
+                .and_then(|file| frontmatter_get(&file, "content_hash").ok())
+                .filter(|hash| !hash.is_empty() && hash != "null")
+                .ok_or_else(|| text(422, "a spec refinada não tem content_hash"))?;
+            Ok(AvalTarget::Hashed(spec_id.to_string(), hash))
+        }
+    }
+}
+
+/// `approved_hash` da tarefa, em pasta (`estado.yml`) ou em arquivo único (front-matter).
+fn task_approved_hash(painel: &Painel, spec_id: &str, task_id: &str) -> Option<String> {
+    let dir = painel.work.join("tasks").join(spec_id);
+    let entry = [dir.join(task_id), dir.join(format!("{task_id}.md"))]
+        .into_iter()
+        .find(|path| path.exists())?;
+    task::TaskDoc::at(&entry)
+        .get("approved_hash")
+        .ok()
+        .filter(|hash| !hash.is_empty() && hash != "null")
+}
+
+fn refined_spec(painel: &Painel, spec_id: &str) -> Option<PathBuf> {
+    fs::read_dir(painel.work.join("specs").join("refined"))
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .find(|path| {
+            path.extension().is_some_and(|extension| extension == "md")
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with(&format!("{spec_id}-")))
+        })
 }
 
 /// Cria o próximo `PED-NNN.md` sem sobrescrever: se outro pedido levou o número, tenta o seguinte.
@@ -696,11 +790,16 @@ mod tests {
         let approved_hash = frontmatter_get(&painel.project.join(TASK), "approved_hash").unwrap();
         let log = fs::read_to_string(painel.work.join(AVAIS_LOG)).unwrap();
         let fields: Vec<&str> = log.trim_end().split('\t').collect();
-        assert_eq!(fields.len(), 4, "{log}");
+        assert_eq!(fields.len(), 5, "{log}");
         assert!(fields[0].ends_with('Z') && fields[0].contains('T'), "{log}");
         assert_eq!(
             &fields[1..],
-            ["SPEC-001/TASK-01", approved_hash.as_str(), "painel"]
+            [
+                "SPEC-001/TASK-01",
+                approved_hash.as_str(),
+                "painel",
+                "aprovar"
+            ]
         );
     }
 
@@ -779,14 +878,139 @@ mod tests {
         );
     }
 
+    fn approve_task_and_write_targets(painel: &Painel) {
+        let reply = post(painel, "aprovacoes", "spec=SPEC-001&tarefas=TASK-01", b"");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        write(
+            painel,
+            "vostok/work/plans/SPEC-001.md",
+            "---\nid: SPEC-001\ncontent_hash: plan-hash\n---\n",
+        );
+        write(
+            painel,
+            "vostok/work/specs/refined/SPEC-001-exemplo.md",
+            "---\nid: SPEC-001\ncontent_hash: spec-hash\n---\n",
+        );
+    }
+
+    fn aval_lines(painel: &Painel) -> Vec<String> {
+        fs::read_to_string(painel.work.join(AVAIS_LOG))
+            .unwrap_or_default()
+            .lines()
+            .map(String::from)
+            .collect()
+    }
+
+    fn last_aval_fields(painel: &Painel) -> Vec<String> {
+        let lines = aval_lines(painel);
+        lines
+            .last()
+            .unwrap()
+            .split('\t')
+            .skip(1)
+            .map(String::from)
+            .collect()
+    }
+
+    #[test]
+    fn approval_aval_has_the_action_column() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        approve_task_and_write_targets(&painel);
+        assert!(aval_lines(&painel)[0].ends_with("\tpainel\taprovar"));
+    }
+
+    #[test]
+    fn finish_request_records_the_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        approve_task_and_write_targets(&painel);
+        let query = "acao=finalizar-tarefa&spec=SPEC-001&tarefa=TASK-01";
+        let reply = post(&painel, "pedidos", query, b"");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let approved_hash = frontmatter_get(&painel.project.join(TASK), "approved_hash").unwrap();
+        assert_eq!(
+            last_aval_fields(&painel),
+            [
+                "SPEC-001/TASK-01",
+                approved_hash.as_str(),
+                "painel",
+                "finalizar-tarefa"
+            ]
+        );
+        assert!(painel.work.join("pedidos/PED-001.md").is_file());
+    }
+
+    #[test]
+    fn finish_request_of_an_unapproved_task_is_422_without_request_or_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let query = "acao=finalizar-tarefa&spec=SPEC-001&tarefa=TASK-01";
+        let reply = post(&painel, "pedidos", query, b"");
+        assert_eq!(reply.status, 422);
+        assert_eq!(body(&reply), "a tarefa não está aprovada");
+        assert!(!painel.work.join(REQUESTS_DIR).exists());
+        assert!(!painel.work.join(AVAIS_LOG).exists());
+    }
+
+    #[test]
+    fn plan_and_spec_requests_record_the_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        approve_task_and_write_targets(&painel);
+        let reply = post(&painel, "pedidos", "acao=aprovar-plano&spec=SPEC-001", b"");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert_eq!(
+            last_aval_fields(&painel),
+            ["SPEC-001", "plan-hash", "painel", "aprovar-plano"]
+        );
+        let reply = post(&painel, "pedidos", "acao=finalizar-spec&spec=SPEC-001", b"");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert_eq!(
+            last_aval_fields(&painel),
+            ["SPEC-001", "spec-hash", "painel", "finalizar-spec"]
+        );
+    }
+
+    #[test]
+    fn commit_request_records_the_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let reply = post(
+            &painel,
+            "pedidos",
+            "acao=fazer-commit",
+            b"  Commit da onda 1.\n",
+        );
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert_eq!(
+            last_aval_fields(&painel),
+            [
+                "PED-001",
+                sha256_hex(b"Commit da onda 1.").as_str(),
+                "painel",
+                "fazer-commit"
+            ]
+        );
+    }
+
+    #[test]
+    fn unlocked_requests_record_no_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let query = "acao=ajustar-tarefa&spec=SPEC-001&tarefa=TASK-01";
+        assert_eq!(post(&painel, "pedidos", query, b"x").status, 200);
+        assert!(!painel.work.join(AVAIS_LOG).exists());
+    }
+
+    #[test]
+    fn request_actions_are_eleven() {
+        assert_eq!(REQUEST_ACTIONS.len(), 11);
+    }
+
     #[test]
     fn every_accepted_action_is_written_with_the_next_number() {
         let (_dir, painel) = project(VALID_EVIDENCE);
+        approve_task_and_write_targets(&painel);
         for (index, action) in REQUEST_ACTIONS.iter().enumerate() {
             let reply = post(
                 &painel,
                 "pedidos",
-                &format!("acao={action}&spec=SPEC-001"),
+                &format!("acao={action}&spec=SPEC-001&tarefa=TASK-01"),
                 b"x",
             );
             assert_eq!(reply.status, 200, "{action}");
@@ -797,7 +1021,7 @@ mod tests {
                 "{content}"
             );
         }
-        assert_eq!(REQUEST_ACTIONS.len(), 10);
+        assert_eq!(REQUEST_ACTIONS.len(), 11);
     }
 
     #[test]

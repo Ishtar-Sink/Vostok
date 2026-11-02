@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Aval de 5 colunas na aprovação, aval junto dos pedidos travados e a ação `fazer-commit` no painel.
 - **Critérios de aceite:**
-  - [ ] A aprovação pelo painel grava o aval com a quinta coluna `aprovar` (RF-12, CT-13).
-  - [ ] Os pedidos de finalizar tarefa, aprovar plano, finalizar spec e fazer commit gravam o aval com o hash do alvo, e os outros pedidos não gravam (RF-10, CT-11).
-  - [ ] O painel aceita a ação `fazer-commit` (RF-11, CT-12).
+  - [x] A aprovação pelo painel grava o aval com a quinta coluna `aprovar` (RF-12, CT-13).
+  - [x] Os pedidos de finalizar tarefa, aprovar plano, finalizar spec e fazer commit gravam o aval com o hash do alvo, e os outros pedidos não gravam (RF-10, CT-11).
+  - [x] O painel aceita a ação `fazer-commit` (RF-11, CT-12).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

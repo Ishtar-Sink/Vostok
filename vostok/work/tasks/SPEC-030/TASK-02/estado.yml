@@ -9,18 +9,21 @@ wave: 1
 covers: [RF-10, RF-12, CT-11, CT-13]
 type: tarefa
 labels: [SPEC-030, padrao]
-status: approved
-content_hash: fdaf35d4dddd4c1569712d86f97655c7cb90f9aa0bdf92946520601d53b3fe19
+status: done
+content_hash: f1ec55e32324a5bacc5b79788199fb25e23af5ec73f1e91dacae0cae72169b1c
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-02T15:36:40Z
 approved_hash: fdaf35d4dddd4c1569712d86f97655c7cb90f9aa0bdf92946520601d53b3fe19
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 9de70d80d5bb32a5eed4a0666274b685e437851a3e68ce93837c9e8dcbd0738d
 verification_hash: b2eb7189dddd129bedd74170dd466c9567b8e033a2ae4069b4de539e6f1fb02e
-criteria_hash: c15a1dacdb449840cd3eb1f6d48114ac3c0cc67bc027cc172c7b709cfc5c0025
-state_hash: 02f51921c854bc13420d850b3cd1c21ecfc333f666ddba7e2519306ac21ad75d
+criteria_hash: ae921def66ba3cafc13952a3e744f739ef4b97e4bde1e08cb6027c243dc328f6
+state_hash: d9b150c8984cdb7c099b95b93ab0b1f0f9a3e91babce8109534034d940a21967
 approved_by: chat
+model: claude-sonnet-5-5
+executive_hash: f4b10cf8ec4f259c57f0f11ed934fd8cc3723ebc000270d0847f8bb50f5017ce
+technical_hash: 35ec73e238c78d84a1c3c0b29212e70764ceab9889ffe86a82cf7bbf9fe69841

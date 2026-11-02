@@ -1,5 +1,6 @@
 //! Biblioteca do binário `vostok`, exposta também para os testes de integração.
 
+pub mod aval;
 pub mod cli;
 pub mod commands;
 pub mod embedded;

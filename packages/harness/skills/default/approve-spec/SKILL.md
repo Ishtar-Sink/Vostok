@@ -22,7 +22,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 
 ## Regras
 
-[approve-spec-01]: Só aprove a pedido do usuário. Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
+[approve-spec-01]: Só aprove a pedido do usuário (no chat ou por um pedido do painel). Nunca aprove por iniciativa própria, nem como parte de outro fluxo.
 [approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 2).
 [approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o comando.
 [approve-spec-04]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; correções na spec são feitas pela skill `adjust-spec`.

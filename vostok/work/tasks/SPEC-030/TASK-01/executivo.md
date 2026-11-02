@@ -3,3 +3,6 @@
 Ensina a CLI a ler o aval que o painel grava e a saber se a trava está ligada no projeto. É a base de todas as conferências da trava.
 Perfil padrao. Risco baixo: o módulo é novo e não muda nenhum comando.
 Roda junto com o painel, o comando de pedidos e as regras; desbloqueia a trava nos comandos (TASK-06 e TASK-07).
+
+
+**O que foi entregue.** A CLI agora sabe ler o aval que o painel grava e se a trava está ligada no projeto. A trava vem desligada, então nenhum projeto muda de comportamento só por atualizar.

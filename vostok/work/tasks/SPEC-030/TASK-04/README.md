@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** `vostok pedidos` com `listar`, `iniciar`, `concluir` e `recusar`.
 - **Critérios de aceite:**
-  - [ ] `vostok pedidos` lista os pedidos e os leva de `pendente` a `em_andamento` e a `feito` ou `recusado`, gravando o resultado e a data (RF-13, CT-14).
-  - [ ] Uma transição fora da ordem é recusada sem mudar o arquivo (CB-05).
+  - [x] `vostok pedidos` lista os pedidos e os leva de `pendente` a `em_andamento` e a `feito` ou `recusado`, gravando o resultado e a data (RF-13, CT-14).
+  - [x] Uma transição fora da ordem é recusada sem mudar o arquivo (CB-05).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

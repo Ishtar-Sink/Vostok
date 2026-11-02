@@ -7,3 +7,10 @@
 **Riscos.** A TASK-09 acrescenta o `vigiar` no mesmo arquivo, na onda 3.
 
 **Arquivos em comum na onda.** Nenhum.
+
+
+**O que foi feito.** `apps/cli/src/commands/pedidos.rs` tem `listar [--estado]`, `iniciar`, `concluir` e `recusar`, sobre `<raiz do harness>/work/pedidos/`. `concluir` e `recusar` leem a entrada padrão e gravam em `## Resultado`. As transições fora de ordem e o ID fora de `PED-NNN` são recusados sem mudar o arquivo. `cli.rs` e `commands/mod.rs` registram o comando.
+
+**Verificação.** Os 8 testes de `tests/pedidos.rs` e os de `base` passaram, com clippy sem avisos; a regressão ficou igual ao baseline. A evidência é `pedidos-testes.txt`.
+
+**Na execução.** Os testes foram escritos junto com o código, sem a etapa de vê-los falhar. O `cargo fmt` rodou no `apps/cli` inteiro, e só os arquivos das tarefas mudaram.

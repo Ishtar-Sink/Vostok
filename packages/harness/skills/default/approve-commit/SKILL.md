@@ -22,7 +22,7 @@ metadata:
 
 ## Regras
 
-[approve-commit-01]: Só execute esta skill a pedido do usuário, numa mensagem dele posterior à que mostrou os commits. Nunca libere nem desfaça na mesma resposta em que os commits foram apontados.
+[approve-commit-01]: Só execute esta skill a pedido do usuário, numa mensagem dele (ou num pedido `fazer-commit` do painel, que vale como o pedido dele) posterior à que mostrou os commits. Nunca libere nem desfaça na mesma resposta em que os commits foram apontados.
 [approve-commit-02]: O pedido tem que dizer o que fazer: liberar ou desfazer. "Ok", "segue" ou um pedido sobre outro assunto não são liberação; na dúvida, pergunte (passo 3).
 [approve-commit-03]: Nunca edite nem apague o arquivo de referência. Só o comando o altera.
 [approve-commit-04]: Desfaça só pelo `vostok commit revert`. Se ele recusar, não use `git reset`, `git revert` nem outro comando: mostre o motivo e deixe a decisão com o usuário.
@@ -96,5 +96,7 @@ MSG
 ```
 
 Com caminhos, relativos à raiz do projeto, o comando commita só eles, com o conteúdo atual da pasta de trabalho, inclusive arquivos novos e removidos. Sem caminhos, commita o que está em stage, para quando um arquivo precisa ser dividido entre commits. O comando recusa se já houver commits sem liberação: nesse caso, siga os passos 2 a 5 antes. Se ele recusar por outro motivo, **PARE** e responda com o template `blocker`.
+
+Com a trava ligada (`approval_lock: true`), passe `--pedido PED-NNN` em cada `vostok commit commit` e na liberação, com o pedido do painel.
 
 Depois do último commit, execute `vostok commit check` e responda com o template `completion`, com os commits feitos (hash e mensagem).

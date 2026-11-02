@@ -7,3 +7,15 @@
 **Riscos.** Confundir a ação das linhas antigas: as de 4 colunas valem só como `aprovar`, nunca como aval de finalização (RNF-02).
 
 **Arquivos em comum na onda.** Nenhum.
+
+
+**O que foi feito.** `apps/cli/src/aval.rs` traz:
+- `Aval`, `read` (linhas de 4 colunas viram `aprovar`; linha malformada vai para a lista de problemas);
+- `lock_enabled`, `require` (recusa citando a ação, o ID, o hash e, se existir, o hash do aval antigo);
+- `has_panel_approval`, `request_state` e `request_text_hash`.
+
+`lib.rs` registra o módulo, e `packages/harness/config/main.yml` ganhou `approval_lock: false`, comentado.
+
+**Verificação.** Os 8 testes de `aval` e os de `init_update` passaram, com clippy sem avisos; a regressão ficou igual ao baseline. A evidência é `aval-leitura.txt`.
+
+**Na execução.** Os testes foram escritos junto com o código.

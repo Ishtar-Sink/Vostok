@@ -79,3 +79,5 @@ skills:
     - config/main.yml
     - templates/suggestion/feature.md
   triage-harness-issue: []
+  customize-documents:
+    - config/documents.yml

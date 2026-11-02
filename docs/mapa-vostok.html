@@ -358,541 +358,3867 @@ footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
    status: "done" (feito), "wip" (em andamento), "planned" (planejado)
    ===================================================================== */
 const DATA = {
-  updatedAt: "02/11/2026 - 10:20:17",
-  head: "ab31c1d",
-
-  phases: [
-    { n: "Fase 1", t: "Harness local", s: "Regras, skills e scripts funcionando neste repositório.", status: "wip", progress: 95 },
-    { n: "Fase 2", t: "Painel local", s: "Painel aberto pelo vostok por pasta, com os arquivos como banco.", status: "planned", progress: 0 }
+ "updatedAt": "02/11/2026 - 13:52:47",
+ "head": "9abe591",
+ "phases": [
+  {
+   "n": "Fase 1",
+   "t": "Harness local",
+   "s": "CLI vostok em Rust, 22 skills, regras, personas e templates, instalados por vostok init e publicados desde a v0.1.",
+   "status": "done",
+   "progress": 100
+  },
+  {
+   "n": "Fase 2",
+   "t": "Painel local",
+   "s": "v0.3.0: vostok painel por pasta, com os arquivos como banco, a trava de aval e o loop de pedidos.",
+   "status": "done",
+   "progress": 100
+  }
+ ],
+ "views": [
+  {
+   "id": "arquitetura",
+   "tab": "Arquitetura",
+   "title": "Arquitetura do Vostok",
+   "text": "Visão geral do monorepo: a CLI vostok, o harness que ela instala e o painel local, entregue na v0.3.0.",
+   "intro": {
+    "kicker": "Visão geral",
+    "title": "Harness passivo, painel local",
+    "text": "O agente trabalha na ferramenta do desenvolvedor, seguindo o harness, e chama a CLI `vostok` para criar, validar e registrar. O `vostok painel` abre um painel local por pasta, que lê e grava os mesmos arquivos; o que precisa do agente vira um pedido em arquivo, com o aval do usuário.",
+    "list": [
+     "Clique em um bloco para ver os detalhes.",
+     "Sem servidor nem banco: os arquivos de `vostok/work/` são o banco (DEC-003)."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "dev",
+     "x": 30,
+     "y": 250,
+     "w": 150,
+     "label": "Desenvolvedor",
+     "sub": "pede, revisa e aprova",
+     "status": "done",
+     "d": {
+      "text": "Quem conversa com o agente na ferramenta de IA e aprova o trabalho, no chat ou pelo painel.",
+      "list": [
+       "Pede specs, refinamentos e ajustes em linguagem natural.",
+       "Aprova specs, planos e tarefas no chat ou pelo painel.",
+       "Finalizações e commits só com o pedido dele; com a trava ligada, com o aval do painel."
+      ]
+     }
+    },
+    {
+     "id": "tools",
+     "x": 215,
+     "y": 120,
+     "w": 205,
+     "label": "Ferramentas de IA",
+     "sub": "Claude Code, Codex, Cursor",
+     "status": "done",
+     "d": {
+      "text": "O agente roda dentro da ferramenta do desenvolvedor. O harness não depende de nenhuma delas.",
+      "list": [
+       "Claude Code lê `.claude/skills/` e os subagentes `.claude/agents/vostok-*`.",
+       "Codex lê `.agents/skills/` e `.codex/agents/`.",
+       "Cursor lê as duas pastas de skills."
+      ]
+     }
+    },
+    {
+     "id": "cli",
+     "x": 460,
+     "y": 250,
+     "w": 180,
+     "label": "vostok",
+     "sub": "apps/cli · Rust",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Um binário só, com os subcomandos que substituíram os antigos scripts. Determinístico: valida o que o agente escreve e recusa o que fere as regras.",
+      "cmds": [
+       "vostok init",
+       "vostok update",
+       "vostok context load --skill <skill>"
+      ],
+      "list": [
+       "context, memory, rules, spec, plan, task, commit, finalize, skill, documents, bug, suggest, init, update, painel e pedidos.",
+       "Release com binários para Linux e macOS (x86_64 e aarch64), com o painel embutido.",
+       "645 testes na CLI."
+      ]
+     }
+    },
+    {
+     "id": "harness",
+     "x": 720,
+     "y": 120,
+     "w": 200,
+     "label": "Harness instalado",
+     "sub": "packages/harness → vostok/",
+     "status": "done",
+     "d": {
+      "text": "A parte instalável: regras, skills, personas, templates e configuração. O `vostok init` copia para `vostok/` e o `vostok update` traz versões novas sem perder o que é do projeto.",
+      "list": [
+       "22 skills padrão e as customizadas do projeto.",
+       "8 personas, do Coordenador ao QA.",
+       "Tudo configurável fica em `config/`."
+      ]
+     }
+    },
+    {
+     "id": "work",
+     "x": 720,
+     "y": 330,
+     "w": 200,
+     "label": "Arquivos do trabalho",
+     "sub": "vostok/work",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Specs, planos, tarefas, evidências, pedidos e avais em Markdown e YAML. São o banco do harness e do painel.",
+      "list": [
+       "`specs/`, `plans/`, `tasks/` e `.archive/`.",
+       "`pedidos/` e `avais.log`, fora do git."
+      ]
+     }
+    },
+    {
+     "id": "painel",
+     "x": 215,
+     "y": 400,
+     "w": 190,
+     "label": "Painel local",
+     "sub": "vostok painel · apps/painel",
+     "status": "done",
+     "d": {
+      "text": "Painel aberto pelo `vostok painel` em cada pasta, só em 127.0.0.1, com token por sessão.",
+      "list": [
+       "Painel, pendências, specs, quadro, tarefas, documentos e configurações.",
+       "Aprova com origem e aval; edita com controle de conflito.",
+       "Atualiza ao vivo quando os arquivos mudam.",
+       "O que precisa do agente vira um pedido em `work/pedidos/`. Detalhes na aba Painel e trava."
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "dev",
+     "to": "tools",
+     "label": "pede em linguagem natural"
+    },
+    {
+     "from": "tools",
+     "to": "cli",
+     "label": "skills chamam o vostok"
+    },
+    {
+     "from": "cli",
+     "to": "harness",
+     "label": "lê regras e config"
+    },
+    {
+     "from": "cli",
+     "to": "work",
+     "label": "cria, valida, registra"
+    },
+    {
+     "from": "dev",
+     "to": "painel",
+     "label": "revisa, aprova, pede"
+    },
+    {
+     "from": "painel",
+     "to": "cli",
+     "label": "mesmas conferências"
+    }
+   ]
+  },
+  {
+   "id": "contexto",
+   "tab": "Contexto",
+   "title": "Carregamento de contexto",
+   "text": "Como o agente recebe as regras no início de cada sessão e como as skills carregam o que precisam.",
+   "intro": {
+    "kicker": "Contexto",
+    "title": "Tudo parte do CLAUDE.md",
+    "text": "As ferramentas leem o `CLAUDE.md`, que manda ler o `AGENTS.md`, que manda rodar `vostok context load`. As fontes vêm de `config/context.yml`, não do código.",
+    "list": [
+     "As regras do harness prevalecem sobre a memória e as instruções próprias da ferramenta ([agent/boundaries-03])."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "claude",
+     "x": 30,
+     "y": 200,
+     "w": 160,
+     "label": "CLAUDE.md",
+     "sub": "roteamento",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Arquivo lido pelas ferramentas. Só aponta para o `AGENTS.md`.",
+      "list": []
+     }
+    },
+    {
+     "id": "agents",
+     "x": 230,
+     "y": 200,
+     "w": 160,
+     "label": "AGENTS.md",
+     "sub": "carrega o harness",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Manda rodar `vostok context load` antes de qualquer trabalho.",
+      "list": []
+     }
+    },
+    {
+     "id": "load",
+     "x": 440,
+     "y": 200,
+     "w": 205,
+     "label": "vostok context load",
+     "sub": "apps/cli · context",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Imprime, com cabeçalhos, cada fonte listada em `required` e a persona Coordenador.",
+      "cmds": [
+       "vostok context load"
+      ],
+      "list": [
+       "Pastas são carregadas por inteiro, na ordem da configuração."
+      ]
+     }
+    },
+    {
+     "id": "cfg",
+     "x": 440,
+     "y": 40,
+     "w": 205,
+     "label": "config/context.yml",
+     "sub": "required e mapa por skill",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Define o que é carregado em toda sessão e o que cada skill carrega a mais.",
+      "cmds": [
+       "required:\n  - context\n  - rules/agent\n  - rules/project/language.md\n  - templates/responses"
+      ],
+      "list": [
+       "O mapa por skill é ajustado pela skill `adjust-rules`."
+      ]
+     }
+    },
+    {
+     "id": "ctx",
+     "x": 700,
+     "y": 20,
+     "w": 250,
+     "label": "context/",
+     "sub": "catálogo de skills",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "`skill-catalog.md`, gerado pela create-skill, lista as skills padrão e as customizadas.",
+      "list": []
+     }
+    },
+    {
+     "id": "ragent",
+     "x": 700,
+     "y": 120,
+     "w": 250,
+     "label": "rules/agent/",
+     "sub": "6 arquivos de regras",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Regras de comportamento do agente.",
+      "list": [
+       "anti-loop: busca issues antes de corrigir; no máximo 2 tentativas.",
+       "boundaries: commit só pela approve-commit, a pedido do usuário ou com o aval do painel; `vostok commit check` antes de toda conclusão; harness prevalece.",
+       "memory: quando e como registrar decisões, issues e conhecimento.",
+       "responses: toda resposta usa um template.",
+       "rule-suggestions: como sugerir regras novas.",
+       "template-usage: variáveis no formato `#{VAR}`."
+      ]
+     }
+    },
+    {
+     "id": "rlang",
+     "x": 700,
+     "y": 220,
+     "w": 250,
+     "label": "rules/project/",
+     "sub": "regras do projeto",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Regras do projeto, levantadas pela `init-harness` e mantidas pela `adjust-rules`.",
+      "list": [
+       "language.md: documentação em português, código em inglês.",
+       "naming-convention.md: convenções de nomes."
+      ]
+     }
+    },
+    {
+     "id": "resp",
+     "x": 700,
+     "y": 320,
+     "w": 250,
+     "label": "templates/responses/",
+     "sub": "6 templates de resposta",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Formatos obrigatórios das respostas ao usuário.",
+      "list": [
+       "general",
+       "question",
+       "completion (com Próximos passos e a verificação de commits antes de responder)",
+       "blocker",
+       "decision-conflict",
+       "decision-proposal"
+      ]
+     }
+    },
+    {
+     "id": "skill",
+     "x": 230,
+     "y": 430,
+     "w": 160,
+     "label": "Skill invocada",
+     "sub": "passo 1 da skill",
+     "status": "done",
+     "d": {
+      "text": "Cada skill carrega as regras extras de que precisa no primeiro passo.",
+      "list": []
+     }
+    },
+    {
+     "id": "extra",
+     "x": 440,
+     "y": 430,
+     "w": 205,
+     "label": "vostok context load --skill",
+     "sub": "regras da skill e persona",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Carrega o que a skill declara no mapa de `config/context.yml` e a persona pedida.",
+      "cmds": [
+       "vostok context load --skill refine-spec --persona planejador"
+      ]
+     }
+    },
+    {
+     "id": "extras",
+     "x": 700,
+     "y": 430,
+     "w": 250,
+     "label": "Regras e personas",
+     "sub": "mapa da skill · personas/",
+     "status": "done",
+     "d": {
+      "text": "O que cada skill carrega a mais.",
+      "list": [
+       "Regras de `rules/agent` e `rules/project` por skill.",
+       "Personas de `personas/`: coordenador, planejador, arquiteto, engenheiro, qa-lead, desenvolvedor, qa e ui-ux-designer.",
+       "Configuração usada pela skill, como `config/tasks.yml`."
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "claude",
+     "to": "agents",
+     "label": "lê"
+    },
+    {
+     "from": "agents",
+     "to": "load",
+     "label": "executa"
+    },
+    {
+     "from": "load",
+     "to": "cfg",
+     "label": "lê as fontes"
+    },
+    {
+     "from": "load",
+     "to": "ctx",
+     "label": "carrega",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "load",
+     "to": "ragent",
+     "label": "carrega",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "load",
+     "to": "rlang",
+     "label": "carrega",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "load",
+     "to": "resp",
+     "label": "carrega",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "skill",
+     "to": "extra",
+     "label": "executa"
+    },
+    {
+     "from": "extra",
+     "to": "extras",
+     "label": "carrega"
+    }
+   ]
+  },
+  {
+   "id": "specs",
+   "tab": "Ciclo da spec",
+   "title": "Ciclo de vida de uma spec",
+   "text": "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação ao planejamento e à execução, até a spec implementada.",
+   "intro": {
+    "kicker": "Specs",
+    "title": "Do rascunho à spec implementada",
+    "text": "Cada etapa tem uma skill e um subcomando do `vostok`. O agente escreve o conteúdo; a CLI cria arquivos, valida e registra.",
+    "list": [
+     "IDs no formato SPEC-001, com a sequência em `config/sequences.yml`.",
+     "Cinco tipos: feature, improvement, fix, study e analysis."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "ask",
+     "x": 20,
+     "y": 90,
+     "w": 150,
+     "label": "Pedido",
+     "sub": "nova ideia",
+     "status": "done",
+     "d": {
+      "text": "O usuário descreve algo a construir, corrigir, estudar ou analisar.",
+      "list": []
+     }
+    },
+    {
+     "id": "new",
+     "x": 205,
+     "y": 90,
+     "w": 175,
+     "label": "create-spec",
+     "sub": "vostok spec new",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Cria a spec em `work/specs/draft/` e preenche o rascunho só com o que o usuário disse.",
+      "cmds": [
+       "vostok spec new \"Título da spec\""
+      ],
+      "list": [
+       "Front-matter com id, título, status draft, autor e datas."
+      ]
+     }
+    },
+    {
+     "id": "draft",
+     "x": 415,
+     "y": 90,
+     "w": 150,
+     "label": "draft",
+     "sub": "work/specs/draft",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Rascunho escrito pelo usuário. Nunca é editado pelas skills; só o status muda.",
+      "list": []
+     }
+    },
+    {
+     "id": "refine",
+     "x": 600,
+     "y": 90,
+     "w": 170,
+     "label": "refine-spec",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Investiga memória e código, pergunta em até 2 rodadas e monta a refinada com as seções do tipo.",
+      "cmds": [
+       "vostok spec refine <SPEC_ID> <tipo>",
+       "vostok spec validate <SPEC_ID>",
+       "vostok spec mark-refined <SPEC_ID>"
+      ],
+      "list": [
+       "IDs rastreáveis: RF, RNF, RN, CB, CT, CA, PQ, T, A, S.",
+       "A validação confere seções, tabelas, RF sem teste ou critério e componentes afetados.",
+       "`mark-refined` grava o `content_hash` e muda o rascunho para refined."
+      ]
+     }
+    },
+    {
+     "id": "refined",
+     "x": 805,
+     "y": 90,
+     "w": 160,
+     "label": "refined",
+     "sub": "work/specs/refined",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Spec refinada, com seções por tipo, registro de decisões e histórico de ajustes. Depois da aprovação, continua aqui com status `approved`.",
+      "list": [
+       "Front-matter: type, source, refined_at, adjustments, adjusted_at, content_hash.",
+       "Aprovada: approved_at e approved_hash; o rascunho é removido."
+      ]
+     }
+    },
+    {
+     "id": "adjust",
+     "x": 805,
+     "y": 300,
+     "w": 160,
+     "label": "adjust-spec",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Aplica um ou vários ajustes por mensagem, em prosa, em lista ou citando o trecho exato.",
+      "cmds": [
+       "vostok spec adjust record-manual <SPEC_ID>",
+       "vostok spec adjust validate <SPEC_ID>",
+       "vostok spec adjust record <SPEC_ID> \"resumo\""
+      ],
+      "list": [
+       "No máximo 1 rodada de perguntas, antes de qualquer edição.",
+       "Todos os ajustes de uma mensagem viram uma linha no histórico.",
+       "Specs `planned` são recusadas: mudá-las exige um novo ciclo."
+      ]
+     }
+    },
+    {
+     "id": "manual",
+     "x": 805,
+     "y": 460,
+     "w": 160,
+     "label": "Edição manual",
+     "sub": "feita à mão",
+     "status": "done",
+     "d": {
+      "text": "Mudanças feitas direto no arquivo, inclusive pelo painel. O `record-manual` as detecta pelo hash do conteúdo e registra como ajuste de origem manual.",
+      "list": [
+       "Fora do git, o resumo é \"Edição manual\"; versionado, lista as seções alteradas."
+      ]
+     }
+    },
+    {
+     "id": "approve",
+     "x": 560,
+     "y": 300,
+     "w": 170,
+     "label": "approve-spec",
+     "sub": "skill · chat ou painel",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Aprova a spec refinada: confere os impedimentos, muda o status para `approved`, grava a versão aprovada e remove o rascunho. A spec continua em `refined/`.",
+      "cmds": [
+       "vostok spec approve validate <SPEC_ID>",
+       "vostok spec approve approve <SPEC_ID>"
+      ],
+      "list": [
+       "Impedimentos: spec inválida, pendência aberta, spec sem `content_hash` ou edição manual sem registro.",
+       "`approved_hash` guarda o `content_hash` aprovado, para a granularização conferir depois.",
+       "Pelo painel, grava `approved_by: painel` e uma linha no `avais.log`.",
+       "Com `approval_lock: true`, a aprovação pelo chat exige o aval do painel.",
+       "Um ajuste depois da aprovação a derruba: o status volta a `refined`."
+      ]
+     }
+    },
+    {
+     "id": "tasks",
+     "x": 330,
+     "y": 300,
+     "w": 170,
+     "label": "Planejamento",
+     "sub": "plan-tasks · approve-plan",
+     "status": "done",
+     "d": {
+      "text": "Quebra da spec aprovada em tarefas, com plano para revisão, ajustes e aprovação. Detalhes na aba Planejamento.",
+      "list": [
+       "Ao aprovar o plano, a spec passa a `planned`."
+      ]
+     }
+    },
+    {
+     "id": "exec",
+     "x": 100,
+     "y": 300,
+     "w": 170,
+     "label": "Execução",
+     "sub": "approve · execute · finish",
+     "status": "done",
+     "d": {
+      "text": "Cada tarefa é aprovada, executada e validada, com baseline, testes, regressão e evidências. Detalhes na aba Execução.",
+      "list": [
+       "A conclusão da última tarefa marca a spec como `implemented`."
+      ]
+     }
+    },
+    {
+     "id": "implemented",
+     "x": 100,
+     "y": 460,
+     "w": 170,
+     "label": "implemented",
+     "sub": "spec implementada",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Todas as tarefas da spec estão `done`. O `vostok task finish` da última tarefa grava o status.",
+      "list": []
+     }
+    },
+    {
+     "id": "finalize",
+     "x": 330,
+     "y": 460,
+     "w": 170,
+     "label": "finalize-spec",
+     "sub": "skill · documentos finais",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "A pedido do usuário, sintetiza o executivo, o técnico e as evidências, arquiva a spec com as tarefas e publica os documentos em `docs/specs/`.",
+      "cmds": [
+       "vostok finalize sources <SPEC_ID>",
+       "vostok finalize create <SPEC_ID>",
+       "vostok finalize validate <SPEC_ID>",
+       "vostok finalize build <SPEC_ID>",
+       "vostok finalize archive <SPEC_ID>"
+      ],
+      "list": [
+       "A identidade visual dos documentos vem da skill `customize-documents`.",
+       "Com a trava ligada, exige o aval `finalizar-spec`."
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "ask",
+     "to": "new",
+     "label": "título"
+    },
+    {
+     "from": "new",
+     "to": "draft",
+     "label": "cria"
+    },
+    {
+     "from": "draft",
+     "to": "refine",
+     "label": "refinar"
+    },
+    {
+     "from": "refine",
+     "to": "refined",
+     "label": "mark-refined"
+    },
+    {
+     "from": "refined",
+     "to": "adjust",
+     "label": "pedido de ajuste",
+     "bend": -34
+    },
+    {
+     "from": "adjust",
+     "to": "refined",
+     "label": "record",
+     "bend": 34
+    },
+    {
+     "from": "manual",
+     "to": "adjust",
+     "label": "record-manual detecta"
+    },
+    {
+     "from": "refined",
+     "to": "approve",
+     "label": "approve",
+     "sides": [
+      "b",
+      "r"
+     ],
+     "so": [
+      -60,
+      0
+     ]
+    },
+    {
+     "from": "approve",
+     "to": "adjust",
+     "label": "ajuste derruba a aprovação",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "approve",
+     "to": "tasks",
+     "label": "planejar a aprovada"
+    },
+    {
+     "from": "tasks",
+     "to": "exec",
+     "label": "executar as tarefas"
+    },
+    {
+     "from": "exec",
+     "to": "implemented",
+     "label": "última tarefa done"
+    },
+    {
+     "from": "implemented",
+     "to": "finalize",
+     "label": "finalizar a pedido"
+    }
+   ]
+  },
+  {
+   "id": "planejamento",
+   "tab": "Planejamento",
+   "title": "Planejamento de tarefas",
+   "text": "Da spec aprovada ao plano para revisão, dos ajustes do plano às tarefas prontas para o agente e para o board.",
+   "intro": {
+    "kicker": "Planejamento",
+    "title": "Plano, ajustes, tarefas",
+    "text": "A `plan-tasks` propõe um plano só para revisão. A `adjust-plan` o ajusta; a `approve-plan`, só a pedido do usuário, cria as tarefas, remove o plano e marca a spec como `planned`.",
+    "list": [
+     "O perfil de execução (mecanica, padrao, julgamento) e a onda são calculados pelo vostok; o perfil sugere o modelo.",
+     "Uma spec `planned` não é ajustada, reaprovada nem planejada de novo."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "papproved",
+     "x": 20,
+     "y": 200,
+     "w": 140,
+     "label": "approved",
+     "sub": "spec aprovada",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Só specs com status `approved` e `approved_hash` igual ao hash do conteúdo são planejadas.",
+      "list": []
+     }
+    },
+    {
+     "id": "ptasks",
+     "x": 195,
+     "y": 200,
+     "w": 160,
+     "label": "plan-tasks",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Identifica a spec entre as aprovadas sem plano atualizado, cria o plano e preenche a visão geral, as tarefas e os fatos de esforço.",
+      "cmds": [
+       "vostok plan create <SPEC_ID>",
+       "vostok plan score <SPEC_ID>",
+       "vostok plan validate <SPEC_ID>"
+      ],
+      "list": [
+       "Spec citada com plano atualizado: informa e para, sem iniciar um ajuste.",
+       "Plano desatualizado (spec reaprovada depois) é recriado com aviso.",
+       "A validação confere cobertura dos IDs, dependências sem ciclo, fatos, perfis e ondas."
+      ]
+     }
+    },
+    {
+     "id": "pplan",
+     "x": 405,
+     "y": 200,
+     "w": 150,
+     "label": "plano",
+     "sub": "work/plans",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Documento de revisão: visão geral, tabela de tarefas, componentes, fatos, perfis, ondas e arquivos em comum por onda. É removido quando aprovado.",
+      "list": [
+       "Front-matter: spec, spec_hash, content_hash, adjustments e datas."
+      ]
+     }
+    },
+    {
+     "id": "padjust",
+     "x": 405,
+     "y": 30,
+     "w": 150,
+     "label": "adjust-plan",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Aplica um ou vários ajustes por mensagem: dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos.",
+      "cmds": [
+       "vostok plan adjust record-manual <SPEC_ID>",
+       "vostok plan adjust validate <SPEC_ID>",
+       "vostok plan adjust record <SPEC_ID> \"resumo\""
+      ],
+      "list": [
+       "Mesmo registro de ajustes da spec e das tarefas.",
+       "O `record` recalcula os perfis e recusa um plano inválido sem alterá-lo."
+      ]
+     }
+    },
+    {
+     "id": "pmanual",
+     "x": 605,
+     "y": 30,
+     "w": 150,
+     "label": "Edição manual",
+     "sub": "feita à mão",
+     "status": "done",
+     "d": {
+      "text": "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, o plano não é aprovado.",
+      "list": []
+     }
+    },
+    {
+     "id": "peffort",
+     "x": 195,
+     "y": 390,
+     "w": 160,
+     "label": "Perfil e onda",
+     "sub": "config/tasks.yml · models.yml",
+     "status": "done",
+     "d": {
+      "text": "Os fatos de cada tarefa dão o perfil; as dependências dão a onda. Tarefas da mesma onda sem arquivo em comum rodam em paralelo.",
+      "list": [
+       "mecanica: modelo rápido; padrao: intermediário; julgamento: o mais capaz.",
+       "`config/models.yml` traduz o perfil no modelo de cada ferramenta.",
+       "Até `max_subagents` (3) tarefas ao mesmo tempo numa onda."
+      ]
+     }
+    },
+    {
+     "id": "papprove",
+     "x": 605,
+     "y": 200,
+     "w": 150,
+     "label": "approve-plan",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Só a pedido do usuário. Cria um arquivo por tarefa, detalha cada uma e conclui o planejamento.",
+      "cmds": [
+       "vostok plan approve create-tasks <SPEC_ID>",
+       "vostok plan approve validate <SPEC_ID>",
+       "vostok plan approve mark-planned <SPEC_ID>"
+      ],
+      "list": [
+       "Detalha cada tarefa com as personas arquiteto, engenheiro e qa-lead.",
+       "Recusa spec alterada, plano desatualizado ou edição manual sem registro.",
+       "Com a trava ligada, exige o aval `aprovar-plano` do painel."
+      ]
+     }
+    },
+    {
+     "id": "ptaskfiles",
+     "x": 805,
+     "y": 200,
+     "w": 150,
+     "label": "tarefas",
+     "sub": "work/tasks",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Uma pasta por tarefa, com status `pending` e os arquivos separados por público.",
+      "list": [
+       "Para o agente: `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências) e `criterios.md`.",
+       "Para pessoas: `executivo.md`, `tecnico.md` e o `README.md` gerado, com o card.",
+       "`estado.yml` e `registro.md`, escritos só pelo vostok.",
+       "Daqui segue para a aba Execução."
+      ]
+     }
+    },
+    {
+     "id": "pplanned",
+     "x": 605,
+     "y": 390,
+     "w": 150,
+     "label": "planned",
+     "sub": "spec planejada",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "A spec fica com status `planned` e o plano é removido. Mudá-la exige um novo ciclo.",
+      "list": []
+     }
+    },
+    {
+     "id": "pload",
+     "x": 805,
+     "y": 390,
+     "w": 150,
+     "label": "vostok task load · brief",
+     "sub": "apps/cli · task",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "`load` imprime o que o agente precisa para executar, com o modelo sugerido; `brief` imprime o roteiro do subagente.",
+      "cmds": [
+       "vostok task load <SPEC_ID> <TASK_ID>",
+       "vostok task brief <SPEC_ID> <TASK_ID>"
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "papproved",
+     "to": "ptasks",
+     "label": "planejar"
+    },
+    {
+     "from": "ptasks",
+     "to": "pplan",
+     "label": "create e score"
+    },
+    {
+     "from": "peffort",
+     "to": "ptasks",
+     "label": "calcula perfil e onda",
+     "sides": [
+      "t",
+      "b"
+     ]
+    },
+    {
+     "from": "pplan",
+     "to": "padjust",
+     "label": "pedido de ajuste",
+     "sides": [
+      "t",
+      "b"
+     ],
+     "so": [
+      -30,
+      0
+     ],
+     "to_": [
+      -30,
+      0
+     ]
+    },
+    {
+     "from": "padjust",
+     "to": "pplan",
+     "label": "record",
+     "sides": [
+      "b",
+      "t"
+     ],
+     "so": [
+      30,
+      0
+     ],
+     "to_": [
+      30,
+      0
+     ]
+    },
+    {
+     "from": "pmanual",
+     "to": "padjust",
+     "label": "record-manual detecta",
+     "sides": [
+      "l",
+      "r"
+     ]
+    },
+    {
+     "from": "pplan",
+     "to": "papprove",
+     "label": "aprovado pelo usuário"
+    },
+    {
+     "from": "papprove",
+     "to": "ptaskfiles",
+     "label": "create-tasks"
+    },
+    {
+     "from": "papprove",
+     "to": "pplanned",
+     "label": "mark-planned",
+     "sides": [
+      "b",
+      "t"
+     ]
+    },
+    {
+     "from": "ptaskfiles",
+     "to": "pload",
+     "label": "carrega a Execução",
+     "sides": [
+      "b",
+      "t"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "execucao",
+   "tab": "Execução",
+   "title": "Execução de tarefas",
+   "text": "Da tarefa pendente à aprovada, da execução à finalização a pedido do usuário, até a tarefa concluída e a spec implementada.",
+   "intro": {
+    "kicker": "Execução",
+    "title": "Aprovar, executar, finalizar",
+    "text": "Uma tarefa ou uma onda por pedido. O vostok confere cada passagem de status; o agente implementa, mas não pula etapas nem conclui por conta própria. Concluir é um pedido separado do usuário, atendido pela `finish-task`.",
+    "list": [
+     "Cada etapa grava uma linha no `registro.md` da tarefa.",
+     "Saídas e evidências ficam em `work/tasks/<SPEC_ID>/<TASK_ID>/evidencias/`.",
+     "Sem commit nem stage durante a execução."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "tpending",
+     "x": 20,
+     "y": 60,
+     "w": 130,
+     "label": "pending",
+     "sub": "tarefa criada",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Status das tarefas criadas pela approve-plan e das que voltam de um ajuste.",
+      "list": []
+     }
+    },
+    {
+     "id": "tapprove",
+     "x": 185,
+     "y": 60,
+     "w": 160,
+     "label": "approve-task",
+     "sub": "skill · chat ou painel",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Aprova uma, várias ou todas as tarefas pendentes, só a pedido do usuário. Sem citação, lista as pendentes e pergunta.",
+      "cmds": [
+       "vostok task approve validate <SPEC_ID> <TASK_ID…>",
+       "vostok task approve approve <SPEC_ID> <TASK_ID…>"
+      ],
+      "list": [
+       "Grava a aprovação em todas ou em nenhuma.",
+       "Recusa tarefa inválida, fora de `pending` ou com edição manual sem registro.",
+       "`approved_hash` guarda a versão aprovada.",
+       "Pelo painel, grava `approved_by: painel` e o aval."
+      ]
+     }
+    },
+    {
+     "id": "tapproved",
+     "x": 380,
+     "y": 60,
+     "w": 130,
+     "label": "approved",
+     "sub": "pronta",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Tarefa aprovada, com `approved_at` e `approved_hash`.",
+      "list": []
+     }
+    },
+    {
+     "id": "texecute",
+     "x": 545,
+     "y": 60,
+     "w": 170,
+     "label": "execute-task",
+     "sub": "skill · ondas",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "O Coordenador inicia cada tarefa da onda, coleta o baseline e executa as tarefas em sequência na sessão; as paralelas vão para subagentes, com o modelo do perfil.",
+      "cmds": [
+       "vostok task start <SPEC_ID> <TASK_ID> --model <modelo>",
+       "vostok task brief <SPEC_ID> <TASK_ID>",
+       "vostok task check <SPEC_ID> <TASK_ID>"
+      ],
+      "list": [
+       "O `start` recusa tarefa sem aprovação, alterada depois de aprovada, com dependência fora de `done` ou com caminho `criar` já existente.",
+       "O baseline roda antes de qualquer mudança, inclusive as evidências.",
+       "Termina com a tarefa em execução e sugere pedir a finalização."
+      ]
+     }
+    },
+    {
+     "id": "tprogress",
+     "x": 780,
+     "y": 60,
+     "w": 170,
+     "label": "in_progress",
+     "sub": "em execução",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Tarefa iniciada, com o baseline coletado e o código implementado. O hash do conteúdo ignora o \"Registro de execução\", então `content_hash` e `approved_hash` continuam iguais.",
+      "list": [
+       "Pode ser ajustada: o ajuste mantém o baseline e zera os resultados."
+      ]
+     }
+    },
+    {
+     "id": "tadjust",
+     "x": 185,
+     "y": 250,
+     "w": 160,
+     "label": "adjust-task",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Aplica um ou vários ajustes por mensagem numa tarefa `pending`, `approved`, `in_progress`, `validating` ou `blocked`. Uma tarefa `done` é recusada.",
+      "cmds": [
+       "vostok task adjust record-manual <SPEC_ID> <TASK_ID>",
+       "vostok task adjust validate <SPEC_ID> <TASK_ID>",
+       "vostok task adjust record <SPEC_ID> <TASK_ID> \"resumo\""
+      ],
+      "list": [
+       "Ajustar uma tarefa aprovada derruba a aprovação: ela volta a `pending`.",
+       "Ajustar uma tarefa em execução a deixa `in_progress`, com tentativas e resultados zerados, baseline mantido e uma linha `ajuste` no registro, sem nova aprovação.",
+       "Não muda a subseção Baseline de uma tarefa com o baseline coletado.",
+       "Todos os ajustes de uma mensagem viram uma linha no histórico."
+      ]
+     }
+    },
+    {
+     "id": "tmanual",
+     "x": 20,
+     "y": 250,
+     "w": 130,
+     "label": "Edição manual",
+     "sub": "feita à mão",
+     "status": "done",
+     "d": {
+      "text": "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, a tarefa não é aprovada.",
+      "list": []
+     }
+    },
+    {
+     "id": "tvalidate",
+     "x": 780,
+     "y": 250,
+     "w": 170,
+     "label": "finish-task",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "A pedido do usuário, roda a Verificação, compara com o baseline, grava as evidências, confere os critérios e conclui a tarefa. É o único passo que grava `done`.",
+      "cmds": [
+       "vostok task tests <SPEC_ID> <TASK_ID>",
+       "vostok task regression <SPEC_ID> <TASK_ID>",
+       "vostok task evidence <SPEC_ID> <TASK_ID>",
+       "vostok task finish <SPEC_ID> <TASK_ID>",
+       "vostok task resume <SPEC_ID> <TASK_ID> \"decisão\""
+      ],
+      "list": [
+       "Evidências automáticas, diffs, prints e manuais; os prints passam pela revisão do usuário (`--reviewed`).",
+       "O `finish` exige testes, regressão e evidências aprovados e os critérios marcados.",
+       "Com `approval_lock: true`, exige o aval `finalizar-tarefa` do painel."
+      ]
+     }
+    },
+    {
+     "id": "tblocked",
+     "x": 545,
+     "y": 250,
+     "w": 170,
+     "label": "blocked",
+     "sub": "aguarda o usuário",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Depois de `max_attempts` (2) falhas nos testes ou numa regressão. O agente para com o template `blocker` e opções.",
+      "list": [
+       "Volta à validação com o `resume` e a decisão do usuário, registrada na tarefa."
+      ]
+     }
+    },
+    {
+     "id": "tdone",
+     "x": 780,
+     "y": 430,
+     "w": 170,
+     "label": "done",
+     "sub": "tarefa concluída",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Testes, regressão e evidências aprovados e critérios de conclusão comprovados.",
+      "list": [
+       "Libera as tarefas que dependem desta."
+      ]
+     }
+    },
+    {
+     "id": "timplemented",
+     "x": 545,
+     "y": 430,
+     "w": 170,
+     "label": "implemented",
+     "sub": "spec implementada",
+     "state": true,
+     "status": "done",
+     "d": {
+      "kicker": "Estado",
+      "text": "Quando a última tarefa da spec fica `done`, o `finish` marca a spec como `implemented`.",
+      "list": []
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "tpending",
+     "to": "tapprove",
+     "label": "pedido de aprovação"
+    },
+    {
+     "from": "tapprove",
+     "to": "tapproved",
+     "label": "approve"
+    },
+    {
+     "from": "tapproved",
+     "to": "texecute",
+     "label": "pedido de execução"
+    },
+    {
+     "from": "texecute",
+     "to": "tprogress",
+     "label": "start com baseline"
+    },
+    {
+     "from": "tapproved",
+     "to": "tadjust",
+     "label": "ajuste derruba a aprovação",
+     "sides": [
+      "b",
+      "t"
+     ],
+     "to_": [
+      30,
+      0
+     ]
+    },
+    {
+     "from": "tadjust",
+     "to": "tpending",
+     "label": "record",
+     "sides": [
+      "t",
+      "b"
+     ],
+     "so": [
+      -30,
+      0
+     ]
+    },
+    {
+     "from": "tmanual",
+     "to": "tadjust",
+     "label": "record-manual detecta"
+    },
+    {
+     "from": "tprogress",
+     "to": "tvalidate",
+     "label": "pedido para finalizar",
+     "sides": [
+      "b",
+      "t"
+     ]
+    },
+    {
+     "from": "tvalidate",
+     "to": "tblocked",
+     "label": "2 falhas ou regressão",
+     "bend": -14
+    },
+    {
+     "from": "tblocked",
+     "to": "tvalidate",
+     "label": "resume com a decisão",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "bend": 14
+    },
+    {
+     "from": "tblocked",
+     "to": "tadjust",
+     "label": "ajuste volta a in_progress",
+     "sides": [
+      "l",
+      "r"
+     ]
+    },
+    {
+     "from": "tvalidate",
+     "to": "tdone",
+     "label": "finish",
+     "sides": [
+      "b",
+      "t"
+     ]
+    },
+    {
+     "from": "tdone",
+     "to": "timplemented",
+     "label": "última tarefa da spec"
+    }
+   ]
+  },
+  {
+   "id": "commits",
+   "tab": "Commits",
+   "title": "Commits com liberação",
+   "text": "O agente só commita a pedido do usuário, e um script confere antes de cada conclusão se apareceu algum commit sem liberação.",
+   "intro": {
+    "kicker": "Commits",
+    "title": "Pedido de commit é a liberação",
+    "text": "Uma regra sozinha não impediu commits sem pedido. Agora a conferência é determinística: as refs locais são comparadas com a última liberação, e qualquer commit novo ou removido bloqueia a conclusão até o usuário decidir.",
+    "list": [
+     "[agent/boundaries-01]: commit só pela approve-commit (`vostok commit commit`).",
+     "`vostok commit check` antes de toda resposta `completion`.",
+     "Com a trava ligada, o commit exige um pedido `fazer-commit` do painel (`--pedido PED-NNN`)."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "cask",
+     "x": 20,
+     "y": 60,
+     "w": 160,
+     "label": "Pedido de commit",
+     "sub": "chat ou painel",
+     "status": "done",
+     "d": {
+      "text": "\"pode commitar\" no chat, ou \"Pedir commit\" nas pendências do painel. O commit tem só o que o usuário pediu.",
+      "list": []
+     }
+    },
+    {
+     "id": "capprove",
+     "x": 240,
+     "y": 60,
+     "w": 190,
+     "label": "approve-commit",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Único caminho do agente para commitar. Também libera ou desfaz os commits apontados pela verificação.",
+      "cmds": [
+       "vostok commit commit [caminho…] < mensagem",
+       "vostok commit commit --pedido PED-NNN [caminho…] < mensagem",
+       "vostok commit show",
+       "vostok commit approve <código>",
+       "vostok commit revert <código>"
+      ],
+      "list": [
+       "Um commit por chamada; commits atômicos com uma chamada por grupo de arquivos.",
+       "Recusa commitar se já houver commits sem liberação.",
+       "O `revert` faz `reset --mixed` e recusa commits já enviados ao remoto."
+      ]
+     }
+    },
+    {
+     "id": "crepo",
+     "x": 500,
+     "y": 60,
+     "w": 180,
+     "label": "Refs locais",
+     "sub": "HEAD, branches e tags",
+     "status": "done",
+     "d": {
+      "text": "O que é comparado. Remotos e stash ficam de fora.",
+      "list": [
+       "Commit novo: alcançável hoje e não pela referência (inclui amend e rebase).",
+       "Commit removido: estava na referência e saiu do histórico."
+      ]
+     }
+    },
+    {
+     "id": "cdirect",
+     "x": 760,
+     "y": 60,
+     "w": 200,
+     "label": "Commit sem liberação",
+     "sub": "git commit direto",
+     "status": "done",
+     "d": {
+      "text": "Feito pelo agente, fora da skill, ou pelo próprio usuário. Não é impedido na hora; é apontado na próxima conclusão.",
+      "list": []
+     }
+    },
+    {
+     "id": "ccompletion",
+     "x": 20,
+     "y": 250,
+     "w": 160,
+     "label": "Template completion",
+     "sub": "antes de responder",
+     "status": "done",
+     "d": {
+      "text": "O template de conclusão manda executar `vostok commit check` antes de responder.",
+      "list": []
+     }
+    },
+    {
+     "id": "ccheck",
+     "x": 240,
+     "y": 250,
+     "w": 190,
+     "label": "vostok commit check",
+     "sub": "apps/cli · commit",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Compara as refs locais com a referência. Na primeira execução, só grava a referência.",
+      "cmds": [
+       "vostok commit check"
+      ],
+      "list": [
+       "Sem diferença: \"Nenhum commit sem liberação.\"",
+       "Com diferença: lista os commits e manda parar com o template `blocker`."
+      ]
+     }
+    },
+    {
+     "id": "cack",
+     "x": 500,
+     "y": 250,
+     "w": 180,
+     "label": ".state/commit-ack",
+     "sub": "referência",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Estado das refs na última liberação, fora do git (`paths.state`). Só o vostok o altera.",
+      "list": [
+       "O código de liberação é o hash dessa referência: se o repositório mudar depois de mostrado, a ação é recusada."
+      ]
+     }
+    },
+    {
+     "id": "cblocker",
+     "x": 240,
+     "y": 430,
+     "w": 190,
+     "label": "Template blocker",
+     "sub": "agente para",
+     "status": "done",
+     "d": {
+      "text": "O agente mostra os commits e não conclui nenhuma resposta até a decisão do usuário.",
+      "list": []
+     }
+    },
+    {
+     "id": "cdecide",
+     "x": 500,
+     "y": 430,
+     "w": 180,
+     "label": "Decisão do usuário",
+     "sub": "liberar ou desfazer",
+     "status": "done",
+     "d": {
+      "text": "Numa mensagem posterior à que mostrou os commits. \"Ok\" ou \"segue\" não contam como liberação.",
+      "list": []
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "cask",
+     "to": "capprove",
+     "label": "pede o commit"
+    },
+    {
+     "from": "capprove",
+     "to": "crepo",
+     "label": "commit"
+    },
+    {
+     "from": "capprove",
+     "to": "cack",
+     "label": "libera no mesmo passo",
+     "sides": [
+      "b",
+      "t"
+     ],
+     "so": [
+      40,
+      0
+     ],
+     "to_": [
+      -40,
+      0
+     ]
+    },
+    {
+     "from": "cdirect",
+     "to": "crepo",
+     "label": "muda as refs"
+    },
+    {
+     "from": "ccompletion",
+     "to": "ccheck",
+     "label": "executa"
+    },
+    {
+     "from": "ccheck",
+     "to": "cack",
+     "label": "compara as refs"
+    },
+    {
+     "from": "ccheck",
+     "to": "cblocker",
+     "label": "commit novo ou removido",
+     "sides": [
+      "b",
+      "t"
+     ]
+    },
+    {
+     "from": "cblocker",
+     "to": "cdecide",
+     "label": "mostra a lista"
+    },
+    {
+     "from": "cdecide",
+     "to": "cack",
+     "label": "approve ou revert",
+     "sides": [
+      "t",
+      "b"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "memoria",
+   "tab": "Memória",
+   "title": "Memória do agente",
+   "text": "Decisões, issues e conhecimento em arquivos Markdown, com scripts para criar, buscar e atualizar entradas.",
+   "intro": {
+    "kicker": "Memória",
+    "title": "Três tipos de entrada",
+    "text": "Cada entrada é um bloco `## DEC-001: Título` com campos fixos. A busca aceita qualquer termo, ordena pelo número de termos encontrados e ignora acentos e maiúsculas.",
+    "list": [
+     "Arquivos em `vostok/memory/`.",
+     "Tipos, prefixos, status e categorias ficam em `config/memory.yml`."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "add",
+     "x": 30,
+     "y": 60,
+     "w": 190,
+     "label": "vostok memory add",
+     "sub": "cria uma entrada",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Cria a entrada a partir do template do tipo, com o próximo ID da sequência.",
+      "cmds": [
+       "vostok memory add <tipo> \"Título\"",
+       "vostok memory init"
+      ],
+      "list": [
+       "Recusa se a entrada anterior ainda tem variáveis sem preencher.",
+       "Recusa ID duplicado e arquivo sem front-matter."
+      ]
+     }
+    },
+    {
+     "id": "search",
+     "x": 30,
+     "y": 220,
+     "w": 190,
+     "label": "vostok memory search",
+     "sub": "busca por termos",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Busca por qualquer termo, com ranking pelo número de termos encontrados.",
+      "cmds": [
+       "vostok memory search <tipo|all> [termos]",
+       "vostok memory search --id DEC-001"
+      ],
+      "list": [
+       "Limite de `search_max_results` (5), com aviso das entradas omitidas.",
+       "Sem termos, lista o índice do tipo."
+      ]
+     }
+    },
+    {
+     "id": "update",
+     "x": 30,
+     "y": 380,
+     "w": 190,
+     "label": "vostok memory update",
+     "sub": "altera um campo",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Altera um campo de uma entrada, validando status e categorias.",
+      "cmds": [
+       "vostok memory update <ID> <Campo> \"Valor\""
+      ]
+     }
+    },
+    {
+     "id": "files",
+     "x": 360,
+     "y": 220,
+     "w": 200,
+     "label": "memory/*.md",
+     "sub": "um arquivo por tipo",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Um arquivo por tipo, com front-matter e entradas em blocos.",
+      "list": [
+       "decisions.md",
+       "issues.md",
+       "knowledge.md"
+      ]
+     }
+    },
+    {
+     "id": "dec",
+     "x": 700,
+     "y": 60,
+     "w": 240,
+     "label": "Decisões · DEC",
+     "sub": "ativa, substituída",
+     "status": "done",
+     "d": {
+      "text": "Escolhas de arquitetura e de projeto. Um pedido que contradiz uma decisão ativa usa o template decision-conflict.",
+      "list": []
+     }
+    },
+    {
+     "id": "iss",
+     "x": 700,
+     "y": 220,
+     "w": 240,
+     "label": "Issues · ISS",
+     "sub": "aberto, resolvido, contornado",
+     "status": "done",
+     "d": {
+      "text": "Problemas encontrados, com assinatura do erro e 11 categorias.",
+      "list": [
+       "Consultadas antes de qualquer correção (anti-loop)."
+      ]
+     }
+    },
+    {
+     "id": "knw",
+     "x": 700,
+     "y": 380,
+     "w": 240,
+     "label": "Conhecimento · KNW",
+     "sub": "válido, obsoleto",
+     "status": "done",
+     "d": {
+      "text": "Fatos do projeto que não estão no código.",
+      "list": []
+     }
+    },
+    {
+     "id": "loop",
+     "x": 360,
+     "y": 420,
+     "w": 200,
+     "label": "Regras anti-loop",
+     "sub": "rules/agent/anti-loop.md",
+     "status": "done",
+     "d": {
+      "text": "Evitam que o agente repita tentativas sem sair do lugar. A consulta usa o `vostok memory search issue`.",
+      "list": [
+       "01: buscar issues antes de corrigir.",
+       "02: no máximo 2 tentativas; depois, template blocker.",
+       "03: registrar a issue."
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "add",
+     "to": "files",
+     "label": "grava",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "to_": [
+      0,
+      -18
+     ]
+    },
+    {
+     "from": "search",
+     "to": "files",
+     "label": "lê",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "update",
+     "to": "files",
+     "label": "altera",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "to_": [
+      0,
+      18
+     ]
+    },
+    {
+     "from": "files",
+     "to": "dec",
+     "label": "decisions.md",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      -18
+     ]
+    },
+    {
+     "from": "files",
+     "to": "iss",
+     "label": "issues.md",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "files",
+     "to": "knw",
+     "label": "knowledge.md",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      18
+     ]
+    },
+    {
+     "from": "loop",
+     "to": "iss",
+     "label": "consulta antes de corrigir",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "to_": [
+      0,
+      18
+     ]
+    }
+   ]
+  },
+  {
+   "id": "skills",
+   "tab": "Skills",
+   "title": "Skills e redirecionamentos",
+   "text": "Uma skill fica uma única vez no harness. As ferramentas a encontram por redirecionamentos gerados pela create-skill.",
+   "intro": {
+    "kicker": "Skills",
+    "title": "Uma fonte, várias ferramentas",
+    "text": "O SKILL.md completo fica em `packages/harness/skills/`. Nas pastas de cada ferramenta vai só um redirecionamento, com name, description e allowed-tools.",
+    "list": [
+     "Segue o padrão Agent Skills: description em terceira pessoa, dizendo o que faz e quando usar.",
+     "Nunca se usa o criador de skills nativo da ferramenta."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "create",
+     "x": 30,
+     "y": 210,
+     "w": 180,
+     "label": "create-skill",
+     "sub": "skill",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "Cria skills no formato padrão, com scripts, redirecionamentos e entrada no catálogo.",
+      "cmds": [
+       "vostok skill create <nome>",
+       "vostok skill finalize <nome>"
+      ],
+      "list": [
+       "O `finalize` valida o SKILL.md e gera redirecionamentos e catálogo."
+      ]
+     }
+    },
+    {
+     "id": "src",
+     "x": 280,
+     "y": 210,
+     "w": 220,
+     "label": "skills/default · custom",
+     "sub": "22 skills padrão",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Skills do harness em `default/`; as do usuário em `custom/`.",
+      "list": [
+       "adjust-plan (v1.0.0)",
+       "adjust-rules (v1.0.0)",
+       "adjust-spec (v1.3.0)",
+       "adjust-task (v1.0.0)",
+       "approve-commit (v1.0.0)",
+       "approve-plan (v1.2.0)",
+       "approve-spec (v1.0.0)",
+       "approve-task (v1.0.0)",
+       "create-skill (v1.0.0)",
+       "create-spec (v1.0.0)",
+       "customize-documents (v1.0.0)",
+       "execute-task (v1.2.0)",
+       "finalize-spec (v1.2.0)",
+       "finish-task (v1.1.0)",
+       "init-harness (v1.0.0)",
+       "plan-tasks (v1.0.0)",
+       "process-requests (v1.1.0)",
+       "refine-spec (v2.2.0)",
+       "report-harness-bug (v1.0.0)",
+       "suggest-harness-feature (v1.0.0)",
+       "suggest-harness-improvement (v1.0.0)",
+       "validate-harness-bug (v1.0.0)"
+      ]
+     }
+    },
+    {
+     "id": "claudeDir",
+     "x": 580,
+     "y": 50,
+     "w": 190,
+     "label": ".claude/skills/",
+     "sub": "redirecionamento",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Lido pelo Claude Code e pelo Cursor.",
+      "list": []
+     }
+    },
+    {
+     "id": "agentsDir",
+     "x": 580,
+     "y": 220,
+     "w": 190,
+     "label": ".agents/skills/",
+     "sub": "redirecionamento",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Lido pelo Codex e pelo Cursor.",
+      "list": []
+     }
+    },
+    {
+     "id": "catalog",
+     "x": 580,
+     "y": 360,
+     "w": 190,
+     "label": "skill-catalog.md",
+     "sub": "context/",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Tabela com nome, descrição e caminho de cada skill. Carregada em toda sessão.",
+      "list": []
+     }
+    },
+    {
+     "id": "claudeCode",
+     "x": 830,
+     "y": 20,
+     "w": 140,
+     "label": "Claude Code",
+     "sub": "",
+     "status": "done",
+     "d": {
+      "text": "Encontra as skills em `.claude/skills/`.",
+      "list": []
+     }
+    },
+    {
+     "id": "codex",
+     "x": 830,
+     "y": 250,
+     "w": 140,
+     "label": "Codex",
+     "sub": "",
+     "status": "done",
+     "d": {
+      "text": "Encontra as skills em `.agents/skills/`.",
+      "list": []
+     }
+    },
+    {
+     "id": "cursor",
+     "x": 830,
+     "y": 135,
+     "w": 140,
+     "label": "Cursor",
+     "sub": "lê as duas pastas",
+     "status": "done",
+     "d": {
+      "text": "Lê `.claude/skills/` e `.agents/skills/`. Por isso `.cursor/skills` está comentado em `config/skills.yml`.",
+      "list": []
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "create",
+     "to": "src",
+     "label": "cria o SKILL.md e scripts"
+    },
+    {
+     "from": "src",
+     "to": "claudeDir",
+     "label": "finalize gera",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      -16
+     ]
+    },
+    {
+     "from": "src",
+     "to": "agentsDir",
+     "label": "finalize gera",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "src",
+     "to": "catalog",
+     "label": "finalize atualiza",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      16
+     ]
+    },
+    {
+     "from": "claudeDir",
+     "to": "claudeCode",
+     "label": "lê",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      -12
+     ]
+    },
+    {
+     "from": "agentsDir",
+     "to": "codex",
+     "label": "lê",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      12
+     ]
+    },
+    {
+     "from": "claudeDir",
+     "to": "cursor",
+     "label": "lê",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      12
+     ],
+     "to_": [
+      0,
+      -12
+     ]
+    },
+    {
+     "from": "agentsDir",
+     "to": "cursor",
+     "label": "lê",
+     "sides": [
+      "r",
+      "l"
+     ],
+     "so": [
+      0,
+      -12
+     ],
+     "to_": [
+      0,
+      12
+     ]
+    }
+   ]
+  },
+  {
+   "id": "painel",
+   "tab": "Painel e trava",
+   "title": "Painel local, trava de aval e pedidos",
+   "text": "Como o painel lê e grava os arquivos, como o aval do usuário destrava as ações do agente e como os pedidos chegam ao agente.",
+   "intro": {
+    "kicker": "Painel",
+    "title": "O painel pede, o agente faz",
+    "text": "O painel aprova direto o que a CLI aprova; o resto vira um pedido em `work/pedidos/` com uma linha de aval em `avais.log`. Com `approval_lock: true`, finalizar tarefa, aprovar plano, finalizar spec e fazer commit só passam com esse aval.",
+    "list": [
+     "A trava vem desligada: sem a chave, o comportamento da 0.3.0 continua.",
+     "A trava torna a forja de aval visível, mas não a impede (DT-014)."
+    ]
+   },
+   "nodes": [
+    {
+     "id": "pdev",
+     "x": 20,
+     "y": 200,
+     "w": 150,
+     "label": "Desenvolvedor",
+     "sub": "no navegador",
+     "status": "done",
+     "d": {
+      "text": "Abre o painel, revisa e clica em aprovar ou pedir.",
+      "list": []
+     }
+    },
+    {
+     "id": "pserver",
+     "x": 215,
+     "y": 200,
+     "w": 180,
+     "label": "vostok painel",
+     "sub": "127.0.0.1 · token",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Servidor local com tiny_http, frontend em Preact embutido no binário e token de sessão em toda ação.",
+      "cmds": [
+       "vostok painel",
+       "vostok painel --porta 4500 --sem-navegador"
+      ],
+      "list": [
+       "403 sem o token; 409 num conflito de edição; 422 quando o vostok recusa.",
+       "WebSocket avisa as abas quando `vostok/work/` muda."
+      ]
+     }
+    },
+    {
+     "id": "ptelas",
+     "x": 215,
+     "y": 30,
+     "w": 180,
+     "label": "Telas",
+     "sub": "apps/painel",
+     "status": "done",
+     "d": {
+      "text": "Painel, pendências, specs, spec, quadro, plano, tarefas, tarefa, documentos e configurações, em tema claro e escuro.",
+      "list": [
+       "As pendências reúnem o que espera o usuário, com os botões de aval.",
+       "A marca do projeto vem de `config/documents.yml`."
+      ]
+     }
+    },
+    {
+     "id": "pfiles",
+     "x": 450,
+     "y": 200,
+     "w": 170,
+     "label": "vostok/work",
+     "sub": "specs, tarefas, planos",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "O painel grava pelas mesmas funções da CLI: aprovações com `approved_by: painel` e edições registradas como ajuste manual.",
+      "list": []
+     }
+    },
+    {
+     "id": "pped",
+     "x": 440,
+     "y": 380,
+     "w": 200,
+     "label": "pedidos/ · avais.log",
+     "sub": "work/",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Cada pedido é um `PED-NNN.md` com ação, spec, tarefa e estado; o aval é uma linha com data, ID, hash, origem e ação.",
+      "list": [
+       "Ações: ajustar, finalizar-tarefa, aprovar-plano, finalizar-spec e fazer-commit.",
+       "Estados: pendente, em_andamento, feito e recusado.",
+       "Fora do git."
+      ]
+     }
+    },
+    {
+     "id": "ploop",
+     "x": 690,
+     "y": 300,
+     "w": 190,
+     "label": "process-requests",
+     "sub": "/process-requests 1m",
+     "status": "done",
+     "d": {
+      "kicker": "Skill",
+      "text": "No Claude Code, arma o loop com o intervalo pedido e atende um pedido por vez pela skill da ação.",
+      "cmds": [
+       "vostok pedidos listar --estado pendente",
+       "vostok pedidos iniciar PED-NNN",
+       "vostok pedidos concluir PED-NNN",
+       "vostok pedidos recusar PED-NNN"
+      ]
+     }
+    },
+    {
+     "id": "pvigiar",
+     "x": 690,
+     "y": 450,
+     "w": 190,
+     "label": "vostok pedidos vigiar",
+     "sub": "Codex",
+     "mono": true,
+     "status": "done",
+     "d": {
+      "text": "Para o Codex, que não tem loop na sessão: um `codex exec` por pedido pendente, em ordem e um por vez.",
+      "cmds": [
+       "vostok pedidos vigiar --agente codex --intervalo 15"
+      ],
+      "list": [
+       "Testado com um codex simulado; falta o teste com o Codex real (DT-013)."
+      ]
+     }
+    },
+    {
+     "id": "paval",
+     "x": 690,
+     "y": 120,
+     "w": 190,
+     "label": "Trava de aval",
+     "sub": "approval_lock",
+     "status": "done",
+     "d": {
+      "text": "Antes de gravar, a CLI procura no `avais.log` uma linha do painel com o ID, a ação e o hash atual do alvo; sem ela, recusa.",
+      "list": [
+       "Hash da tarefa: `approved_hash`; do plano e da spec: `content_hash`; do commit: SHA-256 do texto do pedido.",
+       "Um ajuste depois do aval muda o hash e derruba o aval."
+      ]
+     }
+    }
+   ],
+   "edges": [
+    {
+     "from": "pdev",
+     "to": "pserver",
+     "label": "aprova ou pede"
+    },
+    {
+     "from": "ptelas",
+     "to": "pserver",
+     "label": "chamam a API",
+     "sides": [
+      "b",
+      "t"
+     ]
+    },
+    {
+     "from": "pserver",
+     "to": "pfiles",
+     "label": "aprova e edita"
+    },
+    {
+     "from": "pserver",
+     "to": "pped",
+     "label": "grava pedido e aval",
+     "sides": [
+      "b",
+      "l"
+     ]
+    },
+    {
+     "from": "pped",
+     "to": "ploop",
+     "label": "pendentes"
+    },
+    {
+     "from": "pped",
+     "to": "pvigiar",
+     "label": "pendentes",
+     "sides": [
+      "r",
+      "l"
+     ]
+    },
+    {
+     "from": "ploop",
+     "to": "paval",
+     "label": "skill da ação",
+     "sides": [
+      "t",
+      "b"
+     ]
+    },
+    {
+     "from": "paval",
+     "to": "pfiles",
+     "label": "libera a gravação",
+     "sides": [
+      "l",
+      "r"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "estrutura",
+   "tab": "Estrutura",
+   "kind": "folders",
+   "title": "Estrutura do repositório",
+   "text": "Pastas do monorepo. Clique em uma pasta para ver os arquivos.",
+   "intro": {
+    "kicker": "Estrutura",
+    "title": "apps e packages",
+    "text": "A CLI e o painel ficam em `apps/`; o harness instalável, em `packages/harness/`. Num projeto, o `vostok init` instala o harness em `vostok/`.",
+    "list": [
+     "645 testes na CLI e 64 no painel, no Linux e no macOS."
+    ]
+   }
+  },
+  {
+   "id": "historico",
+   "tab": "Histórico",
+   "kind": "timeline",
+   "title": "Histórico de commits",
+   "text": "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
+   "intro": {
+    "kicker": "Histórico",
+    "title": "257 commits em 38 dias",
+    "text": "Clique em um commit para ver o que ele trouxe.",
+    "list": []
+   }
+  }
+ ],
+ "folders": [
+  {
+   "path": "apps/cli/",
+   "desc": "CLI vostok, em Rust",
+   "files": [
+    [
+     "src/commands/",
+     "Um arquivo por subcomando: context, memory, rules, spec, plan, task, commit, finalize, skill, documents, bug, suggest, init, update, painel e pedidos."
+    ],
+    [
+     "src/painel/",
+     "Servidor do painel: server.rs, actions.rs, read.rs e live.rs."
+    ],
+    [
+     "src/aval.rs",
+     "Trava de aval: leitura do `avais.log` e `require`."
+    ],
+    [
+     "src/embedded.rs",
+     "Harness e bundle do painel embutidos no binário."
+    ],
+    [
+     "tests/",
+     "Testes de integração por subcomando e os cenários com agente."
+    ]
+   ]
+  },
+  {
+   "path": "apps/painel/",
+   "desc": "Frontend do painel (Preact, Vite)",
+   "files": [
+    [
+     "src/features/",
+     "Telas: dashboard, inbox, specs, spec, board, task, documents e settings."
+    ],
+    [
+     "src/shared/",
+     "Roteador, API, ações e componentes comuns."
+    ],
+    [
+     "scripts/print.sh",
+     "Gera o print de uma rota com o binário de PAINEL_BIN."
+    ]
+   ]
+  },
+  {
+   "path": "packages/harness/config/",
+   "desc": "Tudo o que é configurável",
+   "files": [
+    [
+     "main.yml",
+     "Caminhos, repositório do harness, ferramenta e `approval_lock`."
+    ],
+    [
+     "context.yml",
+     "Fontes de toda sessão e mapa por skill."
+    ],
+    [
+     "specs.yml",
+     "IDs, status, tipos e seções das specs."
+    ],
+    [
+     "tasks.yml",
+     "Tipos, perfis, ondas, evidências, tentativas e `max_subagents`."
+    ],
+    [
+     "models.yml",
+     "Modelo de cada perfil por ferramenta."
+    ],
+    [
+     "skills.yml",
+     "Pastas, redirecionamentos e catálogo."
+    ],
+    [
+     "memory.yml",
+     "Tipos, prefixos, status e categorias."
+    ],
+    [
+     "documents.yml",
+     "Identidade visual dos documentos e do painel."
+    ],
+    [
+     "sequences.yml",
+     "Próximo número de cada sequência de IDs."
+    ]
+   ]
+  },
+  {
+   "path": "packages/harness/skills/",
+   "desc": "Skills padrão e customizadas",
+   "files": [
+    [
+     "default/",
+     "22 skills padrão, do create-spec ao process-requests."
+    ],
+    [
+     "custom/",
+     "Skills do projeto."
+    ]
+   ]
+  },
+  {
+   "path": "packages/harness/rules/",
+   "desc": "Regras do agente e do projeto",
+   "files": [
+    [
+     "agent/",
+     "anti-loop, boundaries, memory, responses, rule-suggestions e template-usage."
+    ],
+    [
+     "project/",
+     "language e naming-convention."
+    ]
+   ]
+  },
+  {
+   "path": "packages/harness/personas/",
+   "desc": "Papéis do agente",
+   "files": [
+    [
+     "coordenador.md",
+     "O chat: escolhe modelos, executa e consolida."
+    ],
+    [
+     "planejador.md, arquiteto.md, engenheiro.md, qa-lead.md",
+     "Refinamento, planejamento e detalhamento das tarefas."
+    ],
+    [
+     "desenvolvedor.md, qa.md, ui-ux-designer.md",
+     "Execução e finalização."
+    ]
+   ]
+  },
+  {
+   "path": "packages/harness/templates/",
+   "desc": "Modelos usados pelo vostok",
+   "files": [
+    [
+     "responses/",
+     "6 templates de resposta ao usuário."
+    ],
+    [
+     "spec/, plan/, task/",
+     "Spec, plano e os arquivos da pasta da tarefa."
+    ],
+    [
+     "finalize/",
+     "Conteúdo dos documentos finais."
+    ],
+    [
+     "bug/, suggestion/",
+     "Relatos e sugestões para o harness."
+    ],
+    [
+     "skill/, memory/, rules/",
+     "Skills, entradas de memória e regras."
+    ]
+   ]
+  },
+  {
+   "path": "vostok/work/",
+   "desc": "Trabalho do projeto (instalado)",
+   "files": [
+    [
+     "specs/draft/, specs/refined/",
+     "Rascunhos e specs refinadas, aprovadas e planejadas."
+    ],
+    [
+     "plans/",
+     "Planos em revisão."
+    ],
+    [
+     "tasks/",
+     "Uma pasta por tarefa, com evidencias/."
+    ],
+    [
+     "pedidos/, avais.log",
+     "Pedidos e avais do painel, fora do git."
+    ],
+    [
+     ".archive/",
+     "Specs finalizadas, com tarefas e evidências, fora do git."
+    ]
+   ]
+  },
+  {
+   "path": "docs/",
+   "desc": "Documentação publicada",
+   "files": [
+    [
+     "specs/",
+     "Executivo e técnico de cada spec finalizada."
+    ],
+    [
+     "imagens/painel/",
+     "Prints do painel usados no README."
+    ],
+    [
+     "debitos-tecnicos.md",
+     "Débitos técnicos, do DT-001 ao DT-014."
+    ],
+    [
+     "mapa-vostok.html",
+     "Este mapa."
+    ]
+   ]
+  }
+ ],
+ "commits": [
+  [
+   "296893a",
+   "2026-09-26",
+   "chore: add .gitignore and create AGENTS.md and CLAUDE.md files for project harness documentation"
   ],
-
-  views: [
-    {
-      id: "arquitetura",
-      tab: "Arquitetura",
-      title: "Arquitetura do Vostok",
-      text: "Visão geral do monorepo. Só o harness existe hoje; o painel local está planejado para a fase 2.",
-      intro: {
-        kicker: "Visão geral",
-        title: "Harness passivo, painel local",
-        text: "O agente trabalha na ferramenta do desenvolvedor, seguindo o harness. Na fase 2, o vostok painel abre um painel local por pasta, que lê e grava os arquivos do harness; o que precisa do agente vira um pedido em arquivo.",
-        list: ["Clique em um bloco para ver os detalhes.", "Blocos tracejados ainda não existem."]
-      },
-      nodes: [
-        { id: "dev", x: 30, y: 250, w: 150, label: "Desenvolvedor", sub: "pede e revisa", status: "done",
-          d: { text: "Quem conversa com o agente na ferramenta de IA e aprova o trabalho.", list: ["Pede specs, refinamentos e ajustes em linguagem natural.", "Aprova specs na ferramenta de IA (approve-spec) e, na fase 2, também pelo painel local.", "Aprova as tarefas antes da execução (approve-task) e pede os commits, que o agente só faz pela approve-commit."] } },
-        { id: "tools", x: 215, y: 250, w: 205, label: "Ferramentas de IA", sub: "Claude Code, Codex, Cursor", status: "done",
-          d: { text: "O agente roda dentro da ferramenta do desenvolvedor. O harness não depende de nenhuma delas.", list: ["Claude Code lê `.claude/skills/`.", "Codex lê `.agents/skills/`.", "Cursor lê as duas pastas; por isso `.cursor/skills` fica desligado."] } },
-        { id: "harness", x: 450, y: 250, w: 170, label: "Harness", sub: "packages/harness", status: "wip",
-          d: { text: "A parte instalável: regras, skills, scripts, templates e memória. Tudo configurável fica em `config/`.", list: ["Determinístico sempre que possível: scripts validam o que o agente produz.", "Compatível com bash 3.2 e awk/sed do BSD (macOS).", "Toda resposta ao usuário segue um template.", "Commits só com liberação do usuário, conferidos por script antes de cada conclusão."] } },
-        { id: "painel", x: 220, y: 420, w: 180, label: "Painel local", sub: "apps/painel", status: "planned",
-          d: { text: "Painel aberto pelo vostok em cada pasta, só em 127.0.0.1.", list: ["Lê specs, planos, tarefas e evidências dos arquivos.", "Aprova com a origem e o aval; edita com controle de conflito.", "O que precisa do agente vira um pedido em arquivo."] } }
-      ],
-      edges: [
-        { from: "dev", to: "tools", label: "pede em linguagem natural" },
-        { from: "tools", to: "harness", label: "carrega regras e skills" },
-        { from: "dev", to: "painel", label: "revisa e aprova pelo painel", planned: true },
-        { from: "painel", to: "harness", label: "lê e grava pela CLI", planned: true }
-      ]
-    },
-
-    {
-      id: "contexto",
-      tab: "Contexto",
-      title: "Carregamento de contexto",
-      text: "Como o agente recebe as regras no início de cada sessão e como as skills carregam o que precisam.",
-      intro: {
-        kicker: "Contexto",
-        title: "Tudo parte do CLAUDE.md",
-        text: "As ferramentas leem o `CLAUDE.md`, que manda ler o `AGENTS.md`, que executa o `load-context.sh`. As fontes vêm de `config/context.yml`, não do script.",
-        list: ["As regras do harness prevalecem sobre a memória e as instruções próprias da ferramenta ([agent/boundaries-03])."]
-      },
-      nodes: [
-        { id: "claude", x: 30, y: 200, w: 160, label: "CLAUDE.md", sub: "roteamento", mono: true, status: "done",
-          d: { text: "Arquivo lido pelas ferramentas. Só aponta para o `AGENTS.md`.", list: [] } },
-        { id: "agents", x: 230, y: 200, w: 160, label: "AGENTS.md", sub: "carrega o harness", mono: true, status: "done",
-          d: { text: "Manda executar o `load-context.sh` antes de qualquer trabalho.", list: [] } },
-        { id: "load", x: 440, y: 200, w: 205, label: "load-context.sh", sub: "scripts/default/context", mono: true, status: "done",
-          d: { text: "Imprime, com cabeçalhos, cada fonte listada em `required`.", cmds: ["packages/harness/scripts/default/context/load-context.sh"], list: ["Pastas são carregadas por inteiro, na ordem da configuração."] } },
-        { id: "cfg", x: 440, y: 40, w: 205, label: "config/context.yml", sub: "lista required", mono: true, status: "done",
-          d: { text: "Define o que é carregado em toda sessão.", cmds: ["required:\n  - context\n  - rules/agent\n  - rules/project/language.md\n  - templates/responses"] } },
-        { id: "ctx", x: 700, y: 20, w: 250, label: "context/", sub: "catálogo de skills", mono: true, status: "done",
-          d: { text: "`skill-catalog.md`, gerado pela create-skill, lista as skills padrão e as customizadas.", list: [] } },
-        { id: "ragent", x: 700, y: 120, w: 250, label: "rules/agent/", sub: "5 arquivos de regras", mono: true, status: "done",
-          d: { text: "Regras de comportamento do agente.", list: ["anti-loop: busca issues antes de corrigir; no máximo 2 tentativas.", "boundaries: commit só pela approve-commit, a pedido do usuário; stage só com pedido; `check-commits.sh` antes de toda conclusão; harness prevalece.", "memory: quando e como registrar decisões, issues e conhecimento.", "responses: toda resposta usa um template.", "template-usage: variáveis no formato `#{VAR}`."] } },
-        { id: "rlang", x: 700, y: 220, w: 250, label: "rules/project/language.md", sub: "docs em pt-br, código em en", mono: true, status: "done",
-          d: { text: "Idioma do projeto: documentação em português, código em inglês.", list: [] } },
-        { id: "resp", x: 700, y: 320, w: 250, label: "templates/responses/", sub: "6 templates de resposta", mono: true, status: "done",
-          d: { text: "Formatos obrigatórios das respostas ao usuário.", list: ["general", "question", "completion (com Próximos passos em linguagem natural ou skills, e a verificação de commits antes de responder)", "blocker", "decision-conflict", "decision-proposal"] } },
-        { id: "skill", x: 230, y: 430, w: 160, label: "Skill invocada", sub: "passo 1 da skill", status: "done",
-          d: { text: "Cada skill carrega as regras extras de que precisa no primeiro passo.", list: [] } },
-        { id: "extra", x: 440, y: 430, w: 205, label: "load-extra-context.sh", sub: "arquivos específicos", mono: true, status: "done",
-          d: { text: "Carrega pastas ou arquivos pedidos, relativos à raiz do harness.", cmds: ["load-extra-context.sh rules/agent/template-usage.md \\\n  rules/project/naming-convention.md"] } },
-        { id: "extras", x: 700, y: 430, w: 250, label: "Regras e referências", sub: "naming-convention, sections.md…", status: "done",
-          d: { text: "O que cada skill declara em `metadata.requires`.", list: ["refine-spec e adjust-spec: template-usage, naming-convention.", "adjust-spec também carrega `refine-spec/references/sections.md`.", "plan-tasks e approve-plan: template-usage e `config/tasks.yml`.", "approve-task, adjust-task, execute-task e finish-task: `config/tasks.yml`; execute-task também boundaries e finish-task, anti-loop.", "approve-commit: boundaries."] } }
-      ],
-      edges: [
-        { from: "claude", to: "agents", label: "lê" },
-        { from: "agents", to: "load", label: "executa" },
-        { from: "load", to: "cfg", label: "lê as fontes" },
-        { from: "load", to: "ctx", label: "carrega", sides: ["r", "l"] },
-        { from: "load", to: "ragent", label: "carrega", sides: ["r", "l"] },
-        { from: "load", to: "rlang", label: "carrega", sides: ["r", "l"] },
-        { from: "load", to: "resp", label: "carrega", sides: ["r", "l"] },
-        { from: "skill", to: "extra", label: "executa" },
-        { from: "extra", to: "extras", label: "carrega" }
-      ]
-    },
-
-    {
-      id: "specs",
-      tab: "Ciclo da spec",
-      title: "Ciclo de vida de uma spec",
-      text: "Do pedido ao rascunho, do rascunho à refinada, dos ajustes e da aprovação ao planejamento e à execução, até a spec implementada.",
-      intro: {
-        kicker: "Specs",
-        title: "Do rascunho à spec implementada",
-        text: "Cada etapa tem uma skill e um script. O agente escreve o conteúdo; os scripts criam arquivos, validam e registram.",
-        list: ["IDs no formato SPEC-001, com a sequência em `config/sequences.yml`.", "Cinco tipos: feature, improvement, fix, study e analysis."]
-      },
-      nodes: [
-        { id: "ask", x: 20, y: 90, w: 150, label: "Pedido", sub: "nova ideia", status: "done",
-          d: { text: "O usuário descreve algo a construir, corrigir, estudar ou analisar.", list: [] } },
-        { id: "new", x: 205, y: 90, w: 175, label: "create-new-spec.sh", sub: "cria o rascunho", mono: true, status: "done",
-          d: { text: "Cria a spec em `work/specs/draft/` a partir do template `spec/new.md`.", cmds: ["create-new-spec.sh \"Título da spec\""], list: ["Front-matter com id, título, status draft, autor e datas."] } },
-        { id: "draft", x: 415, y: 90, w: 150, label: "draft", sub: "work/specs/draft", state: true, status: "done",
-          d: { kicker: "Estado", text: "Rascunho escrito pelo usuário. Nunca é editado pelas skills; só o status muda.", list: [] } },
-        { id: "refine", x: 600, y: 90, w: 170, label: "refine-spec", sub: "skill · 9 passos", status: "done",
-          d: { kicker: "Skill", text: "Investiga memória e código, pergunta em até 2 rodadas e monta a refinada com as seções do tipo.", cmds: ["create-refined-spec.sh <SPEC_ID> <tipo>", "create-refined-spec.sh --validate <SPEC_ID>", "create-refined-spec.sh --mark-refined <SPEC_ID>"], list: ["IDs rastreáveis: RF, RNF, RN, CB, CT, CA, PQ, T, A, S.", "A validação confere seções, tabelas, RF sem teste ou critério e componentes afetados.", "`--mark-refined` grava o `content_hash` e muda o rascunho para refined."] } },
-        { id: "refined", x: 805, y: 90, w: 160, label: "refined", sub: "work/specs/refined", state: true, status: "done",
-          d: { kicker: "Estado", text: "Spec refinada, com seções por tipo, registro de decisões e histórico de ajustes. Depois da aprovação, continua aqui com status `approved`.", list: ["Front-matter: type, source, refined_at, adjustments, adjusted_at, content_hash.", "Aprovada: approved_at e approved_hash; o rascunho é removido."] } },
-        { id: "adjust", x: 805, y: 300, w: 160, label: "adjust-spec", sub: "skill · 10 passos", status: "done",
-          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem, em prosa, em lista ou citando o trecho exato.", cmds: ["adjust-spec.sh --record-manual <SPEC_ID>", "adjust-spec.sh --validate <SPEC_ID>", "adjust-spec.sh --record <SPEC_ID> \"resumo\""], list: ["No máximo 1 rodada de perguntas, antes de qualquer edição.", "Todos os ajustes de uma mensagem viram uma linha no histórico.", "Specs `planned` são recusadas: mudá-las exige um novo ciclo.", "Validado em 12 cenários com agente."] } },
-        { id: "manual", x: 805, y: 460, w: 160, label: "Edição manual", sub: "feita à mão", status: "done",
-          d: { text: "Mudanças feitas direto no arquivo. O `--record-manual` as detecta pelo hash do conteúdo e registra como ajuste de origem manual.", list: ["Fora do git, o resumo é \"Edição manual\"; versionado, lista as seções alteradas."] } },
-        { id: "approve", x: 560, y: 300, w: 170, label: "approve-spec", sub: "skill · 4 passos", status: "done",
-          d: { kicker: "Skill", text: "Aprova a spec refinada: confere os impedimentos, muda o status para `approved`, grava a versão aprovada e remove o rascunho. A spec continua em `refined/`.", cmds: ["approve-spec.sh --validate <SPEC_ID>", "approve-spec.sh --approve <SPEC_ID>"], list: ["Impedimentos: spec inválida, pendência aberta, spec sem `content_hash` ou edição manual sem registro.", "`approved_hash` guarda o `content_hash` aprovado, para a granularização conferir depois.", "Um ajuste depois da aprovação a derruba: o status volta a `refined`.", "Na fase 2, a aprovação feita na ferramenta é enviada ao servidor pelo MCP; também será possível aprovar pela web.", "Validado em 5 cenários com agente."] } },
-        { id: "tasks", x: 330, y: 300, w: 170, label: "Planejamento", sub: "plan-tasks · approve-plan", status: "done",
-          d: { text: "Quebra da spec aprovada em tarefas, com plano para revisão, ajustes e aprovação. Detalhes na aba Planejamento.", list: ["Ao aprovar o plano, a spec passa a `planned`."] } },
-        { id: "exec", x: 100, y: 300, w: 170, label: "Execução", sub: "approve · execute · finish", status: "done",
-          d: { text: "Cada tarefa é aprovada, executada e validada, com baseline, testes, regressão e evidências. Detalhes na aba Execução.", list: ["A conclusão da última tarefa marca a spec como `implemented`."] } },
-        { id: "implemented", x: 100, y: 460, w: 170, label: "implemented", sub: "spec implementada", state: true, status: "done",
-          d: { kicker: "Estado", text: "Todas as tarefas da spec estão `done`. O `finish-task.sh --finish` da última tarefa grava o status.", list: [] } }
-      ],
-      edges: [
-        { from: "ask", to: "new", label: "título" },
-        { from: "new", to: "draft", label: "cria" },
-        { from: "draft", to: "refine", label: "refinar" },
-        { from: "refine", to: "refined", label: "--mark-refined" },
-        { from: "refined", to: "adjust", label: "pedido de ajuste", bend: -34 },
-        { from: "adjust", to: "refined", label: "--record", bend: 34 },
-        { from: "manual", to: "adjust", label: "--record-manual detecta" },
-        { from: "refined", to: "approve", label: "--approve", sides: ["b", "r"], so: [-60, 0] },
-        { from: "approve", to: "adjust", label: "ajuste derruba a aprovação", sides: ["r", "l"] },
-        { from: "approve", to: "tasks", label: "planejar a aprovada" },
-        { from: "tasks", to: "exec", label: "executar as tarefas" },
-        { from: "exec", to: "implemented", label: "última tarefa done" }
-      ]
-    },
-
-    {
-      id: "planejamento",
-      tab: "Planejamento",
-      title: "Planejamento de tarefas",
-      text: "Da spec aprovada ao plano para revisão, dos ajustes do plano às tarefas prontas para o agente e para o board.",
-      intro: {
-        kicker: "Planejamento",
-        title: "Plano, ajustes, tarefas",
-        text: "A `plan-tasks` propõe um plano só para revisão. A `adjust-plan` o ajusta; a `approve-plan`, só a pedido do usuário, cria as tarefas, remove o plano e marca a spec como `planned`.",
-        list: ["O nível de esforço é calculado por script e é só uma sugestão; nunca indica um modelo.", "Uma spec `planned` não é ajustada, reaprovada nem planejada de novo."]
-      },
-      nodes: [
-        { id: "papproved", x: 20, y: 200, w: 140, label: "approved", sub: "spec aprovada", state: true, status: "done",
-          d: { kicker: "Estado", text: "Só specs com status `approved` e `approved_hash` igual ao hash do conteúdo são planejadas.", list: [] } },
-        { id: "ptasks", x: 195, y: 200, w: 160, label: "plan-tasks", sub: "skill · 7 passos", status: "done",
-          d: { kicker: "Skill", text: "Identifica a spec entre as aprovadas sem plano atualizado, cria o plano e preenche a visão geral, as tarefas e os fatos de esforço.", cmds: ["plan-tasks.sh --create <SPEC_ID>", "plan-tasks.sh --score <SPEC_ID>", "plan-tasks.sh --validate <SPEC_ID>"], list: ["Spec citada com plano atualizado: informa e para, sem iniciar um ajuste.", "Plano desatualizado (spec reaprovada depois) é recriado com aviso.", "A validação confere cobertura dos IDs, dependências sem ciclo, fatos e níveis."] } },
-        { id: "pplan", x: 405, y: 200, w: 150, label: "plano", sub: "work/plans", state: true, status: "done",
-          d: { kicker: "Estado", text: "Documento de revisão: visão geral, tabela de tarefas, fatos de esforço, níveis e histórico de ajustes. É removido quando aprovado.", list: ["Front-matter: spec, spec_hash, content_hash, adjustments e datas."] } },
-        { id: "padjust", x: 405, y: 30, w: 150, label: "adjust-plan", sub: "skill · 10 passos", status: "done",
-          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem: dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos.", cmds: ["adjust-plan.sh --record-manual <SPEC_ID>", "adjust-plan.sh --validate <SPEC_ID>", "adjust-plan.sh --record <SPEC_ID> \"resumo\""], list: ["Mesmo registro de ajustes da spec, numa lib compartilhada (`adjustments.sh`).", "O `--record` recalcula os níveis e recusa um plano inválido sem alterá-lo."] } },
-        { id: "pmanual", x: 605, y: 30, w: 150, label: "Edição manual", sub: "feita à mão", status: "done",
-          d: { text: "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, o plano não é aprovado.", list: [] } },
-        { id: "peffort", x: 195, y: 390, w: 160, label: "Nível de esforço", sub: "config/tasks.yml", status: "done",
-          d: { text: "Soma ponderada dos fatos; o nível é o primeiro cujo limite é maior ou igual à pontuação.", list: ["simples (até 4), moderada (até 9), complexa (até 15) e critica.", "Pesos: criar 2, alterar 1, ID coberto 1, contrato público 4, inferência 2, risco alto 4."] } },
-        { id: "papprove", x: 605, y: 200, w: 150, label: "approve-plan", sub: "skill · 7 passos", status: "done",
-          d: { kicker: "Skill", text: "Só a pedido do usuário. Cria um arquivo por tarefa, detalha cada uma e conclui o planejamento.", cmds: ["approve-plan.sh --create-tasks <SPEC_ID>", "approve-plan.sh --validate <SPEC_ID>", "approve-plan.sh --mark-planned <SPEC_ID>"], list: ["Recusa spec alterada, plano desatualizado ou edição manual sem registro.", "A validação confere subseções, resumo executivo de até 5 linhas, campos do card, caminhos a mudar e cobertura."] } },
-        { id: "ptaskfiles", x: 805, y: 200, w: 150, label: "tarefas", sub: "work/tasks", state: true, status: "done",
-          d: { kicker: "Estado", text: "Um `TASK-NN.md` por tarefa, com status `pending`, front-matter (effort, depends_on, covers, type, labels e content_hash) e quatro seções.", list: ["Execução, para o agente: Ler, Mudar, Passos, Baseline, Verificação, Evidências e Concluída quando (caixas de seleção, cada uma com \"Como comprovar\" em linguagem simples).", "Descrição, para pessoas: Resumo executivo, Detalhes técnicos e Card pronto para Jira ou Businessmap.", "Registro de execução e Histórico de ajustes, preenchidos pelos scripts.", "Daqui segue para a aba Execução."] } },
-        { id: "pplanned", x: 605, y: 390, w: 150, label: "planned", sub: "spec planejada", state: true, status: "done",
-          d: { kicker: "Estado", text: "A spec fica com status `planned` e o plano é removido. Mudá-la exige um novo ciclo.", list: [] } },
-        { id: "pload", x: 805, y: 390, w: 150, label: "load-task.sh", sub: "scripts/default/tasks", mono: true, status: "done",
-          d: { text: "Imprime o front-matter e a seção \"Execução\" de uma tarefa, sem a \"Descrição\": só o que o agente precisa para executar.", cmds: ["load-task.sh <SPEC_ID> <TASK_ID>"] } }
-      ],
-      edges: [
-        { from: "papproved", to: "ptasks", label: "planejar" },
-        { from: "ptasks", to: "pplan", label: "--create e --score" },
-        { from: "peffort", to: "ptasks", label: "calcula o nível", sides: ["t", "b"] },
-        { from: "pplan", to: "padjust", label: "pedido de ajuste", sides: ["t", "b"], so: [-30, 0], to_: [-30, 0] },
-        { from: "padjust", to: "pplan", label: "--record", sides: ["b", "t"], so: [30, 0], to_: [30, 0] },
-        { from: "pmanual", to: "padjust", label: "--record-manual detecta", sides: ["l", "r"] },
-        { from: "pplan", to: "papprove", label: "aprovado pelo usuário" },
-        { from: "papprove", to: "ptaskfiles", label: "--create-tasks" },
-        { from: "papprove", to: "pplanned", label: "--mark-planned", sides: ["b", "t"] },
-        { from: "ptaskfiles", to: "pload", label: "carrega a Execução", sides: ["b", "t"] }
-      ]
-    },
-
-    {
-      id: "execucao",
-      tab: "Execução",
-      title: "Execução de tarefas",
-      text: "Da tarefa pendente à aprovada, da execução à finalização a pedido do usuário, até a tarefa concluída e a spec implementada.",
-      intro: {
-        kicker: "Execução",
-        title: "Aprovar, executar, finalizar",
-        text: "Uma tarefa por pedido. Os scripts conferem cada passagem de status; o agente implementa, mas não pula etapas nem marca a tarefa como concluída por conta própria. Concluir é um pedido separado do usuário, atendido pela `finish-task`.",
-        list: ["Cada etapa grava uma linha no \"Registro de execução\" da tarefa.", "Saídas e evidências ficam em `work/tasks/<SPEC_ID>/evidence/<TASK_ID>/`.", "Sem commit nem stage durante a execução."]
-      },
-      nodes: [
-        { id: "tpending", x: 20, y: 60, w: 130, label: "pending", sub: "tarefa criada", state: true, status: "done",
-          d: { kicker: "Estado", text: "Status das tarefas criadas pela approve-plan e das que voltam de um ajuste.", list: [] } },
-        { id: "tapprove", x: 185, y: 60, w: 160, label: "approve-task", sub: "skill · 5 passos", status: "done",
-          d: { kicker: "Skill", text: "Aprova uma, várias ou todas as tarefas pendentes, só a pedido do usuário. Sem citação, lista as pendentes e pergunta.", cmds: ["approve-task.sh --validate <SPEC_ID> <TASK_ID…>|--all", "approve-task.sh --approve <SPEC_ID> <TASK_ID…>|--all"], list: ["Grava a aprovação em todas ou em nenhuma.", "Recusa tarefa inválida, fora de `pending` ou com edição manual sem registro.", "`approved_hash` guarda a versão aprovada."] } },
-        { id: "tapproved", x: 380, y: 60, w: 130, label: "approved", sub: "pronta", state: true, status: "done",
-          d: { kicker: "Estado", text: "Tarefa aprovada, com `approved_at` e `approved_hash`.", list: [] } },
-        { id: "texecute", x: 545, y: 60, w: 170, label: "execute-task", sub: "skill · 7 passos", status: "done",
-          d: { kicker: "Skill", text: "Confere se a tarefa pode começar, coleta o baseline antes de qualquer mudança e implementa os testes e depois o código. Termina com a tarefa em execução, sem validar.", cmds: ["execute-task.sh --start <SPEC_ID> <TASK_ID>", "execute-task.sh --baseline <SPEC_ID> <TASK_ID>"], list: ["O `--start` recusa tarefa sem aprovação, alterada depois de aprovada ou com dependência fora de `done`.", "O baseline roda os comandos da subseção a partir da raiz e grava `baseline/NN.out`.", "Sem citação e com mais de uma executável, pergunta qual.", "Responde com `completion` e sugere, em linguagem natural, pedir para finalizar a tarefa."] } },
-        { id: "tprogress", x: 780, y: 60, w: 170, label: "in_progress", sub: "em execução", state: true, status: "done",
-          d: { kicker: "Estado", text: "Tarefa iniciada, com o baseline coletado e o código implementado. O hash do conteúdo ignora o \"Registro de execução\", então `content_hash` e `approved_hash` continuam iguais.", list: ["Pode ser ajustada: o ajuste mantém o baseline e zera os resultados."] } },
-        { id: "tadjust", x: 185, y: 250, w: 160, label: "adjust-task", sub: "skill · 10 passos", status: "done",
-          d: { kicker: "Skill", text: "Aplica um ou vários ajustes por mensagem numa tarefa `pending`, `approved`, `in_progress`, `validating` ou `blocked`. Uma tarefa `done` é recusada.", cmds: ["adjust-task.sh --record-manual <SPEC_ID> <TASK_ID>", "adjust-task.sh --validate <SPEC_ID> <TASK_ID>", "adjust-task.sh --record <SPEC_ID> <TASK_ID> \"resumo\""], list: ["Ajustar uma tarefa aprovada derruba a aprovação: ela volta a `pending`.", "Ajustar uma tarefa em execução a deixa `in_progress`, com tentativas e resultados zerados, baseline mantido e uma linha `ajuste` no registro, sem nova aprovação.", "Não muda a subseção Baseline de uma tarefa com o baseline coletado.", "Todos os ajustes de uma mensagem viram uma linha no histórico."] } },
-        { id: "tmanual", x: 20, y: 250, w: 130, label: "Edição manual", sub: "feita à mão", status: "done",
-          d: { text: "Detectada pelo hash do conteúdo. Sem o registro do `--record-manual`, a tarefa não é aprovada.", list: [] } },
-        { id: "tvalidate", x: 780, y: 250, w: 170, label: "finish-task", sub: "skill · 7 passos", status: "done",
-          d: { kicker: "Skill", text: "A pedido do usuário, roda os testes da Verificação, compara com o baseline, grava as evidências, confere os critérios e conclui a tarefa. É o único passo que grava `done`.", cmds: ["finish-task.sh --tests <SPEC_ID> <TASK_ID>", "finish-task.sh --regression <SPEC_ID> <TASK_ID>", "finish-task.sh --evidence <SPEC_ID> <TASK_ID>", "finish-task.sh --finish <SPEC_ID> <TASK_ID>", "finish-task.sh --resume <SPEC_ID> <TASK_ID> \"decisão\""], list: ["Os testes rodam com `set -eo pipefail` e mostram o comando que falhou.", "Evidências automáticas, manuais (anexadas pelo usuário) ou \"Não se aplica.\".", "O `--finish` exige testes, regressão e evidências `passed` e todos os critérios marcados (`check-done.sh`)."] } },
-        { id: "tblocked", x: 545, y: 250, w: 170, label: "blocked", sub: "aguarda o usuário", state: true, status: "done",
-          d: { kicker: "Estado", text: "Depois de `max_attempts` (2) falhas nos testes ou numa regressão. O agente para com o template `blocker` e opções.", list: ["Volta à validação com o `--resume` e a decisão do usuário, registrada na tarefa."] } },
-        { id: "tdone", x: 780, y: 430, w: 170, label: "done", sub: "tarefa concluída", state: true, status: "done",
-          d: { kicker: "Estado", text: "Testes, regressão e evidências aprovados e critérios de conclusão comprovados.", list: ["Libera as tarefas que dependem desta."] } },
-        { id: "timplemented", x: 545, y: 430, w: 170, label: "implemented", sub: "spec implementada", state: true, status: "done",
-          d: { kicker: "Estado", text: "Quando a última tarefa da spec fica `done`, o `--finish` marca a spec como `implemented`.", list: [] } }
-      ],
-      edges: [
-        { from: "tpending", to: "tapprove", label: "pedido de aprovação" },
-        { from: "tapprove", to: "tapproved", label: "--approve" },
-        { from: "tapproved", to: "texecute", label: "pedido de execução" },
-        { from: "texecute", to: "tprogress", label: "--start e --baseline" },
-        { from: "tapproved", to: "tadjust", label: "ajuste derruba a aprovação", sides: ["b", "t"], to_: [30, 0] },
-        { from: "tadjust", to: "tpending", label: "--record", sides: ["t", "b"], so: [-30, 0] },
-        { from: "tmanual", to: "tadjust", label: "--record-manual detecta" },
-        { from: "tprogress", to: "tvalidate", label: "pedido para finalizar", sides: ["b", "t"] },
-        { from: "tvalidate", to: "tblocked", label: "2 falhas ou regressão", bend: -14 },
-        { from: "tblocked", to: "tvalidate", label: "--resume com a decisão", sides: ["r", "l"], bend: 14 },
-        { from: "tblocked", to: "tadjust", label: "ajuste volta a in_progress", sides: ["l", "r"] },
-        { from: "tvalidate", to: "tdone", label: "--finish", sides: ["b", "t"] },
-        { from: "tdone", to: "timplemented", label: "última tarefa da spec" }
-      ]
-    },
-
-    {
-      id: "commits",
-      tab: "Commits",
-      title: "Commits com liberação",
-      text: "O agente só commita a pedido do usuário, e um script confere antes de cada conclusão se apareceu algum commit sem liberação.",
-      intro: {
-        kicker: "Commits",
-        title: "Pedido de commit é a liberação",
-        text: "Uma regra sozinha não impediu commits sem pedido. Agora a conferência é determinística: as refs locais são comparadas com a última liberação, e qualquer commit novo ou removido bloqueia a conclusão até o usuário decidir.",
-        list: ["[agent/boundaries-01]: commit só pela approve-commit (`--commit`).", "[agent/boundaries-04]: `check-commits.sh` antes de toda resposta `completion`.", "Vale também para commits feitos à mão pelo usuário."]
-      },
-      nodes: [
-        { id: "cask", x: 20, y: 60, w: 160, label: "Pedido de commit", sub: "mensagem do usuário", status: "done",
-          d: { text: "\"pode commitar\", \"faça o commit atomizado\". O commit tem só o que o usuário pediu.", list: [] } },
-        { id: "capprove", x: 240, y: 60, w: 190, label: "approve-commit", sub: "skill · 4 passos", status: "done",
-          d: { kicker: "Skill", text: "Único caminho do agente para commitar. Também libera ou desfaz os commits apontados pela verificação.", cmds: ["approve-commit.sh --commit [caminho…] < mensagem", "approve-commit.sh --show", "approve-commit.sh --approve <código>", "approve-commit.sh --revert <código>"], list: ["Um commit por chamada; commits atômicos com uma chamada por grupo de arquivos.", "Recusa commitar se já houver commits sem liberação.", "O `--revert` faz `reset --mixed` e recusa commits já enviados ao remoto."] } },
-        { id: "crepo", x: 500, y: 60, w: 180, label: "Refs locais", sub: "HEAD, branches e tags", status: "done",
-          d: { text: "O que é comparado. Remotos e stash ficam de fora.", list: ["Commit novo: alcançável hoje e não pela referência (inclui amend e rebase).", "Commit removido: estava na referência e saiu do histórico."] } },
-        { id: "cdirect", x: 760, y: 60, w: 200, label: "Commit sem liberação", sub: "git commit direto", status: "done",
-          d: { text: "Feito pelo agente, fora da skill, ou pelo próprio usuário. Não é impedido na hora; é apontado na próxima conclusão.", list: [] } },
-        { id: "ccompletion", x: 20, y: 250, w: 160, label: "Template completion", sub: "antes de responder", status: "done",
-          d: { text: "O template de conclusão manda executar `check-commits.sh` antes de responder.", list: [] } },
-        { id: "ccheck", x: 240, y: 250, w: 190, label: "check-commits.sh", sub: "scripts/default/git", mono: true, status: "done",
-          d: { text: "Compara as refs locais com a referência. Na primeira execução, só grava a referência.", cmds: ["packages/harness/scripts/default/git/check-commits.sh"], list: ["Sem diferença: \"Nenhum commit sem liberação.\"", "Com diferença: lista os commits e manda parar com o template `blocker`."] } },
-        { id: "cack", x: 500, y: 250, w: 180, label: ".state/commit-ack", sub: "referência", mono: true, status: "done",
-          d: { text: "Estado das refs na última liberação, fora do git (`paths.state`). Só os scripts o alteram.", list: ["O código de liberação é o hash dessa referência: se o repositório mudar depois de mostrado, a ação é recusada."] } },
-        { id: "cblocker", x: 240, y: 430, w: 190, label: "Template blocker", sub: "agente para", status: "done",
-          d: { text: "O agente mostra os commits e não conclui nenhuma resposta até a decisão do usuário.", list: [] } },
-        { id: "cdecide", x: 500, y: 430, w: 180, label: "Decisão do usuário", sub: "liberar ou desfazer", status: "done",
-          d: { text: "Numa mensagem posterior à que mostrou os commits. \"Ok\" ou \"segue\" não contam como liberação.", list: [] } }
-      ],
-      edges: [
-        { from: "cask", to: "capprove", label: "pede o commit" },
-        { from: "capprove", to: "crepo", label: "--commit" },
-        { from: "capprove", to: "cack", label: "libera no mesmo passo", sides: ["b", "t"], so: [40, 0], to_: [-40, 0] },
-        { from: "cdirect", to: "crepo", label: "muda as refs" },
-        { from: "ccompletion", to: "ccheck", label: "executa" },
-        { from: "ccheck", to: "cack", label: "compara as refs" },
-        { from: "ccheck", to: "cblocker", label: "commit novo ou removido", sides: ["b", "t"] },
-        { from: "cblocker", to: "cdecide", label: "mostra a lista" },
-        { from: "cdecide", to: "cack", label: "--approve ou --revert", sides: ["t", "b"] }
-      ]
-    },
-
-    {
-      id: "memoria",
-      tab: "Memória",
-      title: "Memória do agente",
-      text: "Decisões, issues e conhecimento em arquivos Markdown, com scripts para criar, buscar e atualizar entradas.",
-      intro: {
-        kicker: "Memória",
-        title: "Três tipos de entrada",
-        text: "Cada entrada é um bloco `## DEC-001: Título` com campos fixos. A busca aceita qualquer termo, ordena pelo número de termos encontrados e ignora acentos e maiúsculas.",
-        list: ["Arquivos em `packages/harness/memory/`.", "Tipos, prefixos, status e categorias ficam em `config/memory.yml`."]
-      },
-      nodes: [
-        { id: "add", x: 30, y: 60, w: 190, label: "add-memory.sh", sub: "cria uma entrada", mono: true, status: "done",
-          d: { text: "Cria a entrada a partir do template do tipo, com o próximo ID da sequência.", cmds: ["add-memory.sh <tipo> \"Título\"", "add-memory.sh --init"], list: ["Recusa se a entrada anterior ainda tem variáveis sem preencher.", "Recusa ID duplicado e arquivo sem front-matter."] } },
-        { id: "search", x: 30, y: 220, w: 190, label: "search-memory.sh", sub: "busca por termos", mono: true, status: "done",
-          d: { text: "Busca por qualquer termo, com ranking pelo número de termos encontrados.", cmds: ["search-memory.sh <tipo|all> [termos]", "search-memory.sh --id DEC-001"], list: ["Limite de `search_max_results` (5), com aviso das entradas omitidas.", "Sem termos, lista o índice do tipo."] } },
-        { id: "update", x: 30, y: 380, w: 190, label: "update-memory.sh", sub: "altera um campo", mono: true, status: "done",
-          d: { text: "Altera um campo de uma entrada, validando status e categorias.", cmds: ["update-memory.sh <ID> <Campo> \"Valor\""] } },
-        { id: "files", x: 360, y: 220, w: 200, label: "memory/*.md", sub: "um arquivo por tipo", mono: true, status: "done",
-          d: { text: "Um arquivo por tipo, com front-matter e entradas em blocos.", list: ["decisions.md", "issues.md", "knowledge.md"] } },
-        { id: "dec", x: 700, y: 60, w: 240, label: "Decisões · DEC", sub: "ativa, substituída", status: "done",
-          d: { text: "Escolhas de arquitetura e de projeto. Um pedido que contradiz uma decisão ativa usa o template decision-conflict.", list: [] } },
-        { id: "iss", x: 700, y: 220, w: 240, label: "Issues · ISS", sub: "aberto, resolvido, contornado", status: "done",
-          d: { text: "Problemas encontrados, com assinatura do erro e 11 categorias.", list: ["Consultadas antes de qualquer correção (anti-loop)."] } },
-        { id: "knw", x: 700, y: 380, w: 240, label: "Conhecimento · KNW", sub: "válido, obsoleto", status: "done",
-          d: { text: "Fatos do projeto que não estão no código.", list: [] } },
-        { id: "loop", x: 360, y: 420, w: 200, label: "Regras anti-loop", sub: "rules/agent/anti-loop.md", status: "done",
-          d: { text: "Evitam que o agente repita tentativas sem sair do lugar. A consulta usa o `search-memory.sh issue`.", list: ["01: buscar issues antes de corrigir.", "02: no máximo 2 tentativas; depois, template blocker.", "03: registrar a issue."] } }
-      ],
-      edges: [
-        { from: "add", to: "files", label: "grava", sides: ["r", "l"], to_: [0, -18] },
-        { from: "search", to: "files", label: "lê", sides: ["r", "l"] },
-        { from: "update", to: "files", label: "altera", sides: ["r", "l"], to_: [0, 18] },
-        { from: "files", to: "dec", label: "decisions.md", sides: ["r", "l"], so: [0, -18] },
-        { from: "files", to: "iss", label: "issues.md", sides: ["r", "l"] },
-        { from: "files", to: "knw", label: "knowledge.md", sides: ["r", "l"], so: [0, 18] },
-        { from: "loop", to: "iss", label: "consulta antes de corrigir", sides: ["r", "l"], to_: [0, 18] }
-      ]
-    },
-
-    {
-      id: "skills",
-      tab: "Skills",
-      title: "Skills e redirecionamentos",
-      text: "Uma skill fica uma única vez no harness. As ferramentas a encontram por redirecionamentos gerados pela create-skill.",
-      intro: {
-        kicker: "Skills",
-        title: "Uma fonte, várias ferramentas",
-        text: "O SKILL.md completo fica em `packages/harness/skills/`. Nas pastas de cada ferramenta vai só um redirecionamento, com name, description e allowed-tools.",
-        list: ["Segue o padrão Agent Skills: description em terceira pessoa, dizendo o que faz e quando usar.", "Nunca se usa o criador de skills nativo da ferramenta."]
-      },
-      nodes: [
-        { id: "create", x: 30, y: 210, w: 180, label: "create-skill", sub: "skill · 7 passos", status: "done",
-          d: { kicker: "Skill", text: "Cria skills no formato padrão, com scripts, redirecionamentos e entrada no catálogo.", cmds: ["create-skill.sh [--default] <nome>", "create-skill.sh --script <nome> <script>", "create-skill.sh --finalize <nome>"], list: ["O `--finalize` valida o SKILL.md e gera redirecionamentos e catálogo."] } },
-        { id: "src", x: 280, y: 210, w: 220, label: "skills/default · custom", sub: "12 skills padrão", mono: true, status: "done",
-          d: { text: "Skills do harness em `default/`; as do usuário em `custom/`.", list: ["refine-spec (v2.1.1)", "adjust-spec (v1.2.0)", "approve-spec (v1.0.0)", "plan-tasks (v1.0.0)", "adjust-plan (v1.0.0)", "approve-plan (v1.0.0)", "approve-task (v1.0.0)", "adjust-task (v1.0.0)", "execute-task (v1.0.0)", "finish-task (v1.0.0)", "approve-commit (v1.0.0)", "create-skill (v1.0.0)"] } },
-        { id: "claudeDir", x: 580, y: 50, w: 190, label: ".claude/skills/", sub: "redirecionamento", mono: true, status: "done",
-          d: { text: "Lido pelo Claude Code e pelo Cursor.", list: [] } },
-        { id: "agentsDir", x: 580, y: 220, w: 190, label: ".agents/skills/", sub: "redirecionamento", mono: true, status: "done",
-          d: { text: "Lido pelo Codex e pelo Cursor.", list: [] } },
-        { id: "catalog", x: 580, y: 360, w: 190, label: "skill-catalog.md", sub: "context/", mono: true, status: "done",
-          d: { text: "Tabela com nome, descrição e caminho de cada skill. Carregada em toda sessão.", list: [] } },
-        { id: "claudeCode", x: 830, y: 20, w: 140, label: "Claude Code", sub: "", status: "done", d: { text: "Encontra as skills em `.claude/skills/`.", list: [] } },
-        { id: "codex", x: 830, y: 250, w: 140, label: "Codex", sub: "", status: "done", d: { text: "Encontra as skills em `.agents/skills/`.", list: [] } },
-        { id: "cursor", x: 830, y: 135, w: 140, label: "Cursor", sub: "lê as duas pastas", status: "done", d: { text: "Lê `.claude/skills/` e `.agents/skills/`. Por isso `.cursor/skills` está comentado em `config/skills.yml`.", list: [] } }
-      ],
-      edges: [
-        { from: "create", to: "src", label: "cria o SKILL.md e scripts" },
-        { from: "src", to: "claudeDir", label: "--finalize gera", sides: ["r", "l"], so: [0, -16] },
-        { from: "src", to: "agentsDir", label: "--finalize gera", sides: ["r", "l"] },
-        { from: "src", to: "catalog", label: "--finalize atualiza", sides: ["r", "l"], so: [0, 16] },
-        { from: "claudeDir", to: "claudeCode", label: "lê", sides: ["r", "l"], so: [0, -12] },
-        { from: "agentsDir", to: "codex", label: "lê", sides: ["r", "l"], so: [0, 12] },
-        { from: "claudeDir", to: "cursor", label: "lê", sides: ["r", "l"], so: [0, 12], to_: [0, -12] },
-        { from: "agentsDir", to: "cursor", label: "lê", sides: ["r", "l"], so: [0, -12], to_: [0, 12] }
-      ]
-    },
-
-    { id: "estrutura", tab: "Estrutura", kind: "folders", title: "Estrutura do harness",
-      text: "Pastas de `packages/harness/`. Clique em uma pasta para ver os arquivos.",
-      intro: { kicker: "Estrutura", title: "packages/harness", text: "Caminhos relativos à raiz do harness, definidos em `config/main.yml`.", list: ["Os testes rodam sobre uma cópia descartável: 506 casos passam no Linux e no macOS."] } },
-
-    { id: "historico", tab: "Histórico", kind: "timeline", title: "Histórico de commits",
-      text: "Commits do repositório, do mais antigo ao mais recente. Filtre pelo tipo.",
-      intro: { kicker: "Histórico", title: "59 commits em 7 dias", text: "Clique em um commit para ver o que ele trouxe.", list: [] } }
+  [
+   "04b23f0",
+   "2026-09-26",
+   "feat: add skill catalog and load context script for harness functionality"
   ],
-
-  folders: [
-    { path: "config/", desc: "Tudo o que é configurável", files: [
-      ["main.yml", "Caminhos: raiz, specs, planos, tarefas, templates, scripts, docs, memória e estado local."],
-      ["context.yml", "Fontes carregadas em toda sessão."],
-      ["specs.yml", "IDs, status (até implemented), tipos, seções por tipo, front-matter, hash e histórico."],
-      ["skills.yml", "Pastas, templates, redirecionamentos e catálogo."],
-      ["memory.yml", "Tipos, prefixos, status, categorias e limite de busca."],
-      ["sequences.yml", "Próximo número de cada sequência de IDs."],
-      ["tasks.yml", "ID, tipos, níveis, pesos e limites de esforço, templates, seções, status, evidências e tentativas das tarefas."]] },
-    { path: "scripts/default/", desc: "Scripts chamados pelo agente", files: [
-      ["context/load-context.sh", "Carrega o contexto obrigatório."],
-      ["context/load-extra-context.sh", "Carrega arquivos específicos."],
-      ["specs/create-new-spec.sh", "Cria o rascunho."],
-      ["specs/list-specs.sh", "Lista specs, com filtro por status."],
-      ["specs/create-refined-spec.sh", "Cria, valida e marca a refinada."],
-      ["memory/add-memory.sh", "Cria entradas de memória."],
-      ["memory/search-memory.sh", "Busca na memória."],
-      ["memory/update-memory.sh", "Altera um campo de uma entrada."],
-      ["tasks/load-task.sh", "Carrega a execução de uma tarefa."],
-      ["tasks/check-done.sh", "Confere se todos os critérios de conclusão estão marcados."],
-      ["git/check-commits.sh", "Aponta commits sem liberação do usuário."]] },
-    { path: "scripts/lib/", desc: "Funções compartilhadas", files: [
-      ["config.sh", "config_get, config_list, config_block, config_set."],
-      ["text.sh", "render, template_leftovers, clean_title, slugify, sha256_hash."],
-      ["frontmatter.sh", "Leitura e escrita de front-matter, CRLF e blocos."],
-      ["markdown.sh", "Seções, subseções e tabelas, ignorando blocos de código."],
-      ["spec-validation.sh", "refined_errors, spec_content_hash e spec_open_pending."],
-      ["adjustments.sh", "Registro de ajustes compartilhado por specs, planos e tarefas."],
-      ["plan.sh", "Níveis, cobertura, dependências e validação do plano."],
-      ["task.sh", "Validação, baseline, evidências e registro de execução das tarefas."],
-      ["commits.sh", "Referência das refs locais e comparação de commits."],
-      ["memory.sh", "Tipos, arquivos e IDs da memória."],
-      ["context.sh", "Impressão das fontes de contexto."]] },
-    { path: "skills/", desc: "Skills padrão e customizadas", files: [
-      ["default/refine-spec/", "Refina rascunhos em specs detalhadas."],
-      ["default/adjust-spec/", "Ajusta specs refinadas e aprovadas."],
-      ["default/approve-spec/", "Aprova specs refinadas."],
-      ["default/plan-tasks/", "Planeja as tarefas de specs aprovadas."],
-      ["default/adjust-plan/", "Ajusta planos de tarefas."],
-      ["default/approve-plan/", "Aprova planos e cria as tarefas."],
-      ["default/approve-task/", "Aprova tarefas pendentes."],
-      ["default/adjust-task/", "Ajusta tarefas, inclusive as em execução."],
-      ["default/execute-task/", "Inicia tarefas, coleta o baseline e implementa, sem validar."],
-      ["default/finish-task/", "Valida, bloqueia, retoma e conclui tarefas, a pedido do usuário."],
-      ["default/approve-commit/", "Faz, libera e desfaz commits."],
-      ["default/create-skill/", "Cria novas skills."],
-      ["custom/", "Skills do usuário (vazia)."]] },
-    { path: "templates/", desc: "Modelos usados pelos scripts", files: [
-      ["responses/", "6 templates de resposta ao usuário; completion com Próximos passos."],
-      ["spec/", "new.md, refined.md e 21 seções em sections/."],
-      ["plan/", "Plano de tarefas."],
-      ["task/", "Tarefa, com Execução, Descrição, Registro de execução e Histórico de ajustes."],
-      ["skill/", "SKILL.md, redirecionamento e script."],
-      ["memory/", "Arquivo e entradas de cada tipo."]] },
-    { path: "rules/", desc: "Regras do agente e do projeto", files: [
-      ["agent/anti-loop.md", "Busca de issues e limite de tentativas."],
-      ["agent/boundaries.md", "Commit pela approve-commit, stage, precedência do harness e verificação de commits."],
-      ["agent/memory.md", "Uso da memória (01 a 09)."],
-      ["agent/responses.md", "Respostas com template (01 a 04)."],
-      ["agent/template-usage.md", "Formato das variáveis de template."],
-      ["project/language.md", "Docs em pt-br, código em en."],
-      ["project/naming-convention.md", "Convenções de nomes."]] },
-    { path: "context/", desc: "Carregado em toda sessão", files: [
-      ["skill-catalog.md", "Catálogo gerado de skills."]] },
-    { path: "memory/", desc: "Memória do agente", files: [
-      ["decisions.md", "Decisões (DEC)."], ["issues.md", "Issues (ISS)."], ["knowledge.md", "Conhecimento (KNW)."]] },
-    { path: "work/", desc: "Specs e tarefas em andamento", files: [
-      ["specs/draft/", "Rascunhos."], ["specs/refined/", "Specs refinadas, aprovadas e planejadas."], ["plans/", "Planos em revisão."], ["tasks/", "Tarefas por spec, com evidence/ por tarefa."]] },
-    { path: "tests/", desc: "Testes dos scripts e cenários", files: [
-      ["run-tests.sh", "Suíte dos scripts sobre uma cópia descartável (506 casos)."],
-      ["agent-scenarios.md", "Roteiro e resultados dos 33 cenários com agente."],
-      ["fixtures/agent-scenarios.sh", "Monta as cópias dos cenários."],
-      ["fixtures/fill-refined.py", "Preenche specs, planos e tarefas de teste."]] },
-    { path: ".state/", desc: "Estado local de cada clone, fora do git", files: [
-      ["commit-ack", "Referência dos commits liberados pelo usuário."]] }
+  [
+   "e911286",
+   "2026-09-26",
+   "feat: split configurations and add script to create a new spec"
   ],
-
-  commits: [
-    ["296893a", "2026-09-26", "chore: add .gitignore and create AGENTS.md and CLAUDE.md files for project harness documentation"],
-    ["04b23f0", "2026-09-26", "feat: add skill catalog and load context script for harness functionality"],
-    ["e911286", "2026-09-26", "feat: split configurations and add script to create a new spec"],
-    ["e766bce", "2026-09-26", "feat: update spec creation script to use draft directory for new specs"],
-    ["fc953bf", "2026-09-26", "feat: add context loading scripts for harness functionality"],
-    ["25a8408", "2026-09-26", "feat: add context configuration and update load script to use it"],
-    ["569a563", "2026-09-26", "feat: add create-skill functionality with templates and configuration"],
-    ["6817923", "2026-09-26", "feat: update context loading scripts and configurations for harness functionality"],
-    ["354df93", "2026-09-26", "feat: add template usage, language, and naming convention documentation for agent rules"],
-    ["9eb0b82", "2026-09-26", "chore: change script location"],
-    ["09a42d0", "2026-09-26", "feat: implement refine-spec functionality with supporting scripts and templates"],
-    ["96044a0", "2026-09-27", "fix(harness): validate titles and harden front-matter parsing"],
-    ["be06abc", "2026-09-27", "feat(harness): add response templates and response rules"],
-    ["94bec21", "2026-09-27", "feat(harness): add agent memory for decisions, issues and knowledge"],
-    ["b5a9c47", "2026-09-27", "refactor(skills): use shared response templates in skills"],
-    ["0d5050a", "2026-09-27", "chore(harness): keep custom skills directory"],
-    ["426b202", "2026-09-27", "fix(refine-spec): clarify inference table inclusion in response format"],
-    ["3b98ab2", "2026-09-27", "refactor(templates): group spec and skill templates by domain"],
-    ["22d536a", "2026-09-27", "feat(refine-spec): refine specs into typed, traceable sections"],
-    ["b81145f", "2026-09-27", "feat(boundaries): add agent boundaries definition and rules"],
-    ["30beca5", "2026-09-27", "fix(boundaries): correct typos in agent boundaries rules"],
-    ["3bdee2f", "2026-09-27", "refactor(specs): extract refined spec validation into a shared lib"],
-    ["7aa4450", "2026-09-27", "feat(specs): record content hash and adjustment history in refined specs"],
-    ["aad37c8", "2026-09-27", "feat(adjust-spec): add skill to adjust refined specs"],
-    ["558d885", "2026-09-27", "test(harness): add script test suite and agent scenarios"],
-    ["f3f5d2d", "2026-09-27", "fix(refine-spec): limit description to draft specs"],
-    ["f7c292b", "2026-09-27", "docs: adds diagrams panel"],
-    ["bc329f9", "2026-09-27", "feat(specs): add approved status and open pending check"],
-    ["97cde60", "2026-09-27", "feat(approve-spec): add skill to approve refined specs"],
-    ["5f042d5", "2026-09-27", "feat(adjust-spec): drop approval when adjusting approved specs"],
-    ["dbede62", "2026-09-27", "test(harness): cover spec approval"],
-    ["8d05809", "2026-09-27", "docs: add spec approval to the diagrams panel"],
-    ["4860ab5", "2026-09-28", "docs(memory): record Vostok as the product name"],
-    ["c456b11", "2026-09-28", "docs: rename diagrams panel to Vostok and timestamp updates"],
-    ["511c23d", "2026-09-28", "docs: add project README"],
-    ["1aafbc3", "2026-09-30", "feat(adjust-spec): share adjustment recording and refuse planned specs"],
-    ["73187a1", "2026-09-30", "refactor(approve-spec): treat a missing content hash as an unrecorded edit"],
-    ["c238719", "2026-09-30", "feat(tasks): add task planning config, templates and plan lib"],
-    ["858287a", "2026-09-30", "feat(plan-tasks): add skill to plan the tasks of approved specs"],
-    ["cd99b30", "2026-09-30", "feat(adjust-plan): add skill to adjust task plans"],
-    ["d7782d6", "2026-09-30", "feat(approve-plan): add skill to approve plans and create tasks"],
-    ["e45a64b", "2026-09-30", "test(harness): cover task planning"],
-    ["ad1b4ca", "2026-09-30", "docs: add task planning to the Vostok map"],
-    ["23786ad", "2026-10-01", "feat(completion): add NEXT_STEPS section to completion template"],
-    ["9c7678e", "2026-10-01", "feat(tasks): add task lifecycle fields, baseline and evidence to the task template"],
-    ["91f0b8a", "2026-10-01", "feat(approve-plan): require done criteria as checkboxes with how to prove them"],
-    ["a7d5ded", "2026-10-01", "feat(tasks): add check-done script to require all done criteria checked"],
-    ["7d89861", "2026-10-01", "docs(responses): suggest next steps as natural language requests or skills"],
-    ["acba29c", "2026-10-02", "feat(tasks): validate task baseline and evidence in a shared lib and hash created tasks"],
-    ["72c3521", "2026-10-02", "feat(harness): block completion on commits not released by the user"],
-    ["ee1ae07", "2026-10-02", "feat(approve-commit): commit at the user's request and release it in the same step"],
-    ["3829c70", "2026-10-02", "feat(approve-task): approve one, several or all pending tasks atomically"],
-    ["fd0e4e9", "2026-10-02", "feat(adjust-task): record manual edits and agent adjustments of a task"],
-    ["c1f2a44", "2026-10-02", "feat(tasks): require the execution record and adjustment history sections"],
-    ["2a02c82", "2026-10-02", "feat(execute-task): start an approved task and collect its baseline"],
-    ["8daf3fd", "2026-10-02", "feat(validate-task): run task tests, check regressions and resume blocked tasks"],
-    ["5fd648b", "2026-10-02", "feat(validate-task): record task evidence and finish tasks"],
-    ["3a3fc48", "2026-10-03", "docs: add technical debt log with task flow debts"],
-    ["e96fc1a", "2026-10-03", "test(agent-scenarios): add task flow scenarios and their results"],
-    ["2ac0228", "2026-10-06", "feat(finalize-spec): add finalization base that refuses specs not ready to finalize"],
-    ["aed44f8", "2026-10-06", "docs(memory): record Rust as the harness language"],
-    ["70e7e4e", "2026-10-06", "feat(finalize-spec): print the synthesis sources of an implemented spec"],
-    ["5959938", "2026-10-06", "feat(finalize-spec): create and validate the content of the finalization documents"],
-    ["2b4a468", "2026-10-06", "feat(finalize-spec): add document tokens, restricted markdown and html escaping"],
-    ["b4c20d1", "2026-10-06", "feat(finalize-spec): build the executive document focused on deliveries and value"],
-    ["cf3c856", "2026-10-06", "feat(finalize-spec): build the technical document"],
-    ["80160b8", "2026-10-06", "feat(finalize-spec): show side-by-side diffs of the changed files"],
-    ["a3d89ae", "2026-10-06", "feat(finalize-spec): build the evidence document"],
-    ["b7f2d71", "2026-10-06", "feat(finalize-spec): archive a finalized spec"],
-    ["02d58ca", "2026-10-06", "feat(finalize-spec): add the finalize-spec skill"],
-    ["e3bb37f", "2026-10-06", "test(finalize-spec): add agent scenarios for the spec finalization"],
-    ["29f3fbd", "2026-10-06", "fix(finalize-spec): splice the diffs into the technical document"],
-    ["4ec5ade", "2026-10-06", "docs(spec-002): publish the executive and technical documents of the task flow"],
-    ["207e5d2", "2026-10-06", "docs(spec-003): publish the executive and technical documents of the spec finalization"],
-    ["123a608", "2026-10-10", "feat(harness): finish-task script, task hash and finalization fixes with tabbed documents"],
-    ["5721c1b", "2026-10-10", "feat(harness): finish-task skill, in-execution task adjustments and empty-section tabs"],
-    ["55a8fc7", "2026-10-11", "feat(execute-task): finish without validating and suggest finishing the task"],
-    ["dddd36d", "2026-10-11", "test(agent-scenarios): add finish-task scenarios for regression, resume and in-execution adjustment"],
-    ["f8cf6e7", "2026-10-11", "docs(debitos): register DT-004 to DT-006 and resolve all open technical debts"],
-    ["ab31c1d", "2026-10-11", "docs(spec-004): publish the executive and technical documents of the base refinement"]
+  [
+   "e766bce",
+   "2026-09-26",
+   "feat: update spec creation script to use draft directory for new specs"
   ],
-
-  changes: [
-    ["2026-09-27", "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."],
-    ["2026-09-27", "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura; aprovação também pela ferramenta de IA na arquitetura."],
-    ["2026-09-28", "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."],
-    ["2026-09-28", "Planejamento de tarefas (plan-tasks, adjust-plan, approve-plan e load-task.sh): nova aba, ciclo da spec até planned, skills, estrutura e histórico até 511c23d."],
-    ["2026-10-03", "Execução de tarefas (approve-task, adjust-task, execute-task e validate-task) e commits com liberação (approve-commit e check-commits.sh): duas abas novas, ciclo da spec até implemented, skills, estrutura e histórico até e96fc1a."],
-    ["2026-10-11", "Fluxo novo da tarefa (SPEC-004): a finish-task substitui a validate-task e conclui a pedido do usuário, a execute-task termina sem validar, a adjust-task ajusta tarefas em execução e o hash ignora o registro. Histórico até ab31c1d, com a finalização de specs (SPEC-003) nos commits."]
+  [
+   "fc953bf",
+   "2026-09-26",
+   "feat: add context loading scripts for harness functionality"
+  ],
+  [
+   "25a8408",
+   "2026-09-26",
+   "feat: add context configuration and update load script to use it"
+  ],
+  [
+   "569a563",
+   "2026-09-26",
+   "feat: add create-skill functionality with templates and configuration"
+  ],
+  [
+   "6817923",
+   "2026-09-26",
+   "feat: update context loading scripts and configurations for harness functionality"
+  ],
+  [
+   "354df93",
+   "2026-09-26",
+   "feat: add template usage, language, and naming convention documentation for agent rules"
+  ],
+  [
+   "9eb0b82",
+   "2026-09-26",
+   "chore: change script location"
+  ],
+  [
+   "09a42d0",
+   "2026-09-26",
+   "feat: implement refine-spec functionality with supporting scripts and templates"
+  ],
+  [
+   "96044a0",
+   "2026-09-27",
+   "fix(harness): validate titles and harden front-matter parsing"
+  ],
+  [
+   "be06abc",
+   "2026-09-27",
+   "feat(harness): add response templates and response rules"
+  ],
+  [
+   "94bec21",
+   "2026-09-27",
+   "feat(harness): add agent memory for decisions, issues and knowledge"
+  ],
+  [
+   "b5a9c47",
+   "2026-09-27",
+   "refactor(skills): use shared response templates in skills"
+  ],
+  [
+   "0d5050a",
+   "2026-09-27",
+   "chore(harness): keep custom skills directory"
+  ],
+  [
+   "426b202",
+   "2026-09-27",
+   "fix(refine-spec): clarify inference table inclusion in response format"
+  ],
+  [
+   "3b98ab2",
+   "2026-09-27",
+   "refactor(templates): group spec and skill templates by domain"
+  ],
+  [
+   "22d536a",
+   "2026-09-27",
+   "feat(refine-spec): refine specs into typed, traceable sections"
+  ],
+  [
+   "b81145f",
+   "2026-09-27",
+   "feat(boundaries): add agent boundaries definition and rules"
+  ],
+  [
+   "30beca5",
+   "2026-09-27",
+   "fix(boundaries): correct typos in agent boundaries rules"
+  ],
+  [
+   "3bdee2f",
+   "2026-09-27",
+   "refactor(specs): extract refined spec validation into a shared lib"
+  ],
+  [
+   "7aa4450",
+   "2026-09-27",
+   "feat(specs): record content hash and adjustment history in refined specs"
+  ],
+  [
+   "aad37c8",
+   "2026-09-27",
+   "feat(adjust-spec): add skill to adjust refined specs"
+  ],
+  [
+   "558d885",
+   "2026-09-27",
+   "test(harness): add script test suite and agent scenarios"
+  ],
+  [
+   "f3f5d2d",
+   "2026-09-27",
+   "fix(refine-spec): limit description to draft specs"
+  ],
+  [
+   "f7c292b",
+   "2026-09-27",
+   "docs: adds diagrams panel"
+  ],
+  [
+   "bc329f9",
+   "2026-09-27",
+   "feat(specs): add approved status and open pending check"
+  ],
+  [
+   "97cde60",
+   "2026-09-27",
+   "feat(approve-spec): add skill to approve refined specs"
+  ],
+  [
+   "5f042d5",
+   "2026-09-27",
+   "feat(adjust-spec): drop approval when adjusting approved specs"
+  ],
+  [
+   "dbede62",
+   "2026-09-27",
+   "test(harness): cover spec approval"
+  ],
+  [
+   "8d05809",
+   "2026-09-27",
+   "docs: add spec approval to the diagrams panel"
+  ],
+  [
+   "4860ab5",
+   "2026-09-28",
+   "docs(memory): record Vostok as the product name"
+  ],
+  [
+   "c456b11",
+   "2026-09-28",
+   "docs: rename diagrams panel to Vostok and timestamp updates"
+  ],
+  [
+   "511c23d",
+   "2026-09-28",
+   "docs: add project README"
+  ],
+  [
+   "1aafbc3",
+   "2026-09-30",
+   "feat(adjust-spec): share adjustment recording and refuse planned specs"
+  ],
+  [
+   "73187a1",
+   "2026-09-30",
+   "refactor(approve-spec): treat a missing content hash as an unrecorded edit"
+  ],
+  [
+   "c238719",
+   "2026-09-30",
+   "feat(tasks): add task planning config, templates and plan lib"
+  ],
+  [
+   "858287a",
+   "2026-09-30",
+   "feat(plan-tasks): add skill to plan the tasks of approved specs"
+  ],
+  [
+   "cd99b30",
+   "2026-09-30",
+   "feat(adjust-plan): add skill to adjust task plans"
+  ],
+  [
+   "d7782d6",
+   "2026-09-30",
+   "feat(approve-plan): add skill to approve plans and create tasks"
+  ],
+  [
+   "e45a64b",
+   "2026-09-30",
+   "test(harness): cover task planning"
+  ],
+  [
+   "ad1b4ca",
+   "2026-09-30",
+   "docs: add task planning to the Vostok map"
+  ],
+  [
+   "23786ad",
+   "2026-10-01",
+   "feat(completion): add NEXT_STEPS section to completion template"
+  ],
+  [
+   "9c7678e",
+   "2026-10-01",
+   "feat(tasks): add task lifecycle fields, baseline and evidence to the task template"
+  ],
+  [
+   "91f0b8a",
+   "2026-10-01",
+   "feat(approve-plan): require done criteria as checkboxes with how to prove them"
+  ],
+  [
+   "a7d5ded",
+   "2026-10-01",
+   "feat(tasks): add check-done script to require all done criteria checked"
+  ],
+  [
+   "7d89861",
+   "2026-10-01",
+   "docs(responses): suggest next steps as natural language requests or skills"
+  ],
+  [
+   "acba29c",
+   "2026-10-02",
+   "feat(tasks): validate task baseline and evidence in a shared lib and hash created tasks"
+  ],
+  [
+   "72c3521",
+   "2026-10-02",
+   "feat(harness): block completion on commits not released by the user"
+  ],
+  [
+   "ee1ae07",
+   "2026-10-02",
+   "feat(approve-commit): commit at the user's request and release it in the same step"
+  ],
+  [
+   "3829c70",
+   "2026-10-02",
+   "feat(approve-task): approve one, several or all pending tasks atomically"
+  ],
+  [
+   "fd0e4e9",
+   "2026-10-02",
+   "feat(adjust-task): record manual edits and agent adjustments of a task"
+  ],
+  [
+   "c1f2a44",
+   "2026-10-02",
+   "feat(tasks): require the execution record and adjustment history sections"
+  ],
+  [
+   "2a02c82",
+   "2026-10-02",
+   "feat(execute-task): start an approved task and collect its baseline"
+  ],
+  [
+   "8daf3fd",
+   "2026-10-02",
+   "feat(validate-task): run task tests, check regressions and resume blocked tasks"
+  ],
+  [
+   "5fd648b",
+   "2026-10-02",
+   "feat(validate-task): record task evidence and finish tasks"
+  ],
+  [
+   "3a3fc48",
+   "2026-10-03",
+   "docs: add technical debt log with task flow debts"
+  ],
+  [
+   "e96fc1a",
+   "2026-10-03",
+   "test(agent-scenarios): add task flow scenarios and their results"
+  ],
+  [
+   "2ac0228",
+   "2026-10-06",
+   "feat(finalize-spec): add finalization base that refuses specs not ready to finalize"
+  ],
+  [
+   "aed44f8",
+   "2026-10-06",
+   "docs(memory): record Rust as the harness language"
+  ],
+  [
+   "70e7e4e",
+   "2026-10-06",
+   "feat(finalize-spec): print the synthesis sources of an implemented spec"
+  ],
+  [
+   "5959938",
+   "2026-10-06",
+   "feat(finalize-spec): create and validate the content of the finalization documents"
+  ],
+  [
+   "2b4a468",
+   "2026-10-06",
+   "feat(finalize-spec): add document tokens, restricted markdown and html escaping"
+  ],
+  [
+   "b4c20d1",
+   "2026-10-06",
+   "feat(finalize-spec): build the executive document focused on deliveries and value"
+  ],
+  [
+   "cf3c856",
+   "2026-10-06",
+   "feat(finalize-spec): build the technical document"
+  ],
+  [
+   "80160b8",
+   "2026-10-06",
+   "feat(finalize-spec): show side-by-side diffs of the changed files"
+  ],
+  [
+   "a3d89ae",
+   "2026-10-06",
+   "feat(finalize-spec): build the evidence document"
+  ],
+  [
+   "b7f2d71",
+   "2026-10-06",
+   "feat(finalize-spec): archive a finalized spec"
+  ],
+  [
+   "02d58ca",
+   "2026-10-06",
+   "feat(finalize-spec): add the finalize-spec skill"
+  ],
+  [
+   "e3bb37f",
+   "2026-10-06",
+   "test(finalize-spec): add agent scenarios for the spec finalization"
+  ],
+  [
+   "29f3fbd",
+   "2026-10-06",
+   "fix(finalize-spec): splice the diffs into the technical document"
+  ],
+  [
+   "4ec5ade",
+   "2026-10-06",
+   "docs(spec-002): publish the executive and technical documents of the task flow"
+  ],
+  [
+   "207e5d2",
+   "2026-10-06",
+   "docs(spec-003): publish the executive and technical documents of the spec finalization"
+  ],
+  [
+   "123a608",
+   "2026-10-10",
+   "feat(harness): finish-task script, task hash and finalization fixes with tabbed documents"
+  ],
+  [
+   "5721c1b",
+   "2026-10-10",
+   "feat(harness): finish-task skill, in-execution task adjustments and empty-section tabs"
+  ],
+  [
+   "55a8fc7",
+   "2026-10-11",
+   "feat(execute-task): finish without validating and suggest finishing the task"
+  ],
+  [
+   "dddd36d",
+   "2026-10-11",
+   "test(agent-scenarios): add finish-task scenarios for regression, resume and in-execution adjustment"
+  ],
+  [
+   "f8cf6e7",
+   "2026-10-11",
+   "docs(debitos): register DT-004 to DT-006 and resolve all open technical debts"
+  ],
+  [
+   "ab31c1d",
+   "2026-10-11",
+   "docs(spec-004): publish the executive and technical documents of the base refinement"
+  ],
+  [
+   "48a395d",
+   "2026-10-11",
+   "docs: update the Vostok map with the new task flow"
+  ],
+  [
+   "9cc9310",
+   "2026-10-11",
+   "feat(rules): add --skill context loading, the rules validator and the rule templates"
+  ],
+  [
+   "749a5bc",
+   "2026-10-11",
+   "feat(skills): move the skill context loading into the context.yml map"
+  ],
+  [
+   "511b800",
+   "2026-10-11",
+   "feat(skills): add the init-harness and adjust-rules skills"
+  ],
+  [
+   "c72e9d6",
+   "2026-10-13",
+   "test(agent-scenarios): add the project rules scenarios for init-harness, adjust-rules and rule suggestions"
+  ],
+  [
+   "f95e81b",
+   "2026-10-13",
+   "docs(spec-006): publish the executive and technical documents of the project harness"
+  ],
+  [
+   "4c6f061",
+   "2026-10-13",
+   "feat(rules): define the Vostok project rules and their loading map"
+  ],
+  [
+   "b0736ae",
+   "2026-10-13",
+   "test(harness): run the suite with neutral project rules"
+  ],
+  [
+   "e98e32d",
+   "2026-10-13",
+   "chore: add .env.example with the connector variables"
+  ],
+  [
+   "5f0654c",
+   "2026-10-13",
+   "feat(spec): add refined specification for migrating Harness to Rust with CLI `vostok`"
+  ],
+  [
+   "95d9c1d",
+   "2026-10-13",
+   "feat(cli): add the vostok crate base with config, embedded harness and command skeletons"
+  ],
+  [
+   "9f94dff",
+   "2026-10-13",
+   "test(cli): add golden fixtures recorded from the bash harness scripts"
+  ],
+  [
+   "5b500c1",
+   "2026-10-13",
+   "fix(cli): make the golden fixtures deterministic for git packs"
+  ],
+  [
+   "3a6867a",
+   "2026-10-13",
+   "test(cli): add the common golden replayer for the fixtures"
+  ],
+  [
+   "13f09a4",
+   "2026-10-13",
+   "feat(cli): port the context, memory, rules, spec, plan, task, commit, skill and finalize commands"
+  ],
+  [
+   "3e109ad",
+   "2026-10-13",
+   "feat(cli): add vostok init and update with manifest and per-tool routing"
+  ],
+  [
+   "6452e65",
+   "2026-10-13",
+   "feat(harness): make the default skills call vostok instead of the bash scripts"
+  ],
+  [
+   "c443ed0",
+   "2026-10-13",
+   "feat: migrate this project to the vostok harness and drop the bash scripts"
+  ],
+  [
+   "7724dba",
+   "2026-10-13",
+   "test(cli): run the agent scenarios against the installed vostok harness"
+  ],
+  [
+   "24fa34c",
+   "2026-10-13",
+   "fix: point the installed skills and the vostok messages at the vostok harness"
+  ],
+  [
+   "3ac5d08",
+   "2026-10-13",
+   "ci: add the release workflow and the install script for vostok 0.1.0"
+  ],
+  [
+   "2d4a747",
+   "2026-10-13",
+   "fix(ci): make the golden replay independent of the machine's git identity"
+  ],
+  [
+   "85ee5b3",
+   "2026-10-13",
+   "fix(cli): show paths as the user reached them instead of resolving symlinks"
+  ],
+  [
+   "1a0bfad",
+   "2026-10-13",
+   "fix(test): stop the golden replay from reading git internals"
+  ],
+  [
+   "6963eca",
+   "2026-10-13",
+   "fix(test): normalize the macOS diff header timestamp in the golden replay"
+  ],
+  [
+   "38d08e2",
+   "2026-10-13",
+   "docs(specs): publish the SPEC-005 executive and technical documents"
+  ],
+  [
+   "203ed7a",
+   "2026-10-14",
+   "fix(task): let the user accept an expected regression difference"
+  ],
+  [
+   "7e20b10",
+   "2026-10-14",
+   "docs(specs): publish the SPEC-007 executive and technical documents"
+  ],
+  [
+   "6127df5",
+   "2026-10-14",
+   "chore(release): bump vostok to 0.1.1"
+  ],
+  [
+   "452231b",
+   "2026-10-16",
+   "feat(task): add interpretation subitems to task evidence"
+  ],
+  [
+   "b43f69e",
+   "2026-10-16",
+   "docs(memory): record the golden_commit flake on letter-only hashes"
+  ],
+  [
+   "47d9aaf",
+   "2026-10-16",
+   "fix(test): normalize letter-only git hashes in the golden replay"
+  ],
+  [
+   "5a79150",
+   "2026-10-16",
+   "feat(task): persist task evidence in the project with a reading guide"
+  ],
+  [
+   "3a5656d",
+   "2026-10-16",
+   "docs(specs): publish the SPEC-009 executive and technical documents"
+  ],
+  [
+   "b8a8d6c",
+   "2026-10-16",
+   "chore(release): bump vostok to 0.1.2"
+  ],
+  [
+   "3670311",
+   "2026-10-17",
+   "feat(bug): add the harness bug report check and issue link"
+  ],
+  [
+   "90c548d",
+   "2026-10-17",
+   "feat(skills): add the harness bug report, fix and validation cycle"
+  ],
+  [
+   "eaa0d1e",
+   "2026-10-17",
+   "docs(specs): publish the SPEC-008 executive and technical documents"
+  ],
+  [
+   "68949a6",
+   "2026-10-17",
+   "chore(release): bump vostok to 0.1.3"
+  ],
+  [
+   "0552a3e",
+   "2026-10-20",
+   "fix(task): refuse invalid evidence names before the task runs"
+  ],
+  [
+   "003bfdc",
+   "2026-10-20",
+   "docs(specs): publish the SPEC-010 executive and technical documents"
+  ],
+  [
+   "5ceb809",
+   "2026-10-20",
+   "chore(release): bump vostok to 0.1.4"
+  ],
+  [
+   "e4b46b3",
+   "2026-10-20",
+   "feat(plan): rename evidence items with a path to the file name"
+  ],
+  [
+   "55fcaa2",
+   "2026-10-20",
+   "docs(skills): explain in approve-plan that persist_dir copies are automatic"
+  ],
+  [
+   "474f39f",
+   "2026-10-20",
+   "feat(task): rename evidence items with a path when adjusting a task"
+  ],
+  [
+   "958c3ac",
+   "2026-10-20",
+   "docs(specs): publish the SPEC-011 executive and technical documents"
+  ],
+  [
+   "a5413e2",
+   "2026-10-22",
+   "fix(task): let an adjustment validate create and remove items of a running task"
+  ],
+  [
+   "97fa0d2",
+   "2026-10-22",
+   "fix(task): ignore variable lines in regression and keep acceptances by exit code"
+  ],
+  [
+   "0b5e3e0",
+   "2026-10-22",
+   "docs(specs): publish the SPEC-012 and SPEC-013 executive and technical documents"
+  ],
+  [
+   "2ba5ed3",
+   "2026-10-22",
+   "chore(release): bump vostok to 0.1.5"
+  ],
+  [
+   "d546b80",
+   "2026-10-29",
+   "docs(estudos): add the multi-agent study for subagents, models and aliases"
+  ],
+  [
+   "c1833f8",
+   "2026-10-29",
+   "feat(suggest): add vostok suggest to check and link harness suggestions"
+  ],
+  [
+   "ab684a5",
+   "2026-10-29",
+   "feat(skills): replace fix-harness-bug with the triage-harness-issue skill"
+  ],
+  [
+   "3d7cd01",
+   "2026-10-29",
+   "feat(skills): add the create-spec skill to open a draft spec from the conversation"
+  ],
+  [
+   "8df7293",
+   "2026-10-29",
+   "feat(plan): replace effort levels with execution profiles and a persona column"
+  ],
+  [
+   "b1699ba",
+   "2026-10-29",
+   "feat(task): record evidence output at baseline and warn when it does not change"
+  ],
+  [
+   "2caaed0",
+   "2026-10-29",
+   "feat(personas): add the eight team personas and vostok context load --persona"
+  ],
+  [
+   "e69fc47",
+   "2026-10-29",
+   "feat(skills): add the harness suggestion skills and structured questions"
+  ],
+  [
+   "fe3f618",
+   "2026-10-29",
+   "feat(plan): compute file facts from components per task and make coverage uniform"
+  ],
+  [
+   "30d20bc",
+   "2026-10-29",
+   "feat(personas): load the persona of each stage in the skills and add the coordinator to the required context"
+  ],
+  [
+   "2420795",
+   "2026-10-29",
+   "feat(routing): generate subagent definitions from the personas for compatible tools"
+  ],
+  [
+   "389cb34",
+   "2026-10-29",
+   "feat(models): show the execution profile and fallback alias in task load and record the model at start"
+  ],
+  [
+   "90ae6db",
+   "2026-10-29",
+   "feat(plan): compute waves from dependencies and list files shared within a wave"
+  ],
+  [
+   "2b448be",
+   "2026-10-29",
+   "feat(task): add vostok task status with the tasks and waves tables"
+  ],
+  [
+   "8b6f6b5",
+   "2026-10-29",
+   "feat(skills): run a task or a wave with one subagent per task, its persona and model"
+  ],
+  [
+   "be3b6ad",
+   "2026-10-29",
+   "feat(responses): fix the structure of each response type and show the task status"
+  ],
+  [
+   "8506b41",
+   "2026-10-29",
+   "docs(specs): publish the SPEC-014 executive and technical documents"
+  ],
+  [
+   "4443949",
+   "2026-10-29",
+   "chore(release): bump vostok to 0.2.0"
+  ],
+  [
+   "bde4fcb",
+   "2026-10-30",
+   "feat(spec): refuse affected components too coarse for the plan's parallelism"
+  ],
+  [
+   "30ced02",
+   "2026-10-30",
+   "feat(skills): guide affected components to the level the plan can split"
+  ],
+  [
+   "2e0c264",
+   "2026-10-30",
+   "docs(specs): publish the SPEC-015 executive and technical documents"
+  ],
+  [
+   "e4e492e",
+   "2026-10-30",
+   "chore(release): bump vostok to 0.2.1"
+  ],
+  [
+   "eca0012",
+   "2026-10-30",
+   "fix(skills): have the coordinator start every wave task before dispatching subagents"
+  ],
+  [
+   "f57d7e5",
+   "2026-10-30",
+   "fix(skills): guide the task baseline by what the task touches, never its delivery"
+  ],
+  [
+   "a1a39cf",
+   "2026-10-30",
+   "fix(task): collect the baseline in task start and refuse tasks without one"
+  ],
+  [
+   "9a19bae",
+   "2026-10-30",
+   "fix(task): keep the task delivery out of the baseline and the regression"
+  ],
+  [
+   "22037ad",
+   "2026-10-30",
+   "fix(skills): drop the test count summary from baselines that list tests"
+  ],
+  [
+   "6146d32",
+   "2026-10-30",
+   "chore(harness): update the installed copy with the baseline fixes"
+  ],
+  [
+   "6faf94d",
+   "2026-10-30",
+   "docs(specs): publish the SPEC-016 and SPEC-017 executive and technical documents"
+  ],
+  [
+   "994de6a",
+   "2026-10-30",
+   "chore(release): bump vostok to 0.2.2"
+  ],
+  [
+   "f4b231c",
+   "2026-10-30",
+   "fix(task): ignore the whole baseline command that measures the task delivery"
+  ],
+  [
+   "f9a025f",
+   "2026-10-30",
+   "chore(skills): allow a follow-up spec when the author's validation fails"
+  ],
+  [
+   "7e540d7",
+   "2026-10-30",
+   "docs(specs): publish the SPEC-018 executive and technical documents"
+  ],
+  [
+   "bf384a6",
+   "2026-10-30",
+   "chore(release): bump vostok to 0.2.3"
+  ],
+  [
+   "79ed166",
+   "2026-10-31",
+   "feat(task): add task brief, task check and the max_subagents limit"
+  ],
+  [
+   "6da30d9",
+   "2026-10-31",
+   "feat(agents): cap Claude Code subagent turns and start them from the task brief"
+  ],
+  [
+   "70efa4e",
+   "2026-10-31",
+   "feat(skills): keep work in the coordinator and brief subagents only for parallel tasks"
+  ],
+  [
+   "d12063e",
+   "2026-10-31",
+   "chore(harness): update the installed copy with the SPEC-019 skills and agents"
+  ],
+  [
+   "b90d206",
+   "2026-10-31",
+   "docs(specs): record SPEC-019 tasks, evidence and the token consumption study"
+  ],
+  [
+   "26fd15f",
+   "2026-10-31",
+   "chore(release): bump vostok to 0.2.4"
+  ],
+  [
+   "ebadfbe",
+   "2026-10-31",
+   "docs(specs): publish the SPEC-019 executive and technical documents and archive the spec"
+  ],
+  [
+   "ea6d099",
+   "2026-10-31",
+   "feat(task): label verification commands and reuse their output as evidence"
+  ],
+  [
+   "08d9c3c",
+   "2026-10-31",
+   "feat(finalize): show the output before and after the task in the evidence document"
+  ],
+  [
+   "0ea8471",
+   "2026-10-31",
+   "feat(skills): guide focused verification and evidence that shows the delivered behavior"
+  ],
+  [
+   "13278f9",
+   "2026-10-31",
+   "docs(estudos): add the evidence and task finishing study"
+  ],
+  [
+   "1690604",
+   "2026-10-31",
+   "feat(task): reuse labeled verification output in the regression check"
+  ],
+  [
+   "573c1db",
+   "2026-10-31",
+   "feat(task): record evidence as logs, check expected text and add diff evidence"
+  ],
+  [
+   "c02a4b8",
+   "2026-10-31",
+   "feat(task): add print evidence with human review and require it for interface tasks"
+  ],
+  [
+   "211fb54",
+   "2026-10-31",
+   "feat(plan): warn about arguments after -- and share the evidence rules with the plan validation"
+  ],
+  [
+   "20632e1",
+   "2026-10-31",
+   "docs(specs): publish the SPEC-020 executive and technical documents"
+  ],
+  [
+   "ea1ce9f",
+   "2026-10-31",
+   "chore(release): bump vostok to 0.2.5"
+  ],
+  [
+   "70eba5c",
+   "2026-10-31",
+   "chore(harness): update the installed copy to 0.2.5"
+  ],
+  [
+   "3b4ffb4",
+   "2026-10-31",
+   "feat(task): let baseline output that only grows pass the regression check"
+  ],
+  [
+   "578c4dc",
+   "2026-10-31",
+   "feat(task): accept expected changes declared in the baseline"
+  ],
+  [
+   "8f12471",
+   "2026-10-31",
+   "feat(task): keep tests and evidence when a regression difference is accepted"
+  ],
+  [
+   "17630ff",
+   "2026-10-31",
+   "docs(specs): publish the SPEC-021 executive and technical documents"
+  ],
+  [
+   "2cce7e5",
+   "2026-10-31",
+   "feat(task): show the baseline progress when a task starts"
+  ],
+  [
+   "c15662e",
+   "2026-10-31",
+   "feat(task): skip baseline evidence whose required paths do not exist yet"
+  ],
+  [
+   "c681611",
+   "2026-10-31",
+   "feat(task): stop baseline evidence that runs past its time limit"
+  ],
+  [
+   "443589f",
+   "2026-10-31",
+   "docs(specs): publish the SPEC-022 executive and technical documents"
+  ],
+  [
+   "e750a19",
+   "2026-10-31",
+   "chore(release): bump vostok to 0.2.6"
+  ],
+  [
+   "5f7435d",
+   "2026-10-31",
+   "chore(harness): update the installed copy to 0.2.6"
+  ],
+  [
+   "ecf1f23",
+   "2026-11-01",
+   "chore(specs): remove the SPEC-005 working copies left after its archive"
+  ],
+  [
+   "5c799da",
+   "2026-11-01",
+   "docs(specs): add the SPEC-023 study, spec and tasks for tasks as folders"
+  ],
+  [
+   "f085b96",
+   "2026-11-01",
+   "test(task): record reference scenarios of the current task format"
+  ],
+  [
+   "ba52d40",
+   "2026-11-01",
+   "refactor(task): read and write tasks through a single task layer"
+  ],
+  [
+   "3838a23",
+   "2026-11-01",
+   "feat(task): read and write tasks stored as folders"
+  ],
+  [
+   "852d395",
+   "2026-11-01",
+   "feat(task): create, hash and finalize tasks stored as folders"
+  ],
+  [
+   "afacbf3",
+   "2026-11-01",
+   "feat(task): describe a task and require its documents on finish"
+  ],
+  [
+   "5e47153",
+   "2026-11-01",
+   "feat(task): migrate a spec's tasks to the folder format"
+  ],
+  [
+   "6214844",
+   "2026-11-01",
+   "test(task): run the reference scenarios in the folder and migrated formats"
+  ],
+  [
+   "4b0625c",
+   "2026-11-01",
+   "docs(specs): publish the SPEC-023 executive and technical documents"
+  ],
+  [
+   "4025ee5",
+   "2026-11-01",
+   "chore(release): bump vostok to 0.2.7"
+  ],
+  [
+   "3ba345a",
+   "2026-11-01",
+   "chore(harness): update the installed copy to 0.2.7"
+  ],
+  [
+   "4dcb5df",
+   "2026-11-01",
+   "docs(specs): add the SPEC-024 spec and tasks for the task documents"
+  ],
+  [
+   "d8cdd4f",
+   "2026-11-01",
+   "fix(task): keep the executive and technical documents of folder tasks"
+  ],
+  [
+   "98b2909",
+   "2026-11-01",
+   "docs(skills): write the task documents when planning and enrich them on finish"
+  ],
+  [
+   "f4cd865",
+   "2026-11-01",
+   "fix(harness): keep the evidence of folder tasks out of git"
+  ],
+  [
+   "5da5b39",
+   "2026-11-01",
+   "docs(specs): publish the SPEC-024 executive and technical documents"
+  ],
+  [
+   "247897b",
+   "2026-11-01",
+   "chore(release): bump vostok to 0.2.8"
+  ],
+  [
+   "5061816",
+   "2026-11-01",
+   "chore(harness): update the installed copy to 0.2.8"
+  ],
+  [
+   "fdfab31",
+   "2026-11-01",
+   "docs(specs): add the SPEC-025 spec and tasks for the final documents"
+  ],
+  [
+   "c200b30",
+   "2026-11-01",
+   "docs(study): add the visual study of the final documents"
+  ],
+  [
+   "d0cd4fa",
+   "2026-11-01",
+   "docs(study): add the content study of the final documents"
+  ],
+  [
+   "ddd956f",
+   "2026-11-01",
+   "docs(study): add the final document prototypes and the model choice"
+  ],
+  [
+   "2287dd8",
+   "2026-11-01",
+   "docs(specs): add the SPEC-026 draft for the repository visual identity"
+  ],
+  [
+   "d45b6f2",
+   "2026-11-01",
+   "feat(finalize): generate the final documents in the Ishtar Sink visual model"
+  ],
+  [
+   "a17db1a",
+   "2026-11-01",
+   "feat(finalize): write the final documents in the content model of the study"
+  ],
+  [
+   "d13600d",
+   "2026-11-01",
+   "docs(specs): publish the SPEC-025 executive and technical documents"
+  ],
+  [
+   "dcc78bb",
+   "2026-11-01",
+   "chore(release): bump vostok to 0.2.9"
+  ],
+  [
+   "73fbb02",
+   "2026-11-01",
+   "chore(harness): update the installed copy to 0.2.9"
+  ],
+  [
+   "e8d326a",
+   "2026-11-01",
+   "docs(specs): approve SPEC-026 and plan its four tasks"
+  ],
+  [
+   "34dca44",
+   "2026-11-01",
+   "feat(documents): record the repository identity and derive the theme colors"
+  ],
+  [
+   "23003c8",
+   "2026-11-01",
+   "feat(finalize): show the repository name and icon in the final documents"
+  ],
+  [
+   "f14cd6e",
+   "2026-11-01",
+   "feat(documents): detect the colors the repository already uses"
+  ],
+  [
+   "0b7fb43",
+   "2026-11-01",
+   "feat(skills): add the customize-documents skill"
+  ],
+  [
+   "62e53b4",
+   "2026-11-01",
+   "docs(specs): publish the SPEC-026 executive and technical documents"
+  ],
+  [
+   "04dd81b",
+   "2026-11-01",
+   "chore(release): bump vostok to 0.2.10"
+  ],
+  [
+   "97eb1a1",
+   "2026-11-01",
+   "chore(harness): update the installed copy to 0.2.10"
+  ],
+  [
+   "62ef212",
+   "2026-11-02",
+   "chore(license): relicense vostok under AGPL-3.0"
+  ],
+  [
+   "f1d2560",
+   "2026-11-02",
+   "docs(specs): approve the SPEC-027 local panel study"
+  ],
+  [
+   "cb57802",
+   "2026-11-02",
+   "docs(specs): plan the SPEC-027 study in five tasks"
+  ],
+  [
+   "8306e55",
+   "2026-11-02",
+   "docs(estudos): survey panel actions, approval and server removal"
+  ],
+  [
+   "34ff038",
+   "2026-11-02",
+   "docs(estudos): measure the panel server and bundle in the binary"
+  ],
+  [
+   "47201d2",
+   "2026-11-02",
+   "docs(estudos): record the local panel prototype"
+  ],
+  [
+   "6c60225",
+   "2026-11-02",
+   "docs(estudos): test panel approval, concurrent edit and loop"
+  ],
+  [
+   "a2d2d25",
+   "2026-11-02",
+   "docs(estudos): consolidate the local panel study"
+  ],
+  [
+   "20a16f6",
+   "2026-11-02",
+   "docs(specs): finalize SPEC-027 local panel study"
+  ],
+  [
+   "79373db",
+   "2026-11-02",
+   "docs(rules): describe the local panel instead of the server SPEC-028 TASK-01."
+  ],
+  [
+   "e8798f3",
+   "2026-11-02",
+   "docs(memory): record DEC-003 local panel instead of server SPEC-028 TASK-02."
+  ],
+  [
+   "c1fc692",
+   "2026-11-02",
+   "docs(readme): replace the server phases with the local panel SPEC-028 TASK-04."
+  ],
+  [
+   "229f859",
+   "2026-11-02",
+   "docs(mapa): show the local panel instead of the server SPEC-028 TASK-05."
+  ],
+  [
+   "1855d11",
+   "2026-11-02",
+   "docs(specs): finalize SPEC-028 server premise removal"
+  ],
+  [
+   "21e4438",
+   "2026-11-02",
+   "feat(painel): add the panel command, server and frontend base"
+  ],
+  [
+   "7484f92",
+   "2026-11-02",
+   "feat(painel): add the read API, live updates, actions and screens"
+  ],
+  [
+   "fe26041",
+   "2026-11-02",
+   "feat(painel): add end-to-end panel tests and the release bundle step"
+  ],
+  [
+   "9c1ff2e",
+   "2026-11-02",
+   "docs(specs): finalize SPEC-029 local panel"
+  ],
+  [
+   "f5416e2",
+   "2026-11-02",
+   "chore(release): bump vostok to 0.3.0"
+  ],
+  [
+   "41b3d27",
+   "2026-11-02",
+   "docs(specs): refine and plan SPEC-030 approval lock and request loop"
+  ],
+  [
+   "07f11e7",
+   "2026-11-02",
+   "feat(aval): read the panel aval, record it on locked requests and add vostok pedidos"
+  ],
+  [
+   "9ac7524",
+   "2026-11-02",
+   "feat(aval): lock finish, approvals, archive and commit behind the panel aval"
+  ],
+  [
+   "2f79bd9",
+   "2026-11-02",
+   "feat(skills): let process-requests arm its own loop from an interval"
+  ],
+  [
+   "830011d",
+   "2026-11-02",
+   "chore(vostok): update the installed harness with the approval lock and the request loop"
+  ],
+  [
+   "d43fc52",
+   "2026-11-02",
+   "feat(pedidos): add vostok pedidos vigiar to process panel requests with Codex"
+  ],
+  [
+   "32e24b5",
+   "2026-11-02",
+   "docs(specs): finalize SPEC-030 approval lock and request loop"
+  ],
+  [
+   "28a1522",
+   "2026-11-02",
+   "chore(harness): ignore panel requests and the aval log in git"
+  ],
+  [
+   "9abe591",
+   "2026-11-02",
+   "test(cli): count the process-requests skill and the aval action column"
   ]
+ ],
+ "changes": [
+  [
+   "2026-09-27",
+   "Primeira versão: arquitetura, contexto, ciclo da spec, memória, skills, estrutura e histórico até f3f5d2d."
+  ],
+  [
+   "2026-09-27",
+   "Aprovação de spec (approve-spec) no ciclo da spec, nas skills e na estrutura; aprovação também pela ferramenta de IA na arquitetura."
+  ],
+  [
+   "2026-09-28",
+   "Projeto renomeado para Vostok; histórico até 8d05809; hora da atualização em GMT-3."
+  ],
+  [
+   "2026-09-28",
+   "Planejamento de tarefas (plan-tasks, adjust-plan, approve-plan e load-task.sh): nova aba, ciclo da spec até planned, skills, estrutura e histórico até 511c23d."
+  ],
+  [
+   "2026-10-03",
+   "Execução de tarefas (approve-task, adjust-task, execute-task e validate-task) e commits com liberação (approve-commit e check-commits.sh): duas abas novas, ciclo da spec até implemented, skills, estrutura e histórico até e96fc1a."
+  ],
+  [
+   "2026-10-11",
+   "Fluxo novo da tarefa (SPEC-004): a finish-task substitui a validate-task e conclui a pedido do usuário, a execute-task termina sem validar, a adjust-task ajusta tarefas em execução e o hash ignora o registro. Histórico até ab31c1d, com a finalização de specs (SPEC-003) nos commits."
+  ],
+  [
+   "2026-11-02",
+   "Revisão completa (SPEC-031): CLI vostok no lugar dos scripts `.sh`, 22 skills, personas, pasta por tarefa, perfis e ondas, finalização de specs, nova aba Painel e trava com o painel local, a trava de aval e o loop de pedidos, as duas fases concluídas, estrutura do repositório e histórico até 9abe591."
+  ]
+ ]
 };
 
 /* =====================================================================
@@ -1110,7 +4436,7 @@ function renderFolders(board) {
     if (!b) return;
     grid.querySelectorAll(".folder").forEach(x => { x.classList.toggle("sel", x === b); x.setAttribute("aria-pressed", x === b); });
     const f = DATA.folders[+b.dataset.i];
-    panel(detailHTML({ kicker: "Pasta", title: "packages/harness/" + f.path, text: f.desc + ".",
+    panel(detailHTML({ kicker: "Pasta", title: f.path, text: f.desc + ".",
       extra: `<div class="files">${f.files.map(([n, d]) => `<div><code>${esc(n)}</code><span>${inline(d)}</span></div>`).join("")}</div>` }));
   });
 }

@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-027
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-01, TASK-03
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Teste no protótipo da aprovação e da edição pelo painel, da edição simultânea com o agente e de um chat em `/loop` processando um pedido.
 - **Critérios de aceite:**
-  - [ ] Uma aprovação e uma edição feitas pelo painel passam nos comandos de validação do `vostok` (PQ-06, CA-06).
-  - [ ] A edição simultânea não perde dados e o controle recomendado está registrado (PQ-07, CA-10).
-  - [ ] O formato do pedido está definido e um chat do Claude Code em `/loop` processou um pedido do painel (PQ-08, CA-09).
+  - [x] Uma aprovação e uma edição feitas pelo painel passam nos comandos de validação do `vostok` (PQ-06, CA-06).
+  - [x] A edição simultânea não perde dados e o controle recomendado está registrado (PQ-07, CA-10).
+  - [x] O formato do pedido está definido e um chat do Claude Code em `/loop` processou um pedido do painel (PQ-08, CA-09).
 - **Rótulos:** SPEC-027, julgamento
 - **Estimativa:** julgamento
 - **Bloqueada por:** TASK-01, TASK-03

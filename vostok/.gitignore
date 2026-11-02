@@ -5,3 +5,6 @@ work/.archive/
 
 work/**/evidence
 work/**/evidencias
+# Pedidos do painel ao agente e avais do usuário (`vostok painel`), locais de cada clone.
+work/pedidos/
+work/avais.log

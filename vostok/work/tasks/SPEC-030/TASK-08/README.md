@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** in_progress
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-04
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Skill `process-requests` com a instrução do loop, no catálogo e no mapa de contexto.
 - **Critérios de aceite:**
-  - [ ] A skill `process-requests` traz a instrução do loop, com o mapa das 11 ações para as skills, e está no catálogo e no mapa de contexto (RF-14).
-  - [ ] Um chat em `/loop` com a skill processa um pedido do painel até `feito` ou `recusado` (CT-15, RN-04).
+  - [x] A skill `process-requests` traz a instrução do loop, com o mapa das 11 ações para as skills, e está no catálogo e no mapa de contexto (RF-14).
+  - [x] `/process-requests <intervalo>` arma o loop sozinho e processa um pedido do painel até `feito` ou `recusado`; sem intervalo, faz uma rodada (CT-15, RN-04).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-04

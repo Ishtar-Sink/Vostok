@@ -1,9 +1,9 @@
 ---
 name: process-requests
-description: "Processa os pedidos que o painel local grava em work/pedidos/: lista os pendentes, atende o primeiro pela skill da ação pedida e o termina como feito ou recusado, um por vez. Use quando o usuário pedir para processar os pedidos do painel, atender pedidos, rodar o loop de pedidos ou /loop com esta skill."
+description: "Processa os pedidos que o painel local grava em work/pedidos/: lista os pendentes, atende o primeiro pela skill da ação pedida e o termina como feito ou recusado, um por vez. Use quando o usuário pedir para processar os pedidos do painel, atender pedidos, rodar o loop de pedidos ou /process-requests com um intervalo (como 1m), que arma o loop sozinho."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok pedidos listar, vostok pedidos iniciar, vostok pedidos concluir, vostok pedidos recusar, vostok pedidos vigiar"
   templates: "templates/responses/blocker.md templates/responses/completion.md"
@@ -19,6 +19,7 @@ Atende os pedidos que o usuário faz pelo painel local: pega o primeiro pendente
 - **Estados:** `pendente`, `em_andamento`, `feito` e `recusado`. Só os comandos `vostok pedidos` mudam o estado.
 - **Ação:** o tipo do pedido, uma das 11 do mapa do passo 3.
 - **Aval:** a liberação do usuário gravada pelo painel junto do pedido; o agente a lê, nunca a grava.
+- **Intervalo:** argumento opcional da skill (`30s`, `1m`, `5m`). Com ele, a skill arma o loop; sem ele, faz uma rodada.
 
 ## Regras
 
@@ -29,12 +30,14 @@ Atende os pedidos que o usuário faz pelo painel local: pega o primeiro pendente
 [process-requests-05]: A conferência de um print é sempre do usuário; nunca execute `--reviewed` por um pedido.
 [process-requests-06]: Sem pedido pendente, encerre sem responder nada.
 [process-requests-07]: Não faça commit nem stage fora do pedido `fazer-commit` ([agent/boundaries-01], [agent/boundaries-02]).
+[process-requests-08]: Só arme o loop com um intervalo no argumento, e arme-o chamando esta skill sem intervalo, para o loop nunca se armar de novo.
 
 ## Checklist
 
 Copie e marque o progresso:
 
 ```
+- [ ] 0. Armar o loop (só com intervalo)
 - [ ] 1. Carregar o contexto e listar os pendentes
 - [ ] 2. Iniciar o primeiro pedido
 - [ ] 3. Cumprir a ação pela skill
@@ -42,6 +45,13 @@ Copie e marque o progresso:
 ```
 
 ## Passos
+
+### 0. Armar o loop
+
+Só quando a skill recebe um intervalo (`/process-requests 1m`). Sem intervalo, pule para o passo 1: é uma rodada, avulsa ou do loop já armado.
+
+- **Claude Code:** chame a skill `loop` com `<intervalo> /process-requests`, sem repetir o intervalo depois do nome, e siga para o passo 1 nesta mesma resposta. Diga ao usuário o intervalo e como parar o loop.
+- **Codex** (sem loop na sessão): não processe aqui; responda que o loop do Codex roda fora da sessão, com `vostok pedidos vigiar --agente codex --intervalo <segundos>`.
 
 ### 1. Carregar o contexto
 
@@ -102,7 +112,7 @@ Depois, volte ao passo 1 só se for um novo ciclo do loop; num ciclo, trate um p
 
 ## Como armar o loop
 
-- Claude Code: `/loop 1m /process-requests`.
+- Claude Code: `/process-requests 1m` (ou outro intervalo); a skill arma o loop sozinha.
 - Codex: `vostok pedidos vigiar --agente codex`.
 
 ## Formatos de resposta

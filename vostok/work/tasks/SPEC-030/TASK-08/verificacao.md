@@ -24,7 +24,7 @@ Resultado esperado: build e testes passam com a skill nova no pacote.
   - Trecho: o nome `process-requests` e o mapa das ações para as skills.
   - Falha: `skill desconhecida` ou erro.
   - Requer: `packages/harness/skills/default/process-requests/SKILL.md`
-- `loop-pedido.txt` (manual): a saída de um chat do Claude Code com `/loop 1m /process-requests` processando um pedido `ajustar-tarefa` gravado pelo painel até `feito` ou `recusado`, com o `## Resultado` do pedido.
+- `loop-pedido.txt` (manual): a saída de um chat do Claude Code com `/process-requests 1m`, que arma o loop sozinho, processando um pedido `ajustar-tarefa` gravado pelo painel até `feito` ou `recusado`, com o `## Resultado` do pedido.
   - Prova: o loop processa um pedido real do painel (RF-14, CT-15, RN-04).
-  - Trecho: o pedido em `feito` ou `recusado` com o resultado escrito.
+  - Trecho: o loop armado pela própria skill e o pedido em `feito` ou `recusado` com o resultado escrito.
   - Falha: pedido parado em `pendente` ou `em_andamento`.

@@ -7,3 +7,18 @@
 **Riscos.** O teste depende de um `codex` simulado no `PATH`; o uso real com o Codex fica para depois da spec.
 
 **Arquivos em comum na onda.** Nenhum: é a única tarefa da onda 3.
+
+**O que foi feito.**
+- `apps/cli/src/commands/pedidos.rs` ganhou `Vigiar { agente, intervalo }` (padrão de 15 s):
+  - `watch` recusa um agente diferente de `codex` e para se o `codex` não está no `PATH` (`in_path`);
+  - `next_pending` acha o menor pedido `pendente`;
+  - `process_with_codex` roda `codex exec --full-auto "<instrução>"` na raiz do projeto (`paths.root`) e espera terminar. Se o pedido continua `pendente`, marca `recusado` com o motivo em `## Resultado`;
+  - uma linha por pedido traz o estado e o código de saída do Codex.
+- `apps/cli/tests/pedidos.rs` ganhou 4 testes com um `codex` simulado, escritos antes do código: ordem e um por vez, pedido deixado pendente, `codex` ausente e agente desconhecido.
+
+**Decisões na execução.**
+- **`--full-auto`:** o `codex exec` é chamado com essa opção, porque o estudo mostrou que, sem liberar a escrita na pasta, o pedido para esperando permissão.
+- **`cli.rs` sem mudança:** a ajuda de `pedidos` já lista o `vigiar` pelo próprio subcomando.
+- **Teste a mais:** o do pedido deixado pendente, que cobre a regra que evita repetir o mesmo pedido para sempre.
+
+**Verificação.** Passaram os 12 testes de `pedidos`, e o clippy ficou sem avisos. A regressão mostrou só o acréscimo dos 4 testes novos. A evidência é `vigiar-testes.txt`. O uso com o Codex real fica para depois da spec.

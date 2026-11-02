@@ -146,3 +146,149 @@ fn iniciar_fails_for_a_missing_request() {
     let project = Project::new();
     failure_stderr(project.vostok().args(["pedidos", "iniciar", "PED-001"]));
 }
+
+/// Pasta com um `codex` simulado: anota início e fim de cada execução no log e processa o pedido
+/// citado na instrução pelo próprio `vostok pedidos`.
+fn fake_codex(project: &Project, log: &std::path::Path) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let bin = project.root().join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let script = bin.join("codex");
+    fs::write(
+        &script,
+        format!(
+            "#!/bin/sh\nid=$(echo \"$*\" | grep -o 'PED-[0-9]*' | head -n 1)\necho \"inicio $id\" >> '{log}'\nsleep 0.3\ncd '{root}' && vostok pedidos iniciar \"$id\" >/dev/null && printf 'feito pelo codex' | vostok pedidos concluir \"$id\" >/dev/null\necho \"fim $id\" >> '{log}'\n",
+            log = log.display(),
+            root = project.root().display()
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+    bin
+}
+
+fn path_with(first: &std::path::Path) -> String {
+    let vostok_dir = std::path::Path::new(env!("CARGO_BIN_EXE_vostok"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    format!("{}:{}:/usr/bin:/bin", first.display(), vostok_dir.display())
+}
+
+fn state_of(project: &Project, id: &str) -> String {
+    fs::read_to_string(request_file(project, id))
+        .unwrap()
+        .lines()
+        .find_map(|line| line.strip_prefix("estado: ").map(str::to_string))
+        .unwrap_or_default()
+}
+
+#[test]
+fn vigiar_runs_codex_once_per_request_in_order() {
+    let project = Project::new();
+    write_request(&project, "PED-002", "ajustar-tarefa", "pendente");
+    write_request(&project, "PED-001", "ajustar-tarefa", "pendente");
+    let log = project.root().join("codex.log");
+    let bin = fake_codex(&project, &log);
+
+    let mut watcher = std::process::Command::new(env!("CARGO_BIN_EXE_vostok"))
+        .args(["pedidos", "vigiar", "--agente", "codex", "--intervalo", "1"])
+        .current_dir(project.root())
+        .env("PATH", path_with(&bin))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while ["PED-001", "PED-002"]
+        .iter()
+        .any(|id| state_of(&project, id) != "feito")
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "os pedidos não ficaram feitos a tempo"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    watcher.kill().unwrap();
+    watcher.wait().unwrap();
+
+    let lines: Vec<String> = fs::read_to_string(&log)
+        .unwrap()
+        .lines()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            "inicio PED-001",
+            "fim PED-001",
+            "inicio PED-002",
+            "fim PED-002"
+        ]
+    );
+}
+
+#[test]
+fn vigiar_refuses_a_request_codex_left_pending() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let project = Project::new();
+    write_request(&project, "PED-001", "ajustar-tarefa", "pendente");
+    let bin = project.root().join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let script = bin.join("codex");
+    fs::write(&script, "#!/bin/sh\nexit 0\n").unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+
+    let mut watcher = std::process::Command::new(env!("CARGO_BIN_EXE_vostok"))
+        .args(["pedidos", "vigiar", "--agente", "codex", "--intervalo", "1"])
+        .current_dir(project.root())
+        .env("PATH", path_with(&bin))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while state_of(&project, "PED-001") != "recusado" {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "o pedido não foi recusado"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    watcher.kill().unwrap();
+    watcher.wait().unwrap();
+
+    let content = fs::read_to_string(request_file(&project, "PED-001")).unwrap();
+    assert!(content.contains("o codex terminou sem processar o pedido"));
+}
+
+#[test]
+fn vigiar_without_codex_stops_with_instructions() {
+    let project = Project::new();
+    let empty = project.root().join("vazio");
+    fs::create_dir_all(&empty).unwrap();
+
+    let stderr = failure_stderr(
+        project
+            .vostok()
+            .env("PATH", empty.display().to_string())
+            .args(["pedidos", "vigiar", "--agente", "codex"]),
+    );
+
+    assert!(stderr.contains("codex"), "{stderr}");
+    assert!(stderr.contains("PATH"), "{stderr}");
+}
+
+#[test]
+fn vigiar_rejects_an_unknown_agent() {
+    let project = Project::new();
+    let stderr = failure_stderr(
+        project
+            .vostok()
+            .args(["pedidos", "vigiar", "--agente", "claude"]),
+    );
+    assert!(stderr.contains("codex"), "{stderr}");
+}

@@ -1,10 +1,10 @@
 ---
 id: SPEC-030
 title: "Trava de aval e loop de pedidos do painel"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-02T12:57:17Z
-updated_at: 2026-11-02T15:35:56Z
+updated_at: 2026-11-02T16:20:49Z
 tags: []
 type: feature
 source: "draft/SPEC-030-trava-de-aval-e-loop-de-pedidos-do-painel.md"

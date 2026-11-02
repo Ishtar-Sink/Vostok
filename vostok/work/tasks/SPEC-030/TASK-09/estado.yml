@@ -9,18 +9,21 @@ wave: 3
 covers: [RF-15, CT-16, CB-06]
 type: tarefa
 labels: [SPEC-030, padrao]
-status: approved
-content_hash: 9d60e83a8a06aeb0da55fc2235c309971f869fbcbc875e8487ef686d9ff09777
+status: done
+content_hash: 88bd8b00823a720026ee717eba3295b4f4cd91aadb5abdd3fcd4c00b1c7c1089
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-02T15:36:40Z
 approved_hash: 9d60e83a8a06aeb0da55fc2235c309971f869fbcbc875e8487ef686d9ff09777
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 4f161638ee3c22f7d709b5336b73b1df38fcbd1c82db1a8a19e7d0a5b54ef44b
 verification_hash: 5e9e08da866837a6e7567091910483ea02359689bdc08d955995f800ba22328e
-criteria_hash: be47cffb53a58f18412eca351494c89d3bc1ebe6835320167a0f85502c6397b9
-state_hash: 42b18257c39bc29cc140f9359da890ec488c341f9455215a13db8b3a6fdef371
+criteria_hash: ef02343fea86a67dd531cd4fd4a948ec98f1a3034ed3a1e94363893ec14b34c9
+state_hash: 9b300117a9e99746795e82670560019f668e2b5cb6ed233eb13b926a44cd81a5
 approved_by: chat
+model: claude-opus-5-5
+executive_hash: 0905711b1583d977fd8bdb32378d359471e946dc09daa6138223d36d285afb37
+technical_hash: fea77a77a8a322a24f734c8771e491f483b17427eabe4e0390f520c8c4c56e68

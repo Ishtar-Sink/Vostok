@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-04, TASK-08
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** `vostok pedidos vigiar --agente codex`, que dispara `codex exec` para cada pedido pendente, um por vez.
 - **Critérios de aceite:**
-  - [ ] `vostok pedidos vigiar --agente codex` processa os pedidos pendentes com `codex exec`, um por vez e em ordem, sem precisar do painel aberto (RF-15, CT-16, RNF-04).
-  - [ ] Sem o `codex` no `PATH`, o comando para com a instrução de instalar (CB-06).
+  - [x] `vostok pedidos vigiar --agente codex` processa os pedidos pendentes com `codex exec`, um por vez e em ordem, sem precisar do painel aberto (RF-15, CT-16, RNF-04).
+  - [x] Sem o `codex` no `PATH`, o comando para com a instrução de instalar (CB-06).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-04, TASK-08

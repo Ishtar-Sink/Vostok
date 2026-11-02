@@ -12,6 +12,14 @@ Problemas conhecidos que ficaram para depois: lacunas de comportamento, de cober
 | DT-004 | Commits da finalização sem data final | harness: finalização da spec | baixa | resolvido |
 | DT-005 | `--build` informa sucesso quando a geração falha | harness: finalização da spec | média | resolvido |
 | DT-006 | Desfazer do `--archive` sem teste | harness: finalização da spec | média | resolvido |
+| DT-007 | Lista de pendências duplicada no painel | painel: frontend | baixa | aberto |
+| DT-008 | `base64` e `content_type` duplicados no servidor do painel | painel: servidor | baixa | aberto |
+| DT-009 | Sem teste da aprovação de spec que dá certo pelo painel | painel: testes | média | aberto |
+| DT-010 | Configurações sem "gravar por cima" e com o hash calculado no navegador | painel: configurações | média | aberto |
+| DT-011 | Painel derruba a resposta com a saída padrão fechada | painel: servidor | média | aberto |
+| DT-012 | Caminho sem bundle não roda na suíte | painel: build | baixa | aberto |
+| DT-013 | `vostok pedidos vigiar` sem teste com o Codex real | harness: loop de pedidos | média | aberto |
+| DT-014 | Forja de aval visível, mas não impedida | harness: trava de aval | baixa | aberto |
 
 Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento sem prova; **baixa** confunde, mas não quebra nada.
 
@@ -118,6 +126,126 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 **Resolução.** Resolvido na SPEC-004 pela TASK-09 (commit `123a608`): o teste torna o destino `docs/specs` impossível de criar; sem a linha do desfazer, o caso novo falha.
 
 **Referências.** `packages/harness/scripts/lib/finalize.sh` (`finalize_archive`), `packages/harness/tests/run-tests.sh`.
+
+## DT-007: Lista de pendências duplicada no painel
+
+- **Área:** painel, frontend
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** baixa
+- **Status:** aberto
+
+**Descrição.** A lista de pendências existe duas vezes: uma no painel e outra na tela de pendências.
+
+**Impacto.** Uma mudança numa das listas pode não chegar à outra, e o mesmo comportamento fica mantido em dois lugares.
+
+**Proposta.** Levar a lista para a pasta `shared/` do frontend e usá-la nas duas telas.
+
+**Referências.** `apps/painel/src/features/`, `docs/specs/SPEC-029/tecnico.html` (seção "Limites e dívidas").
+
+## DT-008: `base64` e `content_type` duplicados no servidor do painel
+
+- **Área:** painel, servidor
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** baixa
+- **Status:** aberto
+
+**Descrição.** A codificação `base64` aparece em `read.rs` e em `live.rs`, e a detecção de `content_type` aparece em `read.rs` e em `server.rs`.
+
+**Impacto.** Uma correção feita numa cópia pode não chegar à outra, e a mesma regra fica espalhada pelo servidor.
+
+**Proposta.** Concentrar a codificação e a detecção de tipo de conteúdo num único módulo de apoio do painel e usá-lo nos três arquivos.
+
+**Referências.** `apps/cli/src/painel/read.rs`, `apps/cli/src/painel/live.rs`, `apps/cli/src/painel/server.rs`.
+
+## DT-009: Sem teste da aprovação de spec que dá certo pelo painel
+
+- **Área:** painel, testes
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** A aprovação de spec pelo painel tem teste só para o caso de recusa (422). O caminho que aprova com sucesso não tem teste.
+
+**Impacto.** Uma regressão na aprovação bem-sucedida pelo painel passaria sem aviso na suíte.
+
+**Proposta.** Acrescentar um teste que aprove uma spec válida pelo painel e confira o status e o `approved_by: painel`.
+
+**Referências.** `apps/cli/src/painel/`, `docs/specs/SPEC-029/tecnico.html` (seção "Limites e dívidas").
+
+## DT-010: Configurações sem "gravar por cima" e com o hash calculado no navegador
+
+- **Área:** painel, configurações
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** A tela de configurações não oferece "gravar por cima" num conflito (RN-06). Além disso, ela calcula o hash no navegador, porque `/api/configuracoes` não o devolve.
+
+**Impacto.** Num conflito de edição, o usuário não tem como sobrescrever a versão atual de forma deliberada, e o cálculo no navegador pode divergir do que o servidor grava.
+
+**Proposta.** Devolver o hash na resposta de `/api/configuracoes` e oferecer "gravar por cima" como ação explícita no conflito.
+
+**Referências.** `apps/cli/src/painel/read.rs`, `apps/painel/src/features/settings/settings-page.tsx`, `docs/specs/SPEC-029/tecnico.html` (seção "Limites e dívidas").
+
+## DT-011: Painel derruba a resposta com a saída padrão fechada
+
+- **Área:** painel, servidor
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** O `record_manual` imprime uma linha na saída padrão do painel a cada edição. Com a saída fechada, o `println!` derruba a resposta. Quem roda o painel em segundo plano precisa redirecionar a saída.
+
+**Impacto.** Ao rodar o painel em segundo plano sem redirecionar a saída, uma edição falha no meio da resposta.
+
+**Proposta.** Trocar o `println!` por uma gravação que ignore erro de saída, ou registrar a linha no log do painel.
+
+**Referências.** `apps/cli/src/commands/spec.rs`, `apps/cli/src/painel/actions.rs`, `docs/specs/SPEC-029/tecnico.html` (seção "Limites e dívidas").
+
+## DT-012: Caminho sem bundle não roda na suíte
+
+- **Área:** painel, build
+- **Encontrado em:** 2026-11-02, publicação da SPEC-029 (commit `9c1ff2e`)
+- **Prioridade:** baixa
+- **Status:** aberto
+
+**Descrição.** O caminho sem o bundle do painel compila, mas não roda na suíte, porque o `dist/` existe no ambiente de teste.
+
+**Impacto.** O caminho de compilação sem Node e sem bundle fica sem prova automatizada.
+
+**Proposta.** Rodar a suíte com o `dist/` ausente, removendo-o temporariamente ou apontando o build para uma pasta vazia.
+
+**Referências.** `apps/cli/build.rs`, `docs/specs/SPEC-029/tecnico.html` (seção "Limites e dívidas").
+
+## DT-013: `vostok pedidos vigiar` sem teste com o Codex real
+
+- **Área:** harness, loop de pedidos
+- **Encontrado em:** 2026-11-02, publicação da SPEC-030 (commit `32e24b5`)
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** O `vostok pedidos vigiar` foi testado com um Codex simulado. O uso real depende de `codex exec --full-auto` aceitar a instrução e liberar os comandos do `vostok` no sandbox, e esse teste real ficou para depois.
+
+**Impacto.** O loop de pedidos com o Codex real pode falhar no sandbox sem que a suíte acuse.
+
+**Proposta.** Rodar `vostok pedidos vigiar --agente codex` com o Codex real num pedido de teste e registrar a evidência.
+
+**Referências.** `docs/specs/SPEC-030/tecnico.html` (seção "Limites e dívidas"), `apps/cli/src/commands/pedidos.rs`.
+
+## DT-014: Forja de aval visível, mas não impedida
+
+- **Área:** harness, trava de aval
+- **Encontrado em:** 2026-11-02, publicação da SPEC-030 (commit `32e24b5`)
+- **Prioridade:** baixa
+- **Status:** aberto
+
+**Descrição.** A trava não impede a escrita direta no `avais.log`: um processo do mesmo usuário pode forjar uma linha. A trava só torna a forja visível na validação e presa ao hash.
+
+**Impacto.** Um aval forjado passa pela trava se o hash estiver certo. Proteger o arquivo exigiria um segredo fora do alcance do agente, o que está fora do escopo atual.
+
+**Proposta.** Decidir se vale um segredo fora do alcance do agente para assinar os avais. Exige decisão do usuário antes de implementar.
+
+**Referências.** `docs/specs/SPEC-030/tecnico.html` (seção "Limites e dívidas").
 
 ## Como registrar um débito
 

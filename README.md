@@ -11,8 +11,7 @@ O Vostok faz parte do ecossistema [Ishtar Sink](https://github.com/Ishtar-Sink).
 | Fase | O que entrega | Status |
 |---|---|---|
 | 1. Harness local | Regras, skills e a CLI `vostok`, instalada em qualquer projeto. | Em andamento |
-| 2. Serviços e painel | Servidor HTTP com MongoDB, servidor MCP e painel web. | Planejada |
-| 3. Harness nos dois sentidos | Harness local sincronizado com os serviços. | Planejada |
+| 2. Painel local | Painel aberto pelo `vostok painel` em cada pasta, com os arquivos do harness como banco. | Planejada |
 
 O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o que já existe e como as partes se conectam.
 
@@ -23,7 +22,7 @@ O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o q
 - **Configurável.** Caminhos, status, tipos, seções e sequências de IDs ficam em `vostok/config/`.
 - **Respostas com template.** Toda resposta do agente segue um dos templates de `templates/responses/`, com estrutura fixa por tipo; as respostas sobre tarefas trazem o quadro do `vostok task status`.
 - **Memória.** Decisões (DEC), issues (ISS) e conhecimento (KNW) em Markdown, criadas, buscadas e atualizadas pelo `vostok memory`.
-- **Serviços por pull** (fase 2). O agente busca trabalho no servidor MCP; o servidor HTTP é o único que grava no MongoDB. Specs podem ser aprovadas na ferramenta de IA, com envio pelo MCP, ou no painel web.
+- **Painel local** (fase 2). O `vostok painel` abre, em cada pasta, um painel no navegador que lê e grava os arquivos de `vostok/` pela lógica da CLI. As aprovações feitas nele ficam registradas com a origem e o aval, e o que precisa do agente vira um pedido em arquivo, processado por um chat em loop.
 
 ### Carregamento de contexto
 
@@ -110,11 +109,8 @@ A `triage-harness-issue` é uma skill customizada deste repositório e não é d
 ```
 apps/
   cli/          CLI `vostok` em Rust, com o harness embutido
-  mcp/          servidor MCP (fase 2)
-  server/       servidor HTTP (fase 2)
-  web/          painel web (fase 2)
+  painel/       frontend do painel local (fase 2)
 packages/
-  contracts/    contratos compartilhados (fase 2)
   harness/      fonte do harness distribuído (config, context, personas, rules, skills, templates)
 vostok/         harness instalado neste projeto pelo `vostok init`
   config/       tudo o que é configurável

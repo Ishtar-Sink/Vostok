@@ -1,0 +1,25 @@
+id: TASK-01
+spec: SPEC-026
+title: "Comando brand e derivação das cores"
+description: "O `vostok documents brand` grava a identidade, deriva os tokens dos dois temas com contraste AA, volta ao padrão com `--reset` e mostra o antes e depois."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-04, RF-05, RF-09, RF-10, RF-11, CT-03, CT-04, CT-08, CT-09, CT-10, CT-14, CB-01, CB-04, CB-05, CB-06]
+type: historia
+labels: [SPEC-026, padrao]
+status: approved
+content_hash: 9e1c552f958d8d451a8346938e25e24c2accde39ddd6bd0e6e0b8b3e5f0cbfd7
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T00:29:26Z
+approved_hash: 9e1c552f958d8d451a8346938e25e24c2accde39ddd6bd0e6e0b8b3e5f0cbfd7
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: b34ae82c1bb1ea8917df2a078371b50bac9991191cebf0f3ae63700371fa29c1
+verification_hash: e40e8a0a36fb8ae6cde2e2f138713fd87977899aaae0b96b3b2e9b61bf66cb2e
+criteria_hash: 652eaec01210547734fe20ee2e77b2c0c6a5904c291856121946a5e27520711e
+state_hash: de5e214574d20882385a4b37697380af7b1a4c190e00e02474e7e6cffcff8686

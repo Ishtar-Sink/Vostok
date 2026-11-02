@@ -1,0 +1,25 @@
+id: TASK-03
+spec: SPEC-026
+title: "Nome, ícone e coluna de IDs nos documentos"
+description: "O build mostra o nome e embute o ícone configurados no topo dos três documentos, mantém a identidade atual sem configuração e deixa os IDs da cobertura numa linha."
+profile: padrao
+persona: ui-ux-designer
+depends_on: []
+wave: 1
+covers: [RF-06, RF-07, RF-08, RF-12, CT-05, CT-06, CT-07, CT-11, CB-02, CB-03, CB-08]
+type: historia
+labels: [SPEC-026, padrao]
+status: approved
+content_hash: 433706deb4f96b653587ef8490ba28d79a7f6ee61f5361df21d7f1c994504a4f
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T00:29:26Z
+approved_hash: 433706deb4f96b653587ef8490ba28d79a7f6ee61f5361df21d7f1c994504a4f
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 99b86899fb75c664193e3fee50d20c240a0e7d7338c0f829def1208b520ca29c
+verification_hash: f7a771ef7ea9e0964d1fd91e432ca159377b08901ae46fdfb147f7ec505f5334
+criteria_hash: 28af7abad5f61f4e4591cec7309f10d4664fa158afd47f543bbf9abd060d7b66
+state_hash: f29b80d14c7c796e15db5dc7bd62c5afa734b31a10422b8b7fe38fe065644ba1

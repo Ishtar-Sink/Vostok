@@ -1,0 +1,25 @@
+id: TASK-04
+spec: SPEC-026
+title: "Skill customize-documents"
+description: "A skill detecta, propõe, pergunta quando não acha nada e só grava a identidade depois da confirmação."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-01, TASK-02]
+wave: 3
+covers: [RF-01, RF-03, CT-12, CT-13]
+type: historia
+labels: [SPEC-026, padrao]
+status: approved
+content_hash: 969e268d2579ff6029966b75b1f9d0138497a3e0d1cec52212e5da1e0a73208b
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T00:29:26Z
+approved_hash: 969e268d2579ff6029966b75b1f9d0138497a3e0d1cec52212e5da1e0a73208b
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 9929a71ba2c8041f9264992fc9219104f14e17558535e7e59f8eb0f240638119
+verification_hash: 47943aade8d882d7566ca3907bdb3f7ef77f10493d368be8913c50b404c3308e
+criteria_hash: 9766dd5b5629e06c8014af8512747b9d93d61b3267c9114eda74246260bfc385
+state_hash: 5b22cf83108f0e37a7e9bfd0707d78ff600c968b189030fb893b217867f57327

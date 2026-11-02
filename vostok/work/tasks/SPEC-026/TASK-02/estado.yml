@@ -1,0 +1,25 @@
+id: TASK-02
+spec: SPEC-026
+title: "Comando detect"
+description: "O `vostok documents detect` lista até 10 cores candidatas do repositório, ignorando pastas geradas e segredos."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-02, CT-01, CT-02, CB-07]
+type: historia
+labels: [SPEC-026, padrao]
+status: approved
+content_hash: 14eb7961932c29d43799ac0bdfec79eba869adde412194f4e2529be9a5d13662
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T00:29:26Z
+approved_hash: 14eb7961932c29d43799ac0bdfec79eba869adde412194f4e2529be9a5d13662
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 13d7210738070b948e1f5956f96ae68e5b694888b34583daa14b666524145704
+verification_hash: d841610477f18cc4fc7492a640e15e9c7b968a9f31d87bbed02226c2d550f8e8
+criteria_hash: 55076856dd750f85c2b20806d81ace9a5fdd29c9d6ab61c29685e4bb12d368a7
+state_hash: 950b66b0f63d6a6cf2b9d0e54d308791ca3f1348218f60945ee47e874ce23a20

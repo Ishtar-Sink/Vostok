@@ -3,7 +3,7 @@ name = "vostok"
 version = "0.2.10"
 edition = "2021"
 description = "CLI do Vostok: instala o harness nos projetos e executa os comandos dele."
-license = "MIT"
+license = "AGPL-3.0-only"
 publish = false
 
 [lib]

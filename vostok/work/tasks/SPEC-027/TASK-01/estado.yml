@@ -9,17 +9,20 @@ wave: 1
 covers: [PQ-05, PQ-06, PQ-11]
 type: tarefa
 labels: [SPEC-027, julgamento]
-status: approved
-content_hash: bb0cb82b79614e537a13069d250de61e15154e031d0cc52575fb704ac8d8fc88
+status: done
+content_hash: 20210f408b465e686e0fcac4cbdf4a385660a1df7590f931dd6cb66e41a37a35
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-02T09:53:24Z
 approved_hash: bb0cb82b79614e537a13069d250de61e15154e031d0cc52575fb704ac8d8fc88
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 68da51af52e18c4bafa92cf4a7076a00cf341a05d49b18e8a241d5f24a9e598b
 verification_hash: 496eb1e6c320dab0856952dc83e1368c03df09a043defc043983c56a510876d8
-criteria_hash: 702d48fd7145b6298cd010ae12ca331d7d310255644d297c5f13b94ad1b5a726
-state_hash: 01e1f10e93a64b1509b726bac63431fd69440ca2f9293df6d9bfd9e607220a80
+criteria_hash: 4c21498f38f547a432d2118a65f8263db3a6550d99cafd6f5a5ffd582048612b
+state_hash: e4aa2ab1c1263131d1685c4f6e98e34d0b8cae67844499cd8ff6b4662d834455
+model: opus
+executive_hash: 8d4c24f69a9e5c451c7e6541c9d522199e823bb81b8aa1fd8aaa65d4d9e8bce4
+technical_hash: f90b855b0a1a44ff98df5749c5841beb7aaf1ccc15e27b344b9f9e13da5d1e9d

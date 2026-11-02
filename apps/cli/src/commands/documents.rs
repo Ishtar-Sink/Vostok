@@ -5,7 +5,7 @@
 //! (sucesso, alerta, perigo e informação) nunca mudam.
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
@@ -20,6 +20,11 @@ const SECONDARY_HUE_SHIFT: f64 = -60.0;
 const DARK_PRIMARY_MIN_LIGHTNESS: f64 = 65.0;
 const MAX_NEUTRAL_SATURATION: f64 = 40.0;
 const THEMES: [&str; 2] = ["light", "dark"];
+const MAX_CANDIDATES: usize = 10;
+const MAX_SCANNED_BYTES: u64 = 1024 * 1024;
+const SKIPPED_DIRS: [&str; 6] = ["node_modules", "target", "dist", "build", "vostok", ".git"];
+const SECRET_EXTENSIONS: [&str; 4] = ["pem", "key", "p12", "crt"];
+const RELEVANT_NAMES: [&str; 3] = ["primary", "brand", "accent"];
 const BRAND_KEYS: [&str; 4] = ["name", "icon", "primary", "secondary"];
 const BRAND_BLOCK: &str = "\n# Identidade do repositório, gravada pelo `vostok documents brand`. Vazio usa a do harness.\nbrand:\n  name: \"\"\n  icon: \"\"        # caminho relativo à raiz do projeto: .svg, .png ou .webp, até 256 KB\n  primary: \"\"\n  secondary: \"\"\n";
 const NEUTRALS: [&str; 10] = [
@@ -63,6 +68,8 @@ const DERIVED_ORDER: [&str; 22] = [
 pub enum DocumentsCommand {
     /// Grava a identidade do repositório e deriva as cores dos documentos.
     Brand(BrandArgs),
+    /// Lista as cores candidatas do repositório (CSS, SCSS, Less e Tailwind).
+    Detect,
 }
 
 #[derive(Debug, Args)]
@@ -87,6 +94,7 @@ pub struct BrandArgs {
 pub fn run(command: DocumentsCommand) -> Result<()> {
     match command {
         DocumentsCommand::Brand(args) => brand(args),
+        DocumentsCommand::Detect => detect(),
     }
 }
 
@@ -600,4 +608,156 @@ fn validate_icon(harness: &Harness, icon: &str) -> Result<()> {
         bail!("--icon: '{icon}' passa de 256 KB");
     }
     Ok(())
+}
+
+// --- detect ---
+
+struct Candidate {
+    path: String,
+    line: usize,
+    name: String,
+    color: String,
+}
+
+impl Candidate {
+    fn relevant(&self) -> bool {
+        let name = self.name.to_ascii_lowercase();
+        RELEVANT_NAMES.iter().any(|word| name.contains(word))
+    }
+}
+
+fn detect() -> Result<()> {
+    let harness = Harness::from_current_dir()?;
+    let project_root = harness.root.parent().unwrap_or(&harness.root).to_path_buf();
+    let mut files = Vec::new();
+    collect_style_files(&project_root, &mut files);
+
+    let mut candidates: Vec<Candidate> = Vec::new();
+    for file in files {
+        let Ok(content) = fs::read_to_string(&file) else {
+            continue;
+        };
+        let relative = file
+            .strip_prefix(&project_root)
+            .unwrap_or(&file)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let tailwind = is_tailwind_config(&file);
+        for (index, line) in content.lines().enumerate() {
+            let Some((name, color)) = color_declaration(line, tailwind) else {
+                continue;
+            };
+            let repeated = candidates
+                .iter()
+                .any(|other| other.name == name && other.color == color);
+            if !repeated {
+                candidates.push(Candidate {
+                    path: relative.clone(),
+                    line: index + 1,
+                    name,
+                    color,
+                });
+            }
+        }
+    }
+    if candidates.is_empty() {
+        println!("Nenhuma cor encontrada no repositório.");
+        return Ok(());
+    }
+    candidates.sort_by(|a, b| {
+        b.relevant()
+            .cmp(&a.relevant())
+            .then_with(|| a.path.cmp(&b.path))
+            .then(a.line.cmp(&b.line))
+    });
+    for candidate in candidates.iter().take(MAX_CANDIDATES) {
+        println!(
+            "{}:{}  {}  {}",
+            candidate.path, candidate.line, candidate.name, candidate.color
+        );
+    }
+    if candidates.len() > MAX_CANDIDATES {
+        println!("... e mais {} cores", candidates.len() - MAX_CANDIDATES);
+    }
+    Ok(())
+}
+
+/// Arquivos de estilo e de tema do Tailwind, sem pastas geradas, ocultas nem arquivos de segredo.
+fn collect_style_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    let mut paths: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
+    paths.sort();
+    for path in paths {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if path.is_dir() {
+            if !name.starts_with('.') && !SKIPPED_DIRS.contains(&name.as_str()) {
+                collect_style_files(&path, files);
+            }
+            continue;
+        }
+        let small = fs::metadata(&path).is_ok_and(|metadata| metadata.len() <= MAX_SCANNED_BYTES);
+        if !is_secret(&name) && small && (is_stylesheet(&path) || is_tailwind_config(&path)) {
+            files.push(path);
+        }
+    }
+}
+
+fn extension(path: &Path) -> String {
+    path.extension()
+        .map(|ext| ext.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default()
+}
+
+fn is_secret(name: &str) -> bool {
+    name.starts_with(".env") || SECRET_EXTENSIONS.contains(&extension(Path::new(name)).as_str())
+}
+
+fn is_stylesheet(path: &Path) -> bool {
+    matches!(extension(path).as_str(), "css" | "scss" | "less")
+}
+
+fn is_tailwind_config(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    ["js", "cjs", "mjs", "ts"]
+        .iter()
+        .any(|ext| name == format!("tailwind.config.{ext}"))
+}
+
+/// Nome e cor normalizada de uma declaração `nome: #cor` (`--x`, `$x`, `@x` ou chave do Tailwind).
+fn color_declaration(line: &str, tailwind: bool) -> Option<(String, String)> {
+    let (left, right) = line.split_once(':')?;
+    let name = left.trim().trim_matches(['\'', '"']);
+    let valid_name = if tailwind {
+        !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    } else {
+        ["--", "$", "@"].iter().any(|prefix| {
+            name.strip_prefix(prefix).is_some_and(|rest| {
+                !rest.is_empty()
+                    && rest
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            })
+        })
+    };
+    if !valid_name {
+        return None;
+    }
+    let start = right.find('#')?;
+    let digits: String = right[start + 1..]
+        .chars()
+        .take_while(char::is_ascii_hexdigit)
+        .collect();
+    let color = parse_hex(&format!("#{digits}"))?;
+    Some((name.to_string(), to_hex(color)))
 }

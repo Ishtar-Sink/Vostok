@@ -236,3 +236,94 @@ fn brand_name_and_icon_are_recorded() {
     assert_eq!(brand["icon"], "logo.svg");
     assert_eq!(read_group(&project, "light"), embedded_group("light"));
 }
+
+fn run_detect(project: &Project) -> String {
+    let output = project
+        .vostok()
+        .arg("documents")
+        .arg("detect")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).unwrap()
+}
+
+fn write_file(project: &Project, relative: &str, content: &str) {
+    let path = project.root().join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, content).unwrap();
+}
+
+#[test]
+fn detect_lists_css_and_tailwind_colors_by_relevance() {
+    let project = Project::new();
+    write_file(
+        &project,
+        "src/theme.css",
+        ":root {\n  --color-gray: #888888;\n  --color-primary: #0F766E;\n}\n",
+    );
+    write_file(
+        &project,
+        "tailwind.config.js",
+        "module.exports = {\n  theme: {\n    colors: {\n      brand: '#f59e0b',\n    },\n  },\n};\n",
+    );
+    let output = run_detect(&project);
+    let lines: Vec<&str> = output.lines().collect();
+    assert_eq!(
+        lines,
+        [
+            "src/theme.css:3  --color-primary  #0f766e",
+            "tailwind.config.js:4  brand  #f59e0b",
+            "src/theme.css:2  --color-gray  #888888",
+        ]
+    );
+}
+
+#[test]
+fn detect_ignores_generated_folders_and_secrets() {
+    let project = Project::new();
+    for path in [
+        "node_modules/x.css",
+        "target/x.css",
+        "dist/x.css",
+        "build/x.css",
+        "vostok/x.css",
+        ".cache/x.css",
+    ] {
+        write_file(&project, path, "--color-primary: #123456;\n");
+    }
+    write_file(
+        &project,
+        ".env",
+        "PRIMARY=#123456\n--color-primary: #123456;\n",
+    );
+    write_file(&project, ".env.local", "--color-primary: #123456;\n");
+    write_file(&project, "src/app.scss", "$brand: #abcdef;\n");
+    let output = run_detect(&project);
+    assert_eq!(output.trim_end(), "src/app.scss:1  $brand  #abcdef");
+}
+
+#[test]
+fn detect_lists_at_most_ten_candidates() {
+    let project = Project::new();
+    let css: String = (0..14)
+        .map(|index| format!("--color-{index:02}: #1010{index:02};\n"))
+        .collect();
+    write_file(&project, "src/colors.less", &css.replace("--", "@"));
+    let output = run_detect(&project);
+    let lines: Vec<&str> = output.lines().collect();
+    assert_eq!(lines.len(), 11);
+    assert_eq!(lines[0], "src/colors.less:1  @color-00  #101000");
+    assert_eq!(lines[10], "... e mais 4 cores");
+}
+
+#[test]
+fn detect_without_candidates_says_so() {
+    let project = Project::new();
+    assert_eq!(
+        run_detect(&project).trim_end(),
+        "Nenhuma cor encontrada no repositório."
+    );
+}

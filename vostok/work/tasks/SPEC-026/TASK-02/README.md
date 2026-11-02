@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-026
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-01
 
@@ -22,10 +22,10 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** historia
 - **Descrição:** O `vostok documents detect` lista até 10 cores candidatas do repositório, ignorando pastas geradas e segredos.
 - **Critérios de aceite:**
-  - [ ] O `detect` lista as cores do repositório com arquivo, linha, nome e valor, primeiro as de marca (RF-02, CT-01).
-  - [ ] Pastas geradas e arquivos de segredo não são lidos (RN-05, CT-02).
-  - [ ] No máximo 10 cores, com a contagem das que ficaram de fora (CB-07).
-  - [ ] Sem cores, a saída diz isso e termina em 0 (RF-03).
+  - [x] O `detect` lista as cores do repositório com arquivo, linha, nome e valor, primeiro as de marca (RF-02, CT-01).
+  - [x] Pastas geradas e arquivos de segredo não são lidos (RN-05, CT-02).
+  - [x] No máximo 10 cores, com a contagem das que ficaram de fora (CB-07).
+  - [x] Sem cores, a saída diz isso e termina em 0 (RF-03).
 - **Rótulos:** SPEC-026, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-01

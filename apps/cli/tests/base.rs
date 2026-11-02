@@ -157,7 +157,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 21, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 22, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))

@@ -204,7 +204,7 @@ fn approve_edit_request_and_live_update_end_to_end() {
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\napproved_by: painel\n"));
     let avais = read(&project, "vostok/work/avais.log");
     assert!(
-        avais.contains("SPEC-001/TASK-01\t") && avais.trim_end().ends_with("\tpainel"),
+        avais.contains("SPEC-001/TASK-01\t") && avais.trim_end().ends_with("\tpainel\taprovar"),
         "{avais}"
     );
 

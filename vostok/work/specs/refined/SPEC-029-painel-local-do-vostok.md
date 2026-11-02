@@ -1,10 +1,10 @@
 ---
 id: SPEC-029
 title: "Painel local do Vostok"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-02T12:57:17Z
-updated_at: 2026-11-02T13:25:19Z
+updated_at: 2026-11-02T15:13:04Z
 tags: []
 type: feature
 source: "draft/SPEC-029-painel-local-do-vostok.md"

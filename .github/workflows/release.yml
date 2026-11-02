@@ -61,9 +61,27 @@ jobs:
         shell: bash
         run: cargo test --locked --manifest-path "$MANIFEST_PATH" --target "${{ matrix.target }}"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 11
+
+      - name: Install Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/painel/pnpm-lock.yaml
+
+      - name: Build panel
+        shell: bash
+        run: |
+          pnpm --dir apps/painel install --frozen-lockfile
+          pnpm --dir apps/painel build
+
       - name: Build
         shell: bash
-        run: cargo build --release --locked --manifest-path "$MANIFEST_PATH" --target "${{ matrix.target }}"
+        run: cargo build --release --locked --features painel --manifest-path "$MANIFEST_PATH" --target "${{ matrix.target }}"
 
       - name: Package
         shell: bash
@@ -81,6 +99,21 @@ jobs:
             shasum -a 256 "${archive}" > "${archive}.sha256"
           fi
           cat "${archive}.sha256"
+
+      - name: Check size
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Limites do painel local (SPEC-029, RNF-01): o binário e o arquivo baixado continuam leves.
+          binary="$(wc -c < "apps/cli/target/${TARGET}/release/vostok" | tr -d ' ')"
+          archive="$(wc -c < "dist/vostok-${VERSION}-${TARGET}.tar.gz" | tr -d ' ')"
+          echo "binário: ${binary} bytes (limite 6000000); tar.gz: ${archive} bytes (limite 2300000)"
+          if [ "$binary" -gt 6000000 ] || [ "$archive" -gt 2300000 ]; then
+            echo "::error::Tamanho acima do limite: binário ${binary} bytes (até 6000000), tar.gz ${archive} bytes (até 2300000)."
+            exit 1
+          fi
 
       - name: Upload
         uses: actions/upload-artifact@v4.6.2

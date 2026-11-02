@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-026
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-01, TASK-02
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** historia
 - **Descrição:** A skill detecta, propõe, pergunta quando não acha nada e só grava a identidade depois da confirmação.
 - **Critérios de aceite:**
-  - [ ] A skill detecta, propõe e só grava depois da confirmação (RF-01, RN-06, CT-12).
-  - [ ] Sem cores no repositório, a skill pergunta a cor principal e a secundária opcional (RF-03, CT-13).
-  - [ ] A skill está no catálogo e no mapa de contexto, e as suítes de instalação e de contexto passam.
+  - [x] A skill detecta, propõe e só grava depois da confirmação (RF-01, RN-06, CT-12).
+  - [x] Sem cores no repositório, a skill pergunta a cor principal e a secundária opcional (RF-03, CT-13).
+  - [x] A skill está no catálogo e no mapa de contexto, e as suítes de instalação e de contexto passam.
 - **Rótulos:** SPEC-026, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-01, TASK-02

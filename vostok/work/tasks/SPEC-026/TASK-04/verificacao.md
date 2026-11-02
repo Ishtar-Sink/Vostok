@@ -23,7 +23,11 @@ Resultado esperado: as duas suítes passam com a skill nova no catálogo e no ma
   - Prova: a skill nova entra no catálogo e no contexto sem quebrar a instalação nem o carregamento (RF-01).
   - Trecho: `test result: ok` nas duas suítes.
   - Falha: `FAILED`.
-- `skill-conversa.png` (manual): print da conversa seguindo a skill num repositório de teste com uma cor `--color-primary`, mostrando a proposta e o pedido de confirmação antes do `vostok documents brand` (CT-12), e num sem cores, mostrando a pergunta (CT-13).
-  - Prova: o comportamento da skill nos dois caminhos (RF-01, RF-03, CT-12, CT-13).
-  - Trecho: a pergunta com as cores propostas e, no outro, a pergunta da cor principal.
-  - Falha: gravação sem pergunta.
+- `skill-comandos.txt` (automática): `T="$(mktemp -d)"; cp -r packages/harness/. "$T/vostok/"; mkdir -p "$T/src" "$T/public"; printf ':root {\n  --color-gray: #6b7280;\n  --color-primary: #0f766e;\n  --color-accent: #f59e0b;\n}\n' > "$T/src/theme.css"; printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7"/></svg>\n' > "$T/public/favicon.svg"; M="$PWD/apps/cli/Cargo.toml"; cd "$T" && cargo run --quiet --manifest-path "$M" -- context load --skill customize-documents | grep -c 'vostok documents brand' && cargo run --quiet --manifest-path "$M" -- documents detect && cargo run --quiet --manifest-path "$M" -- documents brand --primary "#0f766e" --secondary "#f59e0b" --name "Teste" --icon public/favicon.svg | tail -3 && grep -A5 '^brand:' vostok/config/documents.yml`
+  - Prova: a sequência que a skill executa, num repositório de exemplo: o contexto da skill carrega, o `detect` propõe as cores de marca e o `brand` grava a proposta confirmada (RF-01, CT-12).
+  - Trecho: o `detect` com `--color-primary  #0f766e` e `--color-accent  #f59e0b` antes do cinza, e o grupo `brand` com `name: "Teste"`, `icon: "public/favicon.svg"`, `primary: "#0f766e"` e `secondary: "#f59e0b"`.
+  - Falha: contexto sem a skill, cinza antes das cores de marca ou grupo `brand` vazio.
+- `skill-sem-cores.txt` (automática): `T="$(mktemp -d)"; cp -r packages/harness/. "$T/vostok/"; M="$PWD/apps/cli/Cargo.toml"; cd "$T" && cargo run --quiet --manifest-path "$M" -- documents detect`
+  - Prova: num repositório sem cores, o `detect` diz que não achou nada, o caso em que a skill pergunta as cores (RF-03, CT-13).
+  - Trecho: `Nenhuma cor encontrada no repositório.`
+  - Falha: alguma cor listada ou erro.

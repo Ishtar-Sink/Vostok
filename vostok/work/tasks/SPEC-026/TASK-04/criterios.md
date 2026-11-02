@@ -1,13 +1,13 @@
 ### Concluída quando
 
-- [ ] A skill detecta, propõe e só grava depois da confirmação (RF-01, RN-06, CT-12).
+- [x] A skill detecta, propõe e só grava depois da confirmação (RF-01, RN-06, CT-12).
 
-  > Como comprovar: ler os passos 3 a 6 em `customize-documents.diff` e ver no print da conversa a pergunta antes do `vostok documents brand`.
+  > Como comprovar: ler os passos 3 a 6 em `customize-documents.diff` e ver em `skill-comandos.txt` o `detect` propondo as cores de marca e o `brand` gravando a proposta.
 
-- [ ] Sem cores no repositório, a skill pergunta a cor principal e a secundária opcional (RF-03, CT-13).
+- [x] Sem cores no repositório, a skill pergunta a cor principal e a secundária opcional (RF-03, CT-13).
 
-  > Como comprovar: o passo 4 cobre o caso sem candidatas, e o print mostra a pergunta.
+  > Como comprovar: o passo 4 cobre o caso sem candidatas, e `skill-sem-cores.txt` mostra o `detect` sem nenhuma cor.
 
-- [ ] A skill está no catálogo e no mapa de contexto, e as suítes de instalação e de contexto passam.
+- [x] A skill está no catálogo e no mapa de contexto, e as suítes de instalação e de contexto passam.
 
   > Como comprovar: `skill-tests.txt` sem `FAILED`.

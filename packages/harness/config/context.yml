@@ -61,3 +61,5 @@ skills:
   suggest-harness-feature:
     - config/main.yml
     - templates/suggestion/feature.md
+  customize-documents:
+    - config/documents.yml

@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-029
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-02
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** As rotas de leitura (`visao`, `specs`, `planos`, `tarefas`, `documentos`, `configuracoes`, `marca`, `fonte`, `arquivo`) leem os arquivos de `vostok/` a cada requisição.
 - **Critérios de aceite:**
-  - [ ] A API de leitura devolve specs, planos, tarefas, documentos, configurações e marca lidos dos arquivos a cada requisição (RF-02, RF-04, CT-03).
-  - [ ] Caminhos fora de `vostok/` são recusados, e uma pasta sem marca usa os tokens padrão (CB-05).
+  - [x] A API de leitura devolve specs, planos, tarefas, documentos, configurações e marca lidos dos arquivos a cada requisição (RF-02, RF-04, CT-03).
+  - [x] Caminhos fora de `vostok/` são recusados, e uma pasta sem marca usa os tokens padrão (CB-05).
 - **Rótulos:** SPEC-029, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-02

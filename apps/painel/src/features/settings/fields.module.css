@@ -1,0 +1,75 @@
+/* Controles que o Atria não tem, com o rótulo e a ajuda no mesmo estilo dos campos dele. */
+.shell { display: flex; flex-direction: column; gap: var(--space); min-width: 0; margin: 0; padding: 0; border: 0; }
+.label { padding: 0; font-family: var(--font-display); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+.help { margin: 0; font-size: var(--font-size-sm); color: var(--text-muted); }
+.empty { margin: 0; font-size: var(--font-size-sm); color: var(--text-faint); }
+
+.mono input,
+.monoInput,
+.monoText { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-sm); }
+
+.monoInput,
+.number input,
+.textarea {
+  width: 100%;
+  min-height: calc(var(--space) * 10);
+  padding: calc(var(--space) * 2) calc(var(--space) * 3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+.monoInput { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.textarea { resize: vertical; line-height: 1.45; font-size: var(--font-size-base); }
+.monoText { font-size: var(--font-size-sm); }
+.monoInput:focus-visible,
+.number input:focus-visible,
+.textarea:focus-visible,
+.range input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.number { display: inline-flex; align-items: center; gap: calc(var(--space) * 2); }
+.number input { width: 112px; font-variant-numeric: tabular-nums; }
+.unit { color: var(--text-muted); font-size: var(--font-size-sm); white-space: nowrap; }
+
+.range { display: flex; align-items: center; gap: calc(var(--space) * 3); }
+.range input { flex: 1; accent-color: var(--primary); }
+.range output { min-width: 108px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.colorRow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: calc(var(--space) * 3); }
+.colorRow > :first-child { flex: 1; min-width: 180px; }
+.emptyColor { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: calc(var(--space) * 10); padding: 0 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); color: var(--text-muted); font-size: var(--font-size-sm); }
+.linkButton { align-self: flex-start; padding: 6px 4px; border: 0; background: none; color: var(--primary); font: inherit; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; }
+.linkButton:disabled { color: var(--text-faint); cursor: default; }
+.linkButton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+
+.font { display: grid; gap: 6px; }
+.sample { padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-muted); font-size: var(--font-size-lg); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.paths { display: grid; gap: 8px; }
+.pathList { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pathList li { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); min-width: 0; }
+.pathList code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-sm); }
+.order { flex: none; width: 22px; color: var(--text-faint); font-size: var(--font-size-xs); font-variant-numeric: tabular-nums; text-align: right; }
+.rowActions { display: flex; gap: 2px; }
+.rowActions button { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.rowActions button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+.rowActions button:disabled { opacity: 0.35; cursor: default; }
+.rowActions button:focus-visible { outline: 2px solid var(--primary); }
+.addRow { display: flex; gap: 8px; align-items: center; }
+
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 16px; }
+.check { display: grid; gap: 2px; }
+.checkHelp { padding-left: 28px; color: var(--text-faint); font-size: var(--font-size-xs); }
+
+.combos { display: grid; gap: 10px; }
+.combo { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.comboTitle { font-weight: 600; font-size: var(--font-size-sm); }
+.comboChecks { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
+
+.idRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.idRow > .monoInput { width: 120px; }
+.idRow .number input { width: 80px; }
+.preview { color: var(--text-muted); font-size: var(--font-size-sm); }
+.preview code { padding: 2px 8px; border-radius: 6px; background: var(--primary-soft); color: var(--primary); font-weight: 600; }

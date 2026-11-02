@@ -10,3 +10,24 @@
 **Riscos.** Thread presa numa aba fechada: o laço termina quando a escrita falha.
 
 **Arquivos em comum na onda.** Nenhum.
+
+
+## O que foi feito
+
+**O que mudou:** `live::version` e `live::handle` em `apps/cli/src/painel/live.rs`.
+- **Versão:** é a maior data de modificação de `vostok/work/`, conferida a cada 500 ms.
+- **WebSocket:**
+  - handshake com `sha1` e base64;
+  - mensagens `conectado` e `mudou`;
+  - uma thread por aba, que termina quando a escrita falha.
+
+**Testes:** 5, entre eles o da chave da RFC 6455 e o `two_sockets_receive_change`.
+
+**Pontos de atenção:**
+- `base64` e `newest` foram copiados como funções privadas. Juntar os dois `base64` (`read.rs` e `live.rs`) fica como limpeza.
+- Os testes foram escritos antes, mas a saída da falha não foi guardada.
+
+**Verificação:**
+- Os testes passaram, e o clippy ficou sem avisos.
+- A regressão só registrou acréscimo.
+- A evidência é `ao-vivo-testes.txt`.

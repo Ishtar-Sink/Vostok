@@ -8,10 +8,15 @@
 - `/home/victor/projetos/ai-hub-painel/apps/cli/src/commands/painel.rs` (fn act, fn save, fn approve, fn record_aval, fn request, fn write_markdown, fn edited, fn request_markdown, fn next_request_id, fn is_id, e os testes de 1083 a 1180)
 - `docs/estudos/painel-local/testes.md` (formato do pedido e resultados esperados)
 - `vostok/rules/project/` e `vostok/config/` (o que a gravação de configuração pode tocar)
+- `apps/cli/src/commands/rules.rs` (fn validate, fn map_problems, fn category_problems)
+- `apps/cli/src/painel/server.rs` (fn dispatch, linha 91, e o teste action_with_token_reaches_the_actions)
 
 ### Mudar
 
 - `apps/cli/src/painel/actions.rs` (alterar): `PUT /api/arquivo` (edição com hash e registro manual), `PUT /api/configuracao` (configuração com hash), `POST /api/aprovacoes` (aprovação com aval) e `POST /api/pedidos` (pedido ao agente).
+
+- `apps/cli/src/commands/rules.rs` (alterar): expor `pub fn validate_at(project: &Path) -> Result<Vec<String>>`, com os mesmos problemas de `vostok rules validate`, sem encerrar o processo.
+- `apps/cli/src/painel/server.rs` (alterar): encaminhar os GETs de `/arquivos/...` para `read::route` e ajustar o teste `action_with_token_reaches_the_actions` à ação real.
 
 ### Passos
 
@@ -28,4 +33,6 @@
 3. Configuração (RF-10): crie `PUT /api/configuracao?caminho=&hash=`, com o mesmo controle de hash, aceitando só `.yml` sob `vostok/config/`. Depois de gravar, rode a validação de regras do `vostok` (a mesma função de `vostok rules validate`) e devolva os problemas.
 4. Aprovação (RF-06): porte `approve` e `record_aval`. `spec=` sem `tarefas=` aprova a spec por `spec::approve_from_panel`, e com `tarefas=` aprova as tarefas por `task::approve_from_panel`. Para cada item aprovado, acrescente ao `vostok/work/avais.log` a linha `<data UTC>\t<SPEC>[/<TASK>]\t<hash>\tpainel`, com o arquivo aberto em modo de acréscimo (RN-05). Se a aprovação falhar, responda 422 com a mensagem do `vostok` e não grave aval.
 5. Pedidos (RF-11): porte `request`, `request_markdown`, `next_request_id` e `is_id`, com as 10 ações da spec. `aprovar-tarefa` e `aprovar-spec` dão 400 (RN-04). O arquivo segue o front-matter e as seções de `docs/estudos/painel-local/testes.md`.
-6. Confira: `cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::actions` passa e `cargo clippy --manifest-path apps/cli/Cargo.toml --features painel --all-targets -- -D warnings` sem avisos.
+6. `apps/cli/src/commands/rules.rs` (alterar): crie `pub fn validate_at(project: &Path) -> Result<Vec<String>>` que monta a lista com `map_problems` e `category_problems`, como `fn validate`, e faça `fn validate` usar essa função para imprimir e encerrar. Em `actions.rs`, depois de gravar a configuração, devolva os problemas de `rules::validate_at`. Teste: uma configuração que quebra o mapa de contexto devolve o problema. Confira: `cargo test --manifest-path apps/cli/Cargo.toml --test context_memory_rules` continua passando.
+7. `apps/cli/src/painel/server.rs` (alterar): em `dispatch`, encaminhe também os GETs com `parts[0] == "arquivos"` para `read::route`, mantendo o resto do bundle. Troque o teste `action_with_token_reaches_the_actions` para conferir que um POST com token chega a `actions::act` (por exemplo, `POST /api/pedidos` sem `acao` responde 400, não 403). Acrescente o teste de que `GET /arquivos/<caminho de vostok/>` não cai no bundle.
+8. Confira: `cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::actions` passa e `cargo clippy --manifest-path apps/cli/Cargo.toml --features painel --all-targets -- -D warnings` sem avisos.

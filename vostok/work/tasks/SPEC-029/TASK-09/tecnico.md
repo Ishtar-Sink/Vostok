@@ -7,3 +7,19 @@
 **Riscos.** Imagens de evidência grandes: são servidas por `/arquivos/...`, sem embutir no JSON.
 
 **Arquivos em comum na onda.** Nenhum: cada tarefa de telas muda só as próprias pastas de feature, e as ações compartilhadas já estão em `shared/` (TASK-03).
+
+
+## O que foi feito
+
+**O que mudou:**
+- `features/task/task-page.tsx` e `features/documents/documents-page.tsx`, com os CSS de cada um.
+- As ações e a lista do que espera o usuário vêm de `shared/`.
+- **Testes:** 8, que falharam antes do código.
+
+**Ponto de atenção:**
+- Numa rodada, o `tsc` acusou um erro em `board/tasks-page.tsx`, de outra tarefa em andamento. O erro sumiu na rodada seguinte.
+
+**Verificação:**
+- `tsc`, vitest e build passaram.
+- A regressão não encontrou diferença.
+- O teste gravou `task-09-testes.txt`, e os prints `tarefa.png` e `documentos.png` foram conferidos pelo usuário.

@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-029
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-02
 
@@ -22,7 +22,7 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** O WebSocket `/api/ao-vivo` avisa `mudou` às abas quando a versão de `vostok/work/` muda, conferida a cada 500 ms.
 - **Critérios de aceite:**
-  - [ ] O painel avisa todas as abas abertas quando `vostok/work/` muda, em menos de 1 s (RF-05, CT-13, RNF-03, CB-06).
+  - [x] O painel avisa todas as abas abertas quando `vostok/work/` muda, em menos de 1 s (RF-05, CT-13, RNF-03, CB-06).
 - **Rótulos:** SPEC-029, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-02

@@ -13,3 +13,34 @@
 **Riscos.** Gravar fora de `vostok/` por travessia de caminho: há teste para cada recusa.
 
 **Arquivos em comum na onda.** Nenhum.
+
+
+## O que foi feito
+
+**O que mudou em `apps/cli/src/painel/actions.rs`:**
+- **Edição (`PUT /api/arquivo`):** grava com hash, responde 409 com o conteúdo atual, recusa `registro.md`, `README.md`, `estado.yml` e caminhos de fora (403), e registra o ajuste manual com os problemas da validação.
+- **Configuração (`PUT /api/configuracao`):** grava com hash e devolve os problemas de `rules::validate_at`.
+- **Aprovação (`POST /api/aprovacoes`):**
+  - grava `approved_by: painel`;
+  - acrescenta o aval em `avais.log`, só por acréscimo;
+  - responde 422 sem gravar aval quando o `vostok` recusa.
+- **Pedidos (`POST /api/pedidos`):**
+  - 10 ações aceitas, com 400 para ação desconhecida e para as de aprovação;
+  - numeração que não deixa dois pedidos pegarem o mesmo `PED-NNN`.
+- **Limites:** corpo acima de 2 MB recebe 413, e link simbólico para fora da pasta é recusado.
+
+**Ajuste 1, com a sua aprovação:**
+- **`rules.rs`:** expõe `validate_at(project) -> Result<Vec<String>>`, que o `validate` passou a usar.
+- **`server.rs`:**
+  - encaminha `GET /arquivos/...` para `read::route`;
+  - o teste `action_with_token_reaches_the_actions` agora espera o 400 da ação real;
+  - há teste novo de que `/arquivos` não cai no bundle.
+
+**Pontos de atenção:**
+- Falta o teste da aprovação de spec que dá certo; só o 422 de spec inexistente está coberto.
+- Os testes foram escritos junto com o código.
+
+**Verificação:**
+- Os testes passaram: 26 de `painel::actions`, 10 de `painel::server` e 26 de `context_memory_rules`.
+- A regressão só registrou acréscimo, e os testes de aprovação ficaram iguais.
+- A evidência é `acoes-testes.txt`.

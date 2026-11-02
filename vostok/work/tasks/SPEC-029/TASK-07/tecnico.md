@@ -7,3 +7,21 @@
 **Riscos.** O contrato do JSON mudar na TASK-04: a TASK-04 mantém os nomes do spike.
 
 **Arquivos em comum na onda.** Nenhum: cada tarefa de telas muda só as próprias pastas de feature, e as ações compartilhadas já estão em `shared/` (TASK-03).
+
+
+## O que foi feito
+
+**O que mudou:**
+- **Painel:** `features/dashboard/dashboard-page.tsx` e o CSS dele.
+- **Pendências:** `features/inbox/inbox-page.tsx` e o CSS dele.
+- **Origem do código:** o spike, com as ações vindas de `shared/action-bar` e `shared/attention`.
+- **Testes:** 11, em `dashboard-page.test.tsx` e `inbox-page.test.tsx`.
+
+**Ponto de atenção:**
+- A lista de pendências existe duas vezes, uma em cada página, cada uma com o próprio CSS, porque a página do painel não importa `features/inbox`.
+- Para ter uma só, ela teria de ir para `shared/` numa mudança futura.
+
+**Verificação:**
+- `tsc`, vitest e build passaram.
+- A regressão não encontrou diferença.
+- O teste gravou `task-07-testes.txt`, e os prints `painel.png` e `pendencias.png` foram conferidos pelo usuário.

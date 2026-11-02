@@ -8,10 +8,12 @@
 ```bash
 # evidência: acoes-testes.txt
 cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::actions
+cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::server
+cargo test --manifest-path apps/cli/Cargo.toml --test context_memory_rules
 cargo clippy --manifest-path apps/cli/Cargo.toml --features painel --all-targets -- -D warnings
 ```
 
-Resultado esperado: os testes de edição, configuração, aprovação e pedidos passam; clippy sem avisos.
+Resultado esperado: os testes de edição, configuração (com a validação das regras), aprovação e pedidos passam; os testes do servidor passam com o encaminhamento de `/arquivos`; os testes de regras continuam passando; clippy sem avisos.
 
 ### Evidências
 

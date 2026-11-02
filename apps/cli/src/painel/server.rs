@@ -76,8 +76,8 @@ fn handle(painel: &Painel, mut request: tiny_http::Request) {
     let _ = request.respond(to_response(reply));
 }
 
-/// Roteia uma requisição já lida: `GET /api/...` para a leitura, POST e PUT com o token para as
-/// ações (403 sem ele, RF-08) e os demais `GET` para o bundle.
+/// Roteia uma requisição já lida: `GET /api/...` e `GET /arquivos/...` para a leitura, POST e PUT
+/// com o token para as ações (403 sem ele, RF-08) e os demais `GET` para o bundle.
 pub fn dispatch(
     painel: &Painel,
     method: &str,
@@ -88,7 +88,7 @@ pub fn dispatch(
     let (path, query) = url.split_once('?').unwrap_or((url, ""));
     let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
     match method {
-        "GET" if parts.first() == Some(&"api") => {
+        "GET" if matches!(parts.first(), Some(&"api" | &"arquivos")) => {
             read::route(painel, &parts, query).unwrap_or_else(not_found)
         }
         "GET" => asset(painel, path),
@@ -208,6 +208,7 @@ fn to_response(reply: Reply) -> tiny_http::Response<io::Cursor<Vec<u8>>> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::PathBuf;
 
     use super::*;
@@ -245,8 +246,33 @@ mod tests {
 
     #[test]
     fn action_with_token_reaches_the_actions() {
+        // Sem `acao`, o pedido é recusado pela própria ação (400), e não pelo token (403).
         let reply = dispatch(&painel(), "POST", "/api/pedidos", Some(TOKEN), b"texto");
-        assert_eq!(reply.status, 501);
+        assert_eq!(reply.status, 400);
+        assert_eq!(reply.body, "ação desconhecida".as_bytes());
+    }
+
+    #[test]
+    fn arquivos_get_goes_to_the_reading_not_to_the_bundle() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("vostok");
+        fs::create_dir_all(root.join("work/docs")).unwrap();
+        fs::write(root.join("work/docs/executivo.html"), "<p>executivo</p>").unwrap();
+        let painel = Painel {
+            project: dir.path().to_path_buf(),
+            work: root.join("work"),
+            root,
+            token: TOKEN.to_string(),
+        };
+        let reply = dispatch(
+            &painel,
+            "GET",
+            "/arquivos/vostok/work/docs/executivo.html",
+            None,
+            b"",
+        );
+        assert_eq!(reply.status, 200);
+        assert_eq!(reply.body, b"<p>executivo</p>");
     }
 
     #[test]

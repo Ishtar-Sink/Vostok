@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-029
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-03
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** O painel com indicadores e atividade, e as pendências com as ações de aprovar e pedir ao agente.
 - **Critérios de aceite:**
-  - [ ] As telas dashboard, inbox mostram os dados reais da pasta com os estados de carregamento, vazio e erro (RF-06, RF-11, CT-03).
-  - [ ] Nenhuma tela importa outra feature, e o build do frontend passa (RF-03).
+  - [x] As telas dashboard, inbox mostram os dados reais da pasta com os estados de carregamento, vazio e erro (RF-06, RF-11, CT-03).
+  - [x] Nenhuma tela importa outra feature, e o build do frontend passa (RF-03).
 - **Rótulos:** SPEC-029, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-03

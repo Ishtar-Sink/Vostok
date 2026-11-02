@@ -57,6 +57,15 @@ pub enum RulesCommand {
     },
 }
 
+/// Os problemas que `vostok rules validate` acusaria no harness de `project`, sem imprimir nem
+/// encerrar o processo (vazio quando válido).
+pub fn validate_at(project: &Path) -> Result<Vec<String>> {
+    Rules {
+        harness: Harness::locate(project)?,
+    }
+    .problems()
+}
+
 pub fn run(command: RulesCommand) -> Result<()> {
     let rules = Rules {
         harness: Harness::from_current_dir()?,
@@ -115,6 +124,19 @@ impl Rules {
     // --- validate ---
 
     fn validate(&self) -> Result<()> {
+        let problems = self.problems()?;
+        if !problems.is_empty() {
+            for problem in problems {
+                println!("{problem}");
+            }
+            exit_failure();
+        }
+        println!("Regras e mapa válidos.");
+        Ok(())
+    }
+
+    /// Problemas do mapa de contexto e dos arquivos de regras de projeto.
+    fn problems(&self) -> Result<Vec<String>> {
         let mut problems = self.map_problems()?;
         let mut files = Vec::new();
         collect_markdown(&self.rules_dir(), &mut files);
@@ -128,14 +150,7 @@ impl Rules {
             let content = fs::read(self.harness.root.join(&file)).unwrap_or_default();
             problems.extend(category_problems(&file, &String::from_utf8_lossy(&content)));
         }
-        if !problems.is_empty() {
-            for problem in problems {
-                println!("{problem}");
-            }
-            exit_failure();
-        }
-        println!("Regras e mapa válidos.");
-        Ok(())
+        Ok(problems)
     }
 
     /// Caminhos de `required` e das skills existem, e cada skill do mapa existe.

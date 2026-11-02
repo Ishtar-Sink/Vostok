@@ -9,17 +9,20 @@ wave: 2
 covers: [RF-03, RF-09, CT-03, CB-07]
 type: tarefa
 labels: [SPEC-029, padrao]
-status: approved
-content_hash: 9a15d2e327571ee394c40135f1006f3f703542feb46a603df1994ff265e313c3
+status: done
+content_hash: 744723c40805ba2d0463dad01218a50a8867b755df7cf1c943ea519db1a18d97
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-02T13:33:10Z
 approved_hash: 9a15d2e327571ee394c40135f1006f3f703542feb46a603df1994ff265e313c3
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: e11f99f7f89e4b18b6e5c665717010e741b9661dec408f120ed1d0c6a055fdda
 verification_hash: d86d80f941ef1ebe66fef7a473be34e661c029d720e09344584543413b0a247b
-criteria_hash: adc2b5c0caff8b5a2548351d9c8408b11ef222bf20a197bcefa7d536751ed6c8
-state_hash: ae3e2f2dfabbbe4e1928f1f991dcf8877d5779bbe581293382ea59f61638d7e9
+criteria_hash: 0dfd390028d4cc0b6b37d38da3abef0c97d3d8824b5369f231c1ccbed705affd
+state_hash: 6eb925fe0f2bca2c16d201140283da6a51a4065e9e8a26bedfea4acc72f0f1cd
+model: claude-sonnet-5-5
+executive_hash: 65ddeebe460502c010197657ea14827f7535f715d42e9c9fc24ffc2a3fc98299
+technical_hash: b1534013f58f8ea35c8dcedf05576884ba2b4d7689c5fd388d26e1f1a628d695

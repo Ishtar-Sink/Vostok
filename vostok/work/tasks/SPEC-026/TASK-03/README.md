@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-026
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,12 +22,12 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** historia
 - **Descrição:** O build mostra o nome e embute o ícone configurados no topo dos três documentos, mantém a identidade atual sem configuração e deixa os IDs da cobertura numa linha.
 - **Critérios de aceite:**
-  - [ ] O nome configurado aparece no topo dos três documentos, escapado, e o rodapé cita o Vostok (RF-06, RN-04, CB-08).
-  - [ ] O ícone configurado vai embutido no topo, sem requisição externa (RF-07, RNF-02).
-  - [ ] Ícone ausente, grande demais ou de formato não suportado faz o build falhar com o motivo (CB-02, CB-03, RNF-05).
-  - [ ] Sem identidade configurada, os documentos ficam como hoje e os goldens não mudam (RF-08, RNF-04).
-  - [ ] Os IDs do mapa de cobertura ficam numa linha só (RF-12).
-  - [ ] Nenhuma cor fixa nova nos templates (RNF-01).
+  - [x] O nome configurado aparece no topo dos três documentos, escapado, e o rodapé cita o Vostok (RF-06, RN-04, CB-08).
+  - [x] O ícone configurado vai embutido no topo, sem requisição externa (RF-07, RNF-02).
+  - [x] Ícone ausente, grande demais ou de formato não suportado faz o build falhar com o motivo (CB-02, CB-03, RNF-05).
+  - [x] Sem identidade configurada, os documentos ficam como hoje e os goldens não mudam (RF-08, RNF-04).
+  - [x] Os IDs do mapa de cobertura ficam numa linha só (RF-12).
+  - [x] Nenhuma cor fixa nova nos templates (RNF-01).
 - **Rótulos:** SPEC-026, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

@@ -310,6 +310,23 @@ fn built_folder_project() -> Project {
 
 /// Como `built_folder_project`, com `prepare` mexendo na pasta da tarefa antes do `create`.
 fn built_folder_project_with(prepare: impl FnOnce(&std::path::Path)) -> Project {
+    let project = filled_folder_project(prepare);
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    project
+}
+
+/// Como `built_folder_project_with`, parando antes do `build`, com o conteúdo criado e preenchido.
+fn filled_folder_project(prepare: impl FnOnce(&std::path::Path)) -> Project {
     let project = Project::new();
     write_spec(&project, "implemented");
     prepare(&write_folder_task(&project, "TASK-01"));
@@ -325,17 +342,6 @@ fn built_folder_project_with(prepare: impl FnOnce(&std::path::Path)) -> Project 
         .replace("#{EVIDENCE_01_HOW}", "rodar.")
         .replace("#{EVIDENCE_01_READ}", "ler.");
     fs::write(&content_path, fill_variables(&content)).unwrap();
-    let output = project
-        .vostok()
-        .args(["finalize", "build", "SPEC-001"])
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
     project
 }
 
@@ -481,7 +487,10 @@ fn visual_task_technical_headings_render_as_headings() {
         .unwrap();
     });
     let technical = &built_documents(&project)[1].1;
-    assert!(technical.contains("<h4>O que foi feito</h4>"), "{technical}");
+    assert!(
+        technical.contains("<h4>O que foi feito</h4>"),
+        "{technical}"
+    );
     assert!(technical.contains("<h5>Parte</h5>"), "{technical}");
     assert!(
         technical.contains("<pre><code>let x = 1 &lt; 2;</code></pre>"),
@@ -500,7 +509,10 @@ fn visual_colors_come_only_from_documents_yml() {
     assert!(!allowed.is_empty());
     for (name, html) in built_documents(&project) {
         for color in hex_colors(&html) {
-            assert!(allowed.contains(&color), "{name}: #{color} fora de documents.yml");
+            assert!(
+                allowed.contains(&color),
+                "{name}: #{color} fora de documents.yml"
+            );
         }
     }
 }
@@ -557,7 +569,8 @@ fn content_validate_refuses_code_in_the_executive() {
     set_section(&path, "Valor e impacto", "Ficou em `src/novo.rs`.");
     let stderr = validate_stderr(&project);
     assert!(
-        stderr.contains("código no executivo (caminho, comando ou função): Ficou em `src/novo.rs`."),
+        stderr
+            .contains("código no executivo (caminho, comando ou função): Ficou em `src/novo.rs`."),
         "{stderr}"
     );
 }
@@ -579,8 +592,14 @@ fn content_validate_requires_every_requirement_in_the_coverage_map() {
         "| ID | O que foi verificado | Evidência |\n|---|---|---|\n| RF-10 | dez | TASK-01 / saida.txt |",
     );
     let stderr = validate_stderr(&project);
-    assert!(stderr.contains("Mapa de cobertura (Evidências): falta RF-01"), "{stderr}");
-    assert!(stderr.contains("Mapa de cobertura (Evidências): falta RNF-01"), "{stderr}");
+    assert!(
+        stderr.contains("Mapa de cobertura (Evidências): falta RF-01"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("Mapa de cobertura (Evidências): falta RNF-01"),
+        "{stderr}"
+    );
     assert!(!stderr.contains("falta RF-10"), "{stderr}");
 }
 
@@ -615,8 +634,14 @@ fn content_technical_has_the_support_sections() {
     ] {
         assert!(technical.contains(&format!("<h2>{title}</h2>")), "{title}");
     }
-    assert!(technical.contains("<td><code>src/novo.rs</code></td>"), "{technical}");
-    assert!(technical.contains("<li>Rodar <code>vostok finalize build</code>.</li>"), "{technical}");
+    assert!(
+        technical.contains("<td><code>src/novo.rs</code></td>"),
+        "{technical}"
+    );
+    assert!(
+        technical.contains("<li>Rodar <code>vostok finalize build</code>.</li>"),
+        "{technical}"
+    );
 }
 
 #[test]
@@ -632,6 +657,127 @@ fn content_numbers_render_in_the_summary_band() {
     let technical = &documents[1].1;
     assert!(!technical.contains("class=\"facts\""), "{technical}");
     let evidence = &documents[2].1;
-    assert!(evidence.contains("<b>Prova</b>a saída de CT-01."), "{evidence}");
+    assert!(
+        evidence.contains("<b>Prova</b>a saída de CT-01."),
+        "{evidence}"
+    );
     assert!(evidence.contains("id=\"p-cobertura\""), "{evidence}");
+}
+
+/// Projeto pronto para o `build`, com o grupo `brand` acrescentado ao `documents.yml` e os arquivos
+/// dados gravados na raiz do projeto.
+fn project_with_brand(brand: &str, files: &[(&str, Vec<u8>)]) -> Project {
+    let project = filled_folder_project(|_| {});
+    let config = project.harness().join("config/documents.yml");
+    let text = fs::read_to_string(&config).unwrap();
+    let mut in_brand = false;
+    let mut text: String = text
+        .lines()
+        .filter(|line| {
+            if !line.starts_with([' ', '\t']) && !line.trim().is_empty() {
+                in_brand = line.starts_with("brand:");
+            }
+            !in_brand
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    text.push_str(&format!("\nbrand:\n{brand}"));
+    fs::write(&config, text).unwrap();
+    for (name, bytes) in files {
+        fs::write(project.root().join(name), bytes).unwrap();
+    }
+    project
+}
+
+fn build_succeeds(project: &Project) -> Vec<(&'static str, String)> {
+    project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .assert()
+        .success();
+    built_documents(project)
+}
+
+fn small_svg() -> Vec<u8> {
+    let mut svg = b"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 16 16\"><circle cx=\"8\" cy=\"8\" r=\"7\"/>".to_vec();
+    svg.extend(std::iter::repeat_n(b' ', 900));
+    svg.extend(b"</svg>");
+    svg
+}
+
+#[test]
+fn brand_name_replaces_vostok_in_the_header() {
+    let project = project_with_brand("  name: \"Atria & Co\"\n", &[]);
+    for (name, html) in build_succeeds(&project) {
+        assert!(
+            html.contains("<span class=\"brand\"><i></i>Atria &amp; Co</span>"),
+            "{name}"
+        );
+        assert!(!html.contains("<i></i>Vostok</span>"), "{name}");
+        assert!(html.contains("Vostok"), "{name}: o rodapé cita o Vostok");
+    }
+}
+
+#[test]
+fn brand_icon_is_embedded_in_the_header() {
+    let project = project_with_brand("  icon: \"logo.svg\"\n", &[("logo.svg", small_svg())]);
+    for (name, html) in build_succeeds(&project) {
+        assert!(
+            html.contains("<img class=\"brand-mark\" alt=\"\" src=\"data:image/svg+xml;base64,"),
+            "{name}"
+        );
+        assert!(!html.contains("<span class=\"brand\"><i></i>"), "{name}");
+        assert!(!html.contains("https://"), "{name}");
+        assert!(!html.contains("http://www.w3.org/2000/svg\""), "{name}");
+    }
+}
+
+#[test]
+fn brand_missing_icon_fails_the_build() {
+    let project = project_with_brand("  icon: \"sumiu.svg\"\n", &[]);
+    let stderr = failure_stderr(project.vostok().args(["finalize", "build", "SPEC-001"]));
+    assert!(stderr.contains("sumiu.svg"), "{stderr}");
+}
+
+#[test]
+fn brand_large_or_unknown_icon_fails_the_build() {
+    let project = project_with_brand(
+        "  icon: \"grande.png\"\n",
+        &[("grande.png", vec![0u8; 300 * 1024])],
+    );
+    let stderr = failure_stderr(project.vostok().args(["finalize", "build", "SPEC-001"]));
+    assert!(stderr.contains("grande.png"), "{stderr}");
+    assert!(stderr.contains("256 KB"), "{stderr}");
+
+    let project = project_with_brand("  icon: \"logo.gif\"\n", &[("logo.gif", vec![0u8; 100])]);
+    let stderr = failure_stderr(project.vostok().args(["finalize", "build", "SPEC-001"]));
+    assert!(stderr.contains("logo.gif"), "{stderr}");
+    assert!(stderr.contains("svg, png, webp"), "{stderr}");
+}
+
+#[test]
+fn brand_empty_keeps_the_vostok_identity() {
+    let without_group = built_folder_project();
+    let empty_group = project_with_brand("  name: \"\"\n  icon: \"\"\n", &[]);
+    let documents = built_documents(&without_group)
+        .into_iter()
+        .chain(build_succeeds(&empty_group));
+    for (name, html) in documents {
+        assert!(
+            html.contains("<span class=\"brand\"><i></i>Vostok</span>"),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn coverage_ids_do_not_wrap() {
+    let project = built_folder_project();
+    let evidence = &built_documents(&project)[2].1;
+    assert!(
+        evidence.contains(
+            "#p-cobertura th:first-child, #p-cobertura td:first-child { white-space: nowrap; }"
+        ),
+        "{evidence}"
+    );
 }

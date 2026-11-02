@@ -1145,9 +1145,7 @@ fn study_errors(content: &str, requirements: &[String]) -> Vec<String> {
             }
         }
         for line in prose_lines(&part) {
-            let item = line
-                .strip_prefix("- ")
-                .or_else(|| ordered_item(line));
+            let item = line.strip_prefix("- ").or_else(|| ordered_item(line));
             if item.is_some_and(|item| item.chars().count() > MAX_LIST_ITEM_CHARS) {
                 let start: String = line.chars().take(60).collect();
                 errors.push(format!(
@@ -1639,7 +1637,10 @@ fn close_block(block: &mut Block, out: &mut String) {
         }
         Block::List(tag) => push_line(out, &format!("</{tag}>")),
         Block::Code(code) => {
-            push_line(out, &format!("<pre><code>{}</code></pre>", html_escape(&code)));
+            push_line(
+                out,
+                &format!("<pre><code>{}</code></pre>", html_escape(&code)),
+            );
         }
         Block::Table { rows, header } => {
             push_line(out, "<table>");
@@ -1664,7 +1665,9 @@ fn heading(line: &str) -> Option<(usize, &str)> {
     if !(1..=3).contains(&depth) {
         return None;
     }
-    line[depth..].strip_prefix(' ').map(|title| (depth, awk_trim(title)))
+    line[depth..]
+        .strip_prefix(' ')
+        .map(|title| (depth, awk_trim(title)))
 }
 
 fn ordered_item(line: &str) -> Option<&str> {
@@ -1997,7 +2000,9 @@ impl Finalization {
         header: &Header,
         kind: &str,
         tokens: String,
+        errors: &mut String,
     ) -> Vec<(&'static str, String)> {
+        let (brand_name, brand_mark) = self.brand(errors);
         vec![
             (
                 "DOC_TITLE",
@@ -2008,7 +2013,62 @@ impl Finalization {
             ("SPEC_TITLE", header.title.clone()),
             ("APPROVED", header.approved.clone()),
             ("FINISHED", header.finished.clone()),
+            ("BRAND_NAME", brand_name),
+            ("BRAND_MARK", brand_mark),
         ]
+    }
+
+    /// Nome e marca do topo dos documentos: os do grupo `brand` de `documents.yml` ou, sem eles, a
+    /// identidade do Vostok.
+    fn brand(&self, errors: &mut String) -> (String, String) {
+        let config = self.documents_config();
+        let group = config_group(&config, "brand", errors);
+        let value = |key: &str| {
+            group
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value.clone())
+                .unwrap_or_default()
+        };
+        let name = value("name");
+        let name = if name.is_empty() {
+            "Vostok".to_string()
+        } else {
+            html_escape(&name)
+        };
+        let icon = value("icon");
+        let mark = if icon.is_empty() {
+            "<i></i>".to_string()
+        } else {
+            self.brand_icon(&icon).unwrap_or_else(|reason| {
+                errors.push_str(&format!("Erro: ícone '{icon}' ({reason})\n"));
+                String::new()
+            })
+        };
+        (name, mark)
+    }
+
+    /// O ícone da marca embutido em base64, lido em relação à raiz do projeto.
+    fn brand_icon(&self, icon: &str) -> std::result::Result<String, String> {
+        let extension = icon
+            .rsplit_once('.')
+            .map_or("", |(_, ext)| ext)
+            .to_ascii_lowercase();
+        let mime = match extension.as_str() {
+            "svg" => "image/svg+xml",
+            "png" => "image/png",
+            "webp" => "image/webp",
+            _ => return Err("extensão não suportada; use svg, png, webp".to_string()),
+        };
+        let bytes = fs::read(self.root.join(icon))
+            .map_err(|error| format!("não foi possível ler o arquivo: {}", strerror(&error)))?;
+        if bytes.len() > BRAND_ICON_MAX_BYTES {
+            return Err("acima do limite de 256 KB".to_string());
+        }
+        Ok(format!(
+            "<img class=\"brand-mark\" alt=\"\" src=\"data:{mime};base64,{}\">",
+            base64(&bytes)
+        ))
     }
 
     fn content_part(&self, title: &str) -> Result<String> {
@@ -2027,7 +2087,7 @@ impl Finalization {
             .iter()
             .filter(|delivery| matches!(delivery, Delivery::Entry(_)))
             .count();
-        let mut values = self.header_values(&header, "Resumo executivo", tokens);
+        let mut values = self.header_values(&header, "Resumo executivo", tokens, errors);
         values.extend([
             ("LEDE", section_html(&part, "Panorama")),
             ("NUMBERS", numbers_html(&part)),
@@ -2068,7 +2128,7 @@ impl Finalization {
         let header = self.header()?;
         let part = self.content_part("Técnico")?;
         let diffs = self.diffs_html()?;
-        let mut values = self.header_values(&header, "Documento técnico", tokens);
+        let mut values = self.header_values(&header, "Documento técnico", tokens, errors);
         values.extend([
             ("OVERVIEW", section_html(&part, "Visão geral")),
             ("NUMBERS", numbers_html(&part)),
@@ -2774,7 +2834,11 @@ impl Finalization {
         );
         let part = captured(&content_part(&content, "Evidências"));
         let written = section_html(&part, "Em resumo");
-        let summary = if written.trim().is_empty() { summary } else { written };
+        let summary = if written.trim().is_empty() {
+            summary
+        } else {
+            written
+        };
         let coverage = section_html(&part, COVERAGE_SECTION);
         let (coverage, coverage_nav) = if coverage.trim().is_empty() {
             (String::new(), String::new())
@@ -2786,7 +2850,7 @@ impl Finalization {
                 "    <a href=\"#p-cobertura\">Cobertura</a>".to_string(),
             )
         };
-        let mut values = self.header_values(&header, "Evidências", tokens);
+        let mut values = self.header_values(&header, "Evidências", tokens, errors);
         values.extend([
             ("SUMMARY", summary),
             ("COVERAGE", coverage),
@@ -2934,6 +2998,9 @@ fn embedded_media(kind: MediaType, name: &str, bytes: &[u8]) -> Vec<u8> {
         MediaType::Other => Vec::new(),
     }
 }
+
+/// Tamanho máximo do ícone da marca embutido no topo dos documentos.
+const BRAND_ICON_MAX_BYTES: usize = 256 * 1024;
 
 fn base64(bytes: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

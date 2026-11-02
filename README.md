@@ -10,8 +10,8 @@ O Vostok faz parte do ecossistema [Ishtar Sink](https://github.com/Ishtar-Sink).
 
 | Fase | O que entrega | Status |
 |---|---|---|
-| 1. Harness local | Regras, skills e a CLI `vostok`, instalada em qualquer projeto. | Em andamento |
-| 2. Painel local | Painel aberto pelo `vostok painel` em cada pasta, com os arquivos do harness como banco. | Planejada |
+| 1. Harness local | Regras, skills e a CLI `vostok`, instalada em qualquer projeto. | Entregue |
+| 2. Painel local | Painel aberto pelo `vostok painel` em cada pasta, com os arquivos do harness como banco, a trava de aval e o loop de pedidos. | Entregue na v0.3.0 |
 
 O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o que já existe e como as partes se conectam.
 
@@ -22,7 +22,7 @@ O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o q
 - **Configurável.** Caminhos, status, tipos, seções e sequências de IDs ficam em `vostok/config/`.
 - **Respostas com template.** Toda resposta do agente segue um dos templates de `templates/responses/`, com estrutura fixa por tipo; as respostas sobre tarefas trazem o quadro do `vostok task status`.
 - **Memória.** Decisões (DEC), issues (ISS) e conhecimento (KNW) em Markdown, criadas, buscadas e atualizadas pelo `vostok memory`.
-- **Painel local** (fase 2). O `vostok painel` abre, em cada pasta, um painel no navegador que lê e grava os arquivos de `vostok/` pela lógica da CLI. As aprovações feitas nele ficam registradas com a origem e o aval, e o que precisa do agente vira um pedido em arquivo, processado por um chat em loop.
+- **Painel local.** O `vostok painel` abre, em cada pasta, um painel no navegador que lê e grava os arquivos de `vostok/` pela lógica da CLI. As aprovações feitas nele ficam registradas com a origem e o aval, e o que precisa do agente vira um pedido em arquivo, processado pela skill `process-requests` em loop. Veja [Painel local](#painel-local).
 
 ### Carregamento de contexto
 
@@ -45,6 +45,7 @@ pedido → draft → refined → approved → plano → tarefas → execução
 | Plano | `plan-tasks`, `adjust-plan`, `approve-plan` | Quebra a spec aprovada em tarefas, com persona, perfil de execução e onda, e cria um arquivo por tarefa. |
 | Tarefas | `approve-task`, `execute-task`, `finish-task` | Aprova, executa (uma tarefa ou uma onda, com subagentes) com baseline e conclui cada tarefa com testes, regressão e evidências. |
 | Finalização | `finalize-spec` | Gera os documentos executivo, técnico e de evidências e arquiva a spec. |
+| Pedidos do painel | `process-requests` | Atende, um por vez, os pedidos gravados pelo painel, pela skill da ação pedida. |
 
 Há também a skill `create-skill`, que cria skills no formato padrão e gera os redirecionamentos para cada ferramenta (`.claude/skills/`, `.agents/skills/`).
 
@@ -104,12 +105,43 @@ suggest-harness-feature     → [harness-feature]      ┘
 
 A `triage-harness-issue` é uma skill customizada deste repositório e não é distribuída; as demais chegam aos projetos pelo `vostok update`. Nenhuma delas escreve no GitHub sem a autorização do usuário depois de ver o texto, e toda pergunta delas usa o template `question`, com a opção recomendada em primeiro.
 
+## Painel local
+
+```bash
+vostok painel
+```
+
+Dentro de um projeto com o harness, o comando abre no navegador um painel local (só em `127.0.0.1`, com um token por sessão) que lê e grava os arquivos de `vostok/` pelas mesmas funções e validações da CLI. Não há servidor remoto nem banco: os arquivos são o banco, e o painel se atualiza sozinho quando eles mudam, inclusive quando quem muda é o agente. Use `--porta` para escolher a porta e `--sem-navegador` para só imprimir o endereço.
+
+![Página inicial do painel, com as specs em andamento e as pendências](docs/imagens/painel/painel.png)
+
+| | |
+|---|---|
+| ![Pendências, com os botões de aval](docs/imagens/painel/pendencias.png) | ![Documento de uma spec](docs/imagens/painel/spec.png) |
+| **Pendências.** Tudo o que espera o usuário, com aprovar, pedir ajuste, pedir finalização e pedir commit. | **Spec.** O documento refinado, com as referências e o histórico de ajustes. |
+| ![Quadro das tarefas de uma spec](docs/imagens/painel/quadro.png) | ![Tela de uma tarefa](docs/imagens/painel/tarefa.png) |
+| **Quadro.** As tarefas da spec por status, com a onda e o perfil de cada uma. | **Tarefa.** Execução, verificação, critérios, evidências e registro. |
+| ![Configurações do harness](docs/imagens/painel/configuracoes.png) | ![Documentos publicados](docs/imagens/painel/documentos.png) |
+| **Configurações.** Os arquivos de `vostok/config/` editados em formulário, com controle de conflito. | **Documentos.** O executivo e o técnico de cada spec finalizada. |
+
+### Trava de aval e pedidos
+
+O painel aprova direto specs e tarefas, com `approved_by: painel`. O que precisa do agente (ajustar uma tarefa, finalizá-la, aprovar um plano, finalizar uma spec ou fazer um commit) vira um pedido `PED-NNN.md` em `vostok/work/pedidos/`, e o painel grava, junto, uma linha de aval em `vostok/work/avais.log`, com a data, o alvo, o hash do que foi visto e a ação. As duas pastas ficam fora do git.
+
+Para o agente atender os pedidos:
+
+- **Claude Code:** `/process-requests 1m` arma o loop com o intervalo pedido; a cada rodada, a skill pega o primeiro pedido pendente, roda a skill da ação e o marca como feito ou recusado.
+- **Codex:** `vostok pedidos vigiar --agente codex` confere a pasta a cada 15 segundos (`--intervalo`) e dispara um `codex exec` por pedido, um por vez. Ele foi testado com um Codex simulado; o uso com o Codex real ainda não foi testado (DT-013).
+- **À mão:** `vostok pedidos listar|iniciar|concluir|recusar`.
+
+Com `approval_lock: true` em `vostok/config/main.yml`, a trava passa a valer: finalizar tarefa, aprovar plano, finalizar spec e fazer commit só passam com o aval do painel para o mesmo alvo e o mesmo hash, e um ajuste depois do aval o derruba. Sem a chave, a trava fica desligada e o chat continua aprovando sozinho. A trava torna visível uma linha de aval forjada no arquivo, mas não a impede (DT-014).
+
 ## Estrutura
 
 ```
 apps/
   cli/          CLI `vostok` em Rust, com o harness embutido
-  painel/       frontend do painel local (fase 2)
+  painel/       frontend do painel local (Preact), embutido no binário
 packages/
   harness/      fonte do harness distribuído (config, context, personas, rules, skills, templates)
 vostok/         harness instalado neste projeto pelo `vostok init`
@@ -120,17 +152,39 @@ vostok/         harness instalado neste projeto pelo `vostok init`
   rules/        regras do agente e do projeto
   skills/       skills padrão (default/) e do usuário (custom/)
   templates/    respostas, specs, skills e memória
-  work/         specs e tarefas em andamento
-docs/           mapa do projeto, estudos e documentos das specs finalizadas
+  work/         specs, tarefas, pedidos do painel e avais
+docs/           mapa do projeto, estudos, imagens do painel, débitos e documentos das specs finalizadas
 ```
 
 ## Instalação
 
-Por enquanto, a partir do código (Rust estável):
+Pelo binário da [página de releases](https://github.com/Ishtar-Sink/Vostok/releases), com o painel embutido. Cada versão tem um `vostok-<versão>-<plataforma>.tar.gz` e o `.sha256` dele para `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin` e `aarch64-apple-darwin`. No Linux x86_64:
 
 ```bash
-cargo install --path apps/cli
+curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.3.0/vostok-0.3.0-x86_64-unknown-linux-gnu.tar.gz
 ```
+
+```bash
+curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.3.0/vostok-0.3.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+```
+
+```bash
+sha256sum -c vostok-0.3.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+```
+
+```bash
+tar xzf vostok-0.3.0-x86_64-unknown-linux-gnu.tar.gz && install vostok ~/.local/bin/
+```
+
+No macOS, troque a plataforma e use `shasum -a 256 -c` na conferência. Confira com `vostok --version`.
+
+Também dá para compilar a partir do código, com Rust estável, Node e pnpm (o build gera o painel):
+
+```bash
+cargo install --path apps/cli --features painel
+```
+
+Sem Node, o `cargo install --path apps/cli` compila a CLI sem o painel, e o `vostok painel` explica como obtê-lo.
 
 Depois, na raiz do projeto:
 

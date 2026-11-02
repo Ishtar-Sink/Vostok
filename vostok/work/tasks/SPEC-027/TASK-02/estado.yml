@@ -9,17 +9,20 @@ wave: 1
 covers: [PQ-02, PQ-03, PQ-04]
 type: tarefa
 labels: [SPEC-027, mecanica]
-status: approved
-content_hash: 5e999d3802ee337d4f2e58bbd92c8575c2883d166fd4d6a6036a8189e6feb9b0
+status: done
+content_hash: 0b5c4287b2d940a7822c1f60638bb5b2092f9091ace53f7cf5affad597081759
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-02T09:53:24Z
 approved_hash: 5e999d3802ee337d4f2e58bbd92c8575c2883d166fd4d6a6036a8189e6feb9b0
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 7e37681becc0fd3e6576b8f7cd3411dea3b29a90cc7236e0227c57014aaf8799
 verification_hash: be0a47d51abf3de603610a2413719a44e2b251fa075632fd972d0c340b5bfa33
-criteria_hash: 316388cafe9007e2358a10f96e540454364fd1f90362ffd41d748c9509bda712
-state_hash: 8b044bf8814588becfe560cabebf71c5f581a78c95ea18c38dd0fa54ce89a57b
+criteria_hash: 69c9b543434728f46c0fa964bc12c683eb0003d34a355a75b43a1f2a6f7ac574
+state_hash: 2097b72e55da290ed5e886259bd05cef3a2d15413c304b9b33a722fc1b0e6315
+model: haiku
+executive_hash: 7ad58ab610ac5dd08e68c690ded35bcb557bbb6d50567ad4ef0d6d57efe19eac
+technical_hash: 978b05540846d01b0c8f4c1e069aa0b0cb22001bbdb12280e6daf767f363fef8

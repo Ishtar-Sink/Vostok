@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-027
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Spike no branch `spike/painel-local` que mede o binário com cada servidor HTTP e com o bundle em React e em Preact, e propõe o limite.
 - **Critérios de aceite:**
-  - [ ] O spike está na worktree `/home/victor/projetos/ai-hub-painel`, no branch `spike/painel-local`, sem nada na `main` além do documento (CA-13).
-  - [ ] O tamanho do binário de cada servidor HTTP e de cada empacotamento está medido contra a base (PQ-02, PQ-03).
-  - [ ] O limite do binário está proposto com a justificativa e a variante recomendada (PQ-04).
+  - [x] O spike está na worktree `/home/victor/projetos/ai-hub-painel`, no branch `spike/painel-local`, sem nada na `main` além do documento (CA-13).
+  - [x] O tamanho do binário de cada servidor HTTP e de cada empacotamento está medido contra a base (PQ-02, PQ-03).
+  - [x] O limite do binário está proposto com a justificativa e a variante recomendada (PQ-04).
 - **Rótulos:** SPEC-027, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** -

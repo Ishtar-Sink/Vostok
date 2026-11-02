@@ -1,0 +1,26 @@
+id: TASK-01
+spec: SPEC-030
+title: "Ler o aval e a chave da trava"
+description: "Módulo `aval` com a leitura do `avais.log` em 4 e 5 colunas, do estado do pedido e da chave `approval_lock`."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-01, RF-02, CT-02, CB-02, CB-03]
+type: tarefa
+labels: [SPEC-030, padrao]
+status: approved
+content_hash: 6e18fafcd2a222c1ed12a1dab4afd552bc814a2a1fb9b0d59266dec4377120fa
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: 6e18fafcd2a222c1ed12a1dab4afd552bc814a2a1fb9b0d59266dec4377120fa
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 345e9e841697add3a4bc0e7860130fbf0cb9f1c59b141638d568b220c0b9964b
+verification_hash: 5f45b88661793e439c555c3a550c542d971c20ebc7be9036fe700229adff1663
+criteria_hash: b6e8c1447ff55ea5440c76abd108558afdfa1fb966441f91e6898e7bee8b5f9e
+state_hash: 639cfe99dbd7191c89deaf67a83d58617db4f044ecbd5b90f694f77e614061b9
+approved_by: chat

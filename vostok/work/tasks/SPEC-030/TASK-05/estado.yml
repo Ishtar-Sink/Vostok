@@ -1,0 +1,26 @@
+id: TASK-05
+spec: SPEC-030
+title: "Aceitar o aval nas regras e skills"
+description: "Regras de `boundaries.md` e das seis skills aceitam o pedido do painel com aval como pedido do usuário."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-16, CT-17]
+type: tarefa
+labels: [SPEC-030, padrao]
+status: approved
+content_hash: 5f01b0d0ca060518e9da423e95979fbde783e1239d4df914c820ace92ce7c5b4
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: 5f01b0d0ca060518e9da423e95979fbde783e1239d4df914c820ace92ce7c5b4
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: f4e5e9d643d038307f055677f774d2e1ca1c4f6da4808e2693619103b78e3a26
+verification_hash: 15fb4d0ca7914d57802140c400bb644bd14caed8f2e9d4730ec9d32b6c2bb996
+criteria_hash: f61eca3030e7ebce020ca1d3c803cf995c1523d3ace9fffef539cc41d9ccf430
+state_hash: fbf471acd10254aae9771fb66deb518dc20edfccc6a3ddfe7f829068acd34f5b
+approved_by: chat

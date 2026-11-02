@@ -1,0 +1,26 @@
+id: TASK-02
+spec: SPEC-030
+title: "Gravar o aval nos pedidos do painel"
+description: "Aval de 5 colunas na aprovação, aval junto dos pedidos travados e a ação `fazer-commit` no painel."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-10, RF-12, CT-11, CT-13]
+type: tarefa
+labels: [SPEC-030, padrao]
+status: approved
+content_hash: fdaf35d4dddd4c1569712d86f97655c7cb90f9aa0bdf92946520601d53b3fe19
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: fdaf35d4dddd4c1569712d86f97655c7cb90f9aa0bdf92946520601d53b3fe19
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 9de70d80d5bb32a5eed4a0666274b685e437851a3e68ce93837c9e8dcbd0738d
+verification_hash: b2eb7189dddd129bedd74170dd466c9567b8e033a2ae4069b4de539e6f1fb02e
+criteria_hash: c15a1dacdb449840cd3eb1f6d48114ac3c0cc67bc027cc172c7b709cfc5c0025
+state_hash: 02f51921c854bc13420d850b3cd1c21ecfc333f666ddba7e2519306ac21ad75d
+approved_by: chat

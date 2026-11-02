@@ -1,0 +1,26 @@
+id: TASK-08
+spec: SPEC-030
+title: "Criar a skill do loop de pedidos"
+description: "Skill `process-requests` com a instrução do loop, no catálogo e no mapa de contexto."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-04]
+wave: 2
+covers: [RF-14, CT-15]
+type: tarefa
+labels: [SPEC-030, padrao]
+status: approved
+content_hash: 482d84f59c6d0dda05b25c3ac38ed7a66b04a0511f59a6e6c9542ffc16e418e9
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: 482d84f59c6d0dda05b25c3ac38ed7a66b04a0511f59a6e6c9542ffc16e418e9
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: f9f89d8f2738d2e9848bb06da964f28b2eb3d2c24d4760ca45f320f619b2e0a9
+verification_hash: 2a4bbe6c27052a1d8863fda44e79f90473e26d416e9be203e57b9aaf1a9a6a6f
+criteria_hash: 234f0781a85b8776c094de0b4e72ff664381623d699d6df52e79b3476db4c884
+state_hash: 339aba48dc45a7539e979081c933496e437312e72bf592a9cc7aed21bc2f885a
+approved_by: chat

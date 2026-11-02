@@ -1,0 +1,26 @@
+id: TASK-03
+spec: SPEC-030
+title: "Pedir commit pela tela de pendências"
+description: "Botão \"Pedir commit\" na tela de pendências, com o texto do pedido."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-02]
+wave: 2
+covers: [RF-11, CT-12]
+type: historia
+labels: [SPEC-030, padrao]
+status: approved
+content_hash: bba35d12cf3ad2cae8457ecb5a32bb6716cb2a483fce645871b07b7453a4906e
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: bba35d12cf3ad2cae8457ecb5a32bb6716cb2a483fce645871b07b7453a4906e
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: bbfba9ce6883402d0b5b64b3a832ec28c0b5fa63f13fb17c74f00133b3fb3cfd
+verification_hash: 2f11cf2c58dc7363b47fa22d7a33860da134978c90bc11975af7a2d5b30b6ee3
+criteria_hash: 196ff4ccd1e662a664fd720f1d125d278c073b070664e1802058171f575c7749
+state_hash: ba19f64591bf82bfd12e78dbd567ff22f8fae85dbbbd87b49ac36a2ac2ea07dc
+approved_by: chat

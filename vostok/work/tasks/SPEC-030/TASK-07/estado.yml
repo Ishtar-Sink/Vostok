@@ -1,0 +1,26 @@
+id: TASK-07
+spec: SPEC-030
+title: "Travar plano, arquivamento e commit sem aval"
+description: "Aval exigido no `mark-planned`, no `finalize archive` e no `commit commit` e `commit approve` com `--pedido`."
+profile: julgamento
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-04, RF-05, RF-06, RF-07, CT-05, CT-06, CT-07, CT-08, CB-04]
+type: tarefa
+labels: [SPEC-030, julgamento]
+status: approved
+content_hash: 7847679ff74cb1717acf28becdf8b9df7cbdbfd6d247dfc6cc58bdd9a12eead6
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: 7847679ff74cb1717acf28becdf8b9df7cbdbfd6d247dfc6cc58bdd9a12eead6
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 6cbbc2ce55e08cff364ca7e37fd4091b9b457a2d109b0ed9bf3221af4907425c
+verification_hash: db586642c183c9fcdae5ec9684b256868c9acccd9e284878336ee71322ba38c5
+criteria_hash: b00b823c86ca2b1913532c27d3d45f40a02b839deac7c31ce76254ab3a852ab9
+state_hash: 2d20a77b23d74b9e18edd69d93b6f4f1ec406736439ea838604f6ce4443d3a5c
+approved_by: chat

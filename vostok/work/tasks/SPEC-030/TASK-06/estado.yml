@@ -1,0 +1,26 @@
+id: TASK-06
+spec: SPEC-030
+title: "Travar tarefa e spec sem aval"
+description: "Aval exigido no `task finish` e nas aprovações de spec e tarefa, e `approved_by: painel` sem aval acusado na validação."
+profile: julgamento
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-03, RF-08, RF-09, CT-01, CT-03, CT-04, CT-09, CT-10, CB-01, CB-07]
+type: tarefa
+labels: [SPEC-030, julgamento]
+status: approved
+content_hash: feafbf998b231b7c9835adb7aaa947854b17507563eae83fd6cd07c75c602a90
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T15:36:40Z
+approved_hash: feafbf998b231b7c9835adb7aaa947854b17507563eae83fd6cd07c75c602a90
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 46d06e9566848f607466db8a7ad854adcc18cac06de04b7893f17027bf7171ec
+verification_hash: a0deb0e061520598045916d8d5f7e8be02e93603362e90d3e904c3a2daa38f71
+criteria_hash: 84fcfb9ebbd4f3ff7044f0219d298e2bcff57868d7d96c233cf70539c7d11eaf
+state_hash: e2aefd453d0c643e14f1a99bd51964624116932ed775533513c0dc99dbddce7e
+approved_by: chat

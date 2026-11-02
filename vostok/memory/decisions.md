@@ -2,7 +2,7 @@
 type: decision
 title: "Decisões"
 description: "Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade."
-updated_at: 2026-10-06T10:19:43Z
+updated_at: 2026-11-02T13:19:32Z
 ---
 
 # Decisões
@@ -33,4 +33,16 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 - **Decisão:** A linguagem do harness será Rust. O Node é usado nos casos em que fizer sentido. A migração será feita numa spec própria; até lá, os scripts novos continuam em bash, inclusive os da SPEC-003.
 - **Alternativas descartadas:** Continuar em bash indefinidamente; usar Node como linguagem principal.
 - **Consequências:** Specs anteriores à migração mantêm o bash. A spec de migração precisa resolver a distribuição dos binários e o Rust na Mac de testes, que hoje não tem `cargo`. Templates e configurações (`.yml` e templates HTML com variáveis) devem continuar sem depender da linguagem dos scripts.
+- **Substitui:** Nenhuma
+
+## DEC-003: Painel local no lugar do servidor
+
+- **Data:** 2026-11-02
+- **Status:** ativa
+- **Tags:** arquitetura, painel, servidor, mongodb, mcp, aval, pedidos
+- **Origem:** Estudo da SPEC-027 (docs/estudos/painel-local.md); confirmado pelo Victor no refinamento da SPEC-028, em 2026-11-02.
+- **Contexto:** A premissa final previa servidor HTTP self-hosted, MongoDB e MCP, que nunca saíram do papel. O estudo da SPEC-027 mostrou, com um protótipo usado pelo usuário, que um painel local sem servidor faz quase tudo o que o chat faz.
+- **Decisão:** Sem servidor HTTP, MongoDB nem MCP. O vostok painel abre um painel local por pasta, só em 127.0.0.1, com os arquivos de vostok/ como banco; o painel grava só pela lógica da CLI, aprova com a origem e o aval em work/avais.log, e o que precisa do agente vira um pedido em work/pedidos/, processado por um chat em loop.
+- **Alternativas descartadas:** Servidor HTTP self-hosted com MongoDB como único escritor e MCP para as ferramentas; pedido de aprovação processado pelo agente.
+- **Consequências:** As regras de arquitetura e stack deixam de citar servidor, banco e MCP; as pastas apps/server, apps/mcp, apps/web e packages/contracts saem; o frontend fica em apps/painel, em Preact com compat; a trava de aval e o loop de pedidos vêm na SPEC-030.
 - **Substitui:** Nenhuma

@@ -3,6 +3,7 @@
 pub mod bug;
 pub mod commit;
 pub mod context;
+pub mod documents;
 pub mod finalize;
 pub mod init;
 pub mod memory;

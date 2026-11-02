@@ -4,7 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    bug, commit, context, finalize, init, memory, plan, rules, skill, spec, suggest, task, update,
+    bug, commit, context, documents, finalize, init, memory, plan, rules, skill, spec, suggest,
+    task, update,
 };
 
 #[derive(Debug, Parser)]
@@ -41,6 +42,9 @@ pub enum Command {
     /// Commits liberados pelo usuário.
     #[command(subcommand)]
     Commit(commit::CommitCommand),
+    /// Identidade visual dos documentos finais.
+    #[command(subcommand)]
+    Documents(documents::DocumentsCommand),
     /// Skills.
     #[command(subcommand)]
     Skill(skill::SkillCommand),
@@ -68,6 +72,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::Plan(command) => plan::run(command),
         Command::Task(command) => task::run(command),
         Command::Commit(command) => commit::run(command),
+        Command::Documents(command) => documents::run(command),
         Command::Skill(command) => skill::run(command),
         Command::Finalize(command) => finalize::run(command),
         Command::Bug(command) => bug::run(command),

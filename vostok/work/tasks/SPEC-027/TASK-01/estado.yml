@@ -1,0 +1,25 @@
+id: TASK-01
+spec: SPEC-027
+title: "Levantar ações, aprovação e remoção do servidor"
+description: "Inventário das ações do chat por forma de execução, desenho da aprovação pelo painel e lista do que muda nas regras, na memória e nas pastas."
+profile: julgamento
+persona: arquiteto
+depends_on: []
+wave: 1
+covers: [PQ-05, PQ-06, PQ-11]
+type: tarefa
+labels: [SPEC-027, julgamento]
+status: approved
+content_hash: bb0cb82b79614e537a13069d250de61e15154e031d0cc52575fb704ac8d8fc88
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T09:53:24Z
+approved_hash: bb0cb82b79614e537a13069d250de61e15154e031d0cc52575fb704ac8d8fc88
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 68da51af52e18c4bafa92cf4a7076a00cf341a05d49b18e8a241d5f24a9e598b
+verification_hash: 496eb1e6c320dab0856952dc83e1368c03df09a043defc043983c56a510876d8
+criteria_hash: 702d48fd7145b6298cd010ae12ca331d7d310255644d297c5f13b94ad1b5a726
+state_hash: 01e1f10e93a64b1509b726bac63431fd69440ca2f9293df6d9bfd9e607220a80

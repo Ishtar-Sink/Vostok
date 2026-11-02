@@ -1,0 +1,25 @@
+id: TASK-05
+spec: SPEC-027
+title: "Consolidar o estudo do painel local"
+description: "Escreve `docs/estudos/painel-local.md` com as respostas, a viabilidade, as medições, a arquitetura recomendada, as specs propostas e as imagens do protótipo."
+profile: padrao
+persona: arquiteto
+depends_on: [TASK-01, TASK-02, TASK-03, TASK-04]
+wave: 4
+covers: [PQ-01, PQ-02, PQ-03, PQ-04, PQ-05, PQ-06, PQ-07, PQ-08, PQ-09, PQ-10, PQ-11, PQ-12]
+type: tarefa
+labels: [SPEC-027, padrao]
+status: approved
+content_hash: 8c761682bd9007c6d8e756e5a517c51a79ed15e8b94602137c649b6099e619f5
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-02T09:53:24Z
+approved_hash: 8c761682bd9007c6d8e756e5a517c51a79ed15e8b94602137c649b6099e619f5
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: b46a4bb7b3258b3c167ac4e8bfa77963284acb7804a6f79e71bbf73cd351f2f9
+verification_hash: 68fe2a19e793dee285dc0ccad1a15cc72f64824b5762c7f3423f1880eecf2b1b
+criteria_hash: 652043104754e75e6e2fe8991558827e810bdf1e2538632653f4758c8c15b768
+state_hash: 406cd2660c931c81add7d2de42f9abd30295d1573c361d3f6b204cb5e574933c

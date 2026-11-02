@@ -1,10 +1,10 @@
 ---
 id: SPEC-027
 title: "Estudo do painel local do Vostok sem servidor"
-status: approved
+status: planned
 author: "Victor Batalha"
 created_at: 2026-11-02T09:36:36Z
-updated_at: 2026-11-02T09:45:56Z
+updated_at: 2026-11-02T09:51:35Z
 tags: []
 type: study
 source: "draft/SPEC-027-estudo-do-painel-local-do-vostok-sem-servidor.md"

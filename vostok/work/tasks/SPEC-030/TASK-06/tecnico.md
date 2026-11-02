@@ -11,3 +11,14 @@
 **Riscos.** Quebrar os golden de tarefa e spec: a conferência só age com a trava ligada ou com `approved_by: painel`, que os golden não têm. `task.rs` tem mais de 5 mil linhas: mude só as funções citadas.
 
 **Arquivos em comum na onda.** Nenhum: a TASK-07 grava os testes dela em `apps/cli/tests/trava_plano_commit.rs`, e as duas podem rodar juntas.
+
+
+**O que foi feito.**
+- `task.rs`: o `finish` exige o aval `finalizar-tarefa` com o `approved_hash`, e o `approve` pelo chat exige o aval `aprovar` com o `content_hash`. O `errors_of` acusa `approved_by: painel sem aval correspondente em avais.log`.
+- `spec.rs`: o `approve` pelo chat exige o aval, e o `spec validate` e o `spec adjust validate` acusam o mesmo problema.
+- As aprovações pelo painel não passam pela trava.
+- `tests/aval.rs` tem 6 testes.
+
+**Ajuste 1 (com a aprovação do usuário).** O `aval::require`, da TASK-01, resolvia a pasta de trabalho pela chave `paths.work`, que não existe no `main.yml`. Com a trava ligada, todo comando recusava com erro de configuração. A correção passou a usar `harness.root.join("work")`, como o painel, e os testes do módulo deixaram de declarar a chave.
+
+**Verificação.** Passaram os 6 testes da trava, os 8 de `aval`, os de `task` (207) e os de `spec` (20), inclusive os golden. O clippy ficou sem avisos, e a regressão ficou igual ao baseline. A evidência é `trava-tarefa-spec.txt`.

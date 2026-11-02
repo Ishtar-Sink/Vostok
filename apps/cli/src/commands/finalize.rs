@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
+use crate::aval;
 use crate::commands::task::{accepted_diff_name, accepted_regressions};
 use crate::harness::Harness;
 use crate::support::{
@@ -3060,6 +3061,8 @@ fn evidence_field(content: &str, heading: &str, label: &str) -> String {
 
 impl Finalization {
     fn archive(&self) -> Result<()> {
+        let spec_hash = frontmatter_get(&self.spec, "content_hash").unwrap_or_default();
+        aval::require(&self.harness, &self.id, "finalizar-spec", &spec_hash)?;
         let problems = self.archive_problems()?;
         if !problems.is_empty() {
             bail!(problem_list(

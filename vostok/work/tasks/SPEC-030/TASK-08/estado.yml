@@ -9,7 +9,7 @@ wave: 2
 covers: [RF-14, CT-15]
 type: tarefa
 labels: [SPEC-030, padrao]
-status: approved
+status: in_progress
 content_hash: 482d84f59c6d0dda05b25c3ac38ed7a66b04a0511f59a6e6c9542ffc16e418e9
 adjustments: 0
 adjusted_at: null
@@ -22,5 +22,8 @@ evidence_result: null
 execution_hash: f9f89d8f2738d2e9848bb06da964f28b2eb3d2c24d4760ca45f320f619b2e0a9
 verification_hash: 2a4bbe6c27052a1d8863fda44e79f90473e26d416e9be203e57b9aaf1a9a6a6f
 criteria_hash: 234f0781a85b8776c094de0b4e72ff664381623d699d6df52e79b3476db4c884
-state_hash: 339aba48dc45a7539e979081c933496e437312e72bf592a9cc7aed21bc2f885a
+state_hash: 1d38ba296e9297fc5138a5305b6c881dbd55c7d907048b8e4475dbd4cd691310
 approved_by: chat
+model: claude-sonnet-5-5
+executive_hash: 74ffebebca62a477940459f94d944c3b9acd101b4019f36c132bfb53cb8c3eba
+technical_hash: b24225fee44be63bbfee85a0d73d8bc2d814066cc2c087ace4ad982158a75aa7

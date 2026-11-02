@@ -12,7 +12,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Result};
 use clap::Subcommand;
 
-use crate::commands::task::{Origin, APPROVED_BY_FIELD};
+use crate::aval;
+use crate::commands::task::{Origin, APPROVED_BY_FIELD, PANEL_WITHOUT_AVAL};
 use crate::harness::Harness;
 use crate::support::{
     clean_title, config_block, config_get, config_list, config_set, frontmatter_get,
@@ -519,7 +520,8 @@ fn front_matter_key(line: &str) -> Option<&str> {
 
 fn validate_refined(specs: &Specs, spec_id: &str) -> Result<()> {
     let refined = find_refined_to_mark(specs, spec_id)?;
-    let errors = refined_errors(specs, &refined)?;
+    let mut errors = refined_errors(specs, &refined)?;
+    errors.extend(panel_approval_error(specs, spec_id, &refined)?);
     if !errors.is_empty() {
         bail!(
             "a spec refinada {spec_id} tem problemas:\n{}",
@@ -913,7 +915,8 @@ fn record_manual(specs: &Specs, spec_id: &str) -> Result<Vec<String>> {
 
 fn validate_adjustable(specs: &Specs, spec_id: &str) -> Result<()> {
     let refined = find_adjustable(specs, spec_id)?;
-    let errors = refined_errors(specs, &refined)?;
+    let mut errors = refined_errors(specs, &refined)?;
+    errors.extend(panel_approval_error(specs, spec_id, &refined)?);
     if !errors.is_empty() {
         bail!(
             "a spec refinada {spec_id} tem problemas:\n{}",
@@ -1180,6 +1183,19 @@ fn find_approvable(specs: &Specs, spec_id: &str) -> Result<PathBuf> {
     }
 }
 
+/// `approved_by: painel` precisa de uma linha de aval do mesmo ID e hash, com a trava ou não.
+fn panel_approval_error(specs: &Specs, spec_id: &str, file: &Path) -> Result<Option<String>> {
+    if frontmatter_get(file, APPROVED_BY_FIELD).unwrap_or_default() != Origin::Panel.as_str() {
+        return Ok(None);
+    }
+    let hash = frontmatter_get(file, &specs.setting("approved_hash_field")?).unwrap_or_default();
+    let work = specs.harness.root.join("work");
+    if aval::has_panel_approval(&work, spec_id, &hash)? {
+        return Ok(None);
+    }
+    Ok(Some(PANEL_WITHOUT_AVAL.to_string()))
+}
+
 /// Um impedimento por item. Vazio quando a spec pode ser aprovada.
 fn approval_blockers(specs: &Specs, spec_id: &str, file: &Path) -> Result<Vec<String>> {
     let status = frontmatter_get(file, "status").unwrap_or_default();
@@ -1236,6 +1252,10 @@ fn approve(specs: &Specs, spec_id: &str, origin: Origin) -> Result<String> {
 
     let now = utc_now();
     let hash = frontmatter_get(&refined, &specs.setting("content_hash_field")?)?;
+    // A aprovação pelo painel já é o aval; só a do chat precisa dele com a trava ligada (RN-05).
+    if let Origin::Chat = origin {
+        aval::require(&specs.harness, spec_id, "aprovar", &hash)?;
+    }
     frontmatter_set(&refined, "status", &specs.status("approved")?)?;
     frontmatter_put(&refined, &specs.setting("approved_at_field")?, &now)?;
     frontmatter_put(&refined, &specs.setting("approved_hash_field")?, &hash)?;

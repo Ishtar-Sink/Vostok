@@ -71,4 +71,20 @@ describe('InboxPage', () => {
     render(<InboxPage version={0} />);
     expect(screen.getByText('Carregando as pendências')).toBeTruthy();
   });
+
+  it('mostra o botão Pedir commit', async () => {
+    mockFetch(() => json(overview({ specs: [], questions: [] })));
+    render(<InboxPage version={0} />);
+    expect(await screen.findByRole('button', { name: 'Pedir commit' })).toBeTruthy();
+  });
+
+  it('grava o pedido de commit com o texto', async () => {
+    const fetchMock = mockFetch((url) => (url.startsWith('/api/pedidos') ? json({ id: 'PED-1' }) : json(overview())));
+    render(<InboxPage version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir commit' }));
+    fireEvent.input(screen.getByRole('textbox'), { target: { value: 'Commit da TASK-03' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pedir commit' }).at(-1)!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=fazer-commit', expect.objectContaining({ method: 'POST', body: 'Commit da TASK-03' })));
+    expect((await screen.findByRole('status')).textContent).toContain('PED-1');
+  });
 });

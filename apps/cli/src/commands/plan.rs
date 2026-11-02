@@ -16,6 +16,7 @@ use super::task::{
     is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name, task_entries,
     task_template_dir, verify_block, EvidenceKinds, TaskDoc, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
+use crate::aval;
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
@@ -1121,6 +1122,8 @@ impl Workspace {
 
     fn mark_planned(&self, spec_id: &str) -> Result<()> {
         let plan = self.plan_to_approve(spec_id)?;
+        let plan_hash = field(&plan, "content_hash");
+        aval::require(&self.harness, spec_id, "aprovar-plano", &plan_hash)?;
         let spec = self.find_spec(spec_id)?;
         let mut errors = self.plan_blockers(spec_id, &plan, &spec)?;
         errors.extend(self.tasks_errors(spec_id, &read(&plan)?)?);

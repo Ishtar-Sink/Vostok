@@ -11,7 +11,8 @@ export type ActionKind =
   | 'plan-spec'
   | 'finalize-spec'
   | 'execute-task'
-  | 'adjust-task';
+  | 'adjust-task'
+  | 'fazer-commit';
 
 export interface AttentionItem {
   key: string;
@@ -79,6 +80,7 @@ export const ACTION_LABELS: Record<ActionKind, { button: string; tag: string; ho
   'finalize-spec': { button: 'Finalizar spec', tag: 'Pedido ao agente', how: 'O painel grava um pedido de finalização; o agente em loop gera os documentos e arquiva a spec.' },
   'execute-task': { button: 'Pedir execução', tag: 'Pedido ao agente', how: 'O painel grava um pedido de execução; o agente em loop inicia a tarefa e coleta o baseline.' },
   'adjust-task': { button: 'Pedir ajuste', tag: 'Pedido ao agente', how: 'Você descreve o ajuste; o painel grava um pedido e o agente em loop o aplica pela skill adjust-task.' },
+  'fazer-commit': { button: 'Pedir commit', tag: 'Commit', how: 'O painel grava um pedido de commit com o seu texto; o agente em loop faz o commit pela skill de commit, com o aval do painel.' },
 };
 
 const PRIMARY: ActionKind[] = ['approve-spec', 'approve-plan', 'approve-task', 'answer', 'finish-task', 'finalize-spec', 'execute-task', 'plan-spec'];

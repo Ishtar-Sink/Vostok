@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
 
+use crate::aval;
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{
@@ -239,6 +240,9 @@ const BRIEF_RULES: [&str; 3] = [
 
 /// Campo do estado com a origem da aprovação.
 pub const APPROVED_BY_FIELD: &str = "approved_by";
+
+/// Problema de validação de uma aprovação do painel sem a linha correspondente no `avais.log`.
+pub const PANEL_WITHOUT_AVAL: &str = "approved_by: painel sem aval correspondente em avais.log";
 
 /// Quem aprovou. Nunca vem da linha de comando: a CLI grava sempre `chat`, e só o painel, no mesmo
 /// processo, grava `painel`.
@@ -1054,6 +1058,7 @@ impl Tasks {
             );
         }
         if apply {
+            self.require_approval_avals(&spec, &files)?;
             self.approve(&files, Origin::Chat)?;
             println!("Tarefas de {spec} aprovadas:");
         } else {
@@ -1175,6 +1180,21 @@ impl Tasks {
             problems.extend(self.errors_of(spec, file, EvidenceNames::Strict)?);
         }
         Ok(problems)
+    }
+
+    /// Com a trava ligada, a aprovação pelo chat exige o aval `aprovar` de cada tarefa (RN-05).
+    fn require_approval_avals(&self, spec: &str, files: &[PathBuf]) -> Result<()> {
+        let hash_field = self.spec_cfg("content_hash_field")?;
+        for file in files {
+            let hash = TaskDoc::at(file).get(&hash_field)?;
+            aval::require(
+                &self.harness,
+                &format!("{spec}/{}", task_id_of(file)),
+                "aprovar",
+                &hash,
+            )?;
+        }
+        Ok(())
     }
 
     fn approve(&self, files: &[PathBuf], origin: Origin) -> Result<()> {
@@ -2135,6 +2155,15 @@ impl Tasks {
     fn finish(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
+        let approved_hash = TaskDoc::at(&file)
+            .get(&self.spec_cfg("approved_hash_field")?)
+            .unwrap_or_default();
+        aval::require(
+            &self.harness,
+            &format!("{spec}/{task}"),
+            "finalizar-tarefa",
+            &approved_hash,
+        )?;
         let mut problems = String::new();
         for key in ["tests_result", "regression_result", "evidence_result"] {
             let value = TaskDoc::at(&file).get(key).unwrap_or_default();
@@ -2907,7 +2936,28 @@ impl Tasks {
         let upstream = upstream_paths(&self.tasks_root.join(spec), &task_id_of(file), |file| {
             self.created_paths(file)
         })?;
-        self.task_errors(file, &upstream, names)
+        let mut errors = self.task_errors(file, &upstream, names)?;
+        if let Some(error) = self.panel_approval_error(spec, file)? {
+            errors.push(error);
+        }
+        Ok(errors)
+    }
+
+    /// `approved_by: painel` precisa de uma linha de aval do mesmo ID e hash, com a trava ou não.
+    fn panel_approval_error(&self, spec: &str, file: &Path) -> Result<Option<String>> {
+        let doc = TaskDoc::at(file);
+        if doc.get(APPROVED_BY_FIELD).unwrap_or_default() != Origin::Panel.as_str() {
+            return Ok(None);
+        }
+        let id = task_id_of(file);
+        let hash = doc
+            .get(&self.spec_cfg("approved_hash_field")?)
+            .unwrap_or_default();
+        let work = self.harness.root.join("work");
+        if aval::has_panel_approval(&work, &format!("{spec}/{id}"), &hash)? {
+            return Ok(None);
+        }
+        Ok(Some(format!("{id}: {PANEL_WITHOUT_AVAL}")))
     }
 
     fn task_errors(

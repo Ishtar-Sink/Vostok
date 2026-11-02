@@ -16,16 +16,20 @@ const REQUEST_ACTION: Partial<Record<ActionKind, string>> = {
   'finish-task': 'finalizar-tarefa',
   'unblock-task': 'desbloquear-tarefa',
   'finalize-spec': 'finalizar-spec',
+  'fazer-commit': 'fazer-commit',
   answer: 'responder-pergunta',
 };
 
 /** Pedidos que não fazem sentido sem um texto do usuário. */
-const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-task', 'unblock-task'];
+const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-task', 'unblock-task', 'fazer-commit'];
+
+const TEXT_LABEL: Partial<Record<ActionKind, string>> = { 'unblock-task': 'Sua decisão', 'fazer-commit': 'O que commitar' };
 
 type Outcome = { kind: 'idle' } | { kind: 'sending' } | { kind: 'done'; message: string } | { kind: 'failed'; message: string };
 
 async function perform(item: AttentionItem, text: string): Promise<{ ok: boolean; message: string }> {
   const spec = encodeURIComponent(item.spec);
+  const specParam = item.spec ? `&spec=${spec}` : '';
   if (item.kind === 'approve-spec' || item.kind === 'approve-task') {
     const tasks = item.kind === 'approve-task' ? (item.tasks ?? [item.task ?? '']).join(',') : '';
     const result = await act('POST', `/api/aprovacoes?spec=${spec}${tasks ? `&tarefas=${encodeURIComponent(tasks)}` : ''}`);
@@ -37,7 +41,7 @@ async function perform(item: AttentionItem, text: string): Promise<{ ok: boolean
   if (!action) return { ok: false, message: 'Ação sem gravação no protótipo.' };
   const body = item.question ? `Pergunta ${item.question.meta.id}\n\n${text}` : text;
   const task = item.task ? `&tarefa=${encodeURIComponent(item.task)}` : '';
-  const result = await act('POST', `/api/pedidos?acao=${action}&spec=${spec}${task}`, body);
+  const result = await act('POST', `/api/pedidos?acao=${action}${specParam}${task}`, body);
   if (!result.ok) return { ok: false, message: result.text };
   const { id } = JSON.parse(result.text) as { id: string };
   return { ok: true, message: `Pedido ${id} gravado em vostok/work/pedidos/. O chat em loop o processa e marca o estado.` };
@@ -64,7 +68,7 @@ export function ActionDialog({ item, onClose }: { item: AttentionItem | null; on
   return (
     <Dialog
       open
-      title={`${label.button}: ${item.task ?? item.spec}`}
+      title={[label.button, item.task ?? item.spec].filter(Boolean).join(': ')}
       onClose={close}
       actions={
         outcome.kind === 'done' ? (
@@ -102,9 +106,9 @@ export function ActionDialog({ item, onClose }: { item: AttentionItem | null; on
         </div>
       ) : NEEDS_TEXT.includes(item.kind) ? (
         <>
-          <p className={styles.dialogTitle}>{item.title}</p>
+          {item.title ? <p className={styles.dialogTitle}>{item.title}</p> : null}
           <label className={styles.free}>
-            <span>{item.kind === 'unblock-task' ? 'Sua decisão' : 'O que ajustar'}</span>
+            <span>{TEXT_LABEL[item.kind] ?? 'O que ajustar'}</span>
             <textarea rows={4} value={answer} onChange={(event) => setAnswer(event.target.value)} />
           </label>
         </>

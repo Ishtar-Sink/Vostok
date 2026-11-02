@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-030
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-02
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** historia
 - **Descrição:** Botão "Pedir commit" na tela de pendências, com o texto do pedido.
 - **Critérios de aceite:**
-  - [ ] A tela de pendências tem o botão "Pedir commit", que grava o pedido `fazer-commit` com o texto do usuário (RF-11, CT-12).
-  - [ ] O botão segue o tema e a acessibilidade do painel: foco visível e o mesmo diálogo das outras ações (RF-11).
+  - [x] A tela de pendências tem o botão "Pedir commit", que grava o pedido `fazer-commit` com o texto do usuário (RF-11, CT-12).
+  - [x] O botão segue o tema e a acessibilidade do painel: foco visível e o mesmo diálogo das outras ações (RF-11).
 - **Rótulos:** SPEC-030, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-02

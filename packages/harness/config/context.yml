@@ -40,6 +40,8 @@ skills:
     - config/documents.yml
   finish-task:
     - config/tasks.yml
+  process-requests:
+    - config/tasks.yml
   plan-tasks:
     - config/tasks.yml
   refine-spec:

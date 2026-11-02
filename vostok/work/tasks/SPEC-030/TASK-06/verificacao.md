@@ -7,6 +7,7 @@
 ```bash
 # evidência: trava-tarefa-spec.txt
 cargo test --manifest-path apps/cli/Cargo.toml --test aval
+cargo test --manifest-path apps/cli/Cargo.toml --lib aval
 cargo test --manifest-path apps/cli/Cargo.toml --test task --test spec
 cargo clippy --manifest-path apps/cli/Cargo.toml --all-targets -- -D warnings
 ```

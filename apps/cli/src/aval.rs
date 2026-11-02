@@ -64,7 +64,7 @@ pub fn require(harness: &Harness, id: &str, action: &str, hash: &str) -> Result<
     if !lock_enabled(harness)? {
         return Ok(());
     }
-    let work = harness.path("work")?;
+    let work = harness.root.join("work");
     let (avais, _) = read(&work)?;
     let matches_panel =
         |aval: &Aval| aval.origin == PANEL_ORIGIN && aval.id == id && aval.action == action;
@@ -168,14 +168,14 @@ mod tests {
 
     #[test]
     fn lock_is_off_without_the_key() {
-        let (_dir, harness) = harness_with_main("paths:\n  work: ./work\n");
+        let (_dir, harness) = harness_with_main("");
         assert!(!lock_enabled(&harness).unwrap());
         assert!(require(&harness, "SPEC-001", "concluir", "abc").is_ok());
     }
 
     #[test]
     fn lock_reads_true() {
-        let (_dir, harness) = harness_with_main("approval_lock: true\npaths:\n  work: ./work\n");
+        let (_dir, harness) = harness_with_main("approval_lock: true\n");
         assert!(lock_enabled(&harness).unwrap());
         let error = require(&harness, "SPEC-001", "concluir", "abc")
             .unwrap_err()
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn lock_accepts_matching_panel_approval_and_names_other_hash() {
-        let (dir, harness) = harness_with_main("approval_lock: true\npaths:\n  work: ./work\n");
+        let (dir, harness) = harness_with_main("approval_lock: true\n");
         let work = dir.path().join("work");
         fs::create_dir_all(&work).unwrap();
         fs::write(work.join(AVAIS_LOG), "d\tSPEC-001\told\tpainel\tconcluir\n").unwrap();

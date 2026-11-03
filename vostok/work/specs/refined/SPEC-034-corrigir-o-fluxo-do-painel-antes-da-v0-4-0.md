@@ -1,10 +1,10 @@
 ---
 id: SPEC-034
 title: "Corrigir o fluxo do painel antes da v0.4.0"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-03T21:57:10Z
-updated_at: 2026-11-03T22:15:06Z
+updated_at: 2026-11-03T22:39:37Z
 tags: []
 type: fix
 source: "draft/SPEC-034-corrigir-o-fluxo-do-painel-antes-da-v0-4-0.md"

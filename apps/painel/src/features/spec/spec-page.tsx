@@ -31,7 +31,8 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
   if (spec.kind === 'loading') return <LoadingState label={`Carregando ${id}`} rows={8} />;
   if (spec.kind === 'error') return <ErrorState title={`Não foi possível abrir ${id}`} description={spec.message} retryLabel="Tentar de novo" onRetry={spec.retry} />;
 
-  const { meta, tasks, plan } = spec.data;
+  const { meta, tasks, plan, plan_outdated } = spec.data;
+  const outdated = plan && plan_outdated;
   const done = tasks.filter((task) => task.status === 'done').length;
   const views: { id: View; label: string; show: boolean }[] = [
     { id: 'documento', label: 'Documento', show: true },
@@ -49,7 +50,8 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
           actions={
             <div className={styles.headerActions}>
               <Badge tone={statusTone(meta.status)}>{statusLabel(meta.status)}</Badge>
-              <ActionBar items={specActions(meta, plan, tasks)} />
+              {outdated ? <Badge tone="warning">Plano desatualizado</Badge> : null}
+              <ActionBar items={specActions(meta, plan, tasks, outdated)} />
               {tasks.length > 0 && view !== 'quadro' ? (
                 <Button variant="secondary" onClick={() => navigate(`/specs/${meta.id}/quadro`)}>Ver o quadro</Button>
               ) : null}
@@ -69,7 +71,7 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
       {view === 'quadro' ? (
         <Board tasks={tasks.map((task) => ({ ...task, spec: meta.id }))} />
       ) : view === 'plano' ? (
-        <PlanView id={meta.id} version={version} references={references} />
+        <PlanView id={meta.id} version={version} references={references} outdated={outdated} status={meta.status} />
       ) : (
         <SpecDocument markdown={spec.data.markdown} path={spec.data.path} references={references}>
           <dl className={page.meta}>
@@ -79,6 +81,7 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
             <div><dt>Criada</dt><dd>{formatDate(meta.created_at)}</dd></div>
             <div><dt>Aprovada</dt><dd>{formatDate(meta.approved_at)}</dd></div>
             <div><dt>Ajustes</dt><dd>{meta.adjustments || '0'}</dd></div>
+            {outdated ? <div><dt>Plano</dt><dd>Desatualizado: a spec mudou depois do plano.</dd></div> : null}
             {tasks.length > 0 ? <div><dt>Tarefas</dt><dd>{done} de {tasks.length} concluídas</dd></div> : null}
           </dl>
           {tasks.length > 0 ? (
@@ -128,7 +131,7 @@ function SpecDocument({ markdown, path, references, children }: { markdown: stri
   );
 }
 
-function PlanView({ id, version, references }: { id: string; version: number; references: ReferenceIndex }) {
+function PlanView({ id, version, references, outdated, status }: { id: string; version: number; references: ReferenceIndex; outdated: boolean; status: string }) {
   const plan = useResource<PlanDetail>(`/api/planos/${encodeURIComponent(id)}`, version);
   const { bind, popover } = useReferencePopover(references);
   const headings = useMemo(() => (plan.kind === 'ready' ? headingsOf(plan.data.markdown) : []), [plan]);
@@ -141,8 +144,21 @@ function PlanView({ id, version, references }: { id: string; version: number; re
         <Markdown source={plan.data.markdown} references={references} bind={bind} />
       </Card>
       <aside className={page.docAside}>
-        <p className={page.asideTitle}>Revisão</p>
-        <p className={styles.note}>Aprovar o plano cria e detalha as tarefas. Pelo painel, a aprovação vira um aval e um pedido para o agente em loop (TASK-04).</p>
+        {outdated ? (
+          <>
+            <p className={page.asideTitle}>Plano desatualizado</p>
+            <p className={styles.note}>
+              {status === 'approved'
+                ? 'A spec mudou depois deste plano, e ele não cobre a versão aprovada. Use "Refazer o plano" para criar um plano novo.'
+                : 'A spec mudou depois deste plano e espera uma nova aprovação. Aprove a spec antes de refazer o plano.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={page.asideTitle}>Revisão</p>
+            <p className={styles.note}>Aprovar o plano cria e detalha as tarefas. Pelo painel, a aprovação vira um aval e um pedido para o agente em loop (TASK-04).</p>
+          </>
+        )}
       </aside>
       {popover}
     </div>

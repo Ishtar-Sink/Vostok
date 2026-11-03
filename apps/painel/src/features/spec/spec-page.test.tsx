@@ -103,4 +103,53 @@ describe('SpecPage', () => {
     await screen.findByRole('navigation', { name: 'Nesta página' });
     expect(screen.queryByRole('button', { name: 'Refinar' })).toBeNull();
   });
+
+  const outdatedBody = { ...detail('vostok/work/specs/approved/SPEC-001.md', 'approved'), plan: true, plan_outdated: true, tasks: [] };
+
+  it('mostra o aviso de plano desatualizado na spec', async () => {
+    mockFetch(requests(outdatedBody));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    expect(await screen.findByText('Plano desatualizado')).toBeTruthy();
+    expect(screen.getByText('Desatualizado: a spec mudou depois do plano.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Refazer o plano' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Aprovar plano' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajustar plano' })).toBeNull();
+  });
+
+  it('mostra o aviso de plano desatualizado na visão do plano', async () => {
+    mockFetch((url) => (url.startsWith('/api/planos') ? json({ id: 'SPEC-001', path: 'p.md', markdown: '## Plano\nx' }) : json(outdatedBody)));
+    render(<SpecPage id="SPEC-001" view="plano" version={0} />);
+    expect(await screen.findByText(/A spec mudou depois deste plano/)).toBeTruthy();
+    expect(screen.queryByText('Revisão')).toBeNull();
+  });
+
+  it('pede refazer o plano desatualizado', async () => {
+    const fetchMock = mockFetch(requests(outdatedBody));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Refazer o plano' }));
+    fireEvent.click(lastButton('Refazer o plano'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=planejar-spec&spec=SPEC-001', expect.objectContaining({ method: 'POST' })));
+  });
+
+  it('pede o ajuste do plano em dia com texto', async () => {
+    const body = { ...detail('vostok/work/specs/approved/SPEC-001.md', 'approved'), plan: true, plan_outdated: false, tasks: [] };
+    const fetchMock = mockFetch(requests(body));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    await screen.findByRole('navigation', { name: 'Nesta página' });
+    expect(screen.queryByText('Plano desatualizado')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustar plano' }));
+    expect(lastButton('Ajustar plano').disabled).toBe(true);
+    fireEvent.input(screen.getByRole('textbox', { name: 'O que ajustar' }), { target: { value: 'Dividir a TASK-02' } });
+    fireEvent.click(lastButton('Ajustar plano'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=ajustar-plano&spec=SPEC-001', expect.objectContaining({ method: 'POST', body: 'Dividir a TASK-02' })));
+  });
+
+  it('cita o log de avais da spec ao aprovar', async () => {
+    const body = { ...detail('vostok/work/specs/refined/SPEC-001.md', 'refined'), plan: false, tasks: [] };
+    mockFetch((url) => (url.startsWith('/api/aprovacoes') ? json({ aprovadas: ['SPEC-001'] }) : requests(body)(url)));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Aprovar spec' }));
+    fireEvent.click(lastButton('Aprovar spec'));
+    expect((await screen.findByRole('status')).textContent).toContain('vostok/work/avais/SPEC-001.log');
+  });
 });

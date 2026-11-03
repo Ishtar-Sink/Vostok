@@ -10,6 +10,8 @@ import styles from './action-bar.module.css';
 const REQUEST_ACTION: Partial<Record<ActionKind, string>> = {
   'approve-plan': 'aprovar-plano',
   'plan-spec': 'planejar-spec',
+  'redo-plan': 'planejar-spec',
+  'adjust-plan': 'ajustar-plano',
   'adjust-spec': 'ajustar-spec',
   'adjust-task': 'ajustar-tarefa',
   'execute-task': 'executar-tarefa',
@@ -26,7 +28,7 @@ const REQUEST_ACTION: Partial<Record<ActionKind, string>> = {
 };
 
 /** Pedidos que não fazem sentido sem um texto do usuário. */
-const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-task', 'unblock-task', 'fazer-commit', 'create-spec'];
+const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-plan', 'adjust-task', 'unblock-task', 'fazer-commit', 'create-spec'];
 
 const TEXT_LABEL: Partial<Record<ActionKind, string>> = { 'unblock-task': 'Sua decisão', 'fazer-commit': 'O que commitar', 'create-spec': 'Assunto da spec' };
 
@@ -42,7 +44,7 @@ export async function performAction(item: AttentionItem, text: string): Promise<
     const result = await act('POST', `/api/aprovacoes?spec=${spec}${tasks ? `&tarefas=${encodeURIComponent(tasks)}` : ''}`);
     if (!result.ok) return { ok: false, message: result.text };
     const approved = (JSON.parse(result.text) as { aprovadas: string[] }).aprovadas;
-    return { ok: true, message: `Aprovado pelo painel: ${approved.join(', ')}. O aval ficou registrado em vostok/work/avais.log.` };
+    return { ok: true, message: `Aprovado pelo painel: ${approved.join(', ')}. O aval ficou registrado em vostok/work/avais/${item.spec}.log.` };
   }
   const action = REQUEST_ACTION[item.kind];
   if (!action) return { ok: false, message: 'Ação sem gravação no protótipo.' };

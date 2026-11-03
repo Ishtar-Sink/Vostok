@@ -132,4 +132,12 @@ describe('TaskPage', () => {
       expect(screen.queryByRole('button', { name: 'Aceitar tela.png' })).toBeNull();
     });
   });
+
+  it('pede a finalização da tarefa em validação', async () => {
+    mockFetch(taskDetail({ status: 'validating' }));
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Pedir finalização' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Pedir finalização' }).at(-1) as HTMLElement);
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/pedidos?acao=finalizar-tarefa&spec=SPEC-001&tarefa=TASK-02', expect.objectContaining({ method: 'POST' })));
+  });
 });

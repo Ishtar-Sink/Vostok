@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Tira o print de uma rota do painel: sobe a API de PAINEL_BIN na raiz do projeto e o vite do frontend.
-# Uso: PAINEL_BIN=<caminho do vostok> bash apps/painel/scripts/print.sh <rota> <arquivo.png> [largura,altura]
+# Tira o print de uma rota do painel: sobe a API de PAINEL_BIN na raiz do projeto (ou em PAINEL_PASTA)
+# e o vite do frontend.
+# Uso: [PAINEL_PASTA=<pasta do projeto>] PAINEL_BIN=<caminho do vostok> bash apps/painel/scripts/print.sh <rota> <arquivo.png> [largura,altura]
 
 set -euo pipefail
 
@@ -44,7 +45,7 @@ CHROMIUM="$(find_chromium)"
 [ -n "$CHROMIUM" ] || { echo "Chromium do Playwright não encontrado (defina PAINEL_CHROMIUM)" >&2; exit 1; }
 
 API_PORT="$(free_port)"
-(cd "$ROOT" && exec "$BIN" painel --sem-navegador --porta "$API_PORT") >"$WORK/api.log" 2>&1 &
+(cd "$ROOT" && exec "$BIN" painel --sem-navegador --porta "$API_PORT" --pasta "${PAINEL_PASTA:-$ROOT}") >"$WORK/api.log" 2>&1 &
 PIDS+=("$!")
 wait_for "http://127.0.0.1:$API_PORT/api/marca"
 

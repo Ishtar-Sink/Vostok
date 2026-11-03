@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attentionItems, specActions, taskActions } from './attention';
+import { ACTION_LABELS, attentionItems, specActions, taskActions } from './attention';
 import type { Overview, TaskSummary } from './api';
 
 function task(id: string, status: string, depends_on = '', wave = '1'): TaskSummary {
@@ -17,6 +17,12 @@ describe('taskActions', () => {
 
   it('offers a finish request for an in-progress task', () => {
     expect(kinds('in_progress')).toContain('finish-task');
+  });
+
+  it('oferece finalizar na tarefa em validação', () => {
+    expect(kinds('validating')).toContain('finish-task');
+    expect(kinds('validating')).toContain('adjust-task');
+    expect(kinds('validating')).not.toContain('execute-task');
   });
 
   it('offers execution only when the dependencies are done', () => {
@@ -43,6 +49,26 @@ describe('specActions', () => {
     const kinds = specActions({ ...meta, status: 'draft' }, false, []).map((item) => item.kind);
     expect(kinds).toContain('refine-spec');
     expect(kinds).not.toContain('adjust-spec');
+  });
+
+  it('troca aprovar por refazer com o plano desatualizado', () => {
+    const kinds = specActions(meta, true, [], true).map((item) => item.kind);
+    expect(kinds).toContain('redo-plan');
+    expect(kinds).not.toContain('approve-plan');
+    expect(kinds).not.toContain('adjust-plan');
+    expect(kinds).not.toContain('plan-spec');
+  });
+
+  it('não oferece ação de plano na spec refinada com plano desatualizado', () => {
+    expect(specActions({ ...meta, status: 'refined' }, true, [], true).map((item) => item.kind)).toEqual(['approve-spec', 'adjust-spec']);
+  });
+
+  it('oferece ajustar e aprovar com o plano em dia', () => {
+    const kinds = specActions(meta, true, [], false).map((item) => item.kind);
+    expect(kinds).toContain('approve-plan');
+    expect(kinds).toContain('adjust-plan');
+    expect(kinds).not.toContain('redo-plan');
+    expect(kinds.indexOf('approve-plan')).toBeLessThan(kinds.indexOf('adjust-plan'));
   });
 
   it('oferece executar a próxima onda executável', () => {
@@ -77,6 +103,15 @@ describe('attentionItems', () => {
     expect(attentionItems(overview).map((item) => item.kind)).toEqual(['approve-task', 'unblock-task']);
   });
 
+  it('não lista aprovar plano com o plano desatualizado', () => {
+    const kindsFor = (plan_outdated: boolean) => {
+      const overview = { project: 'p', specs: [{ meta, plan: true, plan_outdated, tasks: [] }], archived: [], activity: [], questions: [] } as unknown as Overview;
+      return attentionItems(overview).map((item) => item.kind);
+    };
+    expect(kindsFor(true)).not.toContain('approve-plan');
+    expect(kindsFor(false)).toContain('approve-plan');
+  });
+
   it('só pede finalização com a conferência passada', () => {
     const inProgress = (check_result?: string): TaskSummary => ({ ...task('TASK-01', 'in_progress'), check_result });
     const kindsFor = (...tasks: TaskSummary[]) => {
@@ -86,5 +121,14 @@ describe('attentionItems', () => {
     expect(kindsFor(inProgress())).not.toContain('finish-task');
     expect(kindsFor(inProgress('passed'))).toContain('finish-task');
     expect(kindsFor(inProgress('failed'))).not.toContain('finish-task');
+  });
+});
+
+describe('ACTION_LABELS', () => {
+  it('cita o log de avais da spec na ajuda das aprovações', () => {
+    for (const kind of ['approve-spec', 'approve-task'] as const) {
+      expect(ACTION_LABELS[kind].how).toContain('work/avais/<SPEC>.log');
+      expect(ACTION_LABELS[kind].how).not.toMatch(/avais\.log/);
+    }
   });
 });

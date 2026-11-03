@@ -31,6 +31,7 @@ export interface SpecMeta {
 export interface OpenSpec {
   meta: SpecMeta;
   plan: boolean;
+  plan_outdated: boolean;
   tasks: TaskSummary[];
 }
 
@@ -70,6 +71,7 @@ export interface SpecDetail {
   meta: SpecMeta;
   path: string;
   plan: boolean;
+  plan_outdated: boolean;
   markdown: string;
   tasks: TaskSummary[];
 }

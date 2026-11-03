@@ -9,6 +9,8 @@ export type ActionKind =
   | 'answer'
   | 'adjust-spec'
   | 'plan-spec'
+  | 'redo-plan'
+  | 'adjust-plan'
   | 'finalize-spec'
   | 'execute-task'
   | 'adjust-task'
@@ -50,11 +52,11 @@ export function attentionItems(overview: Overview): AttentionItem[] {
       question,
     });
   }
-  for (const { meta, plan, tasks } of overview.specs) {
+  for (const { meta, plan, plan_outdated, tasks } of overview.specs) {
     if (meta.status === 'refined') {
       items.push({ key: `s-${meta.id}`, kind: 'approve-spec', spec: meta.id, title: meta.title, reason: 'Spec refinada, esperando aprovação.', href: `/specs/${meta.id}` });
     }
-    if (plan) {
+    if (plan && !plan_outdated) {
       items.push({ key: `p-${meta.id}`, kind: 'approve-plan', spec: meta.id, title: meta.title, reason: 'Plano de tarefas para revisar.', href: `/specs/${meta.id}/plano` });
     }
     const done = new Set(tasks.filter((task) => task.status === 'done').map((task) => task.id));
@@ -76,14 +78,16 @@ function firstLine(markdown: string): string {
 }
 
 export const ACTION_LABELS: Record<ActionKind, { button: string; tag: string; how: string }> = {
-  'approve-spec': { button: 'Aprovar spec', tag: 'Aprovação', how: 'O painel chama a mesma aprovação da CLI (`vostok spec approve`), grava a origem `painel` e o aval em `work/avais.log`.' },
+  'approve-spec': { button: 'Aprovar spec', tag: 'Aprovação', how: 'O painel chama a mesma aprovação da CLI (`vostok spec approve`), grava a origem `painel` e o aval no log de avais da spec, `work/avais/<SPEC>.log`.' },
   'approve-plan': { button: 'Aprovar plano', tag: 'Aprovação', how: 'Aprovar o plano exige detalhar as tarefas: o painel grava um pedido, e o agente em loop o processa pela skill approve-plan.' },
-  'approve-task': { button: 'Aprovar tarefa', tag: 'Aprovação', how: 'O painel chama a mesma aprovação da CLI (`vostok task approve`), grava a origem `painel` e o aval em `work/avais.log`.' },
+  'approve-task': { button: 'Aprovar tarefa', tag: 'Aprovação', how: 'O painel chama a mesma aprovação da CLI (`vostok task approve`), grava a origem `painel` e o aval no log de avais da spec, `work/avais/<SPEC>.log`.' },
   'finish-task': { button: 'Pedir finalização', tag: 'Pedido ao agente', how: 'O painel grava um pedido de finalização; o agente em loop roda a verificação e conclui pela skill finish-task.' },
   'unblock-task': { button: 'Decidir', tag: 'Decisão', how: 'O painel grava a sua decisão (corrigir, aceitar a diferença ou ajustar) como pedido ao agente.' },
   answer: { button: 'Responder', tag: 'Pergunta', how: 'A resposta vira um pedido ao agente em loop, que a grava na pergunta e continua o trabalho.' },
   'adjust-spec': { button: 'Pedir ajuste', tag: 'Pedido ao agente', how: 'Você descreve o ajuste; o painel grava um pedido e o agente em loop o aplica pela skill adjust-spec.' },
   'plan-spec': { button: 'Planejar tarefas', tag: 'Pedido ao agente', how: 'O painel grava um pedido de planejamento; o agente em loop cria o plano pela skill plan-tasks.' },
+  'redo-plan': { button: 'Refazer o plano', tag: 'Pedido ao agente', how: 'A spec mudou depois do plano, e ele não cobre a versão aprovada. O painel grava um pedido de planejamento; o agente em loop recria o plano pela skill plan-tasks.' },
+  'adjust-plan': { button: 'Ajustar plano', tag: 'Pedido ao agente', how: 'Você descreve o ajuste; o painel grava um pedido e o agente em loop o aplica pela skill adjust-plan.' },
   'finalize-spec': { button: 'Finalizar spec', tag: 'Pedido ao agente', how: 'O painel grava um pedido de finalização; o agente em loop gera os documentos e arquiva a spec.' },
   'execute-task': { button: 'Pedir execução', tag: 'Pedido ao agente', how: 'O painel grava um pedido de execução; o agente em loop inicia a tarefa e coleta o baseline.' },
   'adjust-task': { button: 'Pedir ajuste', tag: 'Pedido ao agente', how: 'Você descreve o ajuste; o painel grava um pedido e o agente em loop o aplica pela skill adjust-task.' },
@@ -95,16 +99,20 @@ export const ACTION_LABELS: Record<ActionKind, { button: string; tag: string; ho
   'fazer-commit': { button: 'Pedir commit', tag: 'Commit', how: 'O painel grava um pedido de commit com o seu texto; o agente em loop faz o commit pela skill de commit, com o aval do painel.' },
 };
 
-const PRIMARY: ActionKind[] = ['approve-spec', 'approve-plan', 'approve-task', 'answer', 'finish-task', 'finalize-spec', 'execute-task', 'plan-spec', 'create-spec', 'refine-spec', 'execute-wave'];
+const PRIMARY: ActionKind[] = ['approve-spec', 'approve-plan', 'approve-task', 'answer', 'finish-task', 'finalize-spec', 'execute-task', 'plan-spec', 'redo-plan', 'create-spec', 'refine-spec', 'execute-wave'];
 export const isPrimary = (kind: ActionKind) => PRIMARY.includes(kind);
 
 /** Ações disponíveis na página de uma spec, pelo status dela e das tarefas. */
-export function specActions(meta: { id: string; title: string; status: string }, plan: boolean, tasks: TaskSummary[]): AttentionItem[] {
+export function specActions(meta: { id: string; title: string; status: string }, plan: boolean, tasks: TaskSummary[], planOutdated = false): AttentionItem[] {
   const base = { spec: meta.id, title: meta.title, reason: '', href: `/specs/${meta.id}` };
   const items: AttentionItem[] = [];
   if (meta.status === 'draft') items.push({ ...base, key: 'refine-spec', kind: 'refine-spec' });
   if (meta.status === 'refined') items.push({ ...base, key: 'approve-spec', kind: 'approve-spec' });
-  if (plan) items.push({ ...base, key: 'approve-plan', kind: 'approve-plan' });
+  if (plan && !planOutdated) {
+    items.push({ ...base, key: 'approve-plan', kind: 'approve-plan' });
+    items.push({ ...base, key: 'adjust-plan', kind: 'adjust-plan' });
+  }
+  if (plan && planOutdated && meta.status === 'approved') items.push({ ...base, key: 'redo-plan', kind: 'redo-plan' });
   if (meta.status === 'approved' && !plan) items.push({ ...base, key: 'plan-spec', kind: 'plan-spec' });
   if (meta.status === 'implemented') items.push({ ...base, key: 'finalize-spec', kind: 'finalize-spec' });
   if (meta.status === 'refined' || meta.status === 'approved') items.push({ ...base, key: 'adjust-spec', kind: 'adjust-spec' });
@@ -128,7 +136,7 @@ export function taskActions(spec: string, state: Record<string, string>, depsDon
   const items: AttentionItem[] = [];
   if (state.status === 'pending') items.push({ ...base, key: 'approve', kind: 'approve-task' });
   if (state.status === 'approved' && depsDone) items.push({ ...base, key: 'execute', kind: 'execute-task' });
-  if (state.status === 'in_progress') items.push({ ...base, key: 'finish', kind: 'finish-task' });
+  if (state.status === 'in_progress' || state.status === 'validating') items.push({ ...base, key: 'finish', kind: 'finish-task' });
   if (state.status === 'blocked') items.push({ ...base, key: 'unblock', kind: 'unblock-task' });
   if (state.status !== 'done') items.push({ ...base, key: 'adjust', kind: 'adjust-task' });
   return items;

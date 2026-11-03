@@ -18,6 +18,12 @@
 - `apps/painel/src/layout/sidebar.tsx` (alterar): item "Atividades"
 - `apps/painel/src/layout/topbar.tsx` (alterar): trilha da página
 - `apps/painel/src/main.tsx` (alterar): render da página
+- `apps/cli/src/commands/task.rs` (alterar): data e hora (UTC, ISO) na coluna Data do registro de execução
+- `apps/cli/src/commands/finalize.rs` (alterar): a data da conclusão lida do registro ignora a hora
+- `apps/cli/tests/common/golden.rs` (alterar): a hora do registro conta como volátil na comparação
+- `apps/cli/tests/task.rs` (alterar): teste da hora no registro
+- `apps/painel/src/shared/api.ts` (alterar): `formatDateTime`, com data e hora locais
+- `apps/painel/src/shared/api.test.ts` (criar): testes do `formatDateTime`
 
 ### Passos
 
@@ -28,3 +34,8 @@
 5. `apps/painel/src/main.tsx` (alterar): `{route.page === 'activity' && <ActivityPage version={version} />}`. `apps/painel/src/layout/topbar.tsx` (alterar): em `crumbs`, o caso `activity` com `[{ label: 'Atividades' }]`. Confira: `pnpm --dir apps/painel exec tsc --noEmit`.
 6. `apps/painel/src/layout/sidebar.tsx` (alterar): em `items`, depois de "Tarefas", `{ id: 'activity', href: '/atividades', label: 'Atividades', icon: ICONS.activity }`, com um ícone novo em `ICONS` no mesmo estilo dos outros. Confira: o print `atividades.png` mostra o item na sidebar.
 7. `apps/cli` (conferir): antes do print, compile o binário de release com a rota nova da TASK-05: `cargo build --release --features painel --manifest-path apps/cli/Cargo.toml`. Confira: `apps/cli/target/release/vostok --version` responde.
+8. `apps/cli/tests/task.rs` (alterar): acrescente `record_has_the_time`: depois de `vostok task start`, a última linha do `registro.md` tem na coluna Data um valor `AAAA-MM-DDTHH:MM:SSZ`. Confira: falha antes da mudança.
+9. `apps/cli/src/commands/task.rs` (alterar): em `record_step`, grave `utc_now()` inteiro na coluna Data, em vez de `utc_now()[..10]`. Linhas antigas, só com a data, continuam válidas. Confira: o teste do passo 8 passa.
+10. `apps/cli/src/commands/finalize.rs` (alterar): onde a data é lida do registro (`task_done_date` e a linha do tempo), use só os 10 primeiros caracteres, para os documentos finais continuarem só com a data. `apps/cli/tests/common/golden.rs` (alterar): em `normalize`, numa linha de tabela do registro (`| N | ... |`), o `<DATETIME>` da coluna Data vira `<DATE>`, porque a hora é volátil como a data. Confira: `cargo test --manifest-path apps/cli/Cargo.toml --test task --test finalize` passa.
+11. `apps/painel/src/shared/api.test.ts` (criar) e `apps/painel/src/shared/api.ts` (alterar): `formatDateTime(value)` mostra `hoje, 14:32`, `ontem, 14:32` ou `03/11/2026, 14:32`, no fuso local, para um valor ISO com hora; um valor só com a data mostra `hoje`, `ontem` ou `03/11/2026`; vazio mostra `—`. Datas ISO dentro do detalhe da atividade (como `aprovada em 2026-11-03T15:46:07Z`) também saem formatadas, pela função `formatDatesIn(text)`. Confira: os testes passam.
+12. `apps/painel/src/features/activity/activity-page.tsx` (alterar): use `formatDateTime` na data e `formatDatesIn` no detalhe de cada item. Confira: no print `atividades.png`, datas com hora, em ordem da mais nova para a mais antiga.

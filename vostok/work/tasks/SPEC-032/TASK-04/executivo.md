@@ -1,3 +1,5 @@
 <!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
 
-Faz a lista de pendências mostrar uma tarefa em execução só quando ela de fato está pronta para ser finalizada, depois de passar na conferência rápida. Tarefas ainda em andamento deixam de aparecer como se esperassem o usuário, e o botão de pedir finalização continua na tela da tarefa. Perfil mecânico.
+O aviso "Aguardando você" e a tela de pendências deixaram de mostrar toda tarefa em execução como algo que espera você. Agora uma tarefa só vira pendência de finalização depois que a conferência dela passa, ou seja, quando ela está de fato pronta para você mandar finalizar. Enquanto o agente ainda trabalha, ela não aparece ali.
+
+Na tela da própria tarefa nada mudou: o botão "Pedir finalização" continua disponível a qualquer momento.

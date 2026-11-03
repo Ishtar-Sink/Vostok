@@ -1,11 +1,14 @@
 <!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
 
-**Abordagem.** O painel passa a receber `check_result` no resumo de cada tarefa e a regra da pendência em `attentionItems` exige `passed`. `taskActions`, usada na tela da tarefa, fica como está (RF-04).
+**O que foi feito.**
+- `apps/cli/src/painel/read.rs`: `check_result` (gravado pelo `vostok task check`, TASK-03) entra no resumo de cada tarefa do `GET /api/visao`.
+- `apps/painel/src/shared/api.ts`: `TaskSummary` ganha `check_result?: string`.
+- `apps/painel/src/shared/attention.ts`: em `attentionItems`, a pendência `finish-task` exige `status === 'in_progress'`, `check_result === 'passed'` e as dependências concluídas. `taskActions` não mudou, então a tela da tarefa segue com "Pedir finalização".
 
-**Decisões.** Tarefas iniciadas antes desta versão, sem `check_result`, saem das pendências até a próxima conferência (CB-01); o usuário aceitou esse efeito no refinamento. Os arquivos `api.ts` e `read.rs` também são mudados pela TASK-05, de outra onda; as mudanças são em pontos diferentes.
+**Decisões.** Sem conferência (tarefas antigas ou recém-iniciadas) e com `failed`, a tarefa não é pendência: uma pendência é só o que trava o agente e precisa da decisão do usuário (RN-02).
 
-**Riscos.** Esquecer o campo no `task_summary` faria a pendência nunca aparecer; o teste de `read.rs` e o de `attention` conferem.
+**Verificação.** Teste novo em `attention.test.ts`, "só pede finalização com a conferência passada", com os três casos (sem conferência, `passed`, `failed`). Ele falhou antes da mudança. Os testes existentes de `taskActions` continuam passando, e a regressão só acrescenta esse teste.
 
-**Referências da spec.** RF-04, RN-01, CT-06, CB-01.
+**Pontos de atenção.** O campo novo em `read.rs` não tem um teste Rust próprio; quem o cobre é o teste do painel.
 
-**Arquivos em comum com a onda 3.** Nenhum entre TASK-04, TASK-06 e TASK-07.
+**Referências da spec.** RF-04, RN-02, CT-06, CB-01.

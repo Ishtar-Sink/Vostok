@@ -13,6 +13,7 @@ describe('parseRoute', () => {
     ['/tarefas', { page: 'tasks' }],
     ['/tarefas/SPEC-029/TASK-03', { page: 'task', spec: 'SPEC-029', task: 'TASK-03' }],
     ['/documentos', { page: 'documents' }],
+    ['/atividades', { page: 'activity' }],
     ['/configuracoes', { page: 'settings' }],
   ])('maps %s to the right page', (path, route) => {
     expect(parseRoute(path)).toEqual(route);

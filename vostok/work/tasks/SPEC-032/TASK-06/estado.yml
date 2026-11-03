@@ -9,18 +9,22 @@ wave: 3
 covers: [RF-05, CT-07, CB-02]
 type: tarefa
 labels: [SPEC-032, mecanica]
-status: approved
-content_hash: f35d6ed26db30188f05064c40c4398188670cf8d768d6d91e37c29bad65e1d61
-adjustments: 0
-adjusted_at: null
+status: done
+content_hash: a838a8658251df160e0178ee73a37d5f3a3924a2fc9bfc9c2fb96327bcc5a73c
+adjustments: 1
+adjusted_at: 2026-11-03T16:18:12Z
 approved_at: 2026-11-03T15:46:07Z
 approved_hash: f35d6ed26db30188f05064c40c4398188670cf8d768d6d91e37c29bad65e1d61
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
-execution_hash: b799fcb9632b509d605045b1b26636bd67bdba78ac3adb2276b11ec026fe220e
-verification_hash: 217a1052afaa35cf94c015cf8076478a62f00c6698413698ceacdc5eb8d9a336
-criteria_hash: eb79f9737a6ab89b2302ba040e62aae53b7bd57f3df392dddd34c296f64c689d
-state_hash: 8b3cc43dfe337c03b5529aeb5b9801c185e0ff59fe54555d0298f15c87d00ad7
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+execution_hash: ebb36adff72ba08a50f367ad93d55300aaae9520fff70c9a753699d1ec40ac65
+verification_hash: 08f58219fecf8c1eaeb081c84cc79abb1ec92a6a73ecb9595067c73975e43525
+criteria_hash: 2346c8cc5996fcaf702b76f4052139a6aa8ffbefceb4f39d1b39e6de912dd6c7
+state_hash: a19b633ab61b549f986c9b5d6f5b1ec5af1b3c823cf2a1e4c3e853b7e63a3680
 approved_by: chat
+model: haiku
+executive_hash: 852fac443718a107ed726119d933e82f0d4f7ceb67e26383310716712660a11f
+technical_hash: e88a059c0e5d2eeed4c7ddfa97bfbb539ea52f2ac316d52ce76a43568f9cf0b5
+updated_at: 2026-11-03T16:18:12Z

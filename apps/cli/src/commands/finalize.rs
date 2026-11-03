@@ -470,7 +470,9 @@ impl Finalization {
             }
             let cells: Vec<&str> = line.split('|').collect();
             if awk_trim(cells.get(3).copied().unwrap_or("")) == "conclusão" {
-                date = awk_trim(cells.get(2).copied().unwrap_or("")).to_string();
+                // Desde a v0.4.0 o registro grava a hora; os documentos mostram só a data.
+                let cell = awk_trim(cells.get(2).copied().unwrap_or(""));
+                date = cell.get(..10).unwrap_or(cell).to_string();
             }
         }
         Ok(date)

@@ -12,6 +12,7 @@ export interface TaskSummary {
   covers: string;
   type: string;
   description: string;
+  check_result?: string;
 }
 
 export interface SpecMeta {
@@ -196,6 +197,29 @@ export function listOf(value: string): string[] {
 export function formatDate(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   return match ? `${match[3]}/${match[2]}/${match[1]}` : value || '—';
+}
+
+const ISO_DATETIME = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?Z/g;
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+/** Data, e hora quando houver, no fuso local: "hoje, 14:32", "ontem, 14:32" ou "03/11/2026, 14:32". */
+export function formatDateTime(value: string, now: Date = new Date()): string {
+  if (!value) return '—';
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnly ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])) : new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const pad = (number: number) => String(number).padStart(2, '0');
+  const day = sameDay(date, now) ? 'hoje' : sameDay(date, yesterday) ? 'ontem' : `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+  return dateOnly ? day : `${day}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Troca as datas ISO com hora de um texto pelo formato de `formatDateTime`. */
+export function formatDatesIn(text: string, now: Date = new Date()): string {
+  return text.replace(ISO_DATETIME, (match) => formatDateTime(match, now));
 }
 
 /** Token da sessão, que o servidor põe na página; sem ele, as ações são recusadas. */

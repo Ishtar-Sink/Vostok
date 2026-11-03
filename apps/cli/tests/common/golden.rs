@@ -532,6 +532,8 @@ pub fn normalize(text: &str, root: &Path) -> String {
         .replace(root.to_str().unwrap(), "<ROOT>")
         .replace(GOLDEN_ROOT, "<ROOT>");
     let text = replace_volatile(&replace_tmp(&text));
+    // Desde a v0.4.0 o registro de execução grava a hora; as fixtures dos scripts bash, só a data.
+    let text = text.replace(" | <DATETIME> | ", " | <DATE> | ");
     // Os scripts bash nunca gravaram o campo `approved_by`, que só a CLI grava (e limpa com `null`).
     text.split_inclusive('\n')
         .filter(|line| {

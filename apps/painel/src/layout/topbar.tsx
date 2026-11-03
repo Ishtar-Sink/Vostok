@@ -24,6 +24,8 @@ function crumbs(route: Route): Crumb[] {
       return [{ label: 'Tarefas', href: '/tarefas' }, { label: route.spec, href: `/specs/${route.spec}/quadro` }, { label: route.task }];
     case 'documents':
       return [{ label: 'Documentos' }];
+    case 'activity':
+      return [{ label: 'Atividades' }];
     case 'settings':
       return [{ label: 'Configurações' }];
     default:

@@ -778,6 +778,7 @@ fn task_summary(dir: &Path) -> String {
         "covers",
         "type",
         "description",
+        "check_result",
     ];
     let pairs: Vec<(String, String)> = keys
         .iter()

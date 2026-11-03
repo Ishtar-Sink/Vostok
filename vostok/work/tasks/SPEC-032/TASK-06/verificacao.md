@@ -18,5 +18,5 @@ pnpm --dir apps/painel exec tsc --noEmit
   - Falha: algum com × ou erro de tipo.
 - `atividade-recente.png` (print): `PAINEL_BIN=apps/cli/target/release/vostok bash apps/painel/scripts/print.sh / "$VOSTOK_EVIDENCE/atividade-recente.png" 1280,1100`
   - Prova: a atividade recente real, sem rolagem interna, com o seletor ao lado do título e o "Ver todas" (RF-05).
-  - Trecho: cinco itens, o seletor e o link no fim.
-  - Falha: barra de rolagem na seção, mais de cinco itens ou sem o link.
+  - Trecho: cinco itens com data e hora, o seletor de botões 5, 10 e 15 no estilo do filtro de specs e o link no fim.
+  - Falha: barra de rolagem na seção, mais de cinco itens, sem o link ou seletor fora do estilo do painel.

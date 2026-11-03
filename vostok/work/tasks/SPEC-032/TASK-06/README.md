@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-05
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Mostra 5 atividades por padrão no painel inicial, com seletor de 5, 10 e 15, sem rolagem interna e com "Ver todas".
 - **Critérios de aceite:**
-  - [ ] A atividade recente mostra 5 itens por padrão, sem rolagem interna (RF-05, CT-07).
-  - [ ] O seletor troca para 10 e 15, e "Ver todas" leva a `/atividades` (RF-05, CB-02).
+  - [x] A atividade recente mostra 5 itens por padrão, sem rolagem interna (RF-05, CT-07).
+  - [x] O seletor troca para 10 e 15, e "Ver todas" leva a `/atividades` (RF-05, CB-02).
 - **Rótulos:** SPEC-032, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** TASK-05

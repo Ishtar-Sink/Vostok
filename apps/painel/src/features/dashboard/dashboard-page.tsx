@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { formatDate, useResource, type Overview } from '../../shared/api';
+import { useEffect, useState } from 'react';
+import { fetchActivities, formatDatesIn, formatDateTime, useResource, type Activity, type Overview } from '../../shared/api';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Badge } from '../../ui/badge/badge';
@@ -14,13 +14,14 @@ import page from '../../shared/page.module.css';
 import styles from './dashboard-page.module.css';
 
 const STATUS_ORDER = ['pending', 'approved', 'in_progress', 'validating', 'blocked', 'done'];
+const ACTIVITY_LIMITS = [5, 10, 15];
 
 export function DashboardPage({ version, name }: { version: number; name: string }) {
   const overview = useResource<Overview>('/api/visao', version);
   if (overview.kind === 'loading') return <LoadingState label="Carregando o painel" rows={6} />;
   if (overview.kind === 'error') return <ErrorState title="Não foi possível ler o harness" description={overview.message} retryLabel="Tentar de novo" onRetry={overview.retry} />;
 
-  const { specs, archived, activity } = overview.data;
+  const { specs, archived } = overview.data;
   const tasks = specs.flatMap((spec) => spec.tasks);
   const running = tasks.filter((task) => task.status === 'in_progress' || task.status === 'validating').length;
   const blocked = tasks.filter((task) => task.status === 'blocked').length;
@@ -108,26 +109,85 @@ export function DashboardPage({ version, name }: { version: number; name: string
           </section>
         </div>
 
-        <section className={styles.activity} aria-labelledby="atividade">
-          <h2 id="atividade" className={page.sectionTitle}>Atividade recente</h2>
-          {activity.length === 0 ? <p className={page.sectionHint}>Sem registros ainda.</p> : null}
-          <ol className={styles.timeline}>
-            {activity.map((item, index) => (
-              <li key={`${item.spec}-${item.task}-${index}`} data-result={item.result}>
-                <span className={styles.when}>{formatDate(item.date)}</span>
-                <a href={`/tarefas/${item.spec}/${item.task}`} onClick={onLinkClick} className={styles.what}>
-                  {item.task} · {item.step}
-                </a>
-                <span className={styles.detail}>
-                  <Badge tone={statusTone(item.result)}>{statusLabel(item.result)}</Badge> {item.detail}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <RecentActivity version={version} />
       </div>
     </div>
   );
+}
+
+type ActivityState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; items: Activity[] };
+
+function RecentActivity({ version }: { version: number }) {
+  const [limit, setLimit] = useState(ACTIVITY_LIMITS[0]);
+  const state = useActivities(limit, version);
+  return (
+    <section className={styles.activity} aria-labelledby="atividade">
+      <div className={page.sectionHeader}>
+        <h2 id="atividade" className={page.sectionTitle}>Atividade recente</h2>
+        <div className={styles.limits} role="group" aria-label="Quantidade de atividades">
+          {ACTIVITY_LIMITS.map((option) => (
+            <button key={option} type="button" aria-pressed={limit === option} onClick={() => setLimit(option)}>
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ActivityList state={state} />
+      <a href="/atividades" onClick={onLinkClick} className={page.link}>Ver todas</a>
+    </section>
+  );
+}
+
+function useActivities(limit: number, version: number): ActivityState {
+  const [state, setState] = useState<ActivityState>({ kind: 'loading' });
+  useEffect(() => {
+    let active = true;
+    fetchActivities({ limite: limit })
+      .then((items) => {
+        if (active) setState({ kind: 'ready', items });
+      })
+      .catch(() => {
+        if (active) setState({ kind: 'error' });
+      });
+    return () => {
+      active = false;
+    };
+  }, [limit, version]);
+  return state;
+}
+
+function ActivityList({ state }: { state: ActivityState }) {
+  if (state.kind === 'loading') return <p className={page.sectionHint}>Carregando atividades.</p>;
+  if (state.kind === 'error') return <p className={page.sectionHint}>Não foi possível ler as atividades.</p>;
+  if (state.items.length === 0) return <p className={page.sectionHint}>Sem registros ainda.</p>;
+  return (
+    <ol className={styles.timeline}>
+      {state.items.map((item, index) => (
+        <li key={`${item.spec}-${item.target}-${index}`} data-result={item.result}>
+          <span className={styles.when}>{formatDateTime(item.date)}</span>
+          <a href={activityHref(item)} onClick={onLinkClick} className={styles.what}>
+            {item.task} · {item.step}
+          </a>
+          <span className={styles.detail}>
+            <Badge tone={statusTone(item.result)}>{statusLabel(item.result)}</Badge> {formatDatesIn(item.detail)}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function activityHref(item: Activity): string {
+  switch (item.type) {
+    case 'tarefa':
+      return `/tarefas/${item.spec}/${item.target}`;
+    case 'spec':
+    case 'plano':
+      return `/specs/${item.spec}`;
+    case 'pedido':
+    case 'aval':
+      return '/pendencias';
+  }
 }
 
 function Kpi({ label, value, hint, tone, href }: { label: string; value: number; hint?: string; tone?: 'primary' | 'warning'; href: string }) {

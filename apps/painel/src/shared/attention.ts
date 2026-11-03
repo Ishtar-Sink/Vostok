@@ -54,7 +54,7 @@ export function attentionItems(overview: Overview): AttentionItem[] {
     for (const task of tasks) {
       const base = { spec: meta.id, task: task.id, title: task.title, href: `/tarefas/${meta.id}/${task.id}` };
       if (task.status === 'pending') items.push({ ...base, key: `a-${meta.id}-${task.id}`, kind: 'approve-task', reason: 'Tarefa detalhada, esperando aprovação.' });
-      if (task.status === 'in_progress' && listOf(task.depends_on).every((dep) => done.has(dep))) {
+      if (task.status === 'in_progress' && task.check_result === 'passed' && listOf(task.depends_on).every((dep) => done.has(dep))) {
         items.push({ ...base, key: `f-${meta.id}-${task.id}`, kind: 'finish-task', reason: 'Implementada; falta validar e concluir.' });
       }
       if (task.status === 'blocked') items.push({ ...base, key: `b-${meta.id}-${task.id}`, kind: 'unblock-task', reason: 'Bloqueada por falha ou regressão; precisa da sua decisão.' });

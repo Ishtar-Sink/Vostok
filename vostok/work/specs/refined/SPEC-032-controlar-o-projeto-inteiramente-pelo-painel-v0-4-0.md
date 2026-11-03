@@ -1,10 +1,10 @@
 ---
 id: SPEC-032
 title: "Controlar o projeto inteiramente pelo painel (v0.4.0)"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-03T15:03:32Z
-updated_at: 2026-11-03T15:44:28Z
+updated_at: 2026-11-03T16:29:56Z
 tags: []
 type: feature
 source: "draft/SPEC-032-controlar-o-projeto-inteiramente-pelo-painel-v0-4-0.md"

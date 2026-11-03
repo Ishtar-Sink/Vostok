@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-03
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Mostra a tarefa em execução nas pendências só com `check_result: passed`, mantendo o botão na tela da tarefa.
 - **Critérios de aceite:**
-  - [ ] Tarefa em execução sem conferência passada não aparece nas pendências (RF-04, CT-06, CB-01).
-  - [ ] A tela da tarefa continua oferecendo "Pedir finalização" (RF-04).
+  - [x] Tarefa em execução sem conferência passada não aparece nas pendências (RF-04, CT-06, CB-01).
+  - [x] A tela da tarefa continua oferecendo "Pedir finalização" (RF-04).
 - **Rótulos:** SPEC-032, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** TASK-03

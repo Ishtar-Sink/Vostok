@@ -51,4 +51,15 @@ describe('attentionItems', () => {
     } as unknown as Overview;
     expect(attentionItems(overview).map((item) => item.kind)).toEqual(['approve-task', 'unblock-task']);
   });
+
+  it('só pede finalização com a conferência passada', () => {
+    const inProgress = (check_result?: string): TaskSummary => ({ ...task('TASK-01', 'in_progress'), check_result });
+    const kindsFor = (...tasks: TaskSummary[]) => {
+      const overview = { project: 'p', specs: [{ meta, plan: false, tasks }], archived: [], activity: [], questions: [] } as unknown as Overview;
+      return attentionItems(overview).map((item) => item.kind);
+    };
+    expect(kindsFor(inProgress())).not.toContain('finish-task');
+    expect(kindsFor(inProgress('passed'))).toContain('finish-task');
+    expect(kindsFor(inProgress('failed'))).not.toContain('finish-task');
+  });
 });

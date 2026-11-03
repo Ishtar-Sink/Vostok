@@ -2879,7 +2879,7 @@ impl Tasks {
         let row = format!(
             "| {} | {} | {} | {} | {} |",
             count + 1,
-            &utc_now()[..10],
+            utc_now(),
             escape_pipes(step),
             escape_pipes(result),
             escape_pipes(detail)

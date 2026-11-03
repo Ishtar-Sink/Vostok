@@ -32,6 +32,7 @@ const ICONS = {
   inbox: <Icon><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z" /></Icon>,
   specs: <Icon><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></Icon>,
   tasks: <Icon><rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="10" y="4" width="5" height="10" rx="1.5" /><rect x="17" y="4" width="4" height="13" rx="1.5" /></Icon>,
+  activity: <Icon><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></Icon>,
   documents: <Icon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon>,
   theme: <Icon><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></Icon>,
   settings: <Icon><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.4a7 7 0 0 0-2.2 1.3l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.4a7 7 0 0 0 2.2-1.3l2.3.9 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></Icon>,
@@ -62,6 +63,7 @@ export function Sidebar({ name, icon, specs, pending, route, theme, onToggleThem
     { id: 'inbox', href: '/pendencias', label: 'Pendências', icon: ICONS.inbox, count: pending },
     { id: 'specs', href: '/specs', label: 'Specs', icon: ICONS.specs },
     { id: 'tasks', href: '/tarefas', label: 'Tarefas', icon: ICONS.tasks },
+    { id: 'activity', href: '/atividades', label: 'Atividades', icon: ICONS.activity },
     { id: 'documents', href: '/documentos', label: 'Documentos', icon: ICONS.documents },
   ];
 

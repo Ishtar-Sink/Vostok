@@ -9,18 +9,21 @@ wave: 3
 covers: [RF-04, CT-06, CB-01]
 type: tarefa
 labels: [SPEC-032, mecanica]
-status: approved
-content_hash: b901a7156f219d30e2fac7d00de3d55da216df53806ecf974541f51fdb96696f
+status: done
+content_hash: 19405d372139a6085352d71b01a2fdbac4abd461d84550d56bf984762a4f8b90
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-03T15:46:07Z
 approved_hash: b901a7156f219d30e2fac7d00de3d55da216df53806ecf974541f51fdb96696f
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: bf1c71d60d55b5f9b0a00be3745d7cf7746fa3d3fe4a39c6dd6e248bdd79655a
 verification_hash: 35fdeabf92d067e0bf55eecd0d1c592e455bdd9b88d59026ee37f53537121695
-criteria_hash: 7e4b6693ba3806bdcf99f993e1838f815ca76496a12cd2accdf14ff1331ddeb6
-state_hash: 5f04fd3ae1b0cea05265df802d95dbc6333a58e8022c647c72d6a0e8145bf493
+criteria_hash: d153fddaf2dae13ef4adfc8481ac58035beef1e6906c44b5be752841a24513b0
+state_hash: 1de345b32003810288cd12b6084df20d9222afba8463ee49aed40ed3b7950f36
 approved_by: chat
+model: haiku
+executive_hash: 242f6e9063292c4ebb19782e7b690253a56376d7d43f0335e743ff76ddd992d7
+technical_hash: 37b9d04efb570177000fb2b9b8a60b2723dff824423c8b5af6aa53ef5b67db85

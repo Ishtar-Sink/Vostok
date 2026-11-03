@@ -2070,6 +2070,23 @@ fn check_records_the_result() {
 }
 
 #[test]
+fn record_has_the_time() {
+    let project = started_task(&[]);
+    let content = read(&project, TASK_PATH);
+    let record = content.split("## Histórico").next().unwrap();
+    let last = record
+        .lines()
+        .rfind(|line| line.starts_with("| ") && !line.starts_with("| #"))
+        .unwrap();
+    let date = last.split('|').nth(2).unwrap().trim();
+    let bytes = date.as_bytes();
+    assert!(
+        date.len() == 20 && bytes[10] == b'T' && bytes[13] == b':' && date.ends_with('Z'),
+        "{last}"
+    );
+}
+
+#[test]
 fn adjustment_clears_the_check_result() {
     let project = started_task(&[]);
     task(&project, &["check"]).assert().success();

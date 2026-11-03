@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-05
 
@@ -22,8 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Cria a rota `/atividades` e o item "Atividades" na sidebar, com filtros por tipo e por spec.
 - **Critérios de aceite:**
-  - [ ] A rota `/atividades` e o item "Atividades" na sidebar existem (RF-06, CT-08).
-  - [ ] A página lista todas as atividades e filtra por tipo e por spec, com mensagem de lista vazia (RF-06, CB-05).
+  - [x] A rota `/atividades` e o item "Atividades" na sidebar existem (RF-06, CT-08).
+  - [x] A página lista todas as atividades e filtra por tipo e por spec, com mensagem de lista vazia (RF-06, CB-05).
+  - [x] O registro de execução grava a hora, e as atividades do mesmo dia saem na ordem em que aconteceram, com data e hora formatadas (RF-06).
 - **Rótulos:** SPEC-032, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-05

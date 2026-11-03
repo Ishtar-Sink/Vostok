@@ -1,0 +1,26 @@
+id: TASK-03
+spec: SPEC-032
+title: "Gravar o resultado do `vostok task check`"
+description: "Grava `check_result` e `checked_at` no `estado.yml` e a linha `check` no registro, limpos no ajuste e no resume."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-03, CT-03, CT-04, CT-05]
+type: tarefa
+labels: [SPEC-032, padrao]
+status: approved
+content_hash: 328fe21f2ef10f069f1f8b4883fa35440c0e3fdcc4c0e8769225dd5121ff267e
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: 328fe21f2ef10f069f1f8b4883fa35440c0e3fdcc4c0e8769225dd5121ff267e
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 188e7b2eb7002f5d4c9859cd62a34bcb631abaf16589edf4f4fa21f538635d47
+verification_hash: 5ef18e0bb500c82da1341a6d3022bdc79c2c1856c46d1dd0bce34aa4ca694d2c
+criteria_hash: 414c40a77c4fb5f1292eacf34f795caeff61b48e0e37dc64d43e2a7032d1f7ce
+state_hash: e043c54d7454f08e1baf1a645654ac13c90b3e6f95e0011243f5def2b31caa03
+approved_by: chat

@@ -1,0 +1,26 @@
+id: TASK-04
+spec: SPEC-032
+title: "Pendência de finalização só com a conferência"
+description: "Mostra a tarefa em execução nas pendências só com `check_result: passed`, mantendo o botão na tela da tarefa."
+profile: mecanica
+persona: ui-ux-designer
+depends_on: [TASK-03]
+wave: 3
+covers: [RF-04, CT-06, CB-01]
+type: tarefa
+labels: [SPEC-032, mecanica]
+status: approved
+content_hash: b901a7156f219d30e2fac7d00de3d55da216df53806ecf974541f51fdb96696f
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: b901a7156f219d30e2fac7d00de3d55da216df53806ecf974541f51fdb96696f
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: bf1c71d60d55b5f9b0a00be3745d7cf7746fa3d3fe4a39c6dd6e248bdd79655a
+verification_hash: 35fdeabf92d067e0bf55eecd0d1c592e455bdd9b88d59026ee37f53537121695
+criteria_hash: 7e4b6693ba3806bdcf99f993e1838f815ca76496a12cd2accdf14ff1331ddeb6
+state_hash: 5f04fd3ae1b0cea05265df802d95dbc6333a58e8022c647c72d6a0e8145bf493
+approved_by: chat

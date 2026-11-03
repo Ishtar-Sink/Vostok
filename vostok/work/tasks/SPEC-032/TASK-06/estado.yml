@@ -1,0 +1,26 @@
+id: TASK-06
+spec: SPEC-032
+title: "Atividade recente com seletor"
+description: "Mostra 5 atividades por padrão no painel inicial, com seletor de 5, 10 e 15, sem rolagem interna e com \"Ver todas\"."
+profile: mecanica
+persona: ui-ux-designer
+depends_on: [TASK-05]
+wave: 3
+covers: [RF-05, CT-07, CB-02]
+type: tarefa
+labels: [SPEC-032, mecanica]
+status: approved
+content_hash: f35d6ed26db30188f05064c40c4398188670cf8d768d6d91e37c29bad65e1d61
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: f35d6ed26db30188f05064c40c4398188670cf8d768d6d91e37c29bad65e1d61
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: b799fcb9632b509d605045b1b26636bd67bdba78ac3adb2276b11ec026fe220e
+verification_hash: 217a1052afaa35cf94c015cf8076478a62f00c6698413698ceacdc5eb8d9a336
+criteria_hash: eb79f9737a6ab89b2302ba040e62aae53b7bd57f3df392dddd34c296f64c689d
+state_hash: 8b3cc43dfe337c03b5529aeb5b9801c185e0ff59fe54555d0298f15c87d00ad7
+approved_by: chat

@@ -1,0 +1,26 @@
+id: TASK-05
+spec: SPEC-032
+title: "Servir as atividades de todas as fontes"
+description: "Monta as atividades do registro, dos históricos de ajuste, dos pedidos e do `avais.log` em `GET /api/atividades`, com a chamada no cliente."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-07, CT-09, CT-10, CB-03, CB-04]
+type: tarefa
+labels: [SPEC-032, padrao]
+status: approved
+content_hash: c41b4622a7abf7e6b60b716c3bae1a23c8b6713fa0b92808ec948cc13cd670d0
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: c41b4622a7abf7e6b60b716c3bae1a23c8b6713fa0b92808ec948cc13cd670d0
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: aa5fe53b4dcea392339b801434783f3661775e21bd1dd1a2a400ec08bd857ff4
+verification_hash: 3113dc95b54fb46be1c72a566c258779bdc29bcc1177e27e4118a9bdd279ba3e
+criteria_hash: 3427c7c6b676a7989200b63b6f7c25e61a15860d1ffeac7e0744e9f4d01f8ad3
+state_hash: 404d9456f068fcee802837498b41ac033b3160d841a80b88d2541371aced96d6
+approved_by: chat

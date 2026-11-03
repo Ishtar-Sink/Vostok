@@ -1,0 +1,29 @@
+id: TASK-01
+spec: SPEC-032
+title: "Estudar a operação pelo painel sem o chat"
+description: "Grava o estudo das técnicas, do status das entidades, dos arquivos de comunicação e do custo das fontes de atividade, com a proposta da SPEC-033."
+profile: julgamento
+persona: arquiteto
+depends_on: []
+wave: 1
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-032, julgamento]
+status: done
+content_hash: e3741c90b1dde68cd343395871441d32f5191493642eb3d849b2258f27d0abaf
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: 4efbd7315d09a2c3e0934311bbe03a0c6b09381bd9fbe58f4ee90ce85b29332b
+attempts: 0
+tests_result: passed
+regression_result: passed
+evidence_result: passed
+execution_hash: 91519789ec4b844c9b5da83f4a85ee6f655b17fde0f33028f9927a5c40df385d
+verification_hash: 35dadf59fa2da87f5d503c87df065e848fe9a7a2723be269de5094633397cddf
+criteria_hash: da0a59f60010075d1d8b92e25a5d921089c5175174daa525cefb54bfee39f077
+state_hash: 9b96dd3456e792c7cfb72a9ba0ebfca47d5856b6c9341f276a20eca7129a354e
+approved_by: chat
+model: claude-opus-5-5
+executive_hash: 0206c9826341c6af8e7a58c3bec338407a3fba2e25038f86ac1f0b64950838e1
+technical_hash: 6648013a661fec5b868c6e862cf48581f4251e0548cbf7a0c8c468401405875b

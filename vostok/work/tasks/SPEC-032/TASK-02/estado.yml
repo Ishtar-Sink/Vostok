@@ -1,0 +1,26 @@
+id: TASK-02
+spec: SPEC-032
+title: "Separar a coluna \"Em validação\" no quadro"
+description: "Põe as tarefas `validating` numa coluna própria, entre \"Em execução\" e \"Bloqueadas\"."
+profile: mecanica
+persona: ui-ux-designer
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-02, CT-02]
+type: tarefa
+labels: [SPEC-032, mecanica]
+status: approved
+content_hash: 6610f74beae59463cd4cceb5bf1b3e33c1cf41c4e5d23aa6a23006116923ff3e
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: 6610f74beae59463cd4cceb5bf1b3e33c1cf41c4e5d23aa6a23006116923ff3e
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 08c5300fcf15324691890369ae003849e9645edb4a4ead9141b09594f9d07083
+verification_hash: 29e5be78c454b0d01c9ae291cf70271b59e0a63d3012ebbb6c17265bb7991717
+criteria_hash: 31eb39fb0a44e6494679d25ac715b64c0c025d81bb62adc5b2cdee3f24ea1657
+state_hash: c788e7ca5872adb6d1822d5adb2f9eb15635567e3f1ceb118e6d8c03b3fac697
+approved_by: chat

@@ -1,0 +1,26 @@
+id: TASK-07
+spec: SPEC-032
+title: "Página de atividades com filtros"
+description: "Cria a rota `/atividades` e o item \"Atividades\" na sidebar, com filtros por tipo e por spec."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-05]
+wave: 3
+covers: [RF-06, CT-08, CB-05]
+type: tarefa
+labels: [SPEC-032, padrao]
+status: approved
+content_hash: 5f74b1e52996d27412cebb6003dbbc5e04f2cb660b40e1e650b4f7ee46699c0e
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T15:46:07Z
+approved_hash: 5f74b1e52996d27412cebb6003dbbc5e04f2cb660b40e1e650b4f7ee46699c0e
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 03bdf360de2287bd15af83623ea0ecbca448c7544e34987f342f13d84bcf0192
+verification_hash: 706d710696f28c7ccb4e16f2927124d2cf3a6ceb233fa3a5045c45909d76570c
+criteria_hash: 4c0909b6644ca9aea80f9b75678ac2ea4e9aceb7ff539e89464d9f0d61b8d666
+state_hash: bfb4008a3e1647806339c56b9d1c96d7fa36c30a23f7e0377eb026c59abaa7dc
+approved_by: chat

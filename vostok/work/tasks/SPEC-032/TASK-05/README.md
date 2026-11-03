@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-01
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Monta as atividades do registro, dos históricos de ajuste, dos pedidos e do `avais.log` em `GET /api/atividades`, com a chamada no cliente.
 - **Critérios de aceite:**
-  - [ ] `GET /api/atividades` traz tarefas (abertas e arquivadas), specs, planos, pedidos e avais, da mais nova para a mais antiga (RF-07, CT-09, CB-04).
-  - [ ] A rota filtra por `limite`, `tipo` e `spec` e ignora avais malformados (RF-07, CB-03).
-  - [ ] A rota responde em até 500 ms com 1.000 atividades (RNF-01, CT-10).
+  - [x] `GET /api/atividades` traz tarefas (abertas e arquivadas), specs, planos, pedidos e avais, da mais nova para a mais antiga (RF-07, CT-09, CB-04).
+  - [x] A rota filtra por `limite`, `tipo` e `spec` e ignora avais malformados (RF-07, CB-03).
+  - [x] A rota responde em até 500 ms com 1.000 atividades (RNF-01, CT-10).
 - **Rótulos:** SPEC-032, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-01

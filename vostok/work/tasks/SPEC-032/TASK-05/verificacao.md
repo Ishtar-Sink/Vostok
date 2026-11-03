@@ -7,7 +7,7 @@
 
 ```bash
 # evidência: atividades-testes.txt
-cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::read painel::server
+cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::
 cargo clippy --manifest-path apps/cli/Cargo.toml --features painel --all-targets -- -D warnings
 pnpm --dir apps/painel exec tsc --noEmit
 ```

@@ -34,8 +34,11 @@ const SPEC_FIELDS: &[&str] = &[
     "adjustments",
 ];
 
-/// Quantas linhas do registro de execução entram na atividade recente.
+/// Quantas linhas do registro de execução entram na atividade recente da visão.
 const ACTIVITY_LIMIT: usize = 20;
+
+/// Quantas atividades `GET /api/atividades` devolve quando o pedido não traz `limite`.
+const DEFAULT_ACTIVITIES: usize = 15;
 
 /// Cores padrão do tema (CB-05), usadas quando `config/documents.yml` não tem os grupos.
 const DEFAULT_LIGHT: &[(&str, &str)] = &[
@@ -121,6 +124,7 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
             "{{\"versao\":\"{}\"}}",
             live::version(&painel.work)
         ))),
+        ["api", "atividades"] => Ok(json(layout.activities(query))),
         ["api", "marca"] => Ok(json(layout.brand())),
         ["api", "documentos"] => Ok(json(layout.documents())),
         ["api", "configuracoes"] => Ok(json(layout.settings())),
@@ -227,22 +231,131 @@ impl Layout<'_> {
 
     /// Últimas linhas do registro de execução das tarefas abertas, da mais nova para a mais antiga.
     fn activity(&self) -> Vec<String> {
-        let mut rows: Vec<ActivityRow> = Vec::new();
-        for spec in self.specs() {
-            for dir in task_dirs(&self.tasks.join(&spec.id)) {
-                let task = dir
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
-                let content = fs::read_to_string(dir.join("registro.md")).unwrap_or_default();
-                rows.extend(activity_rows(&content, &spec.id, &task));
-            }
-        }
-        rows.sort_by(|a, b| b.sort_key().cmp(&a.sort_key()));
+        let mut rows = self.task_rows();
+        sort_newest_first(&mut rows);
         rows.iter()
             .take(ACTIVITY_LIMIT)
             .map(ActivityRow::json)
+            .collect()
+    }
+
+    /// `GET /api/atividades`: tarefas (abertas e arquivadas), specs, planos, pedidos e avais,
+    /// filtrados por `tipo` e `spec`, da mais nova para a mais antiga.
+    fn activities(&self, query: &str) -> String {
+        let kind = query_value(query, "tipo");
+        let spec = query_value(query, "spec");
+        let limit = query_value(query, "limite")
+            .parse::<usize>()
+            .unwrap_or(DEFAULT_ACTIVITIES);
+        let mut rows = self.task_rows();
+        rows.extend(self.archived_task_rows());
+        rows.extend(self.adjustment_rows());
+        rows.extend(self.request_rows());
+        rows.extend(self.approval_rows());
+        rows.retain(|row| {
+            (kind.is_empty() || row.kind == kind) && (spec.is_empty() || row.spec == spec)
+        });
+        sort_newest_first(&mut rows);
+        let items: Vec<String> = rows.iter().take(limit).map(ActivityRow::json).collect();
+        format!("[{}]", items.join(","))
+    }
+
+    fn task_rows(&self) -> Vec<ActivityRow> {
+        let mut rows = Vec::new();
+        for spec in self.specs() {
+            rows.extend(task_rows_in(&self.tasks.join(&spec.id), &spec.id));
+        }
+        rows
+    }
+
+    fn archived_task_rows(&self) -> Vec<ActivityRow> {
+        let mut rows = Vec::new();
+        for (dir, _) in self.archived() {
+            let spec = dir.file_name().unwrap_or_default().to_string_lossy();
+            rows.extend(task_rows_in(&dir.join("tasks"), &spec));
+        }
+        rows
+    }
+
+    /// Histórico de ajustes das specs (abertas e arquivadas) e dos planos.
+    fn adjustment_rows(&self) -> Vec<ActivityRow> {
+        let mut rows = Vec::new();
+        let specs = self.specs().into_iter().map(|spec| (spec.id, spec.file));
+        let archived = self.archived().into_iter().map(|(dir, file)| {
+            (
+                dir.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+                file,
+            )
+        });
+        for (id, file) in specs.chain(archived) {
+            rows.extend(adjustment_rows_in(&file, "spec", &id));
+        }
+        for file in markdown_files(&self.plans) {
+            let id = file
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned();
+            rows.extend(adjustment_rows_in(&file, "plano", &id));
+        }
+        rows
+    }
+
+    /// Cada pedido entra com a criação e, se mudou de estado, com o estado atual.
+    fn request_rows(&self) -> Vec<ActivityRow> {
+        let mut rows = Vec::new();
+        for file in markdown_files(&self.painel.work.join("pedidos")) {
+            let field = |key| frontmatter_get(&file, key).unwrap_or_default();
+            let (id, created, updated) = (field("id"), field("criado_em"), field("atualizado_em"));
+            if id.is_empty() || created.is_empty() {
+                continue;
+            }
+            let row = |date: &str, step: &str, result: String| ActivityRow {
+                date: date.to_string(),
+                kind: "pedido".to_string(),
+                spec: field("spec"),
+                task: String::new(),
+                target: id.clone(),
+                number: 0,
+                step: step.to_string(),
+                result,
+                detail: field("acao"),
+            };
+            rows.push(row(&created, "criado", "pendente".to_string()));
+            if !updated.is_empty() && updated != created {
+                rows.push(row(&updated, "estado", field("estado")));
+            }
+        }
+        rows
+    }
+
+    /// O `avais.log`, sem as linhas malformadas.
+    fn approval_rows(&self) -> Vec<ActivityRow> {
+        let Ok((avais, _)) = crate::aval::read(&self.painel.work) else {
+            return Vec::new();
+        };
+        avais
+            .into_iter()
+            .map(|aval| ActivityRow {
+                spec: aval
+                    .id
+                    .split('/')
+                    .next()
+                    .filter(|head| head.starts_with("SPEC-"))
+                    .unwrap_or_default()
+                    .to_string(),
+                date: aval.date,
+                kind: "aval".to_string(),
+                task: String::new(),
+                target: aval.id,
+                number: 0,
+                step: aval.action,
+                result: aval.origin,
+                detail: aval.hash,
+            })
             .collect()
     }
 
@@ -512,8 +625,10 @@ impl Layout<'_> {
 
 struct ActivityRow {
     date: String,
+    kind: String,
     spec: String,
     task: String,
+    target: String,
     number: usize,
     step: String,
     result: String,
@@ -521,21 +636,44 @@ struct ActivityRow {
 }
 
 impl ActivityRow {
-    fn sort_key(&self) -> (&str, &str, &str, usize) {
-        (&self.date, &self.spec, &self.task, self.number)
+    fn sort_key(&self) -> (&str, &str, &str, &str, usize) {
+        (
+            &self.date,
+            &self.kind,
+            &self.spec,
+            &self.target,
+            self.number,
+        )
     }
 
     fn json(&self) -> String {
         format!(
-            "{{\"date\":{},\"spec\":{},\"task\":{},\"step\":{},\"result\":{},\"detail\":{}}}",
+            "{{\"date\":{},\"type\":{},\"spec\":{},\"task\":{},\"target\":{},\"step\":{},\"result\":{},\"detail\":{}}}",
             json_string(&self.date),
+            json_string(&self.kind),
             json_string(&self.spec),
             json_string(&self.task),
+            json_string(&self.target),
             json_string(&self.step),
             json_string(&self.result),
             json_string(&self.detail)
         )
     }
+}
+
+fn sort_newest_first(rows: &mut [ActivityRow]) {
+    rows.sort_by(|a, b| b.sort_key().cmp(&a.sort_key()));
+}
+
+/// As linhas do registro de cada tarefa de `<tasks_dir>`.
+fn task_rows_in(tasks_dir: &Path, spec: &str) -> Vec<ActivityRow> {
+    let mut rows = Vec::new();
+    for dir in task_dirs(tasks_dir) {
+        let task = dir.file_name().unwrap_or_default().to_string_lossy();
+        let content = fs::read_to_string(dir.join("registro.md")).unwrap_or_default();
+        rows.extend(activity_rows(&content, spec, &task));
+    }
+    rows
 }
 
 /// As linhas da tabela do registro de execução, sem o histórico de ajustes.
@@ -547,12 +685,41 @@ fn activity_rows(registro: &str, spec: &str, task: &str) -> Vec<ActivityRow> {
             let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
             (cells.len() >= 5).then(|| ActivityRow {
                 date: cells[1].to_string(),
+                kind: "tarefa".to_string(),
                 spec: spec.to_string(),
                 task: task.to_string(),
+                target: task.to_string(),
                 number: cells[0].parse().unwrap_or(0),
                 step: cells[2].to_string(),
                 result: cells[3].to_string(),
                 detail: cells[4].to_string(),
+            })
+        })
+        .collect()
+}
+
+/// As linhas da seção "Histórico de ajustes" (`# | Data | Origem | Resumo`) de uma spec ou plano.
+fn adjustment_rows_in(file: &Path, kind: &str, id: &str) -> Vec<ActivityRow> {
+    let content = fs::read_to_string(file).unwrap_or_default();
+    let Some((_, history)) = content.split_once("## Histórico de ajustes") else {
+        return Vec::new();
+    };
+    history
+        .lines()
+        .take_while(|line| !line.starts_with("## "))
+        .filter(|line| line.starts_with("| ") && !line.starts_with("| #"))
+        .filter_map(|line| {
+            let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+            (cells.len() >= 4).then(|| ActivityRow {
+                date: cells[1].to_string(),
+                kind: kind.to_string(),
+                spec: id.to_string(),
+                task: String::new(),
+                target: id.to_string(),
+                number: cells[0].parse().unwrap_or(0),
+                step: "ajuste".to_string(),
+                result: cells[2].to_string(),
+                detail: cells[3].to_string(),
             })
         })
         .collect()
@@ -845,6 +1012,112 @@ mod tests {
 
     fn body(reply: &Reply) -> String {
         String::from_utf8(reply.body.clone()).unwrap()
+    }
+
+    fn activity_project() -> (TempDir, Painel) {
+        let (dir, painel) = project();
+        let p = dir.path();
+        write(
+            p,
+            "vostok/work/.archive/SPEC-000/tasks/TASK-01/registro.md",
+            "| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-01 | início | in_progress | arquivada |\n",
+        );
+        write(
+            p,
+            "vostok/work/specs/refined/SPEC-001.md",
+            "---\nid: SPEC-001\ntitle: \"T\"\nstatus: approved\n---\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n| 1 | 2026-11-01 | chat | ajuste da spec |\n",
+        );
+        write(
+            p,
+            "vostok/work/plans/SPEC-001.md",
+            "---\nspec: SPEC-001\n---\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n| 1 | 2026-11-02 | chat | ajuste do plano |\n",
+        );
+        write(
+            p,
+            "vostok/work/pedidos/PED-001.md",
+            "---\nid: PED-001\nacao: ajustar-tarefa\nspec: SPEC-001\ntarefa: TASK-01\nestado: feito\norigem: painel\ncriado_em: 2026-11-03T10:00:00Z\natualizado_em: 2026-11-03T11:00:00Z\n---\n",
+        );
+        write(
+            p,
+            "vostok/work/avais.log",
+            "2026-11-03T12:00:00Z\tSPEC-001\tabc\tpainel\taprovar\n",
+        );
+        (dir, painel)
+    }
+
+    fn types_of(reply: &Reply) -> Vec<String> {
+        body(reply)
+            .split("\"type\":\"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn atividades_reunem_todas_as_fontes() {
+        let (_dir, painel) = activity_project();
+        let reply = get(&painel, "/api/atividades?limite=50");
+        assert_eq!(reply.status, 200);
+        let types = types_of(&reply);
+        for expected in ["tarefa", "spec", "plano", "pedido", "aval"] {
+            assert!(types.iter().any(|t| t == expected), "{expected}: {types:?}");
+        }
+        assert_eq!(types[0], "aval");
+        assert_eq!(types.last().unwrap(), "tarefa");
+        let json = body(&reply);
+        assert!(json.contains("arquivada"));
+        let dates: Vec<&str> = json
+            .split("\"date\":\"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap())
+            .collect();
+        assert!(dates.windows(2).all(|pair| pair[0] >= pair[1]), "{dates:?}");
+    }
+
+    #[test]
+    fn atividades_filtram_por_tipo_spec_e_limite() {
+        let (_dir, painel) = activity_project();
+        let only_specs = get(&painel, "/api/atividades?tipo=spec");
+        assert_eq!(types_of(&only_specs), vec!["spec"]);
+        let of_spec_000 = body(&get(&painel, "/api/atividades?spec=SPEC-000&limite=50"));
+        assert!(of_spec_000.contains("arquivada") && !of_spec_000.contains("ajuste da spec"));
+        assert_eq!(types_of(&get(&painel, "/api/atividades?limite=2")).len(), 2);
+        assert_eq!(body(&get(&painel, "/api/atividades?tipo=nada")), "[]");
+        assert!(types_of(&get(&painel, "/api/atividades?limite=abc")).len() <= 15);
+    }
+
+    #[test]
+    fn avais_malformados_sao_ignorados() {
+        let (dir, painel) = activity_project();
+        write(
+            dir.path(),
+            "vostok/work/avais.log",
+            "curta\tlinha\n\n2026-11-03T12:00:00Z\tSPEC-001\tabc\tpainel\n",
+        );
+        let reply = get(&painel, "/api/atividades?tipo=aval");
+        assert_eq!(reply.status, 200);
+        assert_eq!(types_of(&reply), vec!["aval"]);
+    }
+
+    #[test]
+    fn atividades_respondem_em_ate_500_ms() {
+        let (dir, painel) = project();
+        let mut registro =
+            String::from("| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n");
+        for number in 1..=1000 {
+            registro.push_str(&format!(
+                "| {number} | 2026-11-02 | etapa | ok | d{number} |\n"
+            ));
+        }
+        write(
+            dir.path(),
+            "vostok/work/tasks/SPEC-001/TASK-01/registro.md",
+            &registro,
+        );
+        let start = std::time::Instant::now();
+        let reply = get(&painel, "/api/atividades?limite=15");
+        assert!(start.elapsed() < std::time::Duration::from_millis(500));
+        assert_eq!(types_of(&reply).len(), 15);
     }
 
     #[test]

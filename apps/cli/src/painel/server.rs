@@ -276,6 +276,12 @@ mod tests {
     }
 
     #[test]
+    fn atividades_sao_servidas_sem_token() {
+        let reply = dispatch(&painel(), "GET", "/api/atividades?limite=5", None, b"");
+        assert_eq!(reply.status, 200);
+    }
+
+    #[test]
     fn unknown_api_route_is_404() {
         for url in ["/api/nada", "/api/rota-desconhecida/x?y=1"] {
             assert_eq!(

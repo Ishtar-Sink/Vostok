@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-01
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Grava `check_result` e `checked_at` no `estado.yml` e a linha `check` no registro, limpos no ajuste e no resume.
 - **Critérios de aceite:**
-  - [ ] O `vostok task check` grava `check_result` (`passed` ou `failed`), `checked_at` e a linha `check` no registro (RF-03, CT-03, CT-04).
-  - [ ] O ajuste e o resume limpam `check_result` (RF-03, CT-05).
+  - [x] O `vostok task check` grava `check_result` (`passed` ou `failed`), `checked_at` e a linha `check` no registro (RF-03, CT-03, CT-04).
+  - [x] O ajuste e o resume limpam `check_result` (RF-03, CT-05).
 - **Rótulos:** SPEC-032, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-01

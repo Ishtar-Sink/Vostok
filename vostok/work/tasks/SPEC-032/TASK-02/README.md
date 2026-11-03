@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-032
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-01
 
@@ -22,7 +22,7 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Põe as tarefas `validating` numa coluna própria, entre "Em execução" e "Bloqueadas".
 - **Critérios de aceite:**
-  - [ ] O quadro tem a coluna "Em validação" entre "Em execução" e "Bloqueadas" (RF-02, CT-02).
+  - [x] O quadro tem a coluna "Em validação" entre "Em execução" e "Bloqueadas" (RF-02, CT-02).
 - **Rótulos:** SPEC-032, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** TASK-01

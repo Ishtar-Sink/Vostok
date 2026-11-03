@@ -1,13 +1,15 @@
 <!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
 
-**Abordagem.** O `vostok task check` hoje só grava `validation/check.out`, sem resultado. Ele passa a gravar `check_result` e `checked_at` no front-matter, pelo mesmo `TaskDoc::set` que o `vostok task tests` usa para `tests_result`, e uma linha `check` no registro, o que também alimenta a atividade.
+**O que foi feito.** Em `apps/cli/src/commands/task.rs`:
+- o `vostok task check` grava `check_result` (`passed` quando o código de saída é 0, senão `failed`) e `checked_at` (`utc_datetime`) pelo `TaskDoc::put`, e uma linha `check` no registro pelo `record_step`. Essa linha também alimenta a atividade da TASK-05;
+- uma função nova, `clear_check_result`, devolve `check_result` a `null`. Ela é chamada no `reset_results`, que cobre o ajuste em execução e a retomada sem aceite, e na retomada com `--accept-regression`, que não passa pelo `reset_results`.
 
 **Decisões.**
-- Limpar em `reset_results` cobre o ajuste em execução e a retomada sem aceite de uma vez; o aceite de regressão limpa à parte, porque não passa por `reset_results`.
-- O teste antigo que garantia "não toca a tarefa" é trocado, porque o comportamento muda de propósito (RF-03); o baseline o exclui.
+- O `clear_check_result` só mexe nas tarefas que já têm o campo. Gravar `check_result: null` nas tarefas antigas mudaria o estado delas e quebraria o teste de referência `golden_task`.
+- O teste antigo, que garantia que o `check` não tocava na tarefa, virou `check_records_the_result`, porque o comportamento mudou de propósito (RF-03); o baseline o exclui.
 
-**Riscos.** Gravar no front-matter não pode contar como edição manual; o `tests_result` já é gravado do mesmo jeito sem esse problema.
+**Testes.** Em `apps/cli/tests/task.rs`: `check_records_the_result`, `adjustment_clears_the_check_result`, `resume_clears_the_check_result` e `resume_accepting_the_regression_clears_the_check_result`. Os 210 testes de `--test task` passam, sem regressão contra o baseline. Os testes foram escritos junto com o código; não foi registrado que falhavam antes da mudança.
+
+**Pontos de atenção.** Gravar no front-matter pelo `TaskDoc` não conta como edição manual, como já acontece com o `tests_result`.
 
 **Referências da spec.** RF-03, RN-02, CT-03, CT-04, CT-05, CB-01; contrato do `estado.yml`.
-
-**Arquivos em comum com a onda 2.** Nenhum.

@@ -18,7 +18,7 @@ use crate::models;
 use crate::support::{
     config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
     frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection, render,
-    sha256_hex, template_leftovers, yaml_escape, EvidenceFields,
+    sha256_hex, template_leftovers, utc_datetime, yaml_escape, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -1649,7 +1649,7 @@ impl Tasks {
         Ok((exit_code(status), output_path))
     }
 
-    /// Executa a verificação sem mudar o front-matter nem o registro.
+    /// Executa a verificação e grava o resultado e a data no estado, com a linha `check` no registro.
     fn check(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
@@ -1662,6 +1662,10 @@ impl Tasks {
             );
         }
         let (code, path) = self.run_verification(&file, &block, "check.out")?;
+        let result = if code == 0 { "passed" } else { "failed" };
+        TaskDoc::at(&file).put("check_result", result)?;
+        TaskDoc::at(&file).put("checked_at", &utc_datetime())?;
+        self.record_step(&file, "check", result, "")?;
         if code == 0 {
             println!("Verificação de {task} passou (saída em {})", path.display());
             return Ok(());
@@ -2285,6 +2289,7 @@ impl Tasks {
         // O aceite não muda código nem testes: testes e evidências continuam valendo.
         TaskDoc::at(&file).set("attempts", "0")?;
         TaskDoc::at(&file).set("regression_result", "null")?;
+        clear_check_result(&file)?;
         self.record_step(&file, "retomada", validating, &detail)?;
         println!("Tarefa {task} retomada: status '{validating}', diferença aceita. Execute vostok task regression e, com ela aprovada, vostok task finish.");
         Ok(())
@@ -3887,11 +3892,20 @@ fn dependencies_of(file: &Path) -> Vec<String> {
         .collect()
 }
 
+/// Limpa o resultado da conferência só nas tarefas que já o têm, para não mudar o estado das antigas.
+fn clear_check_result(file: &Path) -> Result<()> {
+    if TaskDoc::at(file).get("check_result").is_ok() {
+        TaskDoc::at(file).set("check_result", "null")?;
+    }
+    Ok(())
+}
+
 fn reset_results(file: &Path) -> Result<()> {
     TaskDoc::at(file).set("attempts", "0")?;
     for key in ["tests_result", "regression_result", "evidence_result"] {
         TaskDoc::at(file).set(key, "null")?;
     }
+    clear_check_result(file)?;
     Ok(())
 }
 

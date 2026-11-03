@@ -39,7 +39,8 @@ export const statusLabel = (status: string): string => LABELS[status] ?? (status
 export const BOARD_COLUMNS: { id: string; label: string; statuses: string[] }[] = [
   { id: 'pending', label: 'Para aprovar', statuses: ['pending'] },
   { id: 'approved', label: 'Aprovadas', statuses: ['approved'] },
-  { id: 'running', label: 'Em execução', statuses: ['in_progress', 'validating'] },
+  { id: 'running', label: 'Em execução', statuses: ['in_progress'] },
+  { id: 'validating', label: 'Em validação', statuses: ['validating'] },
   { id: 'blocked', label: 'Bloqueadas', statuses: ['blocked'] },
   { id: 'done', label: 'Concluídas', statuses: ['done'] },
 ];

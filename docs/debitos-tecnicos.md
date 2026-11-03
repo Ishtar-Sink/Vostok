@@ -284,3 +284,19 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 1. Use o próximo ID livre (`DT-NNN`) e acrescente uma linha ao resumo.
 2. Crie a seção com área, origem (data e onde foi encontrado), prioridade, status, descrição, impacto, proposta e referências.
 3. Ao resolver, mude o status para `resolvido` e cite o commit ou a tarefa; ao descartar, mude para `descartado` e diga o motivo. Não apague a seção.
+
+## DT-017: Detalhes visuais do quadro da spec
+
+- **Área:** painel, quadro da spec (`apps/painel/src/features/board/`)
+- **Encontrado em:** 2026-11-03, conferência do print da SPEC-032 TASK-02
+- **Prioridade:** baixa
+- **Status:** aberto
+
+**Descrição.** No print do quadro a 1440x900, três detalhes apareceram:
+- a 6ª coluna, "Concluídas", fica fora da tela, atrás da rolagem lateral;
+- o título de uma tarefa com aspas aparece com as barras de escape (`\"Em validação\"`), porque o título vai escapado para o `estado.yml` e o painel o mostra sem desfazer o escape;
+- a coluna "Em validação" não tem a bolinha de cor que "Em execução" e "Bloqueadas" têm no título.
+
+**Impacto.** É só aparência, mas o quadro não mostra todas as colunas de uma vez numa tela comum, e os títulos com aspas ficam com barras.
+
+**Proposta.** Fazer as colunas caberem em 1440 px (largura mínima menor ou quebra em duas linhas), ler o título do `estado.yml` desfazendo o escape do YAML e dar uma cor à coluna "Em validação", junto com a TASK-04 ou numa melhoria do painel.

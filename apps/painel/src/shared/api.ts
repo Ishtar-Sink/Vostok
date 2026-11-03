@@ -38,10 +38,14 @@ export interface ArchivedSpec {
   tasks_total: number;
 }
 
+export type ActivityType = 'tarefa' | 'spec' | 'plano' | 'pedido' | 'aval';
+
 export interface Activity {
   date: string;
+  type: ActivityType;
   spec: string;
   task: string;
+  target: string;
   step: string;
   result: string;
   detail: string;
@@ -163,6 +167,22 @@ export function useLiveVersion(): { version: number; connected: boolean | null }
   }, []);
 
   return { version, connected };
+}
+
+export interface ActivityFilter {
+  limite?: number;
+  tipo?: ActivityType;
+  spec?: string;
+}
+
+export async function fetchActivities(filter: ActivityFilter = {}): Promise<Activity[]> {
+  const query = new URLSearchParams();
+  if (filter.limite !== undefined) query.set('limite', String(filter.limite));
+  if (filter.tipo) query.set('tipo', filter.tipo);
+  if (filter.spec) query.set('spec', filter.spec);
+  const response = await fetch(`/api/atividades?${query.toString()}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
 
 export function fileUrl(path: string): string {

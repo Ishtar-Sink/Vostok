@@ -2033,9 +2033,8 @@ fn set_verification(project: &Project, command: &str) {
 }
 
 #[test]
-fn check_passes_and_fails_without_touching_the_task() {
+fn check_records_the_result() {
     let project = started_task(&[]);
-    let before = read(&project, TASK_PATH);
     let stdout = success_stdout(&mut task(&project, &["check"]));
     assert!(
         stdout.contains("Verificação de TASK-01 passou (saída em "),
@@ -2045,10 +2044,17 @@ fn check_passes_and_fails_without_touching_the_task() {
         &project,
         &format!("{EVIDENCE_DIR}/validation/check.out")
     ));
-    assert_eq!(read(&project, TASK_PATH), before);
+    assert_eq!(field(&project, "check_result"), "passed");
+    assert!(field(&project, "checked_at").ends_with('Z'));
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content
+            .lines()
+            .any(|line| line.starts_with('|') && line.contains("| check | passed |")),
+        "{content}"
+    );
 
     set_verification(&project, "false");
-    let before = read(&project, TASK_PATH);
     let output = task(&project, &["check"])
         .assert()
         .failure()
@@ -2059,7 +2065,48 @@ fn check_passes_and_fails_without_touching_the_task() {
         stdout.contains("Verificação de TASK-01 falhou (código 1); últimas linhas"),
         "{stdout}"
     );
-    assert_eq!(read(&project, TASK_PATH), before);
+    assert_eq!(field(&project, "check_result"), "failed");
+    assert!(read(&project, TASK_PATH).contains("| check | failed |"));
+}
+
+#[test]
+fn adjustment_clears_the_check_result() {
+    let project = started_task(&[]);
+    task(&project, &["check"]).assert().success();
+    assert_eq!(field(&project, "check_result"), "passed");
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Ajuste depois da conferência");
+    success_stdout(&mut record);
+    assert_eq!(field(&project, "check_result"), "null");
+}
+
+fn kept_results_blocked_after_check() -> Project {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    task(&project, &["check"]).assert().success();
+    write(&project, "valor.txt", "b\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    assert_eq!(status(&project), "blocked");
+    project
+}
+
+#[test]
+fn resume_clears_the_check_result() {
+    let project = kept_results_blocked_after_check();
+    assert_eq!(field(&project, "check_result"), "passed");
+    success_stdout(&mut task(&project, &["resume", "corrigir o valor"]));
+    assert_eq!(field(&project, "check_result"), "null");
+}
+
+#[test]
+fn resume_accepting_the_regression_clears_the_check_result() {
+    let project = kept_results_blocked_after_check();
+    success_stdout(&mut task(
+        &project,
+        &["resume", "--accept-regression", "1", "diferença esperada"],
+    ));
+    assert_eq!(field(&project, "check_result"), "null");
 }
 
 #[test]

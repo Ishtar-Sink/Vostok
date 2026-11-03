@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Board } from './board';
 import { TasksPage } from './tasks-page';
@@ -29,6 +29,18 @@ describe('Board', () => {
     expect(screen.getByText('Pronta para executar')).toBeTruthy();
     expect(screen.getByText('Espera TASK-09')).toBeTruthy();
     expect(screen.getByRole('link', { name: /TASK-01/ }).getAttribute('href')).toBe('/tarefas/SPEC-001/TASK-01');
+  });
+
+  it('separa em validação de em execução', () => {
+    const tasks = [
+      { ...task('TASK-04', 'in_progress'), spec: 'SPEC-001' },
+      { ...task('TASK-05', 'validating'), spec: 'SPEC-001' },
+    ];
+    const { container } = render(<Board tasks={tasks} />);
+    const columns = Array.from(container.querySelectorAll('section[data-column]'));
+    expect(columns.map((column) => column.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Em execução', 'Em validação', 'Bloqueadas', 'Concluídas']);
+    expect(within(columns[2] as HTMLElement).getByText('Título TASK-04')).toBeTruthy();
+    expect(within(columns[3] as HTMLElement).getByText('Título TASK-05')).toBeTruthy();
   });
 });
 

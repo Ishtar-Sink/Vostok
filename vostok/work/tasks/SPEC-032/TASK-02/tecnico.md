@@ -1,11 +1,18 @@
 <!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
 
-**Abordagem.** A CLI já grava `validating` no `vostok task tests`; o quadro só juntava `in_progress` e `validating` em "Em execução". A mudança é no frontend, em `BOARD_COLUMNS`.
+**O que foi feito.**
+- **`apps/painel/src/shared/status.ts`:** a coluna `running` ("Em execução") de `BOARD_COLUMNS` passa a reunir só `in_progress`. Uma coluna nova, `{ id: 'validating', label: 'Em validação', statuses: ['validating'] }`, entra logo depois dela e antes de "Bloqueadas". O quadro passa a ter seis colunas.
+- **`apps/painel/src/features/board/board.test.tsx`:** teste novo, "separa em validação de em execução", que confere a ordem das colunas e uma tarefa `validating` fora de "Em execução". O teste falhou antes da mudança e passa agora. O import passou a incluir `within`.
 
-**Decisões.** A coluna nova fica logo depois de "Em execução", seguindo o fluxo (executar, validar, bloquear ou concluir). O print usa 1440 px de largura, porque seis colunas cortam em 1280 px (lição dos prints da SPEC-031).
+**Decisões.** A coluna nova é só de dados em `BOARD_COLUMNS`. O componente do quadro já monta as colunas a partir dessa lista, então nenhum componente mudou.
 
-**Riscos.** Outras telas que usam `BOARD_COLUMNS` (lista de tarefas) ganham a coluna também; o `tsc` e os testes de `src/shared` conferem.
+**Verificação.**
+- Os testes do quadro passam (4 de 4) e o `tsc --noEmit` não acusa nada. A regressão é igual ao baseline.
+- O print `quadro.png`, a 1440x900, foi conferido pelo usuário.
+
+**Pontos de atenção (DT-017).**
+- "Concluídas" não cabe em 1440 px.
+- O título vindo do `estado.yml` aparece com as aspas escapadas.
+- "Em validação" não tem a cor de status no título.
 
 **Referências da spec.** RF-02, CT-02.
-
-**Arquivos em comum com a onda 2.** Nenhum: as TASK-03 e TASK-05 mudam a CLI e `api.ts`.

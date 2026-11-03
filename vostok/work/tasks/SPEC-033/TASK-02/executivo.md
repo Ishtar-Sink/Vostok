@@ -1,5 +1,0 @@
-<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
-
-Os pedidos do painel agora ficam em pastas separadas por estado (pendente, em andamento, feito e recusado), e as perguntas do agente em pastas por situação (aberta e respondida). Assim, o que ainda espera ação fica separado do que já foi resolvido, e o agente lê apenas os pedidos pendentes, sem gastar contexto com o resto. Cada pedido também guarda, dentro do próprio arquivo, uma tabela com o histórico das suas mudanças de estado, com data, estado de origem e estado de destino.
-
-Na primeira execução da versão nova, os pedidos e perguntas no formato antigo são organizados nas pastas automaticamente, uma única vez, sem perda: um arquivo com estado que o sistema não reconhece fica onde está. Como a comunicação entre o painel e o agente passa por esse caminho, foi a parte de maior risco da mudança. Ela foi verificada com testes, e a checagem de regressão não mostrou diferença em relação ao que já existia, além de um teste novo. A mudança desbloqueia o arquivamento, as atividades, o disparo e as ações novas do painel.

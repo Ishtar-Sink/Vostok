@@ -1,5 +1,0 @@
-<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
-
-Agora, quando uma spec é arquivada, os pedidos, as perguntas e o registro de aprovações dela vão junto para o arquivo morto, ao lado das tarefas. A pasta de trabalho fica só com o que ainda está em andamento. Um pedido que ainda não terminou, como o que está finalizando a própria spec, continua no lugar e é citado na saída do arquivamento, para que não seja quebrado nem esquecido.
-
-Também ficou pronta uma limpeza que mostra quais arquivos antigos podem ser apagados, como pedidos e perguntas já concluídos há mais de 30 dias ou de specs já arquivadas, e só apaga depois de uma confirmação explícita. O registro de aprovações nunca é apagado, porque ele guarda a prova de quem aprovou o quê. Os testes do arquivamento e da limpeza passaram na primeira tentativa, assim como a verificação de regressão e as evidências. A base para o botão de limpeza do painel está pronta, e a ligação ao painel vem nas tarefas seguintes (TASK-08 e TASK-10).

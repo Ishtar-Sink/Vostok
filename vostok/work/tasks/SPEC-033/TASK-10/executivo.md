@@ -1,5 +1,0 @@
-<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
-
-Esta tarefa levou para o painel as últimas decisões que antes exigiam o chat. Na tela de cada tarefa, quem acompanha o trabalho agora confere os prints da entrega e aceita ou rejeita cada um; rejeitar bloqueia a tarefa até a decisão ser tomada no painel, por isso pede confirmação. Na tela de pendências aparecem os commits feitos sem liberação, com a opção de liberar ou desfazer (desfazer também pede confirmação), e as perguntas do agente passaram a ser respondidas corretamente. Nas configurações, é possível limpar os pedidos e perguntas já arquivados: a tela mostra antes a lista do que será apagado e só apaga depois de confirmar.
-
-Com isso, operar o projeto de ponta a ponta pelo painel deixou de depender do chat, e as ações irreversíveis agora passam por aviso antes de acontecer. A entrega foi testada: os testes do painel passaram, assim como a verificação, a comparação com o estado anterior e a geração das evidências. Os prints da tela foram conferidos e aceitos pelo usuário.

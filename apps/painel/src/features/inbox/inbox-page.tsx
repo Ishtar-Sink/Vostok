@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActionDialog } from '../../shared/action-bar';
+import { ActionDialog, performAction } from '../../shared/action-bar';
 import { useResource, type Overview } from '../../shared/api';
 import { ACTION_LABELS, attentionItems, isPrimary, type AttentionItem } from '../../shared/attention';
 import { onLinkClick } from '../../shared/router';
 import { Badge } from '../../ui/badge/badge';
 import { Button } from '../../ui/button/button';
+import { ConfirmDialog } from '../../ui/confirm-dialog/confirm-dialog';
 import { EmptyState } from '../../ui/empty-state/empty-state';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
@@ -12,6 +13,53 @@ import { PageHeader } from '../../ui/page-header/page-header';
 import styles from './inbox-page.module.css';
 
 const TAG_TONE = { Aprovação: 'primary', 'Pedido ao agente': 'info', Decisão: 'warning', Pergunta: 'accent', Commit: 'info' } as const;
+
+type UndoOutcome = { kind: 'idle' } | { kind: 'sending' } | { kind: 'done'; message: string } | { kind: 'failed'; message: string };
+
+/** Commits apontados pelo `vostok commit check`, com os pedidos de liberar e desfazer (RF-07). */
+function PendingCommits({ version }: { version: number }) {
+  const commits = useResource<{ linhas?: string[] }>('/api/commits', version);
+  const [releasing, setReleasing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [undo, setUndo] = useState<UndoOutcome>({ kind: 'idle' });
+  const lines = commits.kind === 'ready' ? (commits.data.linhas ?? []) : [];
+  if (lines.length === 0) return null;
+  const text = lines.join('\n');
+  const release: AttentionItem = { key: 'release', kind: 'release-commits', spec: '', title: text, reason: '', href: '/pendencias' };
+
+  async function confirmUndo() {
+    setConfirming(false);
+    setUndo({ kind: 'sending' });
+    const result = await performAction({ key: 'undo', kind: 'undo-commits', spec: '', title: text, reason: '', href: '/pendencias' }, '');
+    setUndo(result.ok ? { kind: 'done', message: result.message } : { kind: 'failed', message: result.message });
+  }
+
+  return (
+    <section className={styles.commits} aria-labelledby="commits-sem-liberacao">
+      <h2 id="commits-sem-liberacao" className={styles.commitsTitle}>Commits sem liberação</h2>
+      <p className={styles.reason}>Commits feitos sem liberação, apontados pela verificação de commits.</p>
+      <ul className={styles.commitLines}>
+        {lines.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+      <div className={styles.commitActions}>
+        <Button variant="primary" onClick={() => setReleasing(true)}>{ACTION_LABELS['release-commits'].button}</Button>
+        <Button variant="secondary" disabled={undo.kind === 'sending'} onClick={() => setConfirming(true)}>{ACTION_LABELS['undo-commits'].button}</Button>
+      </div>
+      {undo.kind === 'done' ? <p className={styles.reason} role="status">{undo.message}</p> : null}
+      {undo.kind === 'failed' ? <p className={styles.reason} role="alert">{undo.message}</p> : null}
+      <ActionDialog item={releasing ? release : null} onClose={() => setReleasing(false)} />
+      <ConfirmDialog
+        open={confirming}
+        title="Desfazer os commits apontados?"
+        description="Os commits novos saem da branch atual; as alterações ficam na pasta de trabalho."
+        confirmLabel={ACTION_LABELS['undo-commits'].button}
+        cancelLabel="Cancelar"
+        onConfirm={() => void confirmUndo()}
+        onCancel={() => setConfirming(false)}
+      />
+    </section>
+  );
+}
 
 export function InboxPage({ version }: { version: number }) {
   const overview = useResource<Overview>('/api/visao', version);
@@ -25,6 +73,7 @@ export function InboxPage({ version }: { version: number }) {
         subtitle="Aprovações, finalizações, bloqueios e perguntas do agente, em todas as specs abertas."
         actions={<RequestCommit />}
       />
+      <PendingCommits version={version} />
       <PendingList items={attentionItems(overview.data)} />
     </>
   );

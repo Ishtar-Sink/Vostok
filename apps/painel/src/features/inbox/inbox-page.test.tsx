@@ -87,4 +87,69 @@ describe('InboxPage', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=fazer-commit', expect.objectContaining({ method: 'POST', body: 'Commit da TASK-03' })));
     expect((await screen.findByRole('status')).textContent).toContain('PED-1');
   });
+  describe('commits sem liberação', () => {
+    const LINES = ['Commits novos:', 'abc1234 feat: x'];
+    const withCommits = (lines: string[], requests: (url: string) => Response = () => json({ id: 'PED-3' })) => (url: string) =>
+      url.startsWith('/api/commits') ? json({ linhas: lines }) : url.startsWith('/api/pedidos') ? requests(url) : json(overview({ specs: [], questions: [] }));
+    const requestCalls = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.filter(([url]) => String(url).startsWith('/api/pedidos'));
+
+    it('mostra os commits apontados com liberar e desfazer', async () => {
+      mockFetch(withCommits(LINES));
+      render(<InboxPage version={0} />);
+      const region = await screen.findByRole('region', { name: 'Commits sem liberação' });
+      expect(region.textContent).toContain('abc1234 feat: x');
+      expect(screen.getByRole('button', { name: 'Liberar commits' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Desfazer commits' })).toBeTruthy();
+    });
+
+    it('libera os commits pelo pedido', async () => {
+      const fn = mockFetch(withCommits(LINES));
+      render(<InboxPage version={0} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Liberar commits' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Liberar commits' }).at(-1)!);
+      await waitFor(() => expect(fn).toHaveBeenCalledWith('/api/pedidos?acao=liberar-commits', expect.objectContaining({ method: 'POST', body: LINES.join('\n') })));
+    });
+
+    it('desfaz os commits só depois de confirmar', async () => {
+      const fn = mockFetch(withCommits(LINES));
+      render(<InboxPage version={0} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Desfazer commits' }));
+      expect(screen.getByRole('alertdialog')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(requestCalls(fn)).toHaveLength(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Desfazer commits' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Desfazer commits' }).at(-1)!);
+      await waitFor(() => expect(fn).toHaveBeenCalledWith('/api/pedidos?acao=desfazer-commits', expect.objectContaining({ method: 'POST', body: LINES.join('\n') })));
+      expect((await screen.findByRole('status')).textContent).toContain('PED-3');
+    });
+
+    it('esconde os commits quando não há nenhum', async () => {
+      mockFetch(withCommits([]));
+      render(<InboxPage version={0} />);
+      await screen.findByText('Nada esperando você');
+      expect(screen.queryByRole('region', { name: 'Commits sem liberação' })).toBeNull();
+    });
+  });
+
+  it('responde a pergunta com o id dela', async () => {
+    let answers = 0;
+    const fetchMock = mockFetch((url) => {
+      if (!url.startsWith('/api/pedidos')) return json(overview());
+      answers += 1;
+      return answers === 1 ? json({ id: 'PED-2' }) : new Response('a pergunta já foi respondida', { status: 409 });
+    });
+    const reply = async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Responder' }));
+      fireEvent.click(screen.getByRole('radio', { name: 'A' }));
+      fireEvent.click(screen.getAllByRole('button', { name: 'Responder' }).at(-1)!);
+    };
+    const { unmount } = render(<InboxPage version={0} />);
+    await reply();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=responder-pergunta&spec=SPEC-001&pergunta=Q-1', expect.objectContaining({ method: 'POST', body: 'A' })));
+    unmount();
+    render(<InboxPage version={0} />);
+    await reply();
+    expect((await screen.findByRole('alert')).textContent).toContain('a pergunta já foi respondida');
+  });
 });

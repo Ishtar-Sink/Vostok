@@ -29,3 +29,16 @@
 }
 .partHeader { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .edit { flex: none; }
+
+.review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.reviewMessage {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}

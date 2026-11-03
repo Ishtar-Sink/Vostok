@@ -52,4 +52,26 @@ describe('SpecsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }));
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(1));
   });
+  it('grava o pedido de nova spec com o assunto', async () => {
+    const fetchMock = mockFetch((url) => (url.startsWith('/api/pedidos') ? json({ id: 'PED-7' }) : json(overview())));
+    render(<SpecsPage version={0} />);
+    await screen.findByText('Spec SPEC-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Nova spec' }));
+    const submit = () => screen.getAllByRole('button', { name: 'Nova spec' }).at(-1) as HTMLButtonElement;
+    expect(submit().disabled).toBe(true);
+    fireEvent.input(screen.getByRole('textbox', { name: 'Assunto da spec' }), { target: { value: 'Tela de login' } });
+    fireEvent.click(submit());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=criar-spec', expect.objectContaining({ method: 'POST', body: 'Tela de login' })));
+    expect((await screen.findByRole('status')).textContent).toContain('PED-7');
+  });
+
+  it('mostra a recusa do pedido de nova spec', async () => {
+    mockFetch((url) => (url.startsWith('/api/pedidos') ? new Response('ação desconhecida', { status: 400 }) : json(overview())));
+    render(<SpecsPage version={0} />);
+    await screen.findByText('Spec SPEC-001');
+    fireEvent.click(screen.getByRole('button', { name: 'Nova spec' }));
+    fireEvent.input(screen.getByRole('textbox', { name: 'Assunto da spec' }), { target: { value: 'Tela de login' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Nova spec' }).at(-1) as HTMLButtonElement);
+    expect((await screen.findByRole('alert')).textContent).toContain('ação desconhecida');
+  });
 });

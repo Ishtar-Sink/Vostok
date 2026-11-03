@@ -49,6 +49,69 @@ type Edits = Record<string, Record<string, ConfigValue>>;
 
 const HEX = /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/;
 
+type PruneState =
+  | { kind: 'closed' }
+  | { kind: 'listing' }
+  | { kind: 'listed'; files: string[] }
+  | { kind: 'deleting'; files: string[] }
+  | { kind: 'deleted'; count: number }
+  | { kind: 'failed'; message: string };
+
+const plural = (count: number) => (count === 1 ? '1 arquivo' : `${count} arquivos`);
+
+/** "Limpar pedidos arquivados": lista o que o `vostok pedidos prune` apagaria e só apaga ao confirmar (RF-11). */
+function PruneRequests() {
+  const [state, setState] = useState<PruneState>({ kind: 'closed' });
+  const close = () => setState({ kind: 'closed' });
+
+  async function list() {
+    setState({ kind: 'listing' });
+    const result = await act('POST', '/api/limpeza');
+    if (!result.ok) return setState({ kind: 'failed', message: result.text });
+    setState({ kind: 'listed', files: (JSON.parse(result.text) as { arquivos: string[] }).arquivos });
+  }
+
+  async function remove(files: string[]) {
+    setState({ kind: 'deleting', files });
+    const result = await act('POST', '/api/limpeza?confirmar=sim');
+    if (!result.ok) return setState({ kind: 'failed', message: result.text });
+    setState({ kind: 'deleted', count: (JSON.parse(result.text) as { apagados: string[] }).apagados.length });
+  }
+
+  const files = state.kind === 'listed' || state.kind === 'deleting' ? state.files : [];
+  return (
+    <>
+      <Button variant="secondary" onClick={() => void list()}>Limpar pedidos arquivados</Button>
+      <Dialog
+        open={state.kind !== 'closed'}
+        title="Limpar pedidos arquivados"
+        onClose={close}
+        actions={
+          <>
+            <Button variant="ghost" onClick={close}>{state.kind === 'deleted' ? 'Fechar' : 'Cancelar'}</Button>
+            {files.length > 0 ? (
+              <Button variant="primary" disabled={state.kind === 'deleting'} onClick={() => void remove(files)}>
+                {state.kind === 'deleting' ? 'Apagando…' : `Apagar ${plural(files.length)}`}
+              </Button>
+            ) : null}
+          </>
+        }
+      >
+        <p className={styles.pruneNote}>Pedidos e perguntas já arquivados com a spec e concluídos sem spec há mais de 30 dias. Os avais nunca são apagados.</p>
+        {state.kind === 'listing' ? <p className={styles.pruneNote}>Carregando…</p> : null}
+        {state.kind === 'listed' && files.length === 0 ? <p>Não há pedidos nem perguntas para limpar.</p> : null}
+        {files.length > 0 ? (
+          <ul className={styles.pruneList}>
+            {files.map((path) => <li key={path}>{path}</li>)}
+          </ul>
+        ) : null}
+        {state.kind === 'deleted' ? <p role="status">{plural(state.count)} apagados.</p> : null}
+        {state.kind === 'failed' ? <p role="alert">{state.message}</p> : null}
+      </Dialog>
+    </>
+  );
+}
+
 export function SettingsPage({ version }: { version: number }) {
   const files = useResource<ConfigFile[]>('/api/configuracoes', version);
   const [current, setCurrent] = useState('main.yml');
@@ -120,7 +183,7 @@ export function SettingsPage({ version }: { version: number }) {
 
   return (
     <>
-      <PageHeader eyebrow="Configurações" title="Harness desta pasta" subtitle="As opções de vostok/config/, com a explicação de cada uma." />
+      <PageHeader eyebrow="Configurações" title="Harness desta pasta" subtitle="As opções de vostok/config/, com a explicação de cada uma." actions={<PruneRequests />} />
       <div className={styles.layout}>
         <nav aria-label="Grupos de configuração" className={styles.menu}>
           {menu.map((item) => (

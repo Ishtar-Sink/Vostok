@@ -32,7 +32,7 @@ cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib painel::r
   - Prova: as pendências reais com as perguntas abertas e, quando o `commit check` aponta commits, o bloco "Commits sem liberação" com os dois botões (RF-07, CT-08).
   - Trecho: o cabeçalho "Aguardando você" e a lista; com commits apontados, o bloco com as linhas e "Liberar commits" e "Desfazer commits".
   - Falha: página com erro ou bloco de commits vazio com botões.
-- `conferencia-prints.png` (print): `PAINEL_BIN=apps/cli/target/release/vostok bash apps/painel/scripts/print.sh /tarefas/SPEC-033/TASK-10#evidencias "$VOSTOK_EVIDENCE/conferencia-prints.png" 1280,1400`
+- `conferencia-prints.png` (print): `PAINEL_BIN=apps/cli/target/release/vostok bash apps/painel/scripts/print.sh /tarefas/SPEC-033/TASK-10#evidencias "$VOSTOK_EVIDENCE/conferencia-prints.png" 1280,6500`
   - Prova: a página real desta tarefa, na finalização, mostra os prints já gerados (`configuracoes.png` e `pendencias.png`) a conferir, com "Aceitar" e "Rejeitar" (RF-06, CT-07).
   - Trecho: o selo "a conferir" e os botões "Aceitar" e "Rejeitar" sob as imagens na seção Evidências.
   - Falha: prints sem selo, sem botões ou "conferido" antes da conferência.

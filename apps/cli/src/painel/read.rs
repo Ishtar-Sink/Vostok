@@ -136,6 +136,7 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
         ["api", "marca"] => Ok(json(layout.brand())),
         ["api", "documentos"] => Ok(json(layout.documents())),
         ["api", "configuracoes"] => Ok(json(layout.settings())),
+        ["api", "commits"] => Ok(json(layout.commits())),
         ["api", "specs", id] => layout.spec(id),
         ["api", "planos", id] => layout.plan(id),
         ["api", "tarefas", spec, task] => layout.task(spec, task),
@@ -152,6 +153,13 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
 }
 
 impl Layout<'_> {
+    /// `GET /api/commits`: as linhas do `vostok commit check`, sem recusar; erro vira lista vazia.
+    fn commits(&self) -> String {
+        let lines = crate::commands::commit::pending_commits(&self.harness()).unwrap_or_default();
+        let items: Vec<String> = lines.iter().map(|line| json_string(line)).collect();
+        format!("{{\"linhas\":[{}]}}", items.join(","))
+    }
+
     /// Specs abertas com as tarefas, specs arquivadas e a atividade recente do registro de execução.
     fn overview(&self) -> String {
         let open: Vec<String> = self
@@ -1110,6 +1118,14 @@ mod tests {
 
     fn body(reply: &Reply) -> String {
         String::from_utf8(reply.body.clone()).unwrap()
+    }
+
+    #[test]
+    fn commits_route_is_empty_without_git() {
+        let (_dir, painel) = project();
+        let reply = get(&painel, "/api/commits");
+        assert_eq!(reply.status, 200);
+        assert_eq!(body(&reply), "{\"linhas\":[]}");
     }
 
     #[test]

@@ -67,3 +67,17 @@
 @media (max-width: 720px) {
   .columns { grid-template-columns: minmax(0, 1fr); }
 }
+
+.pruneNote {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.pruneList {
+  margin: 0;
+  padding-left: 18px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}

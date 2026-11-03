@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { ActionDialog } from '../../shared/action-bar';
 import { formatDate, useResource, type Overview, type SpecMeta } from '../../shared/api';
+import { ACTION_LABELS, type AttentionItem } from '../../shared/attention';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Badge } from '../../ui/badge/badge';
+import { Button } from '../../ui/button/button';
 import { DataTable, PrimaryCell, ProgressCell } from '../../ui/data-table/data-table';
 import { EmptyState } from '../../ui/empty-state/empty-state';
 import { ErrorState } from '../../ui/error-state/error-state';
@@ -24,6 +27,20 @@ const FILTERS = [
 
 const TYPE_LABELS: Record<string, string> = { feature: 'Recurso', improvement: 'Melhoria', fix: 'Correção', study: 'Estudo', analysis: 'Análise' };
 
+const NEW_SPEC: AttentionItem = { key: 'new-spec', kind: 'create-spec', spec: '', title: '', reason: '', href: '/specs' };
+
+function NewSpec() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="primary" onClick={() => setOpen(true)}>
+        {ACTION_LABELS['create-spec'].button}
+      </Button>
+      <ActionDialog item={open ? NEW_SPEC : null} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
 export function SpecsPage({ version }: { version: number }) {
   const overview = useResource<Overview>('/api/visao', version);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('abertas');
@@ -37,7 +54,7 @@ export function SpecsPage({ version }: { version: number }) {
 
   return (
     <>
-      <PageHeader eyebrow="Specs" title="Especificações" subtitle="Da ideia em rascunho à spec arquivada com os documentos finais." />
+      <PageHeader eyebrow="Specs" title="Especificações" subtitle="Da ideia em rascunho à spec arquivada com os documentos finais." actions={<NewSpec />} />
       <div className={styles.filters} role="group" aria-label="Filtrar specs">
         {FILTERS.map((item) => (
           <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
@@ -50,7 +67,7 @@ export function SpecsPage({ version }: { version: number }) {
         rows={rows}
         rowKey={(row) => row.meta.id}
         rowHref={(row) => `/specs/${row.meta.id}`}
-        empty={<EmptyState title="Nenhuma spec aqui" description="Troque o filtro ou crie uma spec pelo chat." />}
+        empty={<EmptyState title="Nenhuma spec aqui" description='Troque o filtro ou crie uma spec com "Nova spec".' />}
         columns={[
           { id: 'spec', header: 'Spec', primary: true, cell: (row) => <PrimaryCell id={row.meta.id} title={row.meta.title} href={`/specs/${row.meta.id}`} onClick={onLinkClick} /> },
           { id: 'type', header: 'Tipo', width: '120px', cell: (row) => TYPE_LABELS[row.meta.type] ?? (row.meta.type || '—') },

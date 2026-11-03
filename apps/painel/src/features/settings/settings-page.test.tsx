@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './settings-page';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -75,5 +75,53 @@ describe('SettingsPage', () => {
     await edit();
     fireEvent.click(await screen.findByRole('button', { name: 'Salvar' }));
     expect(await screen.findByText('sem permissão')).toBeTruthy();
+  });
+  describe('limpeza dos pedidos', () => {
+    const PATHS = ['vostok/work/.archive/SPEC-009/pedidos/PED-001.md', 'vostok/work/pedidos/feito/PED-002.md'];
+    beforeAll(() => {
+      HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
+      HTMLDialogElement.prototype.close = function close() { this.removeAttribute('open'); };
+    });
+    const prune = (list: () => Response, remove: () => Response = () => json({ apagados: PATHS })) =>
+      stub((url) => (url === '/api/limpeza?confirmar=sim' ? remove() : url === '/api/limpeza' ? list() : json([file])));
+    const confirmed = (calls: { url: string }[]) => calls.filter((call) => call.url.includes('confirmar')).length;
+    async function openPrune() {
+      render(<SettingsPage version={0} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Limpar pedidos arquivados' }));
+    }
+
+    it('lista os pedidos arquivados antes de apagar', async () => {
+      const calls = prune(() => json({ arquivos: PATHS }));
+      await openPrune();
+      const dialog = await screen.findByRole('dialog', { name: 'Limpar pedidos arquivados' });
+      await waitFor(() => expect(dialog.textContent).toContain(PATHS[0]));
+      expect(dialog.textContent).toContain(PATHS[1]);
+      expect(calls.some((call) => call.url === '/api/limpeza' && call.init?.method === 'POST')).toBe(true);
+      expect(confirmed(calls)).toBe(0);
+    });
+
+    it('apaga só depois de confirmar', async () => {
+      const calls = prune(() => json({ arquivos: PATHS }));
+      await openPrune();
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+      expect(confirmed(calls)).toBe(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Limpar pedidos arquivados' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Apagar 2 arquivos' }));
+      await waitFor(() => expect(confirmed(calls)).toBe(1));
+      expect((await screen.findByRole('status')).textContent).toContain('2 arquivos apagados.');
+    });
+
+    it('diz que não há o que limpar', async () => {
+      prune(() => json({ arquivos: [] }));
+      await openPrune();
+      expect(await screen.findByText('Não há pedidos nem perguntas para limpar.')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Apagar/ })).toBeNull();
+    });
+
+    it('mostra o erro da limpeza', async () => {
+      prune(() => new Response('falhou', { status: 500 }));
+      await openPrune();
+      expect((await screen.findByRole('alert')).textContent).toContain('falhou');
+    });
   });
 });

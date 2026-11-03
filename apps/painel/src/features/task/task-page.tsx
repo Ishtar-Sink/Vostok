@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { fileUrl, formatDate, listOf, useResource, type FileRef, type SpecDetail, type TaskDetail } from '../../shared/api';
+import { useEffect, useMemo, useState } from 'react';
+import { act, fileUrl, formatDate, listOf, useResource, type FileRef, type SpecDetail, type TaskDetail } from '../../shared/api';
 import { BackLink } from '../../shared/back-link';
 import { EditDialog } from '../../shared/edit-dialog';
 import { buildReferences } from '../../shared/references';
@@ -11,6 +11,7 @@ import { Toc } from '../../shared/toc';
 import { Badge } from '../../ui/badge/badge';
 import { Button } from '../../ui/button/button';
 import { Card } from '../../ui/card/card';
+import { ConfirmDialog } from '../../ui/confirm-dialog/confirm-dialog';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
@@ -87,7 +88,20 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
           ))}
           <Card as="section" aria-labelledby="evidencias" className={styles.part}>
             <h2 id="evidencias" className={styles.partTitle}>Evidências</h2>
-            {evidence.length === 0 ? <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p> : <Evidence files={evidence} />}
+            {evidence.length === 0 ? (
+              <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p>
+            ) : (
+              <Evidence
+                files={evidence}
+                review={{
+                  prints: printNames(files.verificacao ?? ''),
+                  registro: files.registro ?? '',
+                  spec,
+                  task: state.id,
+                  reviewable: ['in_progress', 'validating'].includes(state.status),
+                }}
+              />
+            )}
           </Card>
           <div className={styles.agentDivider} id="para-o-agente">
             <h2>Para o agente</h2>
@@ -138,15 +152,44 @@ function stripTitle(markdown: string): string {
   return markdown.replace(/^##+ .*\n/, '').replace(/^### /gm, '#### ');
 }
 
-function Evidence({ files }: { files: FileRef[] }) {
+/** Contexto da conferência dos prints da tarefa (RF-06). */
+interface PrintReview {
+  prints: string[];
+  registro: string;
+  spec: string;
+  task: string;
+  reviewable: boolean;
+}
+
+/** Os nomes dos itens `(print)` da seção Evidências. */
+function printNames(verificacao: string): string[] {
+  return [...verificacao.matchAll(/^- `([^`]+)` \(print\):/gm)].map((match) => match[1]);
+}
+
+/** O hash da última conferência do print no registro, ou `null` sem conferência. */
+function reviewedHash(registro: string, name: string): string | null {
+  const marker = `print ${name} conferido pelo usuário (sha256 `;
+  const lines = registro.split('\n').filter((line) => line.includes(marker));
+  const last = lines.at(-1);
+  if (!last) return null;
+  return last.slice(last.indexOf(marker) + marker.length).split(')')[0];
+}
+
+async function shortHash(url: string): Promise<string> {
+  const bytes = await (await fetch(url)).arrayBuffer();
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 8);
+}
+
+function Evidence({ files, review }: { files: FileRef[]; review: PrintReview }) {
   return (
     <ul className={styles.evidenceList}>
-      {files.map((file) => <EvidenceItem key={file.path} file={file} />)}
+      {files.map((file) => <EvidenceItem key={file.path} file={file} review={review} />)}
     </ul>
   );
 }
 
-function EvidenceItem({ file }: { file: FileRef }) {
+function EvidenceItem({ file, review }: { file: FileRef; review: PrintReview }) {
   const media = IMAGE.test(file.name) || VIDEO.test(file.name);
   const [open, setOpen] = useState(media);
   const [text, setText] = useState<string | null>(null);
@@ -174,7 +217,62 @@ function EvidenceItem({ file }: { file: FileRef }) {
           <pre className={styles.evidenceText}>{text ?? 'Carregando…'}</pre>
         )
       ) : null}
+      {review.prints.includes(file.name) ? <PrintReviewRow file={file} review={review} /> : null}
     </li>
+  );
+}
+
+type ReviewOutcome = { kind: 'idle' } | { kind: 'sending' } | { kind: 'done'; message: string } | { kind: 'failed'; message: string };
+
+/** Selo de conferência do print e, na tarefa em execução, Aceitar e Rejeitar (rejeitar confirma antes). */
+function PrintReviewRow({ file, review }: { file: FileRef; review: PrintReview }) {
+  const [hash, setHash] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [outcome, setOutcome] = useState<ReviewOutcome>({ kind: 'idle' });
+  useEffect(() => {
+    shortHash(fileUrl(file.path)).then(setHash).catch(() => setHash(''));
+  }, [file.path]);
+  if (hash === null) return null;
+  const reviewed = hash !== '' && reviewedHash(review.registro, file.name) === hash;
+
+  async function send(accepted: boolean) {
+    setConfirming(false);
+    setOutcome({ kind: 'sending' });
+    const query = `spec=${encodeURIComponent(review.spec)}&tarefa=${encodeURIComponent(review.task)}&print=${encodeURIComponent(file.name)}`;
+    const result = await act('POST', `/api/conferencias?${query}&resultado=${accepted ? 'aceito' : 'rejeitado'}`);
+    if (!result.ok) {
+      setOutcome({ kind: 'failed', message: result.text });
+      return;
+    }
+    setOutcome({ kind: 'done', message: accepted ? `Print ${file.name} conferido pelo painel.` : `Print ${file.name} rejeitado; a tarefa ficou bloqueada.` });
+  }
+
+  const sending = outcome.kind === 'sending';
+  return (
+    <div className={styles.review}>
+      <Badge tone={reviewed ? 'success' : 'warning'}>{reviewed ? 'conferido' : 'a conferir'}</Badge>
+      {review.reviewable && !reviewed && outcome.kind !== 'done' ? (
+        <>
+          <Button variant="primary" aria-label={'Aceitar ' + file.name} disabled={sending} onClick={() => void send(true)}>
+            Aceitar
+          </Button>
+          <Button variant="secondary" aria-label={'Rejeitar ' + file.name} disabled={sending} onClick={() => setConfirming(true)}>
+            Rejeitar
+          </Button>
+        </>
+      ) : null}
+      {outcome.kind === 'done' ? <p className={styles.reviewMessage} role="status">{outcome.message}</p> : null}
+      {outcome.kind === 'failed' ? <p className={styles.reviewMessage} role="alert">{outcome.message}</p> : null}
+      <ConfirmDialog
+        open={confirming}
+        title={`Rejeitar o print ${file.name}?`}
+        description="A tarefa fica bloqueada até você decidir no painel, como numa falha da finalização."
+        confirmLabel="Rejeitar print"
+        cancelLabel="Cancelar"
+        onConfirm={() => void send(false)}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
   );
 }
 

@@ -12,7 +12,12 @@ export type ActionKind =
   | 'finalize-spec'
   | 'execute-task'
   | 'adjust-task'
-  | 'fazer-commit';
+  | 'fazer-commit'
+  | 'create-spec'
+  | 'refine-spec'
+  | 'execute-wave'
+  | 'release-commits'
+  | 'undo-commits';
 
 export interface AttentionItem {
   key: string;
@@ -21,6 +26,8 @@ export interface AttentionItem {
   task?: string;
   /** Tarefas aprovadas de uma vez ("N tarefa(s) pendente(s)" da spec). */
   tasks?: string[];
+  /** Onda pedida por "Executar onda". */
+  wave?: string;
   title: string;
   reason: string;
   href: string;
@@ -80,16 +87,22 @@ export const ACTION_LABELS: Record<ActionKind, { button: string; tag: string; ho
   'finalize-spec': { button: 'Finalizar spec', tag: 'Pedido ao agente', how: 'O painel grava um pedido de finalização; o agente em loop gera os documentos e arquiva a spec.' },
   'execute-task': { button: 'Pedir execução', tag: 'Pedido ao agente', how: 'O painel grava um pedido de execução; o agente em loop inicia a tarefa e coleta o baseline.' },
   'adjust-task': { button: 'Pedir ajuste', tag: 'Pedido ao agente', how: 'Você descreve o ajuste; o painel grava um pedido e o agente em loop o aplica pela skill adjust-task.' },
+  'create-spec': { button: 'Nova spec', tag: 'Pedido ao agente', how: 'Você descreve o assunto; o painel grava um pedido e o agente em loop cria o rascunho pela skill create-spec.' },
+  'refine-spec': { button: 'Refinar', tag: 'Pedido ao agente', how: 'O painel grava um pedido de refinamento; o agente em loop refina pela skill refine-spec e, se tiver dúvidas, as perguntas aparecem em Pendências.' },
+  'execute-wave': { button: 'Executar onda', tag: 'Pedido ao agente', how: 'O painel grava um pedido com a spec e a onda; o agente em loop executa as tarefas prontas dessa onda pela skill execute-task.' },
+  'release-commits': { button: 'Liberar commits', tag: 'Commit', how: 'O painel grava um pedido de liberação com aval; o agente em loop libera os commits apontados pela skill approve-commit.' },
+  'undo-commits': { button: 'Desfazer commits', tag: 'Commit', how: 'O painel grava um pedido com aval; o agente em loop tira os commits novos da branch atual e mantém as alterações na pasta de trabalho.' },
   'fazer-commit': { button: 'Pedir commit', tag: 'Commit', how: 'O painel grava um pedido de commit com o seu texto; o agente em loop faz o commit pela skill de commit, com o aval do painel.' },
 };
 
-const PRIMARY: ActionKind[] = ['approve-spec', 'approve-plan', 'approve-task', 'answer', 'finish-task', 'finalize-spec', 'execute-task', 'plan-spec'];
+const PRIMARY: ActionKind[] = ['approve-spec', 'approve-plan', 'approve-task', 'answer', 'finish-task', 'finalize-spec', 'execute-task', 'plan-spec', 'create-spec', 'refine-spec', 'execute-wave'];
 export const isPrimary = (kind: ActionKind) => PRIMARY.includes(kind);
 
 /** Ações disponíveis na página de uma spec, pelo status dela e das tarefas. */
 export function specActions(meta: { id: string; title: string; status: string }, plan: boolean, tasks: TaskSummary[]): AttentionItem[] {
   const base = { spec: meta.id, title: meta.title, reason: '', href: `/specs/${meta.id}` };
   const items: AttentionItem[] = [];
+  if (meta.status === 'draft') items.push({ ...base, key: 'refine-spec', kind: 'refine-spec' });
   if (meta.status === 'refined') items.push({ ...base, key: 'approve-spec', kind: 'approve-spec' });
   if (plan) items.push({ ...base, key: 'approve-plan', kind: 'approve-plan' });
   if (meta.status === 'approved' && !plan) items.push({ ...base, key: 'plan-spec', kind: 'plan-spec' });
@@ -101,8 +114,10 @@ export function specActions(meta: { id: string; title: string; status: string },
   }
   const done = new Set(tasks.filter((task) => task.status === 'done').map((task) => task.id));
   const ready = tasks.filter((task) => task.status === 'approved' && listOf(task.depends_on).every((dep) => done.has(dep)));
-  if (ready.length > 0) {
-    items.push({ ...base, key: 'execute-ready', kind: 'execute-task', title: ready.map((task) => task.id).join(', ') });
+  if (meta.status === 'planned' && ready.length > 0) {
+    const wave = String(Math.min(...ready.map((task) => Number(task.wave))));
+    const ids = ready.filter((task) => task.wave === wave).map((task) => task.id);
+    items.push({ ...base, key: 'execute-wave', kind: 'execute-wave', wave, tasks: ids, title: 'Onda ' + wave + ': ' + ids.join(', ') });
   }
   return items;
 }

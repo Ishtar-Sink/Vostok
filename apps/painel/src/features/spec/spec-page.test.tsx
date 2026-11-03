@@ -73,4 +73,34 @@ describe('SpecPage', () => {
     render(<SpecPage id="SPEC-001" view="documento" version={0} />);
     expect(await screen.findByText('Não foi possível abrir SPEC-001')).toBeTruthy();
   });
+  const requests = (body: unknown) => (url: string) => (url.startsWith('/api/pedidos') ? json({ id: 'PED-8' }) : url.startsWith('/api/specs/') ? json(body) : new Response('', { status: 404 }));
+  const lastButton = (name: string) => screen.getAllByRole('button', { name }).at(-1) as HTMLButtonElement;
+
+  it('pede o refinamento da spec em rascunho', async () => {
+    const body = { ...detail('vostok/work/specs/draft/SPEC-001.md', 'draft'), plan: false, tasks: [] };
+    const fetchMock = mockFetch(requests(body));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Refinar' }));
+    fireEvent.click(lastButton('Refinar'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=refinar-spec&spec=SPEC-001', expect.objectContaining({ method: 'POST' })));
+  });
+
+  it('pede a execução da próxima onda', async () => {
+    const tasks = [task('TASK-01', 'done'), task('TASK-02', 'approved', { wave: '2', depends_on: '[TASK-01]' })];
+    const body = { ...detail('vostok/work/specs/refined/SPEC-001.md'), plan: false, tasks };
+    const fetchMock = mockFetch(requests(body));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Executar onda' }));
+    expect(screen.getByText('Onda 2: TASK-02')).toBeTruthy();
+    fireEvent.click(lastButton('Executar onda'));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=executar-onda&spec=SPEC-001&onda=2', expect.objectContaining({ method: 'POST' })));
+  });
+
+  it('não oferece refinar fora do rascunho', async () => {
+    const body = { ...detail('vostok/work/specs/refined/SPEC-001.md'), plan: false };
+    mockFetch(requests(body));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    await screen.findByRole('navigation', { name: 'Nesta página' });
+    expect(screen.queryByRole('button', { name: 'Refinar' })).toBeNull();
+  });
 });

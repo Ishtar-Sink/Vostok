@@ -83,6 +83,20 @@ pub fn run(command: CommitCommand) -> Result<()> {
     }
 }
 
+/// As linhas que o `vostok commit check` mostraria, sem recusar nem gravar a referência; vazio sem
+/// git ou antes da primeira verificação (RF-07).
+pub fn pending_commits(harness: &Harness) -> Result<Vec<String>> {
+    let repo = Repo::open(harness)?;
+    if !repo.has_git() || !repo.ack.is_file() {
+        return Ok(Vec::new());
+    }
+    let errors = repo.ack_errors()?;
+    if !errors.is_empty() {
+        return Ok(errors);
+    }
+    repo.report(&repo.changes()?)
+}
+
 fn check(repo: &Repo) -> Result<()> {
     if !repo.has_git() {
         println!(

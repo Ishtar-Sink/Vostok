@@ -17,17 +17,24 @@ const REQUEST_ACTION: Partial<Record<ActionKind, string>> = {
   'unblock-task': 'desbloquear-tarefa',
   'finalize-spec': 'finalizar-spec',
   'fazer-commit': 'fazer-commit',
+  'create-spec': 'criar-spec',
+  'refine-spec': 'refinar-spec',
+  'execute-wave': 'executar-onda',
+  'release-commits': 'liberar-commits',
+  'undo-commits': 'desfazer-commits',
   answer: 'responder-pergunta',
 };
 
 /** Pedidos que não fazem sentido sem um texto do usuário. */
-const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-task', 'unblock-task', 'fazer-commit'];
+const NEEDS_TEXT: ActionKind[] = ['answer', 'adjust-spec', 'adjust-task', 'unblock-task', 'fazer-commit', 'create-spec'];
 
-const TEXT_LABEL: Partial<Record<ActionKind, string>> = { 'unblock-task': 'Sua decisão', 'fazer-commit': 'O que commitar' };
+const TEXT_LABEL: Partial<Record<ActionKind, string>> = { 'unblock-task': 'Sua decisão', 'fazer-commit': 'O que commitar', 'create-spec': 'Assunto da spec' };
+
+const COMMIT_LISTS: ActionKind[] = ['release-commits', 'undo-commits'];
 
 type Outcome = { kind: 'idle' } | { kind: 'sending' } | { kind: 'done'; message: string } | { kind: 'failed'; message: string };
 
-async function perform(item: AttentionItem, text: string): Promise<{ ok: boolean; message: string }> {
+export async function performAction(item: AttentionItem, text: string): Promise<{ ok: boolean; message: string }> {
   const spec = encodeURIComponent(item.spec);
   const specParam = item.spec ? `&spec=${spec}` : '';
   if (item.kind === 'approve-spec' || item.kind === 'approve-task') {
@@ -39,9 +46,12 @@ async function perform(item: AttentionItem, text: string): Promise<{ ok: boolean
   }
   const action = REQUEST_ACTION[item.kind];
   if (!action) return { ok: false, message: 'Ação sem gravação no protótipo.' };
-  const body = item.question ? `Pergunta ${item.question.meta.id}\n\n${text}` : text;
   const task = item.task ? `&tarefa=${encodeURIComponent(item.task)}` : '';
-  const result = await act('POST', `/api/pedidos?acao=${action}${specParam}${task}`, body);
+  const wave = item.wave ? '&onda=' + encodeURIComponent(item.wave) : '';
+  const question = item.question ? '&pergunta=' + encodeURIComponent(item.question.meta.id) : '';
+  // O pedido de liberar ou desfazer leva os commits apontados, para o aval valer para eles.
+  const body = COMMIT_LISTS.includes(item.kind) ? [item.title, text].filter(Boolean).join('\n\n') : text;
+  const result = await act('POST', `/api/pedidos?acao=${action}${specParam}${task}${wave}${question}`, body);
   if (!result.ok) return { ok: false, message: result.text };
   const { id } = JSON.parse(result.text) as { id: string };
   return { ok: true, message: `Pedido ${id} gravado em vostok/work/pedidos/. O chat em loop o processa e marca o estado.` };
@@ -61,7 +71,7 @@ export function ActionDialog({ item, onClose }: { item: AttentionItem | null; on
   };
   const confirm = async () => {
     setOutcome({ kind: 'sending' });
-    const result = await perform(item, answer.trim());
+    const result = await performAction(item, answer.trim());
     setOutcome(result.ok ? { kind: 'done', message: result.message } : { kind: 'failed', message: result.message });
   };
 

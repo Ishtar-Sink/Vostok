@@ -21,7 +21,3 @@ pnpm --dir apps/painel exec tsc --noEmit
   - Prova: o botão "Nova spec" na página real das specs, no estilo dos botões do painel (RF-05, CT-05).
   - Trecho: o botão primário "Nova spec" à direita do título "Especificações", acima do filtro Abertas, Arquivadas e Todas.
   - Falha: sem o botão, botão fora do cabeçalho ou com estilo diferente dos botões do painel.
-- `executar-onda.png` (print): `PAINEL_BIN=apps/cli/target/release/vostok bash apps/painel/scripts/print.sh /specs/SPEC-033 "$VOSTOK_EVIDENCE/executar-onda.png" 1280,900`
-  - Prova: a barra de ações da spec planejada real oferece "Executar onda" no lugar do antigo "Pedir execução" da spec (RF-05, CT-06).
-  - Trecho: o botão primário "Executar onda" no cabeçalho da SPEC-033, ao lado do selo "planejada", com a TASK-10 aprovada e pronta na onda 4.
-  - Falha: "Pedir execução" no cabeçalho da spec ou nenhum botão de execução com uma tarefa pronta.

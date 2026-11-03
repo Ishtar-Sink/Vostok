@@ -1,0 +1,26 @@
+id: TASK-01
+spec: SPEC-034
+title: "Plano desatualizado na API"
+description: "O painel recebe, na visão geral e na spec, se o plano está desatualizado pela regra da CLI."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-01, CT-01, CB-02]
+type: tarefa
+labels: [SPEC-034, padrao]
+status: approved
+content_hash: 93a6ba3b895b7f977f61447a77697e68be5a084779fbbea729d27cc2624b0ef7
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T22:18:01Z
+approved_hash: 93a6ba3b895b7f977f61447a77697e68be5a084779fbbea729d27cc2624b0ef7
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 42ba0ce6f1f44a5c81ef8d79b8e5c90430213d10a988d2c94091498af46cd431
+verification_hash: 40bf4f67555d775131b0ccc9ac0c8438207243635fa4bfb5bb9b6fe126af26c4
+criteria_hash: 5e024ec9519081fa3d103383d1ca2ee530087fb34cd3307b04f15ad5f90733f8
+state_hash: 6856ccf85c27bb712f731134417ef0c5e332e06803fc258a16456b40cd90bd20
+approved_by: chat

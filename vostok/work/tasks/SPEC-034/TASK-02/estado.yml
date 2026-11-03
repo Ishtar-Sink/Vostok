@@ -1,0 +1,26 @@
+id: TASK-02
+spec: SPEC-034
+title: "Ações de plano e tarefa no painel"
+description: "Aviso de plano desatualizado, \"Refazer o plano\", \"Ajustar plano\", \"Finalizar\" em validação e textos do aval no painel."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-02, RF-03, RF-04, RF-05, RF-07, CT-02, CT-03, CT-04, CT-05, CT-06, CT-07, CT-09, CB-01, CB-03]
+type: tarefa
+labels: [SPEC-034, padrao]
+status: approved
+content_hash: 9e55521490fac4f832388e65c35cc21648c3a16b1162e19c3b57878b1b323060
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T22:18:01Z
+approved_hash: 9e55521490fac4f832388e65c35cc21648c3a16b1162e19c3b57878b1b323060
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 6233634dcdd3215339d1fd2ba22d60115d29db76200bd13b9dcc6ce012aad81b
+verification_hash: 3a33a970f16d72012ae85842397b43193ff6f1636cfc94b345c4c7a0a78af344
+criteria_hash: f703abf6923e6f6a22ae982bd50641f4cdf5ebd3a3f03b84ed90196df5386d9f
+state_hash: b903512782def0842d8882d93ed808c5721dcf9a85bd6dd20a4176c0a554078e
+approved_by: chat

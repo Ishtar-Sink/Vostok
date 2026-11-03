@@ -1,0 +1,26 @@
+id: TASK-04
+spec: SPEC-034
+title: "Build sem painel desatualizado"
+description: "O `build.rs` reconstrói o `dist` mais antigo que o código e recusa o build se não conseguir."
+profile: julgamento
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-08, CT-10, CT-11, CB-05]
+type: bug
+labels: [SPEC-034, julgamento]
+status: approved
+content_hash: fe7b653221e3ed76980f79e200fd2fc8cc8e97261be7c92c37c78af5a829b1d2
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T22:18:01Z
+approved_hash: fe7b653221e3ed76980f79e200fd2fc8cc8e97261be7c92c37c78af5a829b1d2
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 1c1503519de769c2b3c4e143d3a6d8cbeaf0c17e50875bad185c5646d81546c4
+verification_hash: 1ad840ed3fb28bc8c19c819d62a397bfab960a74965374d172862e31416593cd
+criteria_hash: 9393b674565fe93ca80ac0d7a20884e745be09241d00a5d5036811b0fbe48fd6
+state_hash: 1cd8d087b0316103073b556a2ca00013e0fbfe71a71a29e3b52e9ac1ed91c51c
+approved_by: chat

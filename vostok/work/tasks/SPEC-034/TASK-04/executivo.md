@@ -1,0 +1,3 @@
+<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
+
+Hoje o `vostok` com o painel pode ser compilado com uma versão velha da tela embutida, sem nenhum aviso, quando o código do painel mudou e ninguém gerou a tela de novo. Com esta tarefa, o build percebe a tela desatualizada e a gera sozinho; se não conseguir (por exemplo, sem o `pnpm` na máquina), o build para e diz exatamente o comando a rodar. Nada muda para quem compila sem o painel ou sem a tela gerada. A tarefa é de julgamento e de risco alto, porque um erro aqui pode travar o build de quem desenvolve ou da publicação; ela não depende de outras tarefas e não bloqueia nenhuma, mas é condição para publicar a versão 0.4.0 sem tela velha.

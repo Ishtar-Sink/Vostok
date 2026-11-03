@@ -1,0 +1,26 @@
+id: TASK-03
+spec: SPEC-034
+title: "Histórico do ajuste e aval na CLI"
+description: "O ajuste que derruba a aprovação grava o `status_history`, e a mensagem de validação cita o log da spec."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-06, RF-07, CT-08, CT-09, CB-04]
+type: bug
+labels: [SPEC-034, padrao]
+status: approved
+content_hash: 61ac01ba0f9dbb8b86c98be7b5cda9de71c046e0aba86d7376434cd904637422
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T22:18:01Z
+approved_hash: 61ac01ba0f9dbb8b86c98be7b5cda9de71c046e0aba86d7376434cd904637422
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: b46af584c520d02cc0ae28792ff32bd2039b7e54dc01586042d46b7ff205309f
+verification_hash: dbf200c557778f64f56b4c3aa2c0082cea2c9e269f481663fa6785c0089a6bb0
+criteria_hash: bbf76f3a6720602d139920363da2c0ace06bf95b8e256123160b9c9950f8c8f7
+state_hash: 91514bad74c861264a9b21e048f11537f32f6f5294b02bad12e8043a3f7fe0f3
+approved_by: chat

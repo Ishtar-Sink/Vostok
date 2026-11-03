@@ -2,7 +2,7 @@
 type: decision
 title: "Decisões"
 description: "Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade."
-updated_at: 2026-11-02T13:19:32Z
+updated_at: 2026-11-03T22:55:23Z
 ---
 
 # Decisões
@@ -38,7 +38,7 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 ## DEC-003: Painel local no lugar do servidor
 
 - **Data:** 2026-11-02
-- **Status:** ativa
+- **Status:** substituída
 - **Tags:** arquitetura, painel, servidor, mongodb, mcp, aval, pedidos
 - **Origem:** Estudo da SPEC-027 (docs/estudos/painel-local.md); confirmado pelo Victor no refinamento da SPEC-028, em 2026-11-02.
 - **Contexto:** A premissa final previa servidor HTTP self-hosted, MongoDB e MCP, que nunca saíram do papel. O estudo da SPEC-027 mostrou, com um protótipo usado pelo usuário, que um painel local sem servidor faz quase tudo o que o chat faz.
@@ -46,3 +46,15 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 - **Alternativas descartadas:** Servidor HTTP self-hosted com MongoDB como único escritor e MCP para as ferramentas; pedido de aprovação processado pelo agente.
 - **Consequências:** As regras de arquitetura e stack deixam de citar servidor, banco e MCP; as pastas apps/server, apps/mcp, apps/web e packages/contracts saem; o frontend fica em apps/painel, em Preact com compat; a trava de aval e o loop de pedidos vêm na SPEC-030.
 - **Substitui:** Nenhuma
+
+## DEC-004: Comunicação do painel por estado e avais por spec
+
+- **Data:** 2026-11-03
+- **Status:** ativa
+- **Tags:** arquitetura, painel, pedidos, perguntas, aval, avais
+- **Origem:** SPEC-033 (operar o projeto de ponta a ponta pelo painel); proposta confirmada pelo Victor com "ok, registrar" em 2026-11-03.
+- **Contexto:** A DEC-003 definiu o painel local com os arquivos de `vostok/` como banco, o aval em `work/avais.log` e os pedidos em `work/pedidos/`. Na SPEC-033, os pedidos, as perguntas e os avais passaram a se acumular, e o agente precisou perguntar pelo painel.
+- **Decisão:** Mantém o painel local da DEC-003: sem servidor HTTP, MongoDB nem MCP, só em 127.0.0.1, gravando só pela lógica da CLI. Pedidos ficam em subpastas por estado (pendente, em andamento, feito, recusado) e perguntas em aberta e respondida, com o front-matter como verdade e a pasta como apresentação. O aval fica num log por spec em `work/avais/<SPEC>.log`, só de acréscimo, com os sem spec à parte, consultado pelo `vostok avais`. As pastas e os nomes vêm de `config/main.yml`. Pedidos, perguntas e avais são arquivados com a spec.
+- **Alternativas descartadas:** Manter o log único e as pastas soltas: crescem sem fim e fazem o agente ler o que já foi resolvido. Estado só na pasta: uma interrupção no meio do `rename` perderia o estado.
+- **Consequências:** O formato antigo é migrado na primeira execução, sem apagar nada. A trava de aval lê o log da spec. A `process-requests` lê só `pendente/`. O comentário de `approval_lock` em `config/main.yml` e a regra `agent/boundaries-05` ainda citam `avais.log` e precisam ser atualizados.
+- **Substitui:** DEC-003

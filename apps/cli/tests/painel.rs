@@ -125,6 +125,56 @@ fn pending_task() -> Project {
     project
 }
 
+fn spec_with_plan(approved_hash: &str, status: &str, plan_hash: Option<&str>) -> Project {
+    let project = Project::new();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-plano.md",
+        &format!("---\nid: SPEC-001\ntitle: \"Plano\"\nstatus: {status}\ntype: fix\napproved_hash: {approved_hash}\n---\n\n# Plano\n"),
+    );
+    if let Some(plan_hash) = plan_hash {
+        write(
+            &project,
+            "vostok/work/plans/SPEC-001.md",
+            &format!("---\nspec: SPEC-001\nspec_hash: {plan_hash}\n---\n\n# Plano de tarefas\n"),
+        );
+    }
+    project
+}
+
+fn assert_plan_fields(project: &Project, expected: &str) {
+    let running = start(project.root());
+    for target in ["/api/visao", "/api/specs/SPEC-001"] {
+        let response = get(running.address, target);
+        assert_status(&response, "200");
+        assert!(response.contains(expected), "{response}");
+    }
+}
+
+#[test]
+fn plan_outdated_true_when_the_spec_was_approved_again() {
+    let project = spec_with_plan("novo", "approved", Some("antigo"));
+    assert_plan_fields(&project, "\"plan\":true,\"plan_outdated\":true");
+}
+
+#[test]
+fn plan_outdated_false_when_the_hashes_match() {
+    let project = spec_with_plan("abc", "approved", Some("abc"));
+    assert_plan_fields(&project, "\"plan\":true,\"plan_outdated\":false");
+}
+
+#[test]
+fn plan_outdated_true_when_the_spec_lost_the_approval() {
+    let project = spec_with_plan("null", "refined", Some("abc"));
+    assert_plan_fields(&project, "\"plan\":true,\"plan_outdated\":true");
+}
+
+#[test]
+fn plan_outdated_false_without_a_plan() {
+    let project = spec_with_plan("abc", "approved", None);
+    assert_plan_fields(&project, "\"plan\":false,\"plan_outdated\":false");
+}
+
 #[test]
 fn ct01_two_panels_run_together_each_with_its_own_brand() {
     let ai_hub = Project::new();

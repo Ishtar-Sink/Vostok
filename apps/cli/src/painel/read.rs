@@ -8,6 +8,7 @@ use super::{
     Reply,
 };
 use crate::commands::pedidos::{Questions, Requests};
+use crate::commands::plan::plan_outdated;
 use crate::commands::spec::STATUS_HISTORY_FIELD;
 use crate::harness::Harness;
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
@@ -162,13 +163,15 @@ impl Layout<'_> {
 
     /// Specs abertas com as tarefas, specs arquivadas e a atividade recente do registro de execução.
     fn overview(&self) -> String {
+        let harness = self.harness();
         let open: Vec<String> = self
             .specs()
             .iter()
             .map(|spec| {
                 let plan = self.plans.join(format!("{}.md", spec.id)).is_file();
+                let plan_outdated = plan_outdated(&harness, &spec.id);
                 format!(
-                    "{{\"meta\":{},\"plan\":{plan},\"tasks\":[{}]}}",
+                    "{{\"meta\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"tasks\":[{}]}}",
                     frontmatter_json(&spec.file, SPEC_FIELDS),
                     self.task_summaries(&spec.id).join(",")
                 )
@@ -516,6 +519,7 @@ impl Layout<'_> {
         let file = open.unwrap_or_else(|| self.archive.join(safe_id).join("spec.md"));
         let markdown = fs::read_to_string(&file).map_err(|_| not_found())?;
         let plan = self.plans.join(format!("{safe_id}.md")).is_file();
+        let plan_outdated = plan_outdated(&self.harness(), safe_id);
         let tasks_dir = if archived {
             self.archive.join(safe_id).join("tasks")
         } else {
@@ -526,7 +530,7 @@ impl Layout<'_> {
             .map(|dir| task_summary(dir))
             .collect();
         Ok(json(format!(
-            "{{\"meta\":{},\"path\":{},\"plan\":{plan},\"archived\":{archived},\"markdown\":{},\"tasks\":[{}]}}",
+            "{{\"meta\":{},\"path\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"archived\":{archived},\"markdown\":{},\"tasks\":[{}]}}",
             frontmatter_json(&file, SPEC_FIELDS),
             json_string(&self.relative(&file)),
             json_string(&strip_frontmatter(&markdown)),

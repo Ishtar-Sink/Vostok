@@ -9,18 +9,23 @@ wave: 1
 covers: [RF-06, RF-07, CT-08, CT-09, CB-04]
 type: bug
 labels: [SPEC-034, padrao]
-status: approved
-content_hash: 61ac01ba0f9dbb8b86c98be7b5cda9de71c046e0aba86d7376434cd904637422
+status: done
+content_hash: 76b919e1e106505264f670bac0db450493b069b61485f23c0f0fdf4b4dbfd47a
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-03T22:18:01Z
 approved_hash: 61ac01ba0f9dbb8b86c98be7b5cda9de71c046e0aba86d7376434cd904637422
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: b46af584c520d02cc0ae28792ff32bd2039b7e54dc01586042d46b7ff205309f
 verification_hash: dbf200c557778f64f56b4c3aa2c0082cea2c9e269f481663fa6785c0089a6bb0
-criteria_hash: bbf76f3a6720602d139920363da2c0ace06bf95b8e256123160b9c9950f8c8f7
-state_hash: 91514bad74c861264a9b21e048f11537f32f6f5294b02bad12e8043a3f7fe0f3
+criteria_hash: 57645e0af4f22b7c1ab98d2496e2e9b3a6ec3ec3cfe9e65d0f6cb09ca1a51963
+state_hash: ccfef2c86702bee4f1943d889856237507a58932f64cd681907b8d144a496743
 approved_by: chat
+model: claude-sonnet-5-5
+executive_hash: c92a78795eff29848984a0746689bfe51aacaf3fb62633eb9139f583a929744c
+technical_hash: 660d878c1d5124d974af4e9b7e058b895b4381f8f615e7db810e5d43c70088e3
+check_result: passed
+checked_at: 2026-11-03T22:25:24Z

@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-034
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,11 +22,11 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** bug
 - **Descrição:** O `build.rs` reconstrói o `dist` mais antigo que o código e recusa o build se não conseguir.
 - **Critérios de aceite:**
-  - [ ] Com a feature `painel`, um `dist` mais antigo que o código do painel e sem `pnpm`, o build termina com erro e a mensagem diz para rodar `pnpm --dir apps/painel build` (RF-08, CT-10, CA-06).
-  - [ ] Com o `dist` em dia, o build termina sem erro e sem precisar do `pnpm` (RF-08, CT-11).
-  - [ ] Com o `dist` velho e o `pnpm` disponível, o build reconstrói o `dist` sozinho e termina sem erro, sem parar o ciclo de editar o painel e rodar os testes (RF-08, inferência H).
-  - [ ] Sem a feature `painel` nada muda, e sem o `dist` o build segue com o aviso de hoje (CB-05).
-  - [ ] A verificação não altera o repositório e o resto do `vostok` continua compilando e passando (RF-08).
+  - [x] Com a feature `painel`, um `dist` mais antigo que o código do painel e sem `pnpm`, o build termina com erro e a mensagem diz para rodar `pnpm --dir apps/painel build` (RF-08, CT-10, CA-06).
+  - [x] Com o `dist` em dia, o build termina sem erro e sem precisar do `pnpm` (RF-08, CT-11).
+  - [x] Com o `dist` velho e o `pnpm` disponível, o build reconstrói o `dist` sozinho e termina sem erro, sem parar o ciclo de editar o painel e rodar os testes (RF-08, inferência H).
+  - [x] Sem a feature `painel` nada muda, e sem o `dist` o build segue com o aviso de hoje (CB-05).
+  - [x] A verificação não altera o repositório e o resto do `vostok` continua compilando e passando (RF-08).
 - **Rótulos:** SPEC-034, julgamento
 - **Estimativa:** julgamento
 - **Bloqueada por:** -

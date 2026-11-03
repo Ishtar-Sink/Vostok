@@ -107,6 +107,16 @@ pub fn record_manual_at(project: &Path, spec_id: &str) -> Result<Vec<String>> {
     workspace.all_errors(spec_id, &plan, &read(&plan)?, &spec)
 }
 
+/// Se o plano da spec está desatualizado, pela regra do `vostok plan validate`; falso sem plano
+/// ou quando a spec ou a configuração não podem ser lidas, para o painel nunca recusar a leitura.
+pub fn plan_outdated(harness: &Harness, spec_id: &str) -> bool {
+    let workspace = Workspace::new(harness.clone());
+    let (Ok(plan), Ok(spec)) = (workspace.plan_path(spec_id), workspace.find_spec(spec_id)) else {
+        return false;
+    };
+    plan.is_file() && workspace.plan_is_outdated(&plan, &spec).unwrap_or(false)
+}
+
 pub fn run(command: PlanCommand) -> Result<()> {
     let workspace = Workspace::new(Harness::from_current_dir()?);
     match command {

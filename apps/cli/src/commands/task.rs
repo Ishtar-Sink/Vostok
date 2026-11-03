@@ -241,8 +241,10 @@ const BRIEF_RULES: [&str; 3] = [
 /// Campo do estado com a origem da aprovação.
 pub const APPROVED_BY_FIELD: &str = "approved_by";
 
-/// Problema de validação de uma aprovação do painel sem a linha correspondente no `avais.log`.
-pub const PANEL_WITHOUT_AVAL: &str = "approved_by: painel sem aval correspondente em avais.log";
+/// Problema de validação de uma aprovação do painel sem a linha correspondente no log de avais da spec.
+pub fn panel_without_aval(spec_id: &str) -> String {
+    format!("approved_by: painel sem aval correspondente em work/avais/{spec_id}.log")
+}
 
 /// Quem aprovou. Nunca vem da linha de comando: a CLI grava sempre `chat`, e só o painel, no mesmo
 /// processo, grava `painel`.
@@ -3009,7 +3011,7 @@ impl Tasks {
         if aval::has_panel_approval(&self.harness, &format!("{spec}/{id}"), &hash)? {
             return Ok(None);
         }
-        Ok(Some(format!("{id}: {PANEL_WITHOUT_AVAL}")))
+        Ok(Some(format!("{id}: {}", panel_without_aval(spec))))
     }
 
     fn task_errors(

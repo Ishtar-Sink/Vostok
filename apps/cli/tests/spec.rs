@@ -203,6 +203,98 @@ fn approve_records_the_status_history() {
     assert_eq!(hash(&content), before);
 }
 
+fn refined_spec(project: &Project) -> std::path::PathBuf {
+    let spec = |args: &[&str]| {
+        let mut command = project.vostok();
+        command.args(["spec"]).args(args);
+        command.assert().success();
+    };
+    spec(&["new", "Exemplo"]);
+    spec(&["refine", "SPEC-001", "improvement"]);
+    let file = project
+        .harness()
+        .join("work/specs/refined/SPEC-001-exemplo.md");
+    let filler = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/fill-refined.py"
+    );
+    std::process::Command::new("python3")
+        .arg(filler)
+        .arg(&file)
+        .status()
+        .expect("preenche a spec")
+        .success()
+        .then_some(())
+        .expect("fill-refined.py terminou com erro");
+    fs::write(project.root().join("AGENTS.md"), "").unwrap();
+    spec(&["adjust", "record-manual", "SPEC-001"]);
+    file
+}
+
+fn status_history(file: &std::path::Path) -> String {
+    fs::read_to_string(file)
+        .unwrap()
+        .lines()
+        .find_map(|line| line.strip_prefix("status_history: "))
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn run_spec(project: &Project, args: &[&str]) {
+    let mut command = project.vostok();
+    command.args(["spec"]).args(args);
+    command.assert().success();
+}
+
+#[test]
+fn adjust_history_records_the_return_to_refined() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    run_spec(
+        &project,
+        &["adjust", "record", "SPEC-001", "Ajuste de teste"],
+    );
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: refined\n"), "{content}");
+    let history = status_history(&file);
+    let entries: Vec<&str> = history.split("; ").collect();
+    assert_eq!(entries.len(), 2, "{history}");
+    assert!(entries[0].ends_with(" approved"), "{history}");
+    assert!(entries[1].ends_with(" refined"), "{history}");
+}
+
+#[test]
+fn adjust_history_manual_adjust_records_the_return_to_refined() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    fs::write(
+        &file,
+        content.replacen("Objetivo.", "Objetivo editado à mão.", 1),
+    )
+    .unwrap();
+    run_spec(&project, &["adjust", "record-manual", "SPEC-001"]);
+    let history = status_history(&file);
+    assert!(history.ends_with(" refined"), "{history}");
+    assert_eq!(history.split("; ").count(), 2, "{history}");
+}
+
+#[test]
+fn adjust_history_unchanged_for_a_refined_spec() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    let before = status_history(&file);
+    run_spec(
+        &project,
+        &["adjust", "record", "SPEC-001", "Ajuste de teste"],
+    );
+    assert_eq!(status_history(&file), before);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: refined\n"), "{content}");
+}
+
 // --- Componentes afetados prontos para o plano (SPEC-015) ---
 
 fn refined_with_components(project: &Project, components: &str, contracts: &str) {

@@ -11,7 +11,8 @@ const SPEC_PATH: &str = "vostok/work/specs/refined/SPEC-001-exemplo.md";
 const AVAIS_LOG: &str = "vostok/work/avais.log";
 const APPROVED_HASH: &str = "hashaprovado";
 const PANEL_INSTRUCTION: &str = "vostok painel";
-const PANEL_WITHOUT_AVAL: &str = "approved_by: painel sem aval correspondente em avais.log";
+const PANEL_WITHOUT_AVAL: &str =
+    "approved_by: painel sem aval correspondente em work/avais/SPEC-001.log";
 
 fn write(project: &Project, relative: &str, content: &str) {
     let path = project.root().join(relative);
@@ -384,4 +385,37 @@ fn by_spec_folders_follow_the_config() {
     assert!(!project.root().join("vostok/work/avais").exists());
     assert!(avais(&project, "SPEC-001").contains("hspec"));
     assert!(avais(&project, "PED-001").contains("hped"));
+}
+
+#[test]
+fn panel_without_aval_cites_the_spec_log() {
+    let project = pending_task();
+    task(&project, &["approve", "approve"]).assert().success();
+    replace_in(
+        &project,
+        TASK_PATH,
+        "approved_by: chat",
+        "approved_by: painel",
+    );
+    let refused = failure_stderr(&mut task(&project, &["adjust", "validate"]));
+    assert!(refused.contains("work/avais/SPEC-001.log"), "{refused}");
+    assert!(!refused.contains(" avais.log"), "{refused}");
+    assert!(
+        refused.contains("TASK-01: approved_by: painel"),
+        "{refused}"
+    );
+
+    let project = refined_spec();
+    vostok(&project, &["spec", "approve", "approve", "SPEC-001"])
+        .assert()
+        .success();
+    replace_in(
+        &project,
+        SPEC_PATH,
+        "approved_by: chat",
+        "approved_by: painel",
+    );
+    let refused = failure_stderr(&mut vostok(&project, &["spec", "validate", "SPEC-001"]));
+    assert!(refused.contains("work/avais/SPEC-001.log"), "{refused}");
+    assert!(!refused.contains(" avais.log"), "{refused}");
 }

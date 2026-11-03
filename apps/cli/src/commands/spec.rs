@@ -13,7 +13,7 @@ use anyhow::{bail, Result};
 use clap::Subcommand;
 
 use crate::aval;
-use crate::commands::task::{Origin, APPROVED_BY_FIELD, PANEL_WITHOUT_AVAL};
+use crate::commands::task::{panel_without_aval, Origin, APPROVED_BY_FIELD};
 use crate::harness::Harness;
 use crate::support::{
     clean_title, config_block, config_get, config_list, config_set, frontmatter_get,
@@ -975,6 +975,7 @@ fn drop_approval(specs: &Specs, file: &Path, spec_id: &str) -> Result<()> {
     frontmatter_put(file, &specs.setting("approved_at_field")?, "null")?;
     frontmatter_put(file, &specs.setting("approved_hash_field")?, "null")?;
     frontmatter_put(file, APPROVED_BY_FIELD, "null")?;
+    record_status(file, &refined_status)?;
     println!("Aprovação de {spec_id} derrubada: o status voltou para '{refined_status}'.");
     Ok(())
 }
@@ -1207,7 +1208,7 @@ fn panel_approval_error(specs: &Specs, spec_id: &str, file: &Path) -> Result<Opt
     if aval::has_panel_approval(&specs.harness, spec_id, &hash)? {
         return Ok(None);
     }
-    Ok(Some(PANEL_WITHOUT_AVAL.to_string()))
+    Ok(Some(panel_without_aval(spec_id)))
 }
 
 /// Um impedimento por item. Vazio quando a spec pode ser aprovada.

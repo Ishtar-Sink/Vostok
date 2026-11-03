@@ -1618,3 +1618,34 @@ fn create_folder_refuses_the_spec_when_a_task_exists_in_both_formats() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains("nos dois formatos"), "{stderr}");
 }
+
+#[test]
+fn mark_planned_records_the_status_history() {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        &format!("- `saida.txt` (automática): `echo ok`\n{SUBITEMS}"),
+    );
+    let spec = project
+        .root()
+        .join("vostok/work/specs/refined/SPEC-001-exemplo.md");
+    let field = |key: &str| {
+        std::fs::read_to_string(&spec)
+            .unwrap()
+            .lines()
+            .find_map(|line| line.strip_prefix(&format!("{key}: ")).map(String::from))
+            .unwrap_or_default()
+    };
+    let hash = field("content_hash");
+    project
+        .vostok()
+        .args(["plan", "approve", "mark-planned", "SPEC-001"])
+        .assert()
+        .success();
+    assert!(
+        field("status_history").ends_with(" planned"),
+        "{}",
+        field("status_history")
+    );
+    assert_eq!(field("content_hash"), hash);
+}

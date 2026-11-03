@@ -8,6 +8,7 @@ use super::{
     Reply,
 };
 use crate::commands::pedidos::{Questions, Requests};
+use crate::commands::spec::STATUS_HISTORY_FIELD;
 use crate::harness::Harness;
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
 
@@ -257,6 +258,7 @@ impl Layout<'_> {
         let mut rows = self.task_rows();
         rows.extend(self.archived_task_rows());
         rows.extend(self.adjustment_rows());
+        rows.extend(self.status_rows());
         rows.extend(self.request_rows());
         rows.extend(self.approval_rows());
         rows.retain(|row| {
@@ -311,12 +313,49 @@ impl Layout<'_> {
         rows
     }
 
-    /// Cada pedido entra com a criação e, se mudou de estado, com o estado atual.
-    fn request_rows(&self) -> Vec<ActivityRow> {
+    /// O histórico de status das specs abertas e arquivadas (`status_history`), uma linha por mudança.
+    fn status_rows(&self) -> Vec<ActivityRow> {
+        let specs = self.specs().into_iter().map(|spec| (spec.id, spec.file));
+        let archived = self
+            .archived()
+            .into_iter()
+            .map(|(dir, file)| (file_name_of(&dir), file));
         let mut rows = Vec::new();
-        let files = Requests::open(&self.harness())
-            .map(|requests| requests.files(None))
-            .unwrap_or_default();
+        for (id, file) in specs.chain(archived) {
+            let history = frontmatter_get(&file, STATUS_HISTORY_FIELD).unwrap_or_default();
+            for entry in history.split(';') {
+                let Some((date, status)) = entry.trim().split_once(' ') else {
+                    continue;
+                };
+                rows.push(ActivityRow {
+                    date: date.to_string(),
+                    kind: "spec".to_string(),
+                    spec: id.clone(),
+                    task: String::new(),
+                    target: id.clone(),
+                    number: 0,
+                    step: "status".to_string(),
+                    result: status.trim().to_string(),
+                    detail: String::new(),
+                });
+            }
+        }
+        rows
+    }
+
+    /// Pedidos abertos (nas subpastas de estado) e arquivados com a spec: a criação e cada
+    /// transição do histórico; sem histórico, a criação e o estado atual.
+    fn request_rows(&self) -> Vec<ActivityRow> {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return Vec::new();
+        };
+        let mut files = requests.files(None);
+        if let Some(name) = requests.dir().file_name() {
+            for (dir, _) in self.archived() {
+                files.extend(markdown_files(&dir.join(name)));
+            }
+        }
+        let mut rows = Vec::new();
         for file in files {
             let field = |key| frontmatter_get(&file, key).unwrap_or_default();
             let (id, created, updated) = (field("id"), field("criado_em"), field("atualizado_em"));
@@ -335,8 +374,15 @@ impl Layout<'_> {
                 detail: field("acao"),
             };
             rows.push(row(&created, "criado", "pendente".to_string()));
-            if !updated.is_empty() && updated != created {
-                rows.push(row(&updated, "estado", field("estado")));
+            let transitions = request_transitions(&file);
+            if transitions.is_empty() {
+                if !updated.is_empty() && updated != created {
+                    rows.push(row(&updated, "estado", field("estado")));
+                }
+                continue;
+            }
+            for (date, state) in transitions {
+                rows.push(row(&date, "estado", state));
             }
         }
         rows
@@ -710,6 +756,31 @@ fn activity_rows(registro: &str, spec: &str, task: &str) -> Vec<ActivityRow> {
 }
 
 /// As linhas da seção "Histórico de ajustes" (`# | Data | Origem | Resumo`) de uma spec ou plano.
+/// As linhas `| Data | De | Para |` da seção "Histórico" de um pedido, como `(data, estado novo)`.
+fn request_transitions(file: &Path) -> Vec<(String, String)> {
+    let content = fs::read_to_string(file).unwrap_or_default();
+    let Some((_, history)) = content.split_once("\n## Histórico\n") else {
+        return Vec::new();
+    };
+    history
+        .lines()
+        .take_while(|line| !line.starts_with("## "))
+        .filter(|line| line.starts_with("| ") && !line.starts_with("| Data"))
+        .filter_map(|line| {
+            let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+            (cells.len() == 3 && !cells[0].is_empty())
+                .then(|| (cells[0].to_string(), cells[2].to_string()))
+        })
+        .collect()
+}
+
+fn file_name_of(path: &Path) -> String {
+    path.file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn adjustment_rows_in(file: &Path, kind: &str, id: &str) -> Vec<ActivityRow> {
     let content = fs::read_to_string(file).unwrap_or_default();
     let Some((_, history)) = content.split_once("## Histórico de ajustes") else {
@@ -1138,6 +1209,99 @@ wave: 1
         assert_eq!(types_of(&get(&painel, "/api/atividades?limite=2")).len(), 2);
         assert_eq!(body(&get(&painel, "/api/atividades?tipo=nada")), "[]");
         assert!(types_of(&get(&painel, "/api/atividades?limite=abc")).len() <= 15);
+    }
+
+    /// Pares `(step, result)` das atividades da resposta, na ordem dela.
+    fn steps_of(reply: &Reply) -> Vec<(String, String)> {
+        body(reply)
+            .split("\"step\":\"")
+            .skip(1)
+            .map(|rest| {
+                let step = rest.split('"').next().unwrap().to_string();
+                let result = rest
+                    .split("\"result\":\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap()
+                    .to_string();
+                (step, result)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn atividades_trazem_o_historico_de_status_das_specs() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/specs/refined/SPEC-005.md",
+            "---\nid: SPEC-005\ntitle: \"Aberta\"\nstatus: planned\nstatus_history: 2026-11-01T10:00:00Z approved; 2026-11-02T10:00:00Z planned\n---\n",
+        );
+        write(
+            dir.path(),
+            "vostok/work/.archive/SPEC-004/spec.md",
+            "---\nid: SPEC-004\ntitle: \"Arquivada\"\nstatus: archived\nstatus_history: 2026-10-01T10:00:00Z approved; 2026-10-20T10:00:00Z archived; sem-status\n---\n",
+        );
+        let reply = get(&painel, "/api/atividades?tipo=spec&limite=50");
+        let json = body(&reply);
+        let statuses: Vec<(String, String)> = steps_of(&reply)
+            .into_iter()
+            .filter(|(step, _)| step == "status")
+            .collect();
+        let results: Vec<&str> = statuses.iter().map(|(_, result)| result.as_str()).collect();
+        assert_eq!(
+            results,
+            ["planned", "approved", "archived", "approved"],
+            "{json}"
+        );
+        assert!(
+            json.contains(
+                "\"date\":\"2026-10-20T10:00:00Z\",\"type\":\"spec\",\"spec\":\"SPEC-004\""
+            ),
+            "{json}"
+        );
+        assert!(
+            json.contains("\"target\":\"SPEC-005\",\"step\":\"status\",\"result\":\"planned\""),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn atividades_trazem_as_transicoes_dos_pedidos() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/pedidos/feito/PED-001.md",
+            "---\nid: PED-001\nacao: ajustar-spec\nspec: SPEC-001\ntarefa: \nestado: feito\norigem: painel\ncriado_em: 2026-11-03T10:00:00Z\natualizado_em: 2026-11-03T12:00:00Z\n---\n\n## Pedido\n\nTexto.\n\n## Histórico\n\n| Data | De | Para |\n|---|---|---|\n| 2026-11-03T11:00:00Z | pendente | em_andamento |\n| 2026-11-03T12:00:00Z | em_andamento | feito |\n\n## Resultado\n\nFeito.\n",
+        );
+        let reply = get(&painel, "/api/atividades?tipo=pedido");
+        let steps = steps_of(&reply);
+        let expected: Vec<(String, String)> = [
+            ("estado", "feito"),
+            ("estado", "em_andamento"),
+            ("criado", "pendente"),
+        ]
+        .iter()
+        .map(|(step, result)| (step.to_string(), result.to_string()))
+        .collect();
+        assert_eq!(steps, expected, "{}", body(&reply));
+    }
+
+    #[test]
+    fn atividades_leem_os_pedidos_arquivados() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/.archive/SPEC-000/pedidos/PED-009.md",
+            "---\nid: PED-009\nacao: aprovar-plano\nspec: SPEC-000\ntarefa: \nestado: feito\norigem: painel\ncriado_em: 2026-10-01T10:00:00Z\natualizado_em: 2026-10-01T11:00:00Z\n---\n",
+        );
+        let json = body(&get(&painel, "/api/atividades?tipo=pedido"));
+        assert!(
+            json.contains("\"spec\":\"SPEC-000\",\"task\":\"\",\"target\":\"PED-009\""),
+            "{json}"
+        );
     }
 
     #[test]

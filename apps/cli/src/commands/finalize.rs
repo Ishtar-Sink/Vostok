@@ -13,6 +13,9 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use crate::aval;
+use crate::commands::pedidos::{
+    Questions, Requests, ANSWERED, DONE, IN_PROGRESS, OPEN, PENDING, REFUSED,
+};
 use crate::commands::task::{accepted_diff_name, accepted_regressions};
 use crate::harness::Harness;
 use crate::support::{
@@ -3074,7 +3077,8 @@ impl Finalization {
         }
         let archive = self.archive_dir()?;
         let docs = self.spec_docs_dir()?;
-        if let Err(stderr) = self.copy_to_archive(&archive, &docs) {
+        let communication = self.communication_files()?;
+        if let Err(stderr) = self.copy_to_archive(&archive, &docs, &communication) {
             remove_path(&archive)?;
             remove_path(&docs)?;
             return Err(Reported(format!(
@@ -3085,13 +3089,77 @@ impl Finalization {
         remove_path(&self.spec)?;
         remove_path(&self.tasks_dir)?;
         remove_path(&self.content_dir()?)?;
+        for (_, files) in communication.groups() {
+            for file in files {
+                remove_path(file)?;
+            }
+        }
         println!(
             "Spec {} arquivada em {}, com status 'archived'.",
             self.id,
             self.rel(&archive)
         );
         println!("Executivo e técnico publicados em {}.", self.rel(&docs));
+        if !communication.is_empty() {
+            println!(
+                "Pedidos, perguntas e avais de {} levados para {}: {} pedido(s), {} pergunta(s), avais: {}.",
+                self.id,
+                self.rel(&archive),
+                communication.requests.len(),
+                communication.questions.len(),
+                if communication.approvals.is_empty() { "não" } else { "sim" }
+            );
+        }
+        for (id, state) in &communication.in_flight {
+            println!(
+                "{id} ({state}) fica na pasta de trabalho; o vostok pedidos prune o limpa depois de concluído."
+            );
+        }
         Ok(())
+    }
+
+    /// Os pedidos concluídos, as perguntas e o log de avais da spec, que vão para o arquivo com ela.
+    fn communication_files(&self) -> Result<Communication> {
+        aval::migrate_legacy(&self.harness)?;
+        let requests = Requests::open(&self.harness)?;
+        let questions = Questions::open(&self.harness)?;
+        let of_spec =
+            |path: &PathBuf| frontmatter_get(path, "spec").is_ok_and(|spec| spec == self.id);
+        let mut in_flight = Vec::new();
+        for state in [PENDING, IN_PROGRESS] {
+            for file in requests
+                .files(Some(state))
+                .iter()
+                .filter(|path| of_spec(path))
+            {
+                in_flight.push((file_stem(file), state.to_string()));
+            }
+        }
+        let approvals = self
+            .harness
+            .approvals_dir()
+            .join(format!("{}.log", self.id));
+        Ok(Communication {
+            requests_dir: file_name(requests.dir()),
+            questions_dir: file_name(questions.dir()),
+            approvals_dir: file_name(&self.harness.approvals_dir()),
+            requests: [DONE, REFUSED]
+                .iter()
+                .flat_map(|state| requests.files(Some(state)))
+                .filter(of_spec)
+                .collect(),
+            questions: [OPEN, ANSWERED]
+                .iter()
+                .flat_map(|status| questions.files(status))
+                .filter(of_spec)
+                .collect(),
+            approvals: approvals
+                .is_file()
+                .then_some(approvals)
+                .into_iter()
+                .collect(),
+            in_flight,
+        })
     }
 
     fn archive_problems(&self) -> Result<Vec<String>> {
@@ -3124,7 +3192,12 @@ impl Finalization {
 
     /// Monta `<arquivo>/<SPEC_ID>/` (spec, conteúdo, tarefas e documentos), publica o executivo e o
     /// técnico e grava o status `archived`. Em falha, devolve a saída de erro das ferramentas.
-    fn copy_to_archive(&self, archive: &Path, docs: &Path) -> std::result::Result<(), String> {
+    fn copy_to_archive(
+        &self,
+        archive: &Path,
+        docs: &Path,
+        communication: &Communication,
+    ) -> std::result::Result<(), String> {
         let created: Vec<String> = [
             archive.join("tasks"),
             archive.join("docs"),
@@ -3154,12 +3227,23 @@ impl Finalization {
         for document in &documents[..2] {
             copy_file(document, &docs.join(file_name(document)))?;
         }
+        for (dir, files) in communication.groups() {
+            if files.is_empty() {
+                continue;
+            }
+            let target = archive.join(dir);
+            mkdir_p(&target)?;
+            for file in files {
+                copy_file(file, &target.join(file_name(file)))?;
+            }
+        }
         let spec = archive.join("spec.md");
         let archived = self
             .spec_setting("status.archived")
             .map_err(|e| format!("{e}\n"))?;
         frontmatter_put(&spec, "status", &archived).map_err(|e| format!("{e}\n"))?;
-        frontmatter_put(&spec, "updated_at", &utc_datetime()).map_err(|e| format!("{e}\n"))
+        frontmatter_put(&spec, "updated_at", &utc_datetime()).map_err(|e| format!("{e}\n"))?;
+        crate::commands::spec::record_status(&spec, &archived).map_err(|e| format!("{e}\n"))
     }
 
     fn archive_documents(&self) -> Result<Vec<PathBuf>> {
@@ -3167,6 +3251,32 @@ impl Finalization {
             .iter()
             .map(|kind| self.document_path(kind))
             .collect()
+    }
+}
+
+/// Arquivos de comunicação de uma spec, com o nome da pasta de cada grupo no arquivo.
+struct Communication {
+    requests_dir: String,
+    questions_dir: String,
+    approvals_dir: String,
+    requests: Vec<PathBuf>,
+    questions: Vec<PathBuf>,
+    approvals: Vec<PathBuf>,
+    /// Pedidos da spec ainda pendentes ou em andamento: ficam na pasta de trabalho.
+    in_flight: Vec<(String, String)>,
+}
+
+impl Communication {
+    fn groups(&self) -> [(&str, &[PathBuf]); 3] {
+        [
+            (&self.requests_dir, &self.requests),
+            (&self.questions_dir, &self.questions),
+            (&self.approvals_dir, &self.approvals),
+        ]
+    }
+
+    fn is_empty(&self) -> bool {
+        self.groups().iter().all(|(_, files)| files.is_empty())
     }
 }
 

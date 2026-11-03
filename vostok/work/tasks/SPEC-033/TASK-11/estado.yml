@@ -9,7 +9,7 @@ wave: 3
 covers: [RF-02, RF-04, CT-02, CT-04]
 type: tarefa
 labels: [SPEC-033, padrao]
-status: approved
+status: in_progress
 content_hash: fa826f984c8c2b8ab2f629f0c969cd358b2101ed8f65ef759d402c19ab17d729
 adjustments: 0
 adjusted_at: null
@@ -22,5 +22,10 @@ evidence_result: null
 execution_hash: abf2ec0481430e59ef11d9bb114a591784c6d8cfc89ba5a5643af3cecae882ee
 verification_hash: ed6a4a8849b66767fb4b62b239c2841cb7f537f2eb0d0280abe508005c4007dc
 criteria_hash: 05929e73c918649e0e881788e845382f24da7a32618d9f66fd42e3db549a6e5c
-state_hash: 9f87defc5e1354f8038ba42ccaadc24f1980a0aaf8ea9ae31736d786bbd4c154
+state_hash: 5fe5a3aec288e7df9aff63c850527f9ce9ac1ec506a203ef711fc391ab9389f9
 approved_by: chat
+model: claude-sonnet-5-5
+executive_hash: aff677cf94d6b285b1efd75fb4d79712d588b1ce04c359e5b165dfb1c833a135
+technical_hash: 4042bf3b57134ec20002fa5e729781a968707ea500b56afc2b6efbef1bf130a4
+check_result: passed
+checked_at: 2026-11-03T18:11:53Z

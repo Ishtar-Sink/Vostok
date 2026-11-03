@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-033
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-02
 
@@ -22,11 +22,11 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Com `request_dispatch`, o painel chama o agente para cada pedido pendente, um por vez, reaproveitando o `vigiar`.
 - **Critérios de aceite:**
-  - [ ] Com `request_dispatch: codex` ou `claude`, o painel chama o agente uma vez para cada pedido pendente (RF-13, CT-14).
-  - [ ] Nunca há dois agentes rodando ao mesmo tempo (RN-04).
-  - [ ] Com o disparo desligado (padrão), nenhum agente é chamado (RF-13, CT-14).
-  - [ ] Com o agente fora do PATH, o painel avisa e o pedido continua pendente, sem ser recusado (CB-04).
-  - [ ] O `vostok pedidos vigiar` continua funcionando como antes (RF-13).
+  - [x] Com `request_dispatch: codex` ou `claude`, o painel chama o agente uma vez para cada pedido pendente (RF-13, CT-14).
+  - [x] Nunca há dois agentes rodando ao mesmo tempo (RN-04).
+  - [x] Com o disparo desligado (padrão), nenhum agente é chamado (RF-13, CT-14).
+  - [x] Com o agente fora do PATH, o painel avisa e o pedido continua pendente, sem ser recusado (CB-04).
+  - [x] O `vostok pedidos vigiar` continua funcionando como antes (RF-13).
 - **Rótulos:** SPEC-033, julgamento
 - **Estimativa:** julgamento
 - **Bloqueada por:** TASK-02

@@ -285,6 +285,53 @@ pub fn approve_from_panel(
         .collect()
 }
 
+/// Conferência de um print pelo painel: aceito, grava a mesma linha do `vostok task evidence
+/// --reviewed` com a origem `painel`; rejeitado, bloqueia a tarefa (RF-06, RN-01).
+pub fn review_print_from_panel(
+    project: &Path,
+    spec: &str,
+    task: &str,
+    print: &str,
+    accepted: bool,
+) -> Result<()> {
+    let tasks = Tasks::new(Harness::locate(project)?)?;
+    let file = tasks.find_task(spec, task)?;
+    tasks.require_running(&file, task)?;
+    let content = TaskDoc::at(&file).text()?;
+    let text = tasks.subsection(&content, "evidence_subsection")?;
+    let kind = tasks.evidence_print();
+    let is_print = text
+        .lines()
+        .filter(|line| !is_indented(line))
+        .filter_map(|line| evidence_item(line.trim()))
+        .any(|(name, item_kind, _)| name == print && item_kind == kind);
+    let image_path = tasks.evidence_dir(&file)?.join(print);
+    if !is_print || !image_path.is_file() {
+        bail!("'{print}' não é um print desta tarefa; nada foi registrado");
+    }
+    let image = fs::read(&image_path)?;
+    if accepted {
+        return tasks.record_step(
+            &file,
+            "conferência",
+            Origin::Panel.as_str(),
+            &print_review(print, &image),
+        );
+    }
+    let doc = TaskDoc::at(&file);
+    doc.set("evidence_result", "failed")?;
+    doc.set("status", &tasks.status.blocked)?;
+    tasks.record_step(
+        &file,
+        "conferência",
+        "rejeitado",
+        &format!(
+            "print {print} rejeitado no painel (sha256 {})",
+            &sha256_hex(&image)[..8]
+        ),
+    )
+}
+
 /// `vostok task adjust record-manual` para uma edição gravada pelo painel. Devolve os problemas que
 /// o `vostok task adjust validate` acusaria, para o painel mostrar na hora.
 pub fn record_manual_at(project: &Path, spec: &str, task: &str) -> Result<Vec<String>> {
@@ -2225,6 +2272,7 @@ impl Tasks {
         })?;
         frontmatter_set(&spec_file, "status", &implemented)?;
         frontmatter_put(&spec_file, "updated_at", &utc_now())?;
+        crate::commands::spec::record_status(&spec_file, &implemented)?;
         println!("Todas as tarefas de {spec} concluídas: spec marcada como '{implemented}'.");
         Ok(())
     }

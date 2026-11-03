@@ -781,3 +781,132 @@ fn coverage_ids_do_not_wrap() {
         "{evidence}"
     );
 }
+
+fn write_file(project: &Project, relative: &str, content: &str) {
+    let path = project.root().join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, content).unwrap();
+}
+
+fn communication_file(project: &Project, relative: &str, id: &str, spec: &str) {
+    write_file(
+        project,
+        relative,
+        &format!("---\nid: {id}\nspec: {spec}\n---\n\n## Pedido\n\nTexto.\n"),
+    );
+}
+
+#[test]
+fn archive_leva_pedidos_perguntas_e_avais_da_spec() {
+    let project = built_folder_project();
+    let work = "vostok/work";
+    communication_file(
+        &project,
+        &format!("{work}/pedidos/feito/PED-001.md"),
+        "PED-001",
+        "SPEC-001",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/pedidos/recusado/PED-002.md"),
+        "PED-002",
+        "SPEC-001",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/pedidos/em_andamento/PED-004.md"),
+        "PED-004",
+        "SPEC-001",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/pedidos/feito/PED-003.md"),
+        "PED-003",
+        "SPEC-002",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/perguntas/respondida/P-001.md"),
+        "P-001",
+        "SPEC-001",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/perguntas/aberta/P-002.md"),
+        "P-002",
+        "SPEC-001",
+    );
+    communication_file(
+        &project,
+        &format!("{work}/perguntas/aberta/P-003.md"),
+        "P-003",
+        "SPEC-002",
+    );
+    let log = "2026-11-01T10:00:00Z\tSPEC-001\th1\tpainel\taprovar\n2026-11-02T10:00:00Z\tSPEC-001/TASK-01\th2\tpainel\tfinalizar-tarefa\n";
+    write_file(&project, &format!("{work}/avais/SPEC-001.log"), log);
+    write_file(
+        &project,
+        &format!("{work}/avais/SPEC-002.log"),
+        "x\tSPEC-002\th\tpainel\n",
+    );
+
+    let output = project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let out = String::from_utf8(output.stdout).unwrap();
+    let root = project.root();
+    let archive = root.join(format!("{work}/.archive/SPEC-001"));
+    for name in ["PED-001.md", "PED-002.md"] {
+        assert!(archive.join("pedidos").join(name).is_file(), "{name}");
+    }
+    assert!(!root
+        .join(format!("{work}/pedidos/feito/PED-001.md"))
+        .exists());
+    assert!(!root
+        .join(format!("{work}/pedidos/recusado/PED-002.md"))
+        .exists());
+    assert!(root
+        .join(format!("{work}/pedidos/feito/PED-003.md"))
+        .is_file());
+    assert!(root
+        .join(format!("{work}/pedidos/em_andamento/PED-004.md"))
+        .is_file());
+    for name in ["P-001.md", "P-002.md"] {
+        assert!(archive.join("perguntas").join(name).is_file(), "{name}");
+    }
+    assert!(!root
+        .join(format!("{work}/perguntas/respondida/P-001.md"))
+        .exists());
+    assert!(root
+        .join(format!("{work}/perguntas/aberta/P-003.md"))
+        .is_file());
+    assert_eq!(
+        fs::read(archive.join("avais/SPEC-001.log")).unwrap(),
+        log.as_bytes()
+    );
+    assert!(!root.join(format!("{work}/avais/SPEC-001.log")).exists());
+    assert!(root.join(format!("{work}/avais/SPEC-002.log")).is_file());
+    for expected in ["2 pedido(s)", "2 pergunta(s)", "PED-004"] {
+        assert!(out.contains(expected), "{expected}: {out}");
+    }
+}
+
+#[test]
+fn archive_records_archived_in_the_status_history() {
+    let project = built_folder_project();
+    project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .assert()
+        .success();
+    let content =
+        fs::read_to_string(project.harness().join("work/.archive/SPEC-001/spec.md")).unwrap();
+    let history = content
+        .lines()
+        .find(|line| line.starts_with("status_history: "))
+        .unwrap_or_else(|| panic!("sem status_history: {content}"));
+    assert!(history.ends_with(" archived"), "{history}");
+}

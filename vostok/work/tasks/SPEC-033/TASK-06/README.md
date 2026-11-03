@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-033
-- **Status:** approved
+- **Status:** done
 - **Onda:** 3
 - **Dependências:** TASK-02
 
@@ -22,10 +22,10 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** Linha de histórico nas mudanças de status da spec e as transições dos pedidos na `GET /api/atividades`.
 - **Critérios de aceite:**
-  - [ ] Cada mudança de status da spec (approved, planned, implemented, archived) ganha uma linha de histórico, gravada pelo comando que já faz a mudança (RF-12, CT-13).
-  - [ ] A linha de histórico não muda o hash do conteúdo da spec nem quebra as fixtures de equivalência (RF-12).
-  - [ ] A `GET /api/atividades` mostra o histórico de status das specs e cada transição dos pedidos, também depois de arquivados (RF-12, CT-13).
-  - [ ] O código passa no clippy e no rustfmt (RF-12).
+  - [x] Cada mudança de status da spec (approved, planned, implemented, archived) ganha uma linha de histórico, gravada pelo comando que já faz a mudança (RF-12, CT-13).
+  - [x] A linha de histórico não muda o hash do conteúdo da spec nem quebra as fixtures de equivalência (RF-12).
+  - [x] A `GET /api/atividades` mostra o histórico de status das specs e cada transição dos pedidos, também depois de arquivados (RF-12, CT-13).
+  - [x] O código passa no clippy e no rustfmt (RF-12).
 - **Rótulos:** SPEC-033, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-02

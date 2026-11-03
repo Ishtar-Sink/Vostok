@@ -4076,3 +4076,25 @@ fn docs_finish_without_start_hashes_checks_only_the_template() {
     task(&project, &["finish"]).assert().success();
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
 }
+
+#[test]
+fn finish_records_implemented_in_the_status_history() {
+    let project = running_task(&[("a.txt", "a\n")]);
+    std::fs::remove_file(project.root().join("vostok/work/tasks/SPEC-001/TASK-02.md")).unwrap();
+    let spec = "vostok/work/specs/refined/SPEC-001-exemplo.md";
+    write(
+        &project,
+        spec,
+        "---\nid: SPEC-001\nstatus: planned\nupdated_at: x\n---\n",
+    );
+    for step in ["tests", "regression", "evidence", "finish"] {
+        task(&project, &[step]).assert().success();
+    }
+    let content = read(&project, spec);
+    assert!(content.contains("\nstatus: implemented\n"), "{content}");
+    let history = content
+        .lines()
+        .find(|line| line.starts_with("status_history: "))
+        .unwrap_or_else(|| panic!("sem status_history: {content}"));
+    assert!(history.ends_with(" implemented"), "{history}");
+}

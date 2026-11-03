@@ -3,9 +3,9 @@ name: adjust-task
 description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status"
+  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status, vostok perguntas abrir"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -41,6 +41,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`.
 [adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 [adjust-task-12]: Ao ajustar "Verificação" ou "Evidências", use os formatos da skill `approve-plan`: comandos focados em "Mudar" e conferidos, rótulo `# evidência:`, `(automática)`, `(automática, da verificação)`, `(diff): caminho`, `(print): comando`, `(manual)` e o subitem `Espera:`. A evidência mostra o comportamento entregue, nunca a leitura do texto da tarefa.
+[adjust-task-13]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
 
 ## Checklist
 
@@ -127,7 +128,7 @@ Sem perguntas, vá para o passo 7.
 
 ### 6. Rodada de perguntas
 
-Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho da tarefa. **PARE** e aguarde a resposta.
+Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho da tarefa. **PARE** e aguarde a resposta. Por um pedido, grave a rodada com `vostok perguntas abrir` ([adjust-task-13]).
 
 Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique todos juntos. O que continuar sem resposta não é aplicado e aparece em "Pendências" da resposta.
 

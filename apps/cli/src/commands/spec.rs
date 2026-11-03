@@ -1139,8 +1139,23 @@ fn append_history_row(content: &str, heading: &str, row: &str) -> Option<String>
     Some(out)
 }
 
+/// Campo do front-matter com cada mudança de status da spec: `<data> <status>`, separadas por `; `.
+pub const STATUS_HISTORY_FIELD: &str = "status_history";
+
+/// Acrescenta a mudança de status ao histórico do front-matter, fora do corpo e dos hashes (RF-12).
+pub fn record_status(file: &Path, status: &str) -> Result<()> {
+    let history = frontmatter_get(file, STATUS_HISTORY_FIELD).unwrap_or_default();
+    let entry = format!("{} {status}", utc_now());
+    let history = if history.is_empty() {
+        entry
+    } else {
+        format!("{history}; {entry}")
+    };
+    frontmatter_put(file, STATUS_HISTORY_FIELD, &history)
+}
+
 /// Como `frontmatter_set`, mas acrescenta a chave no fim do front-matter se ela não existir.
-fn frontmatter_put(path: &Path, key: &str, value: &str) -> Result<()> {
+pub(crate) fn frontmatter_put(path: &Path, key: &str, value: &str) -> Result<()> {
     if frontmatter_set(path, key, value).is_ok() {
         return Ok(());
     }
@@ -1260,6 +1275,7 @@ fn approve(specs: &Specs, spec_id: &str, origin: Origin) -> Result<String> {
     frontmatter_put(&refined, &specs.setting("approved_hash_field")?, &hash)?;
     frontmatter_put(&refined, "updated_at", &now)?;
     frontmatter_put(&refined, APPROVED_BY_FIELD, origin.as_str())?;
+    record_status(&refined, &specs.status("approved")?)?;
     println!("Spec {spec_id} aprovada: {}", refined.display());
 
     // O rascunho só é removido depois de a aprovação estar gravada.

@@ -11,19 +11,20 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use crate::harness::{Harness, QuestionFolders, RequestFolders};
-use crate::support::{frontmatter_get, frontmatter_set, utc_datetime};
+use crate::support::{frontmatter_get, frontmatter_set, utc_datetime, utc_datetime_days_ago};
 
-const PENDING: &str = "pendente";
-const IN_PROGRESS: &str = "em_andamento";
-const DONE: &str = "feito";
-const REFUSED: &str = "recusado";
+pub const PENDING: &str = "pendente";
+pub const IN_PROGRESS: &str = "em_andamento";
+pub const DONE: &str = "feito";
+pub const REFUSED: &str = "recusado";
 const RESULT_HEADING: &str = "## Resultado";
 const HISTORY_HEADING: &str = "## Histórico";
 pub const OPEN: &str = "aberta";
 pub const ANSWERED: &str = "respondida";
 const CODEX: &str = "codex";
-const LEFT_PENDING: &str =
-    "o codex terminou sem processar o pedido; veja a saída do vostok pedidos vigiar";
+const CLAUDE: &str = "claude";
+/// Intervalo do disparo sob demanda entre uma conferência e outra quando não há pedido pendente.
+const DISPATCH_INTERVAL: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Subcommand)]
 pub enum PedidosCommand {
@@ -48,6 +49,11 @@ pub enum PedidosCommand {
         #[arg(long, default_value_t = 15)]
         intervalo: u64,
     },
+    /// Lista os pedidos e as perguntas que podem ser apagados; só apaga com --confirmar.
+    Prune {
+        #[arg(long)]
+        confirmar: bool,
+    },
 }
 
 pub fn run(command: PedidosCommand) -> Result<()> {
@@ -67,7 +73,160 @@ pub fn run(command: PedidosCommand) -> Result<()> {
         PedidosCommand::Vigiar { agente, intervalo } => {
             watch(&harness, &requests, &agente, intervalo)
         }
+        PedidosCommand::Prune { confirmar } => prune(&harness, confirmar),
     }
+}
+
+// --- limpeza ---
+
+/// Dias depois de concluído para um pedido ou pergunta sem spec poder ser apagado.
+const PRUNE_DAYS: u64 = 30;
+const NO_SPEC: &str = "sem spec";
+
+/// Um arquivo que o `prune` pode apagar, com a spec dele (vazia sem spec) e o motivo.
+pub struct PruneItem {
+    pub path: PathBuf,
+    pub spec: String,
+    pub reason: String,
+}
+
+/// Os pedidos e as perguntas que podem ser apagados; nunca um log de avais.
+pub fn prune_candidates(harness: &Harness) -> Result<Vec<PruneItem>> {
+    let requests = Requests::open(harness)?;
+    let questions = Questions::open(harness)?;
+    let archive = harness.path("archive")?;
+    let mut archived = Vec::new();
+    let names = [requests.dir().file_name(), questions.dir().file_name()];
+    for spec_dir in sorted_entries(&archive)
+        .into_iter()
+        .filter(|path| path.is_dir())
+    {
+        let spec = file_name_of(&spec_dir);
+        for name in names.iter().flatten() {
+            for path in sorted_entries(&spec_dir.join(name)) {
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
+                    archived.push(item(path, &spec, "arquivado"));
+                }
+            }
+        }
+    }
+    let finished: Vec<(PathBuf, &str)> = [DONE, REFUSED]
+        .iter()
+        .flat_map(|state| requests.files(Some(state)))
+        .map(|path| (path, "atualizado_em"))
+        .chain(
+            questions
+                .files(ANSWERED)
+                .into_iter()
+                .map(|path| (path, "answered_at")),
+        )
+        .collect();
+    let cutoff = utc_datetime_days_ago(PRUNE_DAYS);
+    let mut old = Vec::new();
+    let mut of_archived_spec = Vec::new();
+    for (path, date_key) in finished {
+        let spec = frontmatter_get(&path, "spec").unwrap_or_default();
+        if spec.is_empty() {
+            let date = frontmatter_get(&path, date_key)
+                .ok()
+                .filter(|date| !date.is_empty())
+                .or_else(|| frontmatter_get(&path, "created_at").ok())
+                .unwrap_or_default();
+            if !date.is_empty() && date < cutoff {
+                old.push(item(path, "", "concluído há mais de 30 dias"));
+            }
+        } else if archive.join(&spec).is_dir() {
+            of_archived_spec.push(item(path, &spec, "spec arquivada"));
+        }
+    }
+    let mut candidates = Vec::new();
+    for mut group in [archived, old, of_archived_spec] {
+        group.sort_by(|left, right| left.path.cmp(&right.path));
+        candidates.extend(group);
+    }
+    Ok(candidates)
+}
+
+/// Apaga os arquivos listados pelo `prune_candidates` e devolve quantos foram apagados.
+pub fn prune_delete(items: &[PruneItem]) -> Result<usize> {
+    for item in items {
+        fs::remove_file(&item.path).with_context(|| format!("apagando {}", item.path.display()))?;
+        if let Some(parent) = item.path.parent() {
+            // Só a pasta `pedidos/` ou `perguntas/` do arquivo morto, quando fica vazia.
+            if item.reason == "arquivado"
+                && fs::read_dir(parent).is_ok_and(|mut dir| dir.next().is_none())
+            {
+                fs::remove_dir(parent)
+                    .with_context(|| format!("removendo {}", parent.display()))?;
+            }
+        }
+    }
+    Ok(items.len())
+}
+
+fn item(path: PathBuf, spec: &str, reason: &str) -> PruneItem {
+    PruneItem {
+        path,
+        spec: spec.to_string(),
+        reason: reason.to_string(),
+    }
+}
+
+fn sorted_entries(dir: &Path) -> Vec<PathBuf> {
+    let mut entries: Vec<PathBuf> = fs::read_dir(dir)
+        .map(|entries| entries.flatten().map(|entry| entry.path()).collect())
+        .unwrap_or_default();
+    entries.sort();
+    entries
+}
+
+fn file_name_of(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+fn prune(harness: &Harness, confirm: bool) -> Result<()> {
+    let items = prune_candidates(harness)?;
+    if items.is_empty() {
+        println!("Não há o que limpar.");
+        return Ok(());
+    }
+    println!("| Arquivo | Spec | Motivo |");
+    println!("|---|---|---|");
+    for item in &items {
+        let path = item.path.strip_prefix(&harness.root).unwrap_or(&item.path);
+        let spec = if item.spec.is_empty() {
+            "-"
+        } else {
+            &item.spec
+        };
+        println!("| {} | {spec} | {} |", path.display(), item.reason);
+    }
+    let mut specs: Vec<&str> = items
+        .iter()
+        .map(|item| {
+            if item.spec.is_empty() {
+                NO_SPEC
+            } else {
+                item.spec.as_str()
+            }
+        })
+        .collect();
+    specs.sort();
+    specs.dedup();
+    let specs = specs.join(", ");
+    println!();
+    if confirm {
+        let deleted = prune_delete(&items)?;
+        println!("{deleted} arquivo(s) apagado(s), de {specs}; os avais ficam.");
+    } else {
+        println!(
+            "{} arquivo(s), de {specs}. Nada foi apagado: rode vostok pedidos prune --confirmar para apagar.",
+            items.len()
+        );
+    }
+    Ok(())
 }
 
 fn is_request_id(id: &str) -> bool {
@@ -417,12 +576,44 @@ fn watch(harness: &Harness, requests: &Requests, agent: &str, interval: u64) -> 
         "Vigiando {} a cada {interval} s com o {CODEX}.",
         requests.dir().display()
     );
+    run_loop(CODEX, &project, requests, Duration::from_secs(interval))
+}
+
+/// Processa os pendentes um por vez, em ordem de ID, e dorme quando não há nenhum (RN-04).
+fn run_loop(agent: &str, project: &Path, requests: &Requests, interval: Duration) -> Result<()> {
     loop {
         match requests.files(Some(PENDING)).first() {
-            Some(path) => process_with_codex(&project, requests, path)?,
-            None => thread::sleep(Duration::from_secs(interval)),
+            Some(path) => process_with(agent, project, requests, path)?,
+            None => thread::sleep(interval),
         }
     }
+}
+
+/// Liga o disparo sob demanda do `vostok painel` (RF-13): uma única thread com o laço do agente
+/// de `request_dispatch`. Desligado ou sem o agente no PATH, não faz nada e devolve `None`.
+pub fn start_dispatch(harness: &Harness) -> Result<Option<thread::JoinHandle<()>>> {
+    // O leitor da configuração já recusa um agente fora de "", codex e claude.
+    let agent = harness.request_dispatch()?;
+    if agent.is_empty() {
+        return Ok(None);
+    }
+    if !in_path(&agent) {
+        eprintln!(
+            "Disparo sob demanda desligado: o {agent} não está no PATH; os pedidos ficam pendentes até um agente em loop (vostok pedidos vigiar ou /process-requests)."
+        );
+        return Ok(None);
+    }
+    let project = harness.path("root")?;
+    let requests = Requests::open(harness)?;
+    eprintln!(
+        "Disparo sob demanda com o {agent} a cada {} s.",
+        DISPATCH_INTERVAL.as_secs()
+    );
+    Ok(Some(thread::spawn(move || {
+        if let Err(error) = run_loop(&agent, &project, &requests, DISPATCH_INTERVAL) {
+            eprintln!("Disparo sob demanda parado: {error:#}");
+        }
+    })))
 }
 
 fn in_path(program: &str) -> bool {
@@ -430,34 +621,54 @@ fn in_path(program: &str) -> bool {
         .is_some_and(|paths| std::env::split_paths(&paths).any(|dir| dir.join(program).is_file()))
 }
 
-fn process_with_codex(project: &Path, requests: &Requests, path: &Path) -> Result<()> {
+/// O comando não interativo do agente para a instrução.
+fn agent_command(agent: &str, instruction: &str) -> Command {
+    let mut command = Command::new(agent);
+    if agent == CLAUDE {
+        command.args([
+            "-p",
+            instruction,
+            "--permission-mode",
+            "acceptEdits",
+            "--allowedTools",
+            "Bash",
+        ]);
+    } else {
+        command.args(["exec", "--full-auto", instruction]);
+    }
+    command
+}
+
+fn left_pending(agent: &str) -> String {
+    format!(
+        "o {agent} terminou sem processar o pedido; veja a saída do vostok pedidos vigiar ou do vostok painel"
+    )
+}
+
+fn process_with(agent: &str, project: &Path, requests: &Requests, path: &Path) -> Result<()> {
     let id = path
         .file_stem()
         .and_then(|stem| stem.to_str())
         .unwrap_or_default()
         .to_string();
-    let shown = path.strip_prefix(project).unwrap_or(path);
-    let instruction = format!(
-        "Use a skill process-requests para processar o pedido {id} ({}) e só ele.",
-        shown.display()
-    );
-    let status = Command::new(CODEX)
-        .args(["exec", "--full-auto", &instruction])
+    let instruction =
+        format!("Use a skill process-requests para processar o pedido {id} e só ele.");
+    let status = agent_command(agent, &instruction)
         .current_dir(project)
         .status()
-        .with_context(|| format!("executar o {CODEX} para o pedido {id}"))?;
-    // Sem isso, um pedido que o codex não conseguiu pegar seria disparado de novo para sempre.
+        .with_context(|| format!("executar o {agent} para o pedido {id}"))?;
+    // Sem isso, um pedido que o agente não conseguiu pegar seria disparado de novo para sempre.
     let still_pending = requests
         .find(&id)
         .is_some_and(|file| frontmatter_get(&file, "estado").is_ok_and(|state| state == PENDING));
     if still_pending {
-        requests.transition(&id, &[PENDING], REFUSED, Some(LEFT_PENDING))?;
+        requests.transition(&id, &[PENDING], REFUSED, Some(&left_pending(agent)))?;
     }
     let state = requests
         .find(&id)
         .and_then(|file| frontmatter_get(&file, "estado").ok())
         .unwrap_or_default();
-    println!("{id}: {state} (codex saiu com {status})");
+    println!("{id}: {state} ({agent} saiu com {status})");
     Ok(())
 }
 

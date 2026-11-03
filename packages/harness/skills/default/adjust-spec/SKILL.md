@@ -3,9 +3,9 @@ name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record"
+  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record, vostok perguntas abrir"
   templates: "templates/spec/sections"
 ---
 
@@ -39,6 +39,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [adjust-spec-06]: Não amplie o pedido. O que não foi pedido e for necessário para a spec continuar coerente é inferência e entra no "Registro de decisões".
 [adjust-spec-07]: O tipo da spec não muda num ajuste. Se o pedido exige outro tipo, **PARE** e responda com o template `blocker`.
 [adjust-spec-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok spec adjust record`.
+[adjust-spec-09]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
 
 ## Checklist
 
@@ -131,7 +132,7 @@ Sem perguntas, vá para o passo 7.
 
 ### 6. Rodada de perguntas
 
-Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho da spec. **PARE** e aguarde a resposta.
+Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho da spec. **PARE** e aguarde a resposta. Por um pedido, grave a rodada com `vostok perguntas abrir` ([adjust-spec-09]).
 
 Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique todos juntos. O que continuar sem resposta não é aplicado e aparece em "Pendências" da refinada.
 

@@ -48,6 +48,7 @@ pub fn run(args: PainelArgs) -> Result<()> {
         )
     })?;
     let painel = Painel::new(&harness)?;
+    let _dispatch = crate::commands::pedidos::start_dispatch(&harness)?;
     if !server::HAS_BUNDLE {
         eprintln!("{}", server::BUNDLE_MISSING);
     }

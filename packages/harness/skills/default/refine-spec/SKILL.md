@@ -3,9 +3,9 @@ name: refine-spec
 description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined"
+  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined, vostok perguntas abrir"
   templates: "templates/spec/refined.md templates/spec/sections"
 ---
 
@@ -39,6 +39,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [refine-spec-06]: Todo critério de aceite da refinada precisa ser verificável.
 [refine-spec-07]: Nenhuma seção fica genérica. Cada seção traz informação concreta do projeto (caminhos, comandos, campos, IDs), vinda do rascunho, das respostas do usuário ou da investigação (com referência), ou registrada como inferência.
 [refine-spec-08]: Uma lacuna é também uma seção do tipo que não pode ser preenchida com essa informação. Ela vira pergunta ou inferência, pelo critério do passo 4.
+[refine-spec-09]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, com a tabela de inferências, em vez do chat; depois, **PARE**. A rodada é contada pelas perguntas já respondidas da mesma spec nesta cadeia de pedidos, e o limite de [refine-spec-03] vale igual.
 
 ## Checklist
 
@@ -110,7 +111,7 @@ Leia só o necessário para preencher as seções do tipo. Não altere nenhum ar
 
 Sem perguntas: vá para o passo 6 e mostre as inferências na resposta final.
 
-Com perguntas: envie numa única mensagem todas as perguntas, com o template `question`, seguidas da [tabela de inferências](#tabela-de-inferências). **PARE** e aguarde a resposta.
+Com perguntas: envie numa única mensagem todas as perguntas, com o template `question`, seguidas da [tabela de inferências](#tabela-de-inferências). **PARE** e aguarde a resposta. Por um pedido, grave a rodada com `vostok perguntas abrir` ([refine-spec-09]); na 2ª rodada respondida pelo painel, o que continuar em aberto vai para as pendências (RN-03).
 
 Ao receber as respostas:
 

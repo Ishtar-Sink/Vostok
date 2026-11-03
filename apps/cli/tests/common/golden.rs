@@ -535,12 +535,12 @@ pub fn normalize(text: &str, root: &Path) -> String {
     // Desde a v0.4.0 o registro de execução grava a hora; as fixtures dos scripts bash, só a data.
     let text = text.replace(" | <DATETIME> | ", " | <DATE> | ");
     // Os scripts bash nunca gravaram o campo `approved_by`, que só a CLI grava (e limpa com `null`).
+    // Os scripts bash nunca gravaram o histórico de status, que só a CLI grava.
     text.split_inclusive('\n')
         .filter(|line| {
-            !matches!(
-                line.trim_end_matches('\n'),
-                "approved_by: chat" | "approved_by: null"
-            )
+            let line = line.trim_end_matches('\n');
+            !matches!(line, "approved_by: chat" | "approved_by: null")
+                && !line.starts_with("status_history:")
         })
         .collect()
 }

@@ -1158,6 +1158,7 @@ impl Workspace {
             );
         };
         write(&spec, &frontmatter_put(&content, "updated_at", &utc_now())?)?;
+        crate::commands::spec::record_status(&spec, &planned)?;
         fs::remove_file(&plan)
             .with_context(|| format!("não foi possível remover {}", plan.display()))?;
         println!(

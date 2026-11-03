@@ -7,10 +7,10 @@ use anyhow::Result;
 
 use super::{json, json_string, not_found, query_value, text, Painel, Reply};
 use crate::aval;
-use crate::commands::pedidos::Requests;
+use crate::commands::pedidos::{self, Questions, Requests, ANSWERED, OPEN};
 use crate::commands::{plan, rules, spec, task};
 use crate::harness::Harness;
-use crate::support::{config_get, frontmatter_get, sha256_hex, utc_datetime};
+use crate::support::{config_get, frontmatter_get, frontmatter_set, sha256_hex, utc_datetime};
 
 /// Ações que o painel grava como pedido ao agente. Aprovar spec e tarefa não está aqui: o painel
 /// aprova direto, para que o agente não fique entre o clique e a aprovação (RN-04).
@@ -26,6 +26,11 @@ const REQUEST_ACTIONS: &[&str] = &[
     "finalizar-spec",
     "responder-pergunta",
     "fazer-commit",
+    "criar-spec",
+    "refinar-spec",
+    "executar-onda",
+    "liberar-commits",
+    "desfazer-commits",
 ];
 
 /// Pedidos que o agente só cumpre com aval: o painel grava o aval junto do pedido (RF-10).
@@ -34,6 +39,8 @@ const LOCKED_ACTIONS: &[&str] = &[
     "aprovar-plano",
     "finalizar-spec",
     "fazer-commit",
+    "liberar-commits",
+    "desfazer-commits",
 ];
 
 /// Arquivos da tarefa que só o `vostok` grava (RN-03).
@@ -55,6 +62,8 @@ pub fn act(painel: &Painel, method: &str, parts: &[&str], query: &str, body: &[u
         }
         ("POST", ["api", "aprovacoes"]) => approve(painel, &value("spec"), &value("tarefas")),
         ("POST", ["api", "pedidos"]) => request(painel, query, body),
+        ("POST", ["api", "conferencias"]) => review_print(painel, query),
+        ("POST", ["api", "limpeza"]) => prune(painel, value("confirmar") == "sim"),
         _ => not_found(),
     }
 }
@@ -292,6 +301,12 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
         return text(400, "spec ou tarefa inválida");
     }
     let text_of_user = String::from_utf8_lossy(body);
+    let text_of_user = text_of_user.trim();
+    let (spec_id, task_id, request_text) =
+        match request_fields(painel, &action, query, spec_id, task_id, text_of_user) {
+            Ok(fields) => fields,
+            Err(reply) => return reply,
+        };
     let locked = LOCKED_ACTIONS.contains(&action.as_str());
     let target = if locked {
         match locked_target(painel, &action, &spec_id, &task_id) {
@@ -313,7 +328,7 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
             &action,
             &spec_id,
             &task_id,
-            text_of_user.trim(),
+            &request_text,
             &utc_datetime(),
         )
     });
@@ -324,7 +339,7 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
     if let Some(target) = target {
         let (aval_id, hash) = match target {
             AvalTarget::Hashed(aval_id, hash) => (aval_id, hash),
-            AvalTarget::Request => (id.clone(), sha256_hex(text_of_user.trim().as_bytes())),
+            AvalTarget::Request => (id.clone(), sha256_hex(text_of_user.as_bytes())),
         };
         if let Err(error) = record_aval(painel, &aval_id, &hash, &action) {
             let _ = fs::remove_file(&path);
@@ -332,6 +347,158 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
         }
     }
     json(format!("{{\"id\":{}}}", json_string(&id)))
+}
+
+/// A spec, a tarefa e o texto do pedido, conferidos para as ações que exigem campos; a resposta
+/// a uma pergunta já move a pergunta para as respondidas e usa a spec e a tarefa dela.
+fn request_fields(
+    painel: &Painel,
+    action: &str,
+    query: &str,
+    spec_id: String,
+    task_id: String,
+    text_of_user: &str,
+) -> Result<(String, String, String), Reply> {
+    match action {
+        "criar-spec" if text_of_user.is_empty() => {
+            Err(text(400, "o assunto da spec é obrigatório"))
+        }
+        "refinar-spec" | "executar-onda" if spec_id.is_empty() => {
+            Err(text(400, "spec obrigatória"))
+        }
+        "executar-onda" => {
+            let wave = query_value(query, "onda")
+                .parse::<u32>()
+                .ok()
+                .filter(|wave| *wave > 0)
+                .ok_or_else(|| text(400, "onda inválida"))?;
+            let request_text = if text_of_user.is_empty() {
+                format!("Onda {wave}.")
+            } else {
+                format!("Onda {wave}.\n{text_of_user}")
+            };
+            Ok((spec_id, task_id, request_text))
+        }
+        "responder-pergunta" => {
+            answer_question(painel, &query_value(query, "pergunta"), text_of_user)
+        }
+        _ => Ok((spec_id, task_id, text_of_user.to_string())),
+    }
+}
+
+/// Move a pergunta aberta para as respondidas com a resposta; a segunda resposta dá 409 (CB-06).
+fn answer_question(
+    painel: &Painel,
+    question_id: &str,
+    answer: &str,
+) -> Result<(String, String, String), Reply> {
+    if !is_id(question_id) {
+        return Err(text(400, "pergunta inválida"));
+    }
+    if answer.is_empty() {
+        return Err(text(400, "a resposta é obrigatória"));
+    }
+    let questions = Questions::open(&Harness {
+        root: painel.root.clone(),
+    })
+    .map_err(|error| text(500, &error.to_string()))?;
+    let folder = |status| questions.folder_of(status).unwrap_or_default();
+    let name = format!("{question_id}.md");
+    let (open, answered) = (folder(OPEN).join(&name), folder(ANSWERED).join(&name));
+    if !open.is_file() {
+        return Err(if answered.is_file() {
+            text(409, "a pergunta já foi respondida")
+        } else {
+            text(404, "pergunta não encontrada")
+        });
+    }
+    fs::create_dir_all(folder(ANSWERED)).map_err(|error| text(500, &error.to_string()))?;
+    if let Err(error) = fs::rename(&open, &answered) {
+        // Outra aba respondeu entre a conferência e o `rename`.
+        return Err(if error.kind() == std::io::ErrorKind::NotFound {
+            text(409, "a pergunta já foi respondida")
+        } else {
+            text(500, &error.to_string())
+        });
+    }
+    let recorded = frontmatter_set(&answered, "status", ANSWERED)
+        .and_then(|()| spec::frontmatter_put(&answered, "answered_at", &utc_datetime()))
+        .and_then(|()| {
+            let content = fs::read_to_string(&answered)?;
+            fs::write(
+                &answered,
+                format!("{}\n\n## Resposta\n\n{answer}\n", content.trim_end()),
+            )?;
+            Ok(())
+        });
+    if let Err(error) = recorded {
+        return Err(text(500, &format!("a resposta não foi gravada: {error:#}")));
+    }
+    let field = |key| frontmatter_get(&answered, key).unwrap_or_default();
+    Ok((
+        field("spec"),
+        field("task"),
+        format!(
+            "Resposta à pergunta {question_id} do pedido {}.\n\n{answer}",
+            field("pedido")
+        ),
+    ))
+}
+
+// --- conferência de prints e limpeza ---
+
+/// `POST /api/conferencias`: o usuário aceita ou rejeita um print da tarefa (RF-06).
+fn review_print(painel: &Painel, query: &str) -> Reply {
+    let (spec_id, task_id) = (query_value(query, "spec"), query_value(query, "tarefa"));
+    let print = query_value(query, "print");
+    if !is_id(&spec_id) || !is_id(&task_id) {
+        return text(400, "spec ou tarefa inválida");
+    }
+    if print.is_empty() || print.contains('/') || print.contains('\\') || print.contains("..") {
+        return text(400, "print inválido");
+    }
+    let result = query_value(query, "resultado");
+    let accepted = match result.as_str() {
+        "aceito" => true,
+        "rejeitado" => false,
+        _ => return text(400, "resultado inválido: use aceito ou rejeitado"),
+    };
+    match task::review_print_from_panel(&painel.project, &spec_id, &task_id, &print, accepted) {
+        Ok(()) => json(format!(
+            "{{\"conferido\":{},\"resultado\":{}}}",
+            json_string(&print),
+            json_string(&result)
+        )),
+        Err(error) => text(422, &format!("{error:#}")),
+    }
+}
+
+/// `POST /api/limpeza`: lista o que o `vostok pedidos prune` apagaria; com `confirmar=sim`, apaga.
+fn prune(painel: &Painel, confirm: bool) -> Reply {
+    let harness = Harness {
+        root: painel.root.clone(),
+    };
+    let items = match pedidos::prune_candidates(&harness) {
+        Ok(items) => items,
+        Err(error) => return text(500, &format!("{error:#}")),
+    };
+    let paths: Vec<String> = items
+        .iter()
+        .map(|item| {
+            let relative = item
+                .path
+                .strip_prefix(&painel.project)
+                .unwrap_or(&item.path);
+            json_string(&relative.to_string_lossy())
+        })
+        .collect();
+    if !confirm {
+        return json(format!("{{\"arquivos\":[{}]}}", paths.join(",")));
+    }
+    match pedidos::prune_delete(&items) {
+        Ok(_) => json(format!("{{\"apagados\":[{}]}}", paths.join(","))),
+        Err(error) => text(500, &format!("{error:#}")),
+    }
 }
 
 /// Alvo do aval de um pedido travado: o hash já conhecido, ou o texto do próprio pedido.
@@ -347,7 +514,7 @@ fn locked_target(
     task_id: &str,
 ) -> Result<AvalTarget, Reply> {
     match action {
-        "fazer-commit" => Ok(AvalTarget::Request),
+        "fazer-commit" | "liberar-commits" | "desfazer-commits" => Ok(AvalTarget::Request),
         "finalizar-tarefa" => {
             let hash = task_approved_hash(painel, spec_id, task_id)
                 .ok_or_else(|| text(422, "a tarefa não está aprovada"))?;
@@ -962,22 +1129,276 @@ mod tests {
     }
 
     #[test]
-    fn request_actions_are_eleven() {
-        assert_eq!(REQUEST_ACTIONS.len(), 11);
+    fn request_actions_are_sixteen() {
+        assert_eq!(REQUEST_ACTIONS.len(), 16);
+    }
+
+    fn pending(painel: &Painel, id: &str) -> String {
+        read(painel, &format!("vostok/work/pedidos/pendente/{id}.md"))
+    }
+
+    fn pending_count(painel: &Painel) -> usize {
+        fs::read_dir(painel.work.join("pedidos/pendente"))
+            .map(|entries| entries.count())
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn spec_requests_are_written_with_their_fields() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let reply = post(&painel, "pedidos", "acao=criar-spec", b"Painel de custos");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = pending(&painel, "PED-001");
+        assert!(content.contains("\nspec: \n"), "{content}");
+        assert!(
+            content.contains("## Pedido\n\nPainel de custos\n"),
+            "{content}"
+        );
+        let reply = post(&painel, "pedidos", "acao=refinar-spec&spec=SPEC-001", b"");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert!(pending(&painel, "PED-002").contains("\nspec: SPEC-001\n"));
+        let query = "acao=executar-onda&spec=SPEC-001&onda=2";
+        let reply = post(&painel, "pedidos", query, b"Com cuidado");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = pending(&painel, "PED-003");
+        assert!(content.contains("\nspec: SPEC-001\n"), "{content}");
+        assert!(
+            content.contains("## Pedido\n\nOnda 2.\nCom cuidado\n"),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn spec_requests_without_their_fields_are_400() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        for (query, text_of_user) in [
+            ("acao=criar-spec", &b""[..]),
+            ("acao=criar-spec", &b"  \n "[..]),
+            ("acao=refinar-spec", &b"x"[..]),
+            ("acao=executar-onda&spec=SPEC-001", &b"x"[..]),
+            ("acao=executar-onda&spec=SPEC-001&onda=0", &b"x"[..]),
+            ("acao=executar-onda&spec=SPEC-001&onda=x", &b"x"[..]),
+            ("acao=executar-onda&onda=1", &b"x"[..]),
+        ] {
+            let reply = post(&painel, "pedidos", query, text_of_user);
+            assert_eq!(reply.status, 400, "{query}: {}", body(&reply));
+        }
+        assert_eq!(pending_count(&painel), 0);
+    }
+
+    #[test]
+    fn commit_release_and_undo_requests_record_the_aval() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        for (index, action) in ["liberar-commits", "desfazer-commits"].iter().enumerate() {
+            let reply = post(
+                &painel,
+                "pedidos",
+                &format!("acao={action}"),
+                b" Liberar.\n",
+            );
+            assert_eq!(reply.status, 200, "{}", body(&reply));
+            assert_eq!(
+                last_aval_fields(&painel, "sem-spec.log"),
+                [
+                    format!("PED-{:03}", index + 1).as_str(),
+                    sha256_hex(b"Liberar.").as_str(),
+                    "painel",
+                    action
+                ]
+            );
+        }
+    }
+
+    const PRINT_EVIDENCE: &str = "- `tela.png` (print): `true`";
+    const PRINT_FILE: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/tela.png";
+
+    fn running_print_task() -> (TempDir, Painel) {
+        let (dir, painel) = project(PRINT_EVIDENCE);
+        let content = read(&painel, TASK).replace("status: pending", "status: in_progress");
+        write(&painel, TASK, &content);
+        write(&painel, PRINT_FILE, "PNG");
+        (dir, painel)
+    }
+
+    fn review(painel: &Painel, print: &str, result: &str) -> Reply {
+        post(
+            painel,
+            "conferencias",
+            &format!("spec=SPEC-001&tarefa=TASK-01&print={print}&resultado={result}"),
+            b"",
+        )
+    }
+
+    #[test]
+    fn print_review_accepted_records_the_panel_origin() {
+        let (_dir, painel) = running_print_task();
+        let reply = review(&painel, "tela.png", "aceito");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = read(&painel, TASK);
+        assert!(
+            content.contains(
+                "| conferência | painel | print tela.png conferido pelo usuário (sha256 "
+            ),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn print_review_rejected_blocks_the_task() {
+        let (_dir, painel) = running_print_task();
+        let reply = review(&painel, "tela.png", "rejeitado");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = read(&painel, TASK);
+        assert!(content.contains("\nstatus: blocked\n"), "{content}");
+        assert!(content.contains("\nevidence_result: failed\n"), "{content}");
+        assert!(
+            content.contains(
+                "| conferência | rejeitado | print tela.png rejeitado no painel (sha256 "
+            ),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn print_review_of_an_unknown_print_or_idle_task_is_422() {
+        let (_dir, painel) = running_print_task();
+        let before = read(&painel, TASK);
+        let reply = review(&painel, "outra.png", "aceito");
+        assert_eq!(reply.status, 422);
+        assert!(
+            body(&reply).contains("não é um print desta tarefa"),
+            "{}",
+            body(&reply)
+        );
+        assert_eq!(review(&painel, "tela.png", "talvez").status, 400);
+        for print in ["../tela.png", "a/tela.png", ""] {
+            assert_eq!(review(&painel, print, "aceito").status, 400, "{print}");
+        }
+        assert_eq!(read(&painel, TASK), before);
+
+        let (_dir, painel) = project(PRINT_EVIDENCE);
+        write(&painel, PRINT_FILE, "PNG");
+        let before = read(&painel, TASK);
+        assert_eq!(review(&painel, "tela.png", "aceito").status, 422);
+        assert_eq!(read(&painel, TASK), before);
+    }
+
+    #[test]
+    fn prune_route_lists_without_deleting_and_deletes_with_confirmation() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        assert_eq!(
+            body(&post(&painel, "limpeza", "", b"")),
+            "{\"arquivos\":[]}"
+        );
+        assert_eq!(
+            body(&post(&painel, "limpeza", "confirmar=sim", b"")),
+            "{\"apagados\":[]}"
+        );
+        let archived = "vostok/work/.archive/SPEC-009/pedidos/PED-001.md";
+        write(&painel, archived, "---\nid: PED-001\nspec: SPEC-009\n---\n");
+        write(
+            &painel,
+            "vostok/work/avais/SPEC-009.log",
+            "d\tSPEC-009\th\tpainel\n",
+        );
+        let listed = post(&painel, "limpeza", "", b"");
+        assert_eq!(listed.status, 200);
+        assert_eq!(body(&listed), format!("{{\"arquivos\":[\"{archived}\"]}}"));
+        assert!(painel.project.join(archived).is_file());
+        let deleted = post(&painel, "limpeza", "confirmar=sim", b"");
+        assert_eq!(deleted.status, 200);
+        assert_eq!(body(&deleted), format!("{{\"apagados\":[\"{archived}\"]}}"));
+        assert!(!painel.project.join(archived).exists());
+        assert!(painel.work.join("avais/SPEC-009.log").is_file());
+    }
+
+    const QUESTION: &str = "vostok/work/perguntas/aberta/P-001.md";
+    const ANSWERED_QUESTION: &str = "vostok/work/perguntas/respondida/P-001.md";
+
+    fn with_question() -> (TempDir, Painel) {
+        let (dir, painel) = project(VALID_EVIDENCE);
+        write(
+            &painel,
+            QUESTION,
+            "---\nid: P-001\npedido: PED-004\nspec: SPEC-001\ntask: TASK-01\nstatus: aberta\ncreated_at: 2026-11-03T10:00:00Z\n---\n\n## Pergunta\n\n# 1. Qual caminho?\n",
+        );
+        (dir, painel)
+    }
+
+    fn answer(painel: &Painel, question: &str, text_of_user: &[u8]) -> Reply {
+        post(
+            painel,
+            "pedidos",
+            &format!("acao=responder-pergunta&pergunta={question}&spec=SPEC-009"),
+            text_of_user,
+        )
+    }
+
+    #[test]
+    fn answer_moves_the_question_and_creates_the_reply_request() {
+        let (_dir, painel) = with_question();
+        let reply = answer(&painel, "P-001", b"Op\xc3\xa7\xc3\xa3o A");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert!(!painel.project.join(QUESTION).exists());
+        let question = read(&painel, ANSWERED_QUESTION);
+        assert!(question.contains("\nstatus: respondida\n"), "{question}");
+        assert!(question.contains("\nanswered_at: "), "{question}");
+        assert!(
+            question.ends_with("\n## Resposta\n\nOpção A\n"),
+            "{question}"
+        );
+        let request = pending(&painel, "PED-001");
+        for expected in [
+            "\nacao: responder-pergunta\n",
+            "\nspec: SPEC-001\n",
+            "\ntarefa: TASK-01\n",
+            "## Pedido\n\nResposta à pergunta P-001 do pedido PED-004.\n\nOpção A\n",
+        ] {
+            assert!(request.contains(expected), "{expected}: {request}");
+        }
+    }
+
+    #[test]
+    fn second_answer_is_409_and_keeps_the_first() {
+        let (_dir, painel) = with_question();
+        assert_eq!(answer(&painel, "P-001", "Opção A".as_bytes()).status, 200);
+        let reply = answer(&painel, "P-001", b"Outra");
+        assert_eq!(reply.status, 409, "{}", body(&reply));
+        assert_eq!(pending_count(&painel), 1);
+        let question = read(&painel, ANSWERED_QUESTION);
+        assert!(
+            question.contains("Opção A") && !question.contains("Outra"),
+            "{question}"
+        );
+    }
+
+    #[test]
+    fn answer_without_question_or_text_is_400_and_missing_is_404() {
+        let (_dir, painel) = with_question();
+        let missing = post(&painel, "pedidos", "acao=responder-pergunta", b"x");
+        assert_eq!(missing.status, 400);
+        assert_eq!(answer(&painel, "../x", b"x").status, 400);
+        assert_eq!(answer(&painel, "P-001", b"  ").status, 400);
+        assert_eq!(answer(&painel, "P-099", b"x").status, 404);
+        assert_eq!(pending_count(&painel), 0);
+        assert!(painel.project.join(QUESTION).is_file());
     }
 
     #[test]
     fn every_accepted_action_is_written_with_the_next_number() {
         let (_dir, painel) = project(VALID_EVIDENCE);
         approve_task_and_write_targets(&painel);
-        for (index, action) in REQUEST_ACTIONS.iter().enumerate() {
+        let actions = REQUEST_ACTIONS
+            .iter()
+            .filter(|action| **action != "responder-pergunta");
+        for (index, action) in actions.enumerate() {
             let reply = post(
                 &painel,
                 "pedidos",
-                &format!("acao={action}&spec=SPEC-001&tarefa=TASK-01"),
+                &format!("acao={action}&spec=SPEC-001&tarefa=TASK-01&onda=1"),
                 b"x",
             );
-            assert_eq!(reply.status, 200, "{action}");
+            assert_eq!(reply.status, 200, "{action}: {}", body(&reply));
             let id = format!("PED-{:03}", index + 1);
             let content = read(&painel, &format!("vostok/work/pedidos/pendente/{id}.md"));
             assert!(
@@ -985,7 +1406,7 @@ mod tests {
                 "{content}"
             );
         }
-        assert_eq!(REQUEST_ACTIONS.len(), 11);
+        assert_eq!(REQUEST_ACTIONS.len(), 16);
     }
 
     #[test]

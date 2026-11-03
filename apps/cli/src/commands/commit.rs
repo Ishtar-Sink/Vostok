@@ -24,6 +24,8 @@ const STOP: &str = "PARE: responda com o template `blocker`, mostre os commits e
 const NOTHING_PENDING: &str = "Nenhum commit sem liberação.";
 const TOKEN_LENGTH: usize = 12;
 const COMMIT_ACTION: &str = "fazer-commit";
+const RELEASE_ACTION: &str = "liberar-commits";
+const UNDO_ACTION: &str = "desfazer-commits";
 const REQUEST_IN_PROGRESS: &str = "em_andamento";
 
 #[derive(Debug, Subcommand)]
@@ -37,13 +39,18 @@ pub enum CommitCommand {
     Show,
     /// Libera os commits apontados.
     Approve {
-        /// Pedido `fazer-commit` do painel, exigido com a trava de aval ligada.
+        /// Pedido `fazer-commit` ou `liberar-commits` do painel, exigido com a trava de aval ligada.
         #[arg(long)]
         pedido: Option<String>,
         code: Option<String>,
     },
     /// Desfaz os commits novos da branch atual.
-    Revert { code: Option<String> },
+    Revert {
+        /// Pedido `desfazer-commits` do painel, exigido com a trava de aval ligada.
+        #[arg(long)]
+        pedido: Option<String>,
+        code: Option<String>,
+    },
     /// Faz um commit já liberado, com a mensagem pela entrada padrão.
     Commit {
         /// Pedido `fazer-commit` do painel, exigido com a trava de aval ligada.
@@ -67,9 +74,9 @@ pub fn run(command: CommitCommand) -> Result<()> {
         CommitCommand::Approve { pedido, code } => repo
             .require_reference()
             .and_then(|()| approve(&repo, &harness, pedido.as_deref(), code.as_deref())),
-        CommitCommand::Revert { code } => repo
+        CommitCommand::Revert { pedido, code } => repo
             .require_reference()
-            .and_then(|()| revert(&repo, code.as_deref())),
+            .and_then(|()| revert(&repo, &harness, pedido.as_deref(), code.as_deref())),
         CommitCommand::Commit { pedido, paths } => repo
             .require_reference()
             .and_then(|()| commit(&repo, &harness, pedido.as_deref(), &paths)),
@@ -134,7 +141,7 @@ fn approve(
     request: Option<&str>,
     code: Option<&str>,
 ) -> Result<()> {
-    require_request(harness, request)?;
+    require_request(harness, request, &[COMMIT_ACTION, RELEASE_ACTION])?;
     repo.require_token(code)?;
     let errors = repo.ack_errors()?;
     let count = if errors.is_empty() {
@@ -156,7 +163,7 @@ fn approve(
 }
 
 fn commit(repo: &Repo, harness: &Harness, request: Option<&str>, paths: &[String]) -> Result<()> {
-    require_request(harness, request)?;
+    require_request(harness, request, &[COMMIT_ACTION])?;
     if !repo.checked_changes()?.is_empty() {
         bail!("já há commits sem liberação; mostre-os ao usuário e libere ou desfaça antes de um commit novo");
     }
@@ -187,13 +194,15 @@ fn commit(repo: &Repo, harness: &Harness, request: Option<&str>, paths: &[String
     Ok(())
 }
 
-/// Com a trava ligada, exige um pedido `fazer-commit` em andamento com o aval do painel (RF-06, RF-07).
-fn require_request(harness: &Harness, request: Option<&str>) -> Result<()> {
+/// Com a trava ligada, exige um pedido em andamento de uma das ações, com o aval do painel para a
+/// ação do próprio pedido (RF-06, RF-07, RN-02).
+fn require_request(harness: &Harness, request: Option<&str>, actions: &[&str]) -> Result<()> {
     if !aval::lock_enabled(harness)? {
         return Ok(());
     }
+    let accepted = actions.join(" ou ");
     let Some(request) = request else {
-        bail!("com a trava de aval ligada, o commit exige --pedido PED-NNN de um pedido {COMMIT_ACTION} do painel (vostok painel)");
+        bail!("com a trava de aval ligada, a operação exige --pedido PED-NNN de um pedido {accepted} do painel (vostok painel)");
     };
     let is_request_id = request
         .strip_prefix("PED-")
@@ -209,14 +218,14 @@ fn require_request(harness: &Harness, request: Option<&str>) -> Result<()> {
         );
     };
     let (state, action) = aval::request_state(&path)?;
-    if action != COMMIT_ACTION {
-        bail!("o pedido {request} é da ação '{action}'; o commit exige um pedido {COMMIT_ACTION}");
+    if !actions.contains(&action.as_str()) {
+        bail!("o pedido {request} é da ação '{action}'; a operação exige um pedido {accepted}");
     }
     if state != REQUEST_IN_PROGRESS {
-        bail!("o pedido {request} está '{state}'; o commit exige o pedido em {REQUEST_IN_PROGRESS} (vostok pedidos iniciar {request})");
+        bail!("o pedido {request} está '{state}'; a operação exige o pedido em {REQUEST_IN_PROGRESS} (vostok pedidos iniciar {request})");
     }
     let hash = aval::request_text_hash(&path)?;
-    aval::require(harness, request, COMMIT_ACTION, &hash)
+    aval::require(harness, request, &action, &hash)
 }
 
 fn read_message() -> Result<String> {
@@ -231,7 +240,8 @@ fn read_message() -> Result<String> {
     Ok(message)
 }
 
-fn revert(repo: &Repo, code: Option<&str>) -> Result<()> {
+fn revert(repo: &Repo, harness: &Harness, request: Option<&str>, code: Option<&str>) -> Result<()> {
+    require_request(harness, request, &[UNDO_ACTION])?;
     repo.require_token(code)?;
     let changes = repo.checked_changes()?;
     if changes.is_empty() {

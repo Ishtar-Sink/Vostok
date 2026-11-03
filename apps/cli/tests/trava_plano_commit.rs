@@ -399,6 +399,95 @@ fn commit_approve_needs_the_request() {
     );
 }
 
+fn release_code(project: &Project) -> String {
+    stdout(&mut commit_cmd(project, &["show"]))
+        .lines()
+        .last()
+        .unwrap()
+        .strip_prefix("Código de liberação: ")
+        .unwrap()
+        .to_string()
+}
+
+fn unreleased_commit(project: &Project) {
+    write_file(project, "a.txt", "a\n");
+    git(project.root(), &["add", "a.txt"]);
+    git(project.root(), &["commit", "-q", "-m", "feat: a"]);
+}
+
+#[test]
+fn commit_approve_accepts_the_release_request() {
+    let project = locked_git_project();
+    unreleased_commit(&project);
+    let code = release_code(&project);
+    write_request(&project, "PED-001", "liberar-commits", "em_andamento");
+    add_aval(&project, "PED-001", &request_hash(), "liberar-commits");
+    let out = stdout(&mut commit_cmd(
+        &project,
+        &["approve", "--pedido", "PED-001", &code],
+    ));
+    assert!(out.starts_with("Liberação gravada: 1 commit"), "{out}");
+    assert_eq!(
+        stdout(&mut commit_cmd(&project, &["check"])),
+        "Nenhum commit sem liberação.\n"
+    );
+}
+
+/// Como `locked_git_project`, com um commit inicial já liberado: o desfazer volta a ele.
+fn locked_git_project_with_a_base() -> Project {
+    let project = Project::new();
+    config_set(
+        &project.harness().join("config/main.yml"),
+        "paths.root",
+        "../",
+    )
+    .unwrap();
+    git(project.root(), &["init", "-q", "-b", "main"]);
+    write_file(&project, "base.txt", "base\n");
+    git(project.root(), &["add", "base.txt"]);
+    git(project.root(), &["commit", "-q", "-m", "chore: base"]);
+    stdout(&mut commit_cmd(&project, &["check"]));
+    lock(&project);
+    project
+}
+
+#[test]
+fn commit_revert_needs_the_undo_request() {
+    let project = locked_git_project_with_a_base();
+    unreleased_commit(&project);
+    let code = release_code(&project);
+
+    let stderr = failure_stderr(&mut commit_cmd(&project, &["revert", &code]));
+    assert!(stderr.contains("--pedido"), "{stderr}");
+
+    write_request(&project, "PED-001", "fazer-commit", "em_andamento");
+    add_aval(&project, "PED-001", &request_hash(), "fazer-commit");
+    let stderr = failure_stderr(&mut commit_cmd(
+        &project,
+        &["revert", "--pedido", "PED-001", &code],
+    ));
+    assert!(stderr.contains("desfazer-commits"), "{stderr}");
+    assert_eq!(head_count(&project), 2);
+
+    write_request(&project, "PED-002", "desfazer-commits", "em_andamento");
+    let stderr = failure_stderr(&mut commit_cmd(
+        &project,
+        &["revert", "--pedido", "PED-002", &code],
+    ));
+    assert!(stderr.contains(AVAL_REFUSAL), "{stderr}");
+
+    add_aval(&project, "PED-002", &request_hash(), "desfazer-commits");
+    stdout(&mut commit_cmd(
+        &project,
+        &["revert", "--pedido", "PED-002", &code],
+    ));
+    assert_eq!(head_count(&project), 1);
+    assert_eq!(
+        stdout(&mut commit_cmd(&project, &["check"])),
+        "Nenhum commit sem liberação.\n"
+    );
+}
+
 #[test]
 fn commit_without_the_lock_needs_no_request() {
     let project = Project::new();

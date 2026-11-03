@@ -158,6 +158,51 @@ fn spec_approve_records_origin_chat() {
     assert!(content.contains("\napproved_by: chat\n"), "{content}");
 }
 
+#[test]
+fn approve_records_the_status_history() {
+    let project = Project::new();
+    let spec = |args: &[&str]| {
+        let mut command = project.vostok();
+        command.args(["spec"]).args(args);
+        command.assert().success();
+    };
+    spec(&["new", "Exemplo"]);
+    spec(&["refine", "SPEC-001", "improvement"]);
+    let file = project
+        .harness()
+        .join("work/specs/refined/SPEC-001-exemplo.md");
+    let filler = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/fill-refined.py"
+    );
+    std::process::Command::new("python3")
+        .arg(filler)
+        .arg(&file)
+        .status()
+        .expect("preenche a spec")
+        .success()
+        .then_some(())
+        .expect("fill-refined.py terminou com erro");
+    fs::write(project.root().join("AGENTS.md"), "").unwrap();
+    spec(&["adjust", "record-manual", "SPEC-001"]);
+    let hash = |content: &str| {
+        content
+            .lines()
+            .find(|line| line.starts_with("content_hash: "))
+            .unwrap()
+            .to_string()
+    };
+    let before = hash(&fs::read_to_string(&file).unwrap());
+    spec(&["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    let history = content
+        .lines()
+        .find(|line| line.starts_with("status_history: "))
+        .unwrap_or_else(|| panic!("sem status_history: {content}"));
+    assert!(history.ends_with(" approved"), "{history}");
+    assert_eq!(hash(&content), before);
+}
+
 // --- Componentes afetados prontos para o plano (SPEC-015) ---
 
 fn refined_with_components(project: &Project, components: &str, contracts: &str) {

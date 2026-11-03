@@ -23,7 +23,7 @@ Resultado esperado: as quatro execuções terminam com código 0, sem `FAILED` n
   - Prova: o painel grava os pedidos novos com os campos certos, confere prints com a origem `painel` (aceito e rejeitado), lista e limpa com confirmação, e responde à pergunta movendo-a e criando o pedido de resposta, com 409 na segunda resposta (RF-03, RF-06, RF-07, CT-03, CT-07, CT-08, CB-06).
   - Trecho: `spec_requests_are_written_with_their_fields`, `commit_release_and_undo_requests_record_the_aval`, `print_review_accepted_records_the_panel_origin`, `print_review_rejected_blocks_the_task`, `prune_route_lists_without_deleting_and_deletes_with_confirmation`, `answer_moves_the_question_and_creates_the_reply_request`, `second_answer_is_409_and_keeps_the_first` e `request_actions_are_sixteen` com `ok`.
   - Falha: algum desses testes com `FAILED`, ou `test result: FAILED`.
-  - Espera: `test second_answer_is_409_and_keeps_the_first ... ok`
+  - Espera: `second_answer_is_409_and_keeps_the_first ... ok`
 - `commits-por-pedido-testes.txt` (automática, da verificação)
   - Prova: com a trava ligada, liberar e desfazer commits só funcionam com o pedido do painel e o aval (RF-07, RN-02, CT-08).
   - Trecho: `test commit_approve_accepts_the_release_request ... ok` e `test commit_revert_needs_the_undo_request ... ok`.

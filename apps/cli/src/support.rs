@@ -535,9 +535,21 @@ pub fn utc_date() -> String {
 
 /// Data e hora atuais em UTC, `AAAA-MM-DDTHH:MM:SSZ`.
 pub fn utc_datetime() -> String {
-    let seconds = std::time::SystemTime::now()
+    format_utc(now_seconds())
+}
+
+/// Data e hora em UTC de `days` dias atrás, no formato de `utc_datetime`.
+pub fn utc_datetime_days_ago(days: u64) -> String {
+    format_utc(now_seconds().saturating_sub(days * 86_400))
+}
+
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs());
+        .map_or(0, |elapsed| elapsed.as_secs())
+}
+
+fn format_utc(seconds: u64) -> String {
     let (year, month, day) = civil_from_days((seconds / 86_400) as i64);
     let time = seconds % 86_400;
     format!(

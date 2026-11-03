@@ -553,3 +553,128 @@ fn folders_keep_unknown_states_in_place() {
     assert!(loose.is_file());
     assert!(all.contains("| PED-001 |"), "{all}");
 }
+
+const OLD: &str = "2026-01-01T00:00:00Z";
+const RECENT: &str = "2999-01-01T00:00:00Z";
+
+fn write_front(project: &Project, relative: &str, front_matter: &str) {
+    let path = project.harness().join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        path,
+        format!("---\n{front_matter}---\n\n## Pedido\n\nTexto.\n"),
+    )
+    .unwrap();
+}
+
+fn prune_request(project: &Project, folder: &str, id: &str, spec: &str, updated: &str) {
+    write_front(
+        project,
+        &format!("work/pedidos/{folder}/{id}.md"),
+        &format!("id: {id}\nacao: ajustar-spec\nspec: {spec}\ntarefa: \nestado: {folder}\norigem: painel\ncriado_em: {updated}\natualizado_em: {updated}\n"),
+    );
+}
+
+fn prune_fixture() -> Project {
+    let project = Project::new();
+    write_front(
+        &project,
+        "work/.archive/SPEC-001/pedidos/PED-001.md",
+        "id: PED-001\nspec: SPEC-001\n",
+    );
+    write_front(
+        &project,
+        "work/.archive/SPEC-001/perguntas/P-001.md",
+        "id: P-001\nspec: SPEC-001\n",
+    );
+    write_front(&project, "work/.archive/SPEC-001/avais/SPEC-001.log", "");
+    prune_request(&project, "feito", "PED-002", "", OLD);
+    prune_request(&project, "feito", "PED-003", "", RECENT);
+    prune_request(&project, "feito", "PED-004", "SPEC-009", OLD);
+    prune_request(&project, "pendente", "PED-005", "", OLD);
+    write_front(
+        &project,
+        "work/perguntas/respondida/P-002.md",
+        &format!(
+            "id: P-002\npedido: PED-002\nspec: \ntask: \nstatus: respondida\ncreated_at: {OLD}\n"
+        ),
+    );
+    write_front(
+        &project,
+        "work/avais/sem-spec.log",
+        "d\tPED-002\th\tpainel\tfazer-commit\n",
+    );
+    project
+}
+
+const PRUNED: [&str; 4] = [
+    "work/.archive/SPEC-001/pedidos/PED-001.md",
+    "work/.archive/SPEC-001/perguntas/P-001.md",
+    "work/pedidos/feito/PED-002.md",
+    "work/perguntas/respondida/P-002.md",
+];
+const KEPT: [&str; 5] = [
+    "work/pedidos/feito/PED-003.md",
+    "work/pedidos/feito/PED-004.md",
+    "work/pedidos/pendente/PED-005.md",
+    "work/.archive/SPEC-001/avais/SPEC-001.log",
+    "work/avais/sem-spec.log",
+];
+
+fn prune(project: &Project, args: &[&str]) -> String {
+    let output = project
+        .vostok()
+        .args(["pedidos", "prune"])
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+#[test]
+fn prune_sem_confirmar_so_lista() {
+    let project = prune_fixture();
+    let out = prune(&project, &[]);
+    for listed in ["PED-001", "P-001", "PED-002", "P-002"] {
+        assert!(out.contains(listed), "{listed}: {out}");
+    }
+    for absent in ["PED-003", "PED-004", "PED-005", ".log"] {
+        assert!(!out.contains(absent), "{absent}: {out}");
+    }
+    assert!(out.contains("| Arquivo | Spec | Motivo |"), "{out}");
+    assert!(out.contains("--confirmar"), "{out}");
+    for path in PRUNED.iter().chain(KEPT.iter()) {
+        assert!(project.harness().join(path).is_file(), "{path}");
+    }
+}
+
+#[test]
+fn prune_com_confirmar_apaga_e_mantem_os_avais() {
+    let project = prune_fixture();
+    let out = prune(&project, &["--confirmar"]);
+    assert!(out.contains("4 arquivo(s) apagado(s)"), "{out}");
+    assert!(out.contains("os avais ficam"), "{out}");
+    for path in PRUNED {
+        assert!(!project.harness().join(path).exists(), "{path}");
+    }
+    for path in KEPT {
+        assert!(project.harness().join(path).is_file(), "{path}");
+    }
+}
+
+#[test]
+fn prune_leva_o_pedido_concluido_de_spec_arquivada() {
+    let project = Project::new();
+    write_front(&project, "work/.archive/SPEC-001/spec.md", "id: SPEC-001\n");
+    prune_request(&project, "feito", "PED-006", "SPEC-001", RECENT);
+    let out = prune(&project, &[]);
+    assert!(out.contains("PED-006"), "{out}");
+    assert!(out.contains("spec arquivada"), "{out}");
+}
+
+#[test]
+fn prune_sem_nada_diz_que_nao_ha_o_que_limpar() {
+    let project = Project::new();
+    assert_eq!(prune(&project, &[]).trim(), "Não há o que limpar.");
+}

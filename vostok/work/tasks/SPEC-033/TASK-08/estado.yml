@@ -9,18 +9,24 @@ wave: 3
 covers: [RF-03, RF-06, RF-07, CT-03, CT-07, CT-08]
 type: tarefa
 labels: [SPEC-033, padrao]
-status: approved
-content_hash: 5b2463e7015038d00e04c02308c6b1502644f85eab9c4b8273def126eb7bfa6c
-adjustments: 0
-adjusted_at: null
+status: done
+content_hash: 8871fdffce7d56cdb3114834999cc2935c06696da1a8720d3f487a3af98493e8
+adjustments: 1
+adjusted_at: 2026-11-03T18:47:24Z
 approved_at: 2026-11-03T17:27:28Z
 approved_hash: 5b2463e7015038d00e04c02308c6b1502644f85eab9c4b8273def126eb7bfa6c
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 71d0086057779716fcf5e7ad70202be71f8515fc87f91af53f63ea848547bfab
-verification_hash: 473e1c862a06ad91e5af37490ab1ba36ae978559955a110ec5bf49b7b14916fa
-criteria_hash: f57a9bfec244d0e4057600553ebb14de35db3c84761d9b035a3beeb9680d8a6f
-state_hash: 250dbff8b95446d959edba8816b7e6f3690e5776b56f106a6c6af6622bfd0670
+verification_hash: d58cdf1c55852ecc3cffd6c07b9be66682b31093cf75163f19ae25e97f05f7ff
+criteria_hash: 47e1117022e08717188c805aafe4933e9fc944bf81dcb267a9a95bffa9e2288e
+state_hash: 933d68e683c1211fcc69be2b09e1033e27540dc38a78a49bc782badf864b2c9e
 approved_by: chat
+model: claude-opus-5-5
+executive_hash: 60f7e428ef60f93c0a7a5a22d32395c9e12972a8618cbf34a1a4c60c64c648a1
+technical_hash: c7ae43d9e741e43b9d5d0d45675a9b9b9f41cfa53ad3848127bb3894580c4b3d
+check_result: null
+checked_at: 2026-11-03T18:42:35Z
+updated_at: 2026-11-03T18:47:24Z

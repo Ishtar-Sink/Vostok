@@ -1,0 +1,26 @@
+id: TASK-12
+spec: SPEC-033
+title: "Detalhes do quadro"
+description: "Seis colunas a 1440 px, títulos sem barras e cor em \"Em validação\" (DT-017)."
+profile: padrao
+persona: ui-ux-designer
+depends_on: []
+wave: 1
+covers: [RF-14, CT-15]
+type: bug
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: e01e1440388672e6f946b4afc6ae34e53d46dea02d10154151d1d3e0f7ce9a73
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: e01e1440388672e6f946b4afc6ae34e53d46dea02d10154151d1d3e0f7ce9a73
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: bb54bde024f1b78db14f3ee85df805b3896fca3853ea960acbc860aa25c52d70
+verification_hash: d2db5b06a083cbc80a609aca16ce41d59f557ba4f984e6288a880cc5931f8d38
+criteria_hash: 7ade0f8be4b1edd2b9131dd5804952b55f3df9051327de17f63846facccf99e3
+state_hash: dd623d010aae35396a718058e4fa2c532b611dd89a28ef236a26a63001472002
+approved_by: chat

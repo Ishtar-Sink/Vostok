@@ -1,0 +1,26 @@
+id: TASK-06
+spec: SPEC-033
+title: "Histórico de status nas atividades"
+description: "Linha de histórico nas mudanças de status da spec e as transições dos pedidos na `GET /api/atividades`."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-02]
+wave: 3
+covers: [RF-12, CT-13]
+type: tarefa
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: d1dbbee6fb4df194ae977970876da40480eea48983085cc24676b8c44871ebe8
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: d1dbbee6fb4df194ae977970876da40480eea48983085cc24676b8c44871ebe8
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: e97eed4cfdd03ee6e990ca66d50d8ffc09451fef3e57ccbe1f529efdb8527cb7
+verification_hash: 716928c5cb4aeb9eb1815d91cfeb3610218d0695b4a601adb7fb62983026f6d9
+criteria_hash: ff54b9401d3cb4957362f951f28586c6f35fc4ad9d904b28ea87d1dfcf728996
+state_hash: 77136654bd29eec8a81f0158e52c7a22b13592ac863de0ed5d0f38f829bfef7f
+approved_by: chat

@@ -1,0 +1,26 @@
+id: TASK-11
+spec: SPEC-033
+title: "Skills perguntando pelo painel"
+description: "A `process-requests` abre pergunta em vez de recusar, as skills de conversa gravam a rodada por pedido, e a finish-task e a approve-commit aceitam o painel."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-04]
+wave: 3
+covers: [RF-02, RF-04, CT-02, CT-04]
+type: tarefa
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: fa826f984c8c2b8ab2f629f0c969cd358b2101ed8f65ef759d402c19ab17d729
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: fa826f984c8c2b8ab2f629f0c969cd358b2101ed8f65ef759d402c19ab17d729
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: abf2ec0481430e59ef11d9bb114a591784c6d8cfc89ba5a5643af3cecae882ee
+verification_hash: ed6a4a8849b66767fb4b62b239c2841cb7f537f2eb0d0280abe508005c4007dc
+criteria_hash: 05929e73c918649e0e881788e845382f24da7a32618d9f66fd42e3db549a6e5c
+state_hash: 9f87defc5e1354f8038ba42ccaadc24f1980a0aaf8ea9ae31736d786bbd4c154
+approved_by: chat

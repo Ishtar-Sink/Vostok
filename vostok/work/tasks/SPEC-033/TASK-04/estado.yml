@@ -1,0 +1,26 @@
+id: TASK-04
+spec: SPEC-033
+title: "Abrir perguntas do agente"
+description: "O `vostok perguntas abrir <PEDIDO>`, que grava a pergunta aberta com o pedido, a spec e a tarefa."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-01, CT-01]
+type: tarefa
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: 32ec05b5ca4f67b0f80fd1dd7508f69670fcbff6c599b8b8c24627915598268f
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: 32ec05b5ca4f67b0f80fd1dd7508f69670fcbff6c599b8b8c24627915598268f
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 847937e0821e547172cec086525b924db11aa0f6516367ecdfe08d066b7a5b83
+verification_hash: 4d73b9396e3a14e2d066e32c2d0637405db43520655fd3050559c8e32828a8e0
+criteria_hash: 278491a61c6fc5e6131536463a9cb523abc56a85decbb24d929b299b0df6b1d7
+state_hash: 5152defc773f9a40d80b2d9b4db592014c4c1e524ba70d1bc891af09317b9b16
+approved_by: chat

@@ -1,0 +1,26 @@
+id: TASK-13
+spec: SPEC-033
+title: "Versão 0.4.0"
+description: "A CLI sobe para 0.4.0."
+profile: mecanica
+persona: desenvolvedor
+depends_on: [TASK-06, TASK-07, TASK-09, TASK-10, TASK-11, TASK-12]
+wave: 5
+covers: [RF-15, CT-16]
+type: tarefa
+labels: [SPEC-033, mecanica]
+status: approved
+content_hash: e6b8f7414fcb42d5cd619153cc16787a937da33385aa6d98cf31212c7fe3f22d
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: e6b8f7414fcb42d5cd619153cc16787a937da33385aa6d98cf31212c7fe3f22d
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 27ebd93d4edf0e883c1084e0c7ad7349b71b4e689b14038a39b94a49949bd042
+verification_hash: fb8ce528f7ba23a50bebe00da4ebe4de1f4c022d8fbcdfd6157207c48bdd02c3
+criteria_hash: 6c32de5edb6688c4a92b4dc826b2ba9c841a03cf684285ddf0825f8a48b2eb5f
+state_hash: 44aa26cf1960f5324119091c3f646e411df984eaf319070b82fff18b419c3dff
+approved_by: chat

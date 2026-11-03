@@ -1,0 +1,26 @@
+id: TASK-09
+spec: SPEC-033
+title: "Botões de spec no painel"
+description: "\"Nova spec\", \"Refinar\" e \"Executar onda\" nas páginas de specs e da spec."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-08]
+wave: 4
+covers: [RF-05, CT-05, CT-06, CT-18]
+type: historia
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: cae746db991e334f9c47081a04ecebca0ba4f3fd8e218a5610fd92b54c5e9a09
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: cae746db991e334f9c47081a04ecebca0ba4f3fd8e218a5610fd92b54c5e9a09
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 7e7eb8357231b41a877caffa3303729e3a5f64757ee4ec872da6eb720ec5bc88
+verification_hash: 3ef4c2e66af277308222d9ed2141296f05a046d9380d6c73c039b96ee224eede
+criteria_hash: 0767c99b6c2be73d9052c58bfb2b2d313015309b901ebd68ffaeed93a3dc3f20
+state_hash: 1040065a437de21a6f8739634f1144df178736de92b473b5f55470eae7514ba0
+approved_by: chat

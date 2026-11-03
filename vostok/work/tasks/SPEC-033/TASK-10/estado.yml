@@ -1,0 +1,26 @@
+id: TASK-10
+spec: SPEC-033
+title: "Prints, perguntas, commits e limpeza no painel"
+description: "Conferência de prints na tarefa, perguntas e commits apontados nas pendências e \"Limpar pedidos arquivados\" nas Configurações."
+profile: padrao
+persona: ui-ux-designer
+depends_on: [TASK-05, TASK-08]
+wave: 4
+covers: [RF-06, RF-07, RF-11, CT-07, CT-08, CT-12, CT-18]
+type: historia
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: a11c96981f20d366e42fb4484001898f337cfa355f31e37a424ad6552d2d1fe3
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: a11c96981f20d366e42fb4484001898f337cfa355f31e37a424ad6552d2d1fe3
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 061ae56f2033083fa0842a4f855bb644f2192764426b662a523e7b3fe4bb9ea2
+verification_hash: 752a91a21ca00251feb54324f19a80d58287a97f587a55c728d350339ab22aeb
+criteria_hash: e21993d885b9195fec9e9fa312e2ac9e30e8cb1fb02ad58f284caa3e823d6090
+state_hash: b066134a67607b234e9aed9b0da6414ea62a7f54b9a111f48364546aaf407095
+approved_by: chat

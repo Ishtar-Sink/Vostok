@@ -1,0 +1,26 @@
+id: TASK-03
+spec: SPEC-033
+title: "Avais por spec"
+description: "Um log por spec, só de acréscimo, migração do `avais.log` e o `vostok avais <ID>`."
+profile: julgamento
+persona: desenvolvedor
+depends_on: [TASK-01]
+wave: 2
+covers: [RF-09, CT-10]
+type: tarefa
+labels: [SPEC-033, julgamento]
+status: approved
+content_hash: 8fa6277eb3183d2d2385ebb306f554561078b89a0956c0791a04ce82391e22b6
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: 8fa6277eb3183d2d2385ebb306f554561078b89a0956c0791a04ce82391e22b6
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 48035bd95f951345ee86e8902f21f07daf9db279204d0aeb5df34896bf47c22a
+verification_hash: 8f7657e123a64885b252c9ed0b37497e98a6ccad88aeab06482e33dcc72a11c0
+criteria_hash: 8c44d33947d93425f79674f9b05783a63630587d3610bf48b24951c87ec49203
+state_hash: 1b6051c808ecec26868ba8ae0b31ce9e4a41f2b033a738f2c02fadebc901d662
+approved_by: chat

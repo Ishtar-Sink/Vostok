@@ -1,0 +1,26 @@
+id: TASK-07
+spec: SPEC-033
+title: "Disparo sob demanda"
+description: "Com `request_dispatch`, o painel chama o agente para cada pedido pendente, um por vez, reaproveitando o `vigiar`."
+profile: julgamento
+persona: desenvolvedor
+depends_on: [TASK-02]
+wave: 3
+covers: [RF-13, CT-14]
+type: tarefa
+labels: [SPEC-033, julgamento]
+status: approved
+content_hash: 0da21c1bd651cd789c30ad2f858c2f9534a95a3044ec84c5b1aa74b23b081d15
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: 0da21c1bd651cd789c30ad2f858c2f9534a95a3044ec84c5b1aa74b23b081d15
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 98e8138d2ba0d716c35f7ecea0e2b8dcfa9f9f0d627807ca2f784c3e85b053b8
+verification_hash: 7380d550c21c5438843b55f1621a63f0c737a0208e0fa6ee1dec8a5670b77bb8
+criteria_hash: 4ced68f2d2a3c5d1d8f2676c01b80e41538c0e2cf817d474c05c6c8bdafd258b
+state_hash: 4a11df571602f1da88938bfb9725e5bdd6cd9dc7353fb4e91b5e60d336f60e31
+approved_by: chat

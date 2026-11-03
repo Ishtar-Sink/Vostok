@@ -1,0 +1,26 @@
+id: TASK-08
+spec: SPEC-033
+title: "Ações novas do painel na CLI"
+description: "Pedidos `criar-spec`, `refinar-spec`, `executar-onda`, `liberar-commits` e `desfazer-commits`, e as ações diretas `conferir-print`, `limpar-pedidos` e a resposta nas pastas novas."
+profile: padrao
+persona: desenvolvedor
+depends_on: [TASK-02, TASK-03, TASK-04]
+wave: 3
+covers: [RF-03, RF-06, RF-07, CT-03, CT-07, CT-08]
+type: tarefa
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: 5b2463e7015038d00e04c02308c6b1502644f85eab9c4b8273def126eb7bfa6c
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: 5b2463e7015038d00e04c02308c6b1502644f85eab9c4b8273def126eb7bfa6c
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: 71d0086057779716fcf5e7ad70202be71f8515fc87f91af53f63ea848547bfab
+verification_hash: 473e1c862a06ad91e5af37490ab1ba36ae978559955a110ec5bf49b7b14916fa
+criteria_hash: f57a9bfec244d0e4057600553ebb14de35db3c84761d9b035a3beeb9680d8a6f
+state_hash: 250dbff8b95446d959edba8816b7e6f3690e5776b56f106a6c6af6622bfd0670
+approved_by: chat

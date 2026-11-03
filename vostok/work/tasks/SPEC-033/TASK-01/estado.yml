@@ -1,0 +1,26 @@
+id: TASK-01
+spec: SPEC-033
+title: "Configurar pastas de comunicação"
+description: "Caminhos de pedidos, perguntas e avais, subpastas por estado e arquivo de avais sem spec em `config/main.yml`, lidos e validados pela CLI."
+profile: padrao
+persona: desenvolvedor
+depends_on: []
+wave: 1
+covers: [RF-16, CT-19, CT-20]
+type: tarefa
+labels: [SPEC-033, padrao]
+status: approved
+content_hash: 69a81d8a7643caf347f16e0fedd501e13e5b6a98466b35c4d723073806a6b841
+adjustments: 0
+adjusted_at: null
+approved_at: 2026-11-03T17:27:28Z
+approved_hash: 69a81d8a7643caf347f16e0fedd501e13e5b6a98466b35c4d723073806a6b841
+attempts: 0
+tests_result: null
+regression_result: null
+evidence_result: null
+execution_hash: f36a0c1125690cef5bbef222e0eaba0e25e77ab0def1179a01caf3a6f47b883a
+verification_hash: 2466a6c09e1ec49c51faf0a6857e4c9f1005b32e8b648bdd148a57be073909f2
+criteria_hash: 64dd87ae606341bc71df0d9f63013ac387094f2e018a815f197e6e51c68eb6e0
+state_hash: ba9fc5c679d8396bcd3c8d53ac3c9a88cb416daf1c7d74a6ebc0e8406c66be57
+approved_by: chat

@@ -3,6 +3,9 @@ import { onLinkClick } from '../../shared/router';
 import { BOARD_COLUMNS } from '../../shared/status';
 import styles from './board.module.css';
 
+/** Cor de status das colunas do fluxo; as de entrada (para aprovar e aprovadas) ficam sem cor. */
+const COLUMN_TONE: Record<string, 'info' | 'accent' | 'warning' | 'success'> = { running: 'info', validating: 'accent', blocked: 'warning', done: 'success' };
+
 export interface BoardTask extends TaskSummary {
   spec: string;
 }
@@ -18,7 +21,10 @@ export function Board({ tasks, showSpec = false }: { tasks: BoardTask[]; showSpe
         return (
           <section key={column.id} className={styles.column} data-column={column.id} aria-labelledby={`col-${column.id}`}>
             <header className={styles.columnHeader}>
-              <h3 id={`col-${column.id}`}>{column.label}</h3>
+              <h3 id={`col-${column.id}`}>
+                {COLUMN_TONE[column.id] ? <span className={styles.dot} data-tone={COLUMN_TONE[column.id]} aria-hidden="true" /> : null}
+                {column.label}
+              </h3>
               <span className={styles.count}>{cards.length}</span>
             </header>
             <ul className={styles.cards}>

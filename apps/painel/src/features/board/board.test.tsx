@@ -19,6 +19,23 @@ beforeAll(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('Board', () => {
+  it('mostra a cor de status nas colunas do fluxo', () => {
+    const { container } = render(<Board tasks={[]} />);
+    const tone = (column: string) => container.querySelector(`section[data-column="${column}"] header [data-tone]`);
+    const expected: Record<string, string> = { running: 'info', validating: 'accent', blocked: 'warning', done: 'success' };
+    for (const [column, value] of Object.entries(expected)) {
+      expect(tone(column)?.getAttribute('data-tone')).toBe(value);
+      expect(tone(column)?.getAttribute('aria-hidden')).toBe('true');
+    }
+    expect(tone('pending')).toBeNull();
+    expect(tone('approved')).toBeNull();
+  });
+
+  it('mostra o título com aspas como veio', () => {
+    render(<Board tasks={[{ ...task('TASK-02', 'in_progress', { title: 'Separar a coluna "Em validação" no quadro' }), spec: 'SPEC-001' }]} />);
+    expect(screen.getByText('Separar a coluna "Em validação" no quadro')).toBeTruthy();
+  });
+
   it('groups the cards by status column and flags waiting dependencies', () => {
     const tasks = [
       { ...task('TASK-01', 'done'), spec: 'SPEC-001' },

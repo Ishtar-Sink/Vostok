@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-033
-- **Status:** approved
+- **Status:** done
 - **Onda:** 1
 - **Dependências:** -
 
@@ -22,9 +22,9 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** bug
 - **Descrição:** Seis colunas a 1440 px, títulos sem barras e cor em "Em validação" (DT-017).
 - **Critérios de aceite:**
-  - [ ] O quadro mostra as seis colunas lado a lado numa tela de 1440 px, sem rolagem lateral (RF-14, CT-15).
-  - [ ] Os títulos e as descrições com aspas aparecem sem as barras de escape, no quadro e na página da tarefa (RF-14, CT-15).
-  - [ ] A coluna "Em validação" tem a bolinha de cor de status, como Em execução, Bloqueadas e Concluídas (RF-14, CT-15).
+  - [x] O quadro mostra as seis colunas lado a lado numa tela de 1440 px, sem rolagem lateral (RF-14, CT-15).
+  - [x] Os títulos e as descrições com aspas aparecem sem as barras de escape, no quadro e na página da tarefa (RF-14, CT-15).
+  - [x] A coluna "Em validação" tem a bolinha de cor de status, como Em execução, Bloqueadas e Concluídas (RF-14, CT-15).
 - **Rótulos:** SPEC-033, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** -

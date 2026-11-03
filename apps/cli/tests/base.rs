@@ -8,7 +8,7 @@ use std::fs;
 use common::{failure_stderr, vostok_at, Project};
 use tempfile::TempDir;
 use vostok::embedded;
-use vostok::harness::Harness;
+use vostok::harness::{Folders, Harness, QuestionFolders, RequestFolders};
 use vostok::support::*;
 
 #[test]
@@ -564,4 +564,167 @@ fn lexical_resolves_dots_without_touching_the_disk() {
         lexical(std::path::Path::new("/a/b/../c/./d")),
         std::path::PathBuf::from("/a/c/d")
     );
+}
+
+#[test]
+fn config_reads_three_levels() {
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("c.yml");
+    fs::write(&file, "a:\n  b:\n    c: 1\n  d: 2\ne: 3\n").unwrap();
+    assert_eq!(config_get(&file, "a.b.c").unwrap(), "1");
+    assert_eq!(config_get(&file, "a.d").unwrap(), "2");
+    assert_eq!(config_get(&file, "e").unwrap(), "3");
+    config_set(&file, "a.b.c", "9").unwrap();
+    assert_eq!(
+        fs::read_to_string(&file).unwrap(),
+        "a:\n  b:\n    c: 9\n  d: 2\ne: 3\n"
+    );
+}
+
+/// Projeto com o `main.yml` trocado pelo texto dado.
+fn project_with_main(main: &str) -> (Project, Harness) {
+    let project = Project::new();
+    fs::write(project.harness().join("config/main.yml"), main).unwrap();
+    let harness = Harness::locate(project.root()).unwrap();
+    (project, harness)
+}
+
+fn portuguese_folders() -> Folders {
+    Folders {
+        requests: RequestFolders {
+            pending: "pendente".into(),
+            in_progress: "em_andamento".into(),
+            done: "feito".into(),
+            refused: "recusado".into(),
+        },
+        questions: QuestionFolders {
+            open: "aberta".into(),
+            answered: "respondida".into(),
+        },
+        approvals_without_spec: "sem-spec.log".into(),
+    }
+}
+
+fn assert_portuguese_defaults(project: &Project, harness: &Harness) {
+    assert_eq!(
+        harness.requests_dir(),
+        project.harness().join("work/pedidos")
+    );
+    assert_eq!(
+        harness.questions_dir(),
+        project.harness().join("work/perguntas")
+    );
+    assert_eq!(
+        harness.approvals_dir(),
+        project.harness().join("work/avais")
+    );
+    assert_eq!(harness.folders().unwrap(), portuguese_folders());
+    assert_eq!(harness.request_dispatch().unwrap(), "");
+}
+
+#[test]
+fn communication_paths_default_to_portuguese() {
+    let (project, harness) = project_with_main("paths:\n  root: ../\n");
+    assert_portuguese_defaults(&project, &harness);
+}
+
+#[test]
+fn communication_shipped_config_has_the_defaults() {
+    let project = Project::new();
+    let harness = Harness::locate(project.root()).unwrap();
+    assert_portuguese_defaults(&project, &harness);
+    let main = project.harness().join("config/main.yml");
+    assert_eq!(
+        config_get(&main, "folders.requests.pending").unwrap(),
+        "pendente"
+    );
+    assert_eq!(config_get(&main, "request_dispatch").unwrap(), "");
+}
+
+#[test]
+fn communication_paths_follow_the_config() {
+    let (project, harness) = project_with_main(
+        "paths:\n  root: ../\n  requests: ./work/requests\n  questions: ./work/questions\n  approvals: ./work/approvals\nfolders:\n  requests:\n    pending: pending\n    in_progress: in_progress\n    done: done\n    refused: refused\n  questions:\n    open: open\n    answered: answered\n  approvals_without_spec: no-spec.log\nrequest_dispatch: codex\n",
+    );
+    assert_eq!(
+        harness.requests_dir(),
+        project.harness().join("work/requests")
+    );
+    assert_eq!(
+        harness.questions_dir(),
+        project.harness().join("work/questions")
+    );
+    assert_eq!(
+        harness.approvals_dir(),
+        project.harness().join("work/approvals")
+    );
+    let folders = harness.folders().unwrap();
+    assert_eq!(
+        folders.requests,
+        RequestFolders {
+            pending: "pending".into(),
+            in_progress: "in_progress".into(),
+            done: "done".into(),
+            refused: "refused".into(),
+        }
+    );
+    assert_eq!(
+        folders.questions,
+        QuestionFolders {
+            open: "open".into(),
+            answered: "answered".into()
+        }
+    );
+    assert_eq!(folders.approvals_without_spec, "no-spec.log");
+    assert_eq!(harness.request_dispatch().unwrap(), "codex");
+}
+
+#[test]
+fn communication_folders_reject_repeated_names() {
+    let (_project, harness) = project_with_main(
+        "paths:\n  root: ../\nfolders:\n  requests:\n    pending: x\n    done: x\n",
+    );
+    let error = harness.folders().unwrap_err().to_string();
+    for part in ["folders.requests", "pending", "done", "'x'"] {
+        assert!(error.contains(part), "{error}");
+    }
+    let (_project, harness) = project_with_main(
+        "paths:\n  root: ../\nfolders:\n  questions:\n    open: y\n    answered: y\n",
+    );
+    let error = harness.folders().unwrap_err().to_string();
+    for part in ["folders.questions", "open", "answered", "'y'"] {
+        assert!(error.contains(part), "{error}");
+    }
+}
+
+#[test]
+fn communication_folders_reject_unsafe_names() {
+    for value in ["\"\"", "a/b", "..", "a\\\\b"] {
+        let (_project, harness) = project_with_main(&format!(
+            "paths:\n  root: ../\nfolders:\n  requests:\n    pending: {value}\n"
+        ));
+        let error = harness.folders().unwrap_err().to_string();
+        assert!(
+            error.contains("folders.requests.pending"),
+            "{value}: {error}"
+        );
+    }
+    let (_project, harness) =
+        project_with_main("paths:\n  root: ../\nfolders:\n  approvals_without_spec: ../fora.log\n");
+    let error = harness.folders().unwrap_err().to_string();
+    assert!(error.contains("folders.approvals_without_spec"), "{error}");
+}
+
+#[test]
+fn communication_dispatch_accepts_only_known_agents() {
+    for agent in ["codex", "claude"] {
+        let (_project, harness) =
+            project_with_main(&format!("paths:\n  root: ../\nrequest_dispatch: {agent}\n"));
+        assert_eq!(harness.request_dispatch().unwrap(), agent);
+    }
+    let (_project, harness) = project_with_main("paths:\n  root: ../\nrequest_dispatch: gemini\n");
+    let error = harness.request_dispatch().unwrap_err().to_string();
+    for part in ["request_dispatch", "gemini", "codex", "claude"] {
+        assert!(error.contains(part), "{error}");
+    }
 }

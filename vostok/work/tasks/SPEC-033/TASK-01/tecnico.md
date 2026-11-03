@@ -13,4 +13,12 @@
 
 **Referências da spec.** RF-16, RF-13 (chave), RN-06, CB-07, CB-08, CT-19, CT-20, decisões 8, 10 e 11.
 
-**Arquivos em comum com a onda.** Nenhum: na onda 1, a TASK-12 só mexe no frontend do quadro.
+**Arquivos em comum com a onda.** `apps/cli/src/support.rs`, também alterado pela TASK-12 (`yaml_unescape` público); por isso as duas rodaram em sequência na onda 1.
+
+**O que foi feito.**
+- `support.rs`: `key_lines` passou a usar uma pilha de (indentação, chave); o caminho é a junção das chaves da pilha com a da linha, e uma linha com indentação menor ou igual desempilha. O comentário do subconjunto de YAML diz agora "níveis aninhados".
+- `harness.rs`: `RequestFolders`, `QuestionFolders` e `Folders`; `requests_dir`, `questions_dir` e `approvals_dir` pelo `path_or` (chave ausente ou vazia vira o padrão); `folders()` com `folder_group` (recusa dois estados com o mesmo nome) e `folder_name` (padrão quando falta; recusa vazio, `/`, `\`, `.` e `..`); `request_dispatch()` aceita só vazio, `codex` e `claude`.
+- `packages/harness/config/main.yml`: `paths.requests`, `paths.questions`, `paths.approvals`, o bloco `folders` e `request_dispatch: ""`, com comentários.
+- `tests/base.rs`: `config_reads_three_levels` e os seis `communication_*`, que falharam (não compilavam) antes da mudança.
+
+**Verificação.** Os 10 testes `communication_`/`config_` e os 42 do `init_update` passam; a regressão é igual ao baseline; a suíte completa da CLI e o `clippy -D warnings` passaram.

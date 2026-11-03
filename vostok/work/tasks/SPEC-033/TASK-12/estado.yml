@@ -9,18 +9,23 @@ wave: 1
 covers: [RF-14, CT-15]
 type: bug
 labels: [SPEC-033, padrao]
-status: approved
-content_hash: e01e1440388672e6f946b4afc6ae34e53d46dea02d10154151d1d3e0f7ce9a73
+status: done
+content_hash: b8656689ee6e9bfdd77c6f5d6562570863fa3c8f20018d1c382567134d02e3c4
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-03T17:27:28Z
 approved_hash: e01e1440388672e6f946b4afc6ae34e53d46dea02d10154151d1d3e0f7ce9a73
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: bb54bde024f1b78db14f3ee85df805b3896fca3853ea960acbc860aa25c52d70
 verification_hash: d2db5b06a083cbc80a609aca16ce41d59f557ba4f984e6288a880cc5931f8d38
-criteria_hash: 7ade0f8be4b1edd2b9131dd5804952b55f3df9051327de17f63846facccf99e3
-state_hash: dd623d010aae35396a718058e4fa2c532b611dd89a28ef236a26a63001472002
+criteria_hash: 7a85447df795f1649ec74e256d241bd0126d410e6f95b05074aafd6c6e64d166
+state_hash: 5abcf98d22b38502da9fc1d244323330e358755bf1c466cb1f32fc351e96276f
 approved_by: chat
+model: claude-opus-5-5
+executive_hash: 5ec753631b395e72ef95e34ac6d4b1f455db1188028e24a44a7a4352461deceb
+technical_hash: 4938fa76d6d643023af10e746b172b580543bc1678382a8b8220e427af42dd25
+check_result: passed
+checked_at: 2026-11-03T17:40:16Z

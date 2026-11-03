@@ -9,7 +9,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use sha2::{Digest, Sha256};
 
 // --- Configuração ---
-// Subconjunto de YAML dos arquivos de `config/`: `chave: valor` em até dois níveis (`pai.filho`),
+// Subconjunto de YAML dos arquivos de `config/`: `chave: valor` em níveis aninhados (`pai.filho.neto`),
 // blocos literais de primeiro nível (`chave: |`) e listas de primeiro nível.
 
 fn read(path: &Path) -> Result<String> {
@@ -21,7 +21,7 @@ fn is_blank_or_comment(line: &str) -> bool {
     trimmed.is_empty() || trimmed.starts_with('#')
 }
 
-/// Caminho `pai.filho` de cada linha de chave, com a indentação e o resto da linha.
+/// Caminho `pai.filho.neto` de cada linha de chave, com a indentação e o resto da linha.
 struct KeyLine<'a> {
     path: String,
     indent: usize,
@@ -29,7 +29,7 @@ struct KeyLine<'a> {
 }
 
 fn key_lines(content: &str) -> impl Iterator<Item = Option<KeyLine<'_>>> {
-    let mut top = String::new();
+    let mut parents: Vec<(usize, String)> = Vec::new();
     content.lines().map(move |raw| {
         if is_blank_or_comment(raw) {
             return None;
@@ -37,14 +37,16 @@ fn key_lines(content: &str) -> impl Iterator<Item = Option<KeyLine<'_>>> {
         let indent = raw.len() - raw.trim_start_matches(' ').len();
         let line = &raw[indent..];
         let key = line.split(':').next().unwrap_or("").trim_end().to_string();
-        if indent == 0 {
-            top = key.clone();
+        while parents.last().is_some_and(|(level, _)| *level >= indent) {
+            parents.pop();
         }
-        let path = if indent == 0 {
-            key
-        } else {
-            format!("{top}.{key}")
-        };
+        let path = parents
+            .iter()
+            .map(|(_, parent)| parent.as_str())
+            .chain([key.as_str()])
+            .collect::<Vec<_>>()
+            .join(".");
+        parents.push((indent, key));
         Some(KeyLine { path, indent, line })
     })
 }
@@ -204,7 +206,7 @@ pub fn frontmatter_get(path: &Path, key: &str) -> Result<String> {
             return Ok(block.join(" "));
         }
         if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
-            return Ok(unescape(&value[1..value.len() - 1]));
+            return Ok(yaml_unescape(&value[1..value.len() - 1]));
         }
         return Ok(unquote(value).to_string());
     }
@@ -214,7 +216,8 @@ pub fn frontmatter_get(path: &Path, key: &str) -> Result<String> {
     )
 }
 
-fn unescape(value: &str) -> String {
+/// Desfaz o escape de `yaml_escape` dentro de aspas duplas.
+pub fn yaml_unescape(value: &str) -> String {
     let mut out = String::new();
     let mut chars = value.chars();
     while let Some(c) = chars.next() {

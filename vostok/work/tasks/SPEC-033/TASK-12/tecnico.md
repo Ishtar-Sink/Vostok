@@ -15,4 +15,12 @@
 
 **Arquivos fora dos componentes do plano.** `apps/cli/src/painel/read.rs` e `apps/cli/src/support.rs`, porque a causa do título com barras está na leitura da CLI. O `read.rs` também é alterado pela TASK-02 e pela TASK-06, em ondas posteriores (2 e 3); na onda 1 não há arquivo em comum com a TASK-01.
 
+**O que foi feito.**
+- `read.rs`: `yaml_scalar` (aspas duplas com `yaml_unescape`, aspas simples com `''` desfeito, sem aspas até o comentário) e `estado_pairs`, usados pelo `yaml_json` e pelo `task_summary`, que lê o `estado.yml` uma vez só; teste `quoted_task_title_comes_without_escapes`.
+- `support.rs`: `unescape` virou `pub fn yaml_unescape`, usado pelo `frontmatter_get` e pelo `read.rs`.
+- `board.tsx`: `COLUMN_TONE` e o `span.dot` com `data-tone` e `aria-hidden` nas colunas do fluxo; `board.module.css` troca os `::before` pelo `.dot`, as colunas passam a `minmax(160px, 1fr)` e o topo do cartão quebra linha.
+- `board.test.tsx`: "mostra a cor de status nas colunas do fluxo" (falhou antes da mudança) e "mostra o título com aspas como veio".
+
+**Verificação.** Os 6 testes do quadro, os 26 do `painel::read` e os de `support::` passam; o `tsc` não acusa nada e a regressão é igual ao baseline. Os prints `quadro-1440.png` (quadro da SPEC-032, já arquivada) e `tarefa-sem-escape.png` foram conferidos pelo usuário. No print, a última coluna encosta na borda direita da tela e o tom de "Em validação" fica próximo do de "Em execução"; o usuário aceitou assim.
+
 **Referências da spec.** RF-14, CT-15, CA-07, DT-017.

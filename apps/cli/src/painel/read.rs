@@ -8,7 +8,7 @@ use super::{
     Reply,
 };
 use crate::harness::Harness;
-use crate::support::{config_get, frontmatter_get, sha256_hex};
+use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
 
 /// Arquivos da tarefa em pasta mostrados no painel, na ordem das abas.
 const TASK_FILES: &[&str] = &[
@@ -747,25 +747,38 @@ fn frontmatter_json(file: &Path, keys: &[&str]) -> String {
     json_object(&pairs)
 }
 
-/// Um YAML plano (`chave: valor`, como o `estado.yml`) em JSON, com os valores como texto.
-fn yaml_json(file: &Path) -> String {
-    let content = fs::read_to_string(file).unwrap_or_default();
-    let pairs: Vec<(String, String)> = content
+/// Um valor escalar de YAML sem as aspas, com o escape desfeito, e sem o comentário quando não tem aspas.
+fn yaml_scalar(raw: &str) -> String {
+    let value = raw.trim();
+    let quoted_by =
+        |quote: char| value.len() >= 2 && value.starts_with(quote) && value.ends_with(quote);
+    if quoted_by('"') {
+        yaml_unescape(&value[1..value.len() - 1])
+    } else if quoted_by('\'') {
+        value[1..value.len() - 1].replace("''", "'")
+    } else {
+        value.split(" #").next().unwrap_or("").trim().to_string()
+    }
+}
+
+/// Pares `chave: valor` de primeiro nível de um YAML plano, como o `estado.yml`.
+fn estado_pairs(file: &Path) -> Vec<(String, String)> {
+    fs::read_to_string(file)
+        .unwrap_or_default()
         .lines()
         .filter(|line| !line.starts_with([' ', '#']))
         .filter_map(|line| line.split_once(':'))
-        .map(|(key, value)| {
-            (
-                key.trim().to_string(),
-                value.trim().trim_matches('"').to_string(),
-            )
-        })
-        .collect();
-    json_object(&pairs)
+        .map(|(key, value)| (key.trim().to_string(), yaml_scalar(value)))
+        .collect()
+}
+
+/// Um YAML plano (`chave: valor`, como o `estado.yml`) em JSON, com os valores como texto.
+fn yaml_json(file: &Path) -> String {
+    json_object(&estado_pairs(file))
 }
 
 fn task_summary(dir: &Path) -> String {
-    let estado = dir.join("estado.yml");
+    let estado = estado_pairs(&dir.join("estado.yml"));
     let keys = [
         "id",
         "title",
@@ -783,10 +796,12 @@ fn task_summary(dir: &Path) -> String {
     let pairs: Vec<(String, String)> = keys
         .iter()
         .map(|key| {
-            (
-                key.to_string(),
-                config_get(&estado, key).unwrap_or_default(),
-            )
+            let value = estado
+                .iter()
+                .find(|(name, _)| name == key)
+                .map(|(_, value)| value.clone())
+                .unwrap_or_default();
+            (key.to_string(), value)
         })
         .collect();
     json_object(&pairs)
@@ -1013,6 +1028,33 @@ mod tests {
 
     fn body(reply: &Reply) -> String {
         String::from_utf8(reply.body.clone()).unwrap()
+    }
+
+    #[test]
+    fn quoted_task_title_comes_without_escapes() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/tasks/SPEC-001/TASK-02/estado.yml",
+            r#"id: TASK-02
+title: "Separar a coluna \"Em validação\" no quadro"
+description: "Cor em \"Em validação\" e barra \\ literal"
+status: pending
+wave: 1
+"#,
+        );
+        let spec = body(&get(&painel, "/api/specs/SPEC-001"));
+        let task = body(&get(&painel, "/api/tarefas/SPEC-001/TASK-02"));
+        let title = r#""title":"Separar a coluna \"Em validação\" no quadro""#;
+        assert!(spec.contains(title), "{spec}");
+        assert!(task.contains(title), "{task}");
+        assert!(
+            task.contains(r#""description":"Cor em \"Em validação\" e barra \\ literal""#),
+            "{task}"
+        );
+        for reply in [&spec, &task] {
+            assert!(!reply.contains(r#"\\\"Em"#), "{reply}");
+        }
     }
 
     fn activity_project() -> (TempDir, Painel) {

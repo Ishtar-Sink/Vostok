@@ -1,5 +1,0 @@
-<!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
-
-Antes desta tarefa, quando uma especificação já aprovada era ajustada, ela voltava para revisão, mas o registro do seu histórico não mostrava essa volta. Quem olhava o caminho da spec via duas aprovações seguidas, como se nada tivesse acontecido entre elas. Além disso, o aviso de aprovação feita pelo painel sem registro apontava para o arquivo antigo de avais, e não para o arquivo da própria spec, o que dificultava achar onde conferir.
-
-Agora o histórico registra a volta para revisão nos dois tipos de ajuste, e o aviso indica o arquivo exato de avais da spec. Os testes cobrem os dois caminhos de ajuste e também o caso de uma spec que ainda não foi aprovada, que continua sem alteração no histórico. A verificação, a comparação com o estado anterior e as evidências passaram, sem mudança nos resultados dos comandos conferidos. Specs ajustadas antes desta versão não foram corrigidas retroativamente.

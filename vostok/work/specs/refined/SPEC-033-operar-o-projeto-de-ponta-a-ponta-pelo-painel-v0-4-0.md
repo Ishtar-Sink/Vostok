@@ -1,10 +1,10 @@
 ---
 id: SPEC-033
 title: "Operar o projeto de ponta a ponta pelo painel (v0.4.0)"
-status: planned
+status: implemented
 author: "Victor Batalha"
 created_at: 2026-11-03T15:35:49Z
-updated_at: 2026-11-03T17:26:43Z
+updated_at: 2026-11-03T22:52:19Z
 tags: []
 type: feature
 source: "draft/SPEC-033-operar-o-projeto-de-ponta-a-ponta-pelo-painel-v0-4-0.md"

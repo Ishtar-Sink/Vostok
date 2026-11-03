@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-033
-- **Status:** approved
+- **Status:** done
 - **Onda:** 5
 - **Dependências:** TASK-06, TASK-07, TASK-09, TASK-10, TASK-11, TASK-12
 
@@ -22,8 +22,8 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** A CLI sobe para 0.4.0.
 - **Critérios de aceite:**
-  - [ ] A CLI compilada responde `vostok 0.4.0` (RF-15, CT-16).
-  - [ ] O `Cargo.toml`, o `Cargo.lock` e o teste da versão estão em 0.4.0, sem outras mudanças (RF-15).
+  - [x] A CLI compilada responde `vostok 0.4.0` (RF-15, CT-16).
+  - [x] O `Cargo.toml`, o `Cargo.lock` e o teste da versão estão em 0.4.0, sem outras mudanças (RF-15).
 - **Rótulos:** SPEC-033, mecanica
 - **Estimativa:** mecanica
 - **Bloqueada por:** TASK-06, TASK-07, TASK-09, TASK-10, TASK-11, TASK-12

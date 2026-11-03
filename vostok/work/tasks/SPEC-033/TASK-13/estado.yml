@@ -9,18 +9,23 @@ wave: 5
 covers: [RF-15, CT-16]
 type: tarefa
 labels: [SPEC-033, mecanica]
-status: approved
-content_hash: e6b8f7414fcb42d5cd619153cc16787a937da33385aa6d98cf31212c7fe3f22d
+status: done
+content_hash: 45f8e6490cfba755c00cc71b0df914c0cd58caffc018fc9731a60cd2e36919d7
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-03T17:27:28Z
 approved_hash: e6b8f7414fcb42d5cd619153cc16787a937da33385aa6d98cf31212c7fe3f22d
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 27ebd93d4edf0e883c1084e0c7ad7349b71b4e689b14038a39b94a49949bd042
 verification_hash: fb8ce528f7ba23a50bebe00da4ebe4de1f4c022d8fbcdfd6157207c48bdd02c3
-criteria_hash: 6c32de5edb6688c4a92b4dc826b2ba9c841a03cf684285ddf0825f8a48b2eb5f
-state_hash: 44aa26cf1960f5324119091c3f646e411df984eaf319070b82fff18b419c3dff
+criteria_hash: 8998f8d47a47d1a49f0a87c52517879d4552ebbd98ae47e7dfb76b1cbb37d20b
+state_hash: 3be194c86e5c1fb088209dd93aeb15869b6b93fbb1ccb4fa1a7763e8b8eda230
 approved_by: chat
+model: claude-opus-5-5
+executive_hash: 4a2042f78502db57dd1a82afde1cd4ed5552e1e943f62c1950552772ae834af1
+technical_hash: 11a019a801c05530d18ed84aa8348ab45604bced8204769864c9ef23a3dc3b02
+check_result: passed
+checked_at: 2026-11-03T22:51:33Z

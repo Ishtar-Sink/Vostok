@@ -20,6 +20,7 @@ Problemas conhecidos que ficaram para depois: lacunas de comportamento, de cober
 | DT-012 | Caminho sem bundle não roda na suíte | painel: build | baixa | aberto |
 | DT-013 | `vostok pedidos vigiar` sem teste com o Codex real | harness: loop de pedidos | média | aberto |
 | DT-014 | Forja de aval visível, mas não impedida | harness: trava de aval | baixa | aberto |
+| DT-015 | Painel ignora tarefas no formato antigo sem avisar | painel: leitura das tarefas | média | aberto |
 
 Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento sem prova; **baixa** confunde, mas não quebra nada.
 
@@ -246,6 +247,21 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 **Proposta.** Decidir se vale um segredo fora do alcance do agente para assinar os avais. Exige decisão do usuário antes de implementar.
 
 **Referências.** `docs/specs/SPEC-030/tecnico.html` (seção "Limites e dívidas").
+
+## DT-015: Painel ignora tarefas no formato antigo sem avisar
+
+- **Área:** painel, leitura das tarefas
+- **Encontrado em:** 2026-11-03, uso do painel num projeto que começou na v0.1 (15 tarefas no formato de arquivo único)
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** O painel só lê tarefas no formato de pasta (`TASK-NN/estado.yml`). Uma spec com tarefas no formato antigo, um `TASK-NN.md` por tarefa, aparece sem tarefas no painel, sem nenhum aviso. A CLI continua aceitando o formato antigo, então o projeto funciona no chat e parece vazio no painel.
+
+**Impacto.** Quem atualiza da v0.1 para a v0.3.0 abre o painel e não vê as tarefas, sem pista de que precisa migrar. A saída é rodar `vostok task migrate <SPEC_ID>`, que hoje só se descobre lendo a ajuda da CLI.
+
+**Proposta.** Fazer o painel detectar specs com tarefas no formato antigo e mostrar um aviso com o comando `vostok task migrate <SPEC_ID>`. Avaliar também se o `vostok update` deve avisar sobre essas specs ao final.
+
+**Referências.** `apps/cli/src/painel/read.rs` (fn `task_dirs`), `apps/cli/src/commands/task.rs` (fn `migrate`).
 
 ## Como registrar um débito
 

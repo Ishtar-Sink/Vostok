@@ -1,6 +1,5 @@
 <!-- Escrito no planejamento com o que a tarefa vai fazer e enriquecido na conclusão com o que foi feito. -->
 
-Quando trabalha a partir de um pedido, o agente passa a fazer as perguntas pelo painel em vez de recusar o pedido, e retoma o trabalho quando o usuário responde.
-Com isso, criar, refinar e ajustar specs, planos e tarefas funciona só pelo painel, e a conferência de prints e a decisão sobre commits também ficam lá.
-Perfil padrão, com inferência na redação das instruções; o risco é uma instrução ainda perguntar no chat durante um pedido e travar o atendimento.
-Depende do comando que grava as perguntas (tarefa 04) e fecha a parte do agente na operação de ponta a ponta.
+Quando o agente trabalha a partir de um pedido feito no painel, ele deixou de recusar o pedido quando precisa de uma informação: registra a pergunta no próprio painel, informa que aguarda a resposta e retoma o trabalho assim que o usuário responde. Com isso, criar, refinar e ajustar especificações, planos e tarefas passou a funcionar pelo painel, sem depender do chat, e a conferência de prints e a decisão sobre commits também ficaram lá.
+
+A entrega foi verificada pelos testes do projeto, que passaram sem falhas, e por uma demonstração em que o agente registrou uma pergunta sem perguntar no chat, o usuário respondeu no painel e o trabalho seguiu até a especificação ficar refinada. O usuário levou essa demonstração até finalizar a especificação pelo painel. Os pontos de melhoria de experiência que apareceram nela foram separados em duas especificações novas: uma de correções, feita antes da versão 0.4.0, e outra para tornar o painel mais guiado.

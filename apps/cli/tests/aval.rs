@@ -253,3 +253,135 @@ fn panel_approval_without_aval_is_reported() {
         .assert()
         .success();
 }
+
+fn harness_of(project: &Project) -> vostok::harness::Harness {
+    vostok::harness::Harness {
+        root: project.harness(),
+    }
+}
+
+fn avais(project: &Project, id: &str) -> String {
+    let output = vostok(project, &["avais", id]).output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+#[test]
+fn by_spec_task_approval_goes_to_the_spec_log() {
+    let project = task_ready_to_finish();
+    lock(&project);
+    vostok::aval::append(
+        &harness_of(&project),
+        "SPEC-001/TASK-01",
+        APPROVED_HASH,
+        "painel",
+        "finalizar-tarefa",
+    )
+    .unwrap();
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(field(&project, TASK_PATH, "status"), "done");
+    let log = read(&project, "vostok/work/avais/SPEC-001.log");
+    assert!(
+        log.contains(&format!(
+            "\tSPEC-001/TASK-01\t{APPROVED_HASH}\tpainel\tfinalizar-tarefa"
+        )),
+        "{log}"
+    );
+    assert!(!project.root().join(AVAIS_LOG).exists());
+}
+
+#[test]
+fn by_spec_avais_command_lists_newest_first() {
+    let project = Project::new();
+    write(
+        &project,
+        "vostok/work/avais/SPEC-001.log",
+        "2026-11-02T10:00:00Z\tSPEC-001\thspec\tpainel\taprovar\n2026-11-03T09:00:00Z\tSPEC-001/TASK-01\thtask\tpainel\tfinalizar-tarefa\n",
+    );
+    write(
+        &project,
+        "vostok/work/avais/SPEC-002.log",
+        "2026-11-04T10:00:00Z\tSPEC-002\thoutra\tpainel\taprovar\n",
+    );
+    let out = avais(&project, "SPEC-001");
+    let lines: Vec<&str> = out.lines().collect();
+    assert_eq!(lines[0], "| Data | ID | Ação | Origem | Hash |");
+    assert_eq!(
+        lines[2],
+        "| 2026-11-03T09:00:00Z | SPEC-001/TASK-01 | finalizar-tarefa | painel | htask |"
+    );
+    assert_eq!(
+        lines[3],
+        "| 2026-11-02T10:00:00Z | SPEC-001 | aprovar | painel | hspec |"
+    );
+    assert_eq!(lines.len(), 4, "{out}");
+    assert!(!out.contains("SPEC-002"), "{out}");
+
+    let out = avais(&project, "SPEC-001/TASK-01");
+    assert!(out.contains("htask"), "{out}");
+    assert!(!out.contains("hspec"), "{out}");
+}
+
+#[test]
+fn by_spec_avais_command_without_avais_says_so() {
+    let project = Project::new();
+    assert_eq!(
+        avais(&project, "SPEC-009").trim(),
+        "Nenhum aval de SPEC-009."
+    );
+    for invalid in ["x/y/z", "SPEC-1a", "PED-", "SPEC-001/TASK-", "../SPEC-001"] {
+        let refused = failure_stderr(&mut vostok(&project, &["avais", invalid]));
+        assert!(refused.contains("ID inválido"), "{invalid}: {refused}");
+    }
+}
+
+#[test]
+fn by_spec_legacy_log_is_split_once() {
+    let project = Project::new();
+    let spec_lines = "2026-11-01T10:00:00Z\tSPEC-001\th1\tpainel\n2026-11-01T11:00:00Z\tSPEC-001/TASK-01\th2\tpainel\tfinalizar-tarefa\n";
+    let other = "2026-11-01T12:00:00Z\tSPEC-002\th3\tpainel\taprovar\n";
+    let request = "2026-11-01T13:00:00Z\tPED-004\th4\tpainel\tfazer-commit\n";
+    write(
+        &project,
+        AVAIS_LOG,
+        &format!("{}{other}curta\tlinha\n\n{request}", spec_lines),
+    );
+    avais(&project, "SPEC-001");
+    let check = |project: &Project| {
+        assert_eq!(read(project, "vostok/work/avais/SPEC-001.log"), spec_lines);
+        assert_eq!(read(project, "vostok/work/avais/SPEC-002.log"), other);
+        assert_eq!(
+            read(project, "vostok/work/avais/sem-spec.log"),
+            format!("curta\tlinha\n{request}")
+        );
+        assert!(!project.root().join(AVAIS_LOG).exists());
+    };
+    check(&project);
+    avais(&project, "SPEC-001");
+    check(&project);
+}
+
+#[test]
+fn by_spec_folders_follow_the_config() {
+    let project = Project::new();
+    replace_in(
+        &project,
+        "vostok/config/main.yml",
+        "approvals: ./work/avais",
+        "approvals: ./work/approvals",
+    );
+    replace_in(
+        &project,
+        "vostok/config/main.yml",
+        "approvals_without_spec: sem-spec.log",
+        "approvals_without_spec: no-spec.log",
+    );
+    let harness = harness_of(&project);
+    vostok::aval::append(&harness, "SPEC-001", "hspec", "painel", "aprovar").unwrap();
+    vostok::aval::append(&harness, "PED-001", "hped", "painel", "fazer-commit").unwrap();
+    assert!(read(&project, "vostok/work/approvals/SPEC-001.log").contains("\tSPEC-001\thspec\t"));
+    assert!(read(&project, "vostok/work/approvals/no-spec.log").contains("\tPED-001\thped\t"));
+    assert!(!project.root().join("vostok/work/avais").exists());
+    assert!(avais(&project, "SPEC-001").contains("hspec"));
+    assert!(avais(&project, "PED-001").contains("hped"));
+}

@@ -3,7 +3,7 @@
 Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 
 - **Spec:** SPEC-033
-- **Status:** approved
+- **Status:** done
 - **Onda:** 2
 - **Dependências:** TASK-01
 
@@ -22,11 +22,11 @@ Arquivo gerado pelo vostok a cada mudança de estado; não edite.
 - **Tipo:** tarefa
 - **Descrição:** O `vostok perguntas abrir <PEDIDO>`, que grava a pergunta aberta com o pedido, a spec e a tarefa.
 - **Critérios de aceite:**
-  - [ ] `vostok perguntas abrir PED-001` grava `perguntas/aberta/P-001.md` com o pedido, a spec, a tarefa e `status: aberta` (RF-01, CT-01).
-  - [ ] Cada pergunta nova recebe o número seguinte ao maior já usado, inclusive entre as respondidas (RF-01).
-  - [ ] Pedido inexistente, ID inválido e texto vazio são recusados sem gravar nada (RF-01).
-  - [ ] Com os nomes de pasta trocados na configuração, a pergunta vai para a pasta configurada e o status continua `aberta` (RF-16).
-  - [ ] O código passa no clippy e no rustfmt (RF-01).
+  - [x] `vostok perguntas abrir PED-001` grava `perguntas/aberta/P-001.md` com o pedido, a spec, a tarefa e `status: aberta` (RF-01, CT-01).
+  - [x] Cada pergunta nova recebe o número seguinte ao maior já usado, inclusive entre as respondidas (RF-01).
+  - [x] Pedido inexistente, ID inválido e texto vazio são recusados sem gravar nada (RF-01).
+  - [x] Com os nomes de pasta trocados na configuração, a pergunta vai para a pasta configurada e o status continua `aberta` (RF-16).
+  - [x] O código passa no clippy e no rustfmt (RF-01).
 - **Rótulos:** SPEC-033, padrao
 - **Estimativa:** padrao
 - **Bloqueada por:** TASK-01

@@ -1,5 +1,6 @@
 //! Um módulo por grupo de comandos.
 
+pub mod avais;
 pub mod bug;
 pub mod commit;
 pub mod context;
@@ -9,6 +10,7 @@ pub mod init;
 pub mod memory;
 pub mod painel;
 pub mod pedidos;
+pub mod perguntas;
 pub mod plan;
 pub mod rules;
 pub mod skill;

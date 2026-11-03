@@ -202,7 +202,7 @@ fn approve_edit_request_and_live_update_end_to_end() {
     );
     assert_status(&approval, "200");
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\napproved_by: painel\n"));
-    let avais = read(&project, "vostok/work/avais.log");
+    let avais = read(&project, "vostok/work/avais/SPEC-001.log");
     assert!(
         avais.contains("SPEC-001/TASK-01\t") && avais.trim_end().ends_with("\tpainel\taprovar"),
         "{avais}"
@@ -236,7 +236,7 @@ fn approve_edit_request_and_live_update_end_to_end() {
         "Acrescentar um critério.",
     );
     assert_status(&asked, "200");
-    let order = read(&project, "vostok/work/pedidos/PED-001.md");
+    let order = read(&project, "vostok/work/pedidos/pendente/PED-001.md");
     assert!(
         order.contains("acao: ajustar-tarefa") && order.contains("Acrescentar um critério."),
         "{order}"

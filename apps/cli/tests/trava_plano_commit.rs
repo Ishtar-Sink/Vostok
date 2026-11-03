@@ -250,9 +250,16 @@ fn locked_git_project() -> Project {
 }
 
 fn write_request(project: &Project, id: &str, action: &str, state: &str) {
+    for folder in ["pendente", "em_andamento", "feito", "recusado"] {
+        let _ = fs::remove_file(
+            project
+                .root()
+                .join(format!("vostok/work/pedidos/{folder}/{id}.md")),
+        );
+    }
     write_file(
         project,
-        &format!("vostok/work/pedidos/{id}.md"),
+        &format!("vostok/work/pedidos/{state}/{id}.md"),
         &format!("---\nid: {id}\nacao: {action}\nspec: \ntarefa: \nestado: {state}\norigem: painel\ncriado_em: 2026-11-02T10:00:00Z\natualizado_em: 2026-11-02T10:00:00Z\n---\n\n## Pedido\n\n{REQUEST_TEXT}\n\n## Resultado\n\n"),
     );
 }

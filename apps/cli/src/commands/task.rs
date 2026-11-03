@@ -2958,8 +2958,7 @@ impl Tasks {
         let hash = doc
             .get(&self.spec_cfg("approved_hash_field")?)
             .unwrap_or_default();
-        let work = self.harness.root.join("work");
-        if aval::has_panel_approval(&work, &format!("{spec}/{id}"), &hash)? {
+        if aval::has_panel_approval(&self.harness, &format!("{spec}/{id}"), &hash)? {
             return Ok(None);
         }
         Ok(Some(format!("{id}: {PANEL_WITHOUT_AVAL}")))

@@ -13,6 +13,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
 
 use crate::aval;
+use crate::commands::pedidos::Requests;
 use crate::harness::Harness;
 use crate::support::sha256_hex;
 
@@ -200,21 +201,21 @@ fn require_request(harness: &Harness, request: Option<&str>) -> Result<()> {
     if !is_request_id {
         bail!("pedido inválido: {request}; use o ID PED-NNN do painel");
     }
-    let work = harness.root.join("work");
-    if !work.join("pedidos").join(format!("{request}.md")).is_file() {
+    let requests = Requests::open(harness)?;
+    let Some(path) = requests.find(request) else {
         bail!(
             "pedido {request} não encontrado em {}",
-            work.join("pedidos").display()
+            requests.dir().display()
         );
-    }
-    let (state, action) = aval::request_state(&work, request)?;
+    };
+    let (state, action) = aval::request_state(&path)?;
     if action != COMMIT_ACTION {
         bail!("o pedido {request} é da ação '{action}'; o commit exige um pedido {COMMIT_ACTION}");
     }
     if state != REQUEST_IN_PROGRESS {
         bail!("o pedido {request} está '{state}'; o commit exige o pedido em {REQUEST_IN_PROGRESS} (vostok pedidos iniciar {request})");
     }
-    let hash = aval::request_text_hash(&work, request)?;
+    let hash = aval::request_text_hash(&path)?;
     aval::require(harness, request, COMMIT_ACTION, &hash)
 }
 

@@ -1,12 +1,13 @@
 //! Ações do usuário no painel (POST e PUT), já com o token de sessão conferido.
 
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::Result;
 
 use super::{json, json_string, not_found, query_value, text, Painel, Reply};
+use crate::aval;
+use crate::commands::pedidos::Requests;
 use crate::commands::{plan, rules, spec, task};
 use crate::harness::Harness;
 use crate::support::{config_get, frontmatter_get, sha256_hex, utc_datetime};
@@ -40,9 +41,6 @@ const VOSTOK_ONLY: &[&str] = &["registro.md", "README.md", "estado.yml"];
 
 /// Maior corpo aceito numa ação; o servidor já corta antes, e a ação não confia nisso.
 const MAX_BODY: usize = 2 * 1024 * 1024;
-
-const AVAIS_LOG: &str = "avais.log";
-const REQUESTS_DIR: &str = "pedidos";
 
 /// `parts` são os segmentos do caminho, a partir de `api`; `body` já vem limitado pelo servidor.
 pub fn act(painel: &Painel, method: &str, parts: &[&str], query: &str, body: &[u8]) -> Reply {
@@ -268,18 +266,17 @@ fn approve(painel: &Painel, spec_id: &str, tasks: &str) -> Reply {
     json(format!("{{\"aprovadas\":[{}]}}", ids.join(",")))
 }
 
-/// O `avais.log` só recebe acréscimos (RN-05): data, ID, hash aprovado, origem e ação.
-fn record_aval(painel: &Painel, id: &str, hash: &str, action: &str) -> io::Result<()> {
-    let mut log = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(painel.work.join(AVAIS_LOG))?;
-    writeln!(log, "{}\t{id}\t{hash}\tpainel\t{action}", utc_datetime())
+/// O log de avais da spec só recebe acréscimos (RN-05): data, ID, hash aprovado, origem e ação.
+fn record_aval(painel: &Painel, id: &str, hash: &str, action: &str) -> Result<()> {
+    let harness = Harness {
+        root: painel.root.clone(),
+    };
+    aval::append(&harness, id, hash, "painel", action)
 }
 
 // --- pedidos ---
 
-/// Grava um pedido ao agente em `work/pedidos/`, para o chat em loop processar.
+/// Grava um pedido ao agente na subpasta de pendentes, para o chat em loop processar.
 fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
     let action = query_value(query, "acao");
     let spec_id = query_value(query, "spec");
@@ -304,8 +301,13 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
     } else {
         None
     };
-    let dir = painel.work.join(REQUESTS_DIR);
-    let created = write_request(&dir, |id| {
+    let requests = match Requests::open(&Harness {
+        root: painel.root.clone(),
+    }) {
+        Ok(requests) => requests,
+        Err(error) => return text(500, &error.to_string()),
+    };
+    let created = requests.create(|id| {
         request_markdown(
             id,
             &action,
@@ -315,8 +317,8 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
             &utc_datetime(),
         )
     });
-    let id = match created {
-        Ok(id) => id,
+    let (id, path) = match created {
+        Ok(created) => created,
         Err(error) => return text(500, &error.to_string()),
     };
     if let Some(target) = target {
@@ -325,7 +327,7 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
             AvalTarget::Request => (id.clone(), sha256_hex(text_of_user.trim().as_bytes())),
         };
         if let Err(error) = record_aval(painel, &aval_id, &hash, &action) {
-            let _ = fs::remove_file(dir.join(format!("{id}.md")));
+            let _ = fs::remove_file(&path);
             return text(500, &format!("o aval não foi gravado: {error}"));
         }
     }
@@ -395,26 +397,6 @@ fn refined_spec(painel: &Painel, spec_id: &str) -> Option<PathBuf> {
         })
 }
 
-/// Cria o próximo `PED-NNN.md` sem sobrescrever: se outro pedido levou o número, tenta o seguinte.
-fn write_request(dir: &Path, content: impl Fn(&str) -> String) -> io::Result<String> {
-    fs::create_dir_all(dir)?;
-    loop {
-        let id = next_request_id(dir);
-        let created = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(dir.join(format!("{id}.md")));
-        match created {
-            Ok(mut file) => {
-                file.write_all(content(&id).as_bytes())?;
-                return Ok(id);
-            }
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error),
-        }
-    }
-}
-
 /// Pedido no formato do estudo: front-matter com a ação e o estado (`pendente`, `em_andamento`,
 /// `feito` ou `recusado`), o texto do usuário e a seção em que o agente registra o resultado.
 fn request_markdown(
@@ -428,27 +410,6 @@ fn request_markdown(
     format!(
         "---\nid: {id}\nacao: {action}\nspec: {spec_id}\ntarefa: {task_id}\nestado: pendente\norigem: painel\ncriado_em: {now}\natualizado_em: {now}\n---\n\n## Pedido\n\n{text}\n\n## Resultado\n\n"
     )
-}
-
-fn next_request_id(dir: &Path) -> String {
-    let highest = fs::read_dir(dir)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter_map(|entry| {
-                    entry
-                        .file_name()
-                        .to_str()?
-                        .strip_prefix("PED-")?
-                        .strip_suffix(".md")?
-                        .parse::<u32>()
-                        .ok()
-                })
-                .max()
-                .unwrap_or(0)
-        })
-        .unwrap_or(0);
-    format!("PED-{:03}", highest + 1)
 }
 
 fn is_id(value: &str) -> bool {
@@ -467,6 +428,8 @@ mod tests {
     const TASK: &str = "vostok/work/tasks/SPEC-001/TASK-01.md";
     const VALID_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`\n  - Prova: o comando roda.\n  - Trecho: a linha `ok`.\n  - Falha: saída vazia.";
     const PATH_EVIDENCE: &str = "- `docs/x/saida.txt` (automática): `echo ok`";
+    const AVAIS_DIR: &str = "avais";
+    const SPEC_LOG: &str = "avais/SPEC-001.log";
 
     fn task_content(evidence: &str) -> String {
         format!(
@@ -650,7 +613,7 @@ mod tests {
         assert_eq!(read(&painel, TASK), before);
         let reply = post(&painel, "pedidos", "acao=ajustar-tarefa", &big);
         assert_eq!(reply.status, 413);
-        assert!(!painel.work.join(REQUESTS_DIR).exists());
+        assert!(!painel.work.join("pedidos").exists());
     }
 
     #[test]
@@ -788,7 +751,7 @@ mod tests {
         assert!(content.contains("\nstatus: approved\n"), "{content}");
         assert!(content.contains("\napproved_by: painel\n"), "{content}");
         let approved_hash = frontmatter_get(&painel.project.join(TASK), "approved_hash").unwrap();
-        let log = fs::read_to_string(painel.work.join(AVAIS_LOG)).unwrap();
+        let log = fs::read_to_string(painel.work.join(SPEC_LOG)).unwrap();
         let fields: Vec<&str> = log.trim_end().split('\t').collect();
         assert_eq!(fields.len(), 5, "{log}");
         assert!(fields[0].ends_with('Z') && fields[0].contains('T'), "{log}");
@@ -806,10 +769,11 @@ mod tests {
     #[test]
     fn avais_log_only_receives_appends() {
         let (_dir, painel) = project(VALID_EVIDENCE);
-        fs::write(painel.work.join(AVAIS_LOG), "linha anterior\n").unwrap();
+        fs::create_dir_all(painel.work.join(AVAIS_DIR)).unwrap();
+        fs::write(painel.work.join(SPEC_LOG), "linha anterior\n").unwrap();
         let reply = post(&painel, "aprovacoes", "spec=SPEC-001&tarefas=TASK-01", b"");
         assert_eq!(reply.status, 200, "{}", body(&reply));
-        let log = fs::read_to_string(painel.work.join(AVAIS_LOG)).unwrap();
+        let log = fs::read_to_string(painel.work.join(SPEC_LOG)).unwrap();
         assert!(log.starts_with("linha anterior\n"), "{log}");
         assert_eq!(log.lines().count(), 2);
     }
@@ -826,7 +790,7 @@ mod tests {
             body(&reply)
         );
         assert_eq!(read(&painel, TASK), before);
-        assert!(!painel.work.join(AVAIS_LOG).exists());
+        assert!(!painel.work.join(AVAIS_DIR).exists());
     }
 
     #[test]
@@ -834,7 +798,7 @@ mod tests {
         let (_dir, painel) = project(VALID_EVIDENCE);
         let reply = post(&painel, "aprovacoes", "spec=SPEC-404", b"");
         assert_eq!(reply.status, 422);
-        assert!(!painel.work.join(AVAIS_LOG).exists());
+        assert!(!painel.work.join(AVAIS_DIR).exists());
     }
 
     #[test]
@@ -852,7 +816,7 @@ mod tests {
                 "{query}"
             );
         }
-        assert!(!painel.work.join(AVAIS_LOG).exists());
+        assert!(!painel.work.join(AVAIS_DIR).exists());
     }
 
     // --- pedidos (CT-12, CB-03) ---
@@ -868,7 +832,7 @@ mod tests {
         );
         assert_eq!(reply.status, 200, "{}", body(&reply));
         assert_eq!(body(&reply), "{\"id\":\"PED-001\"}");
-        let content = read(&painel, "vostok/work/pedidos/PED-001.md");
+        let content = read(&painel, "vostok/work/pedidos/pendente/PED-001.md");
         let header = "---\nid: PED-001\nacao: ajustar-tarefa\nspec: SPEC-001\ntarefa: TASK-01\nestado: pendente\norigem: painel\ncriado_em: ";
         assert!(content.starts_with(header), "{content}");
         assert!(content.contains("\natualizado_em: "), "{content}");
@@ -893,16 +857,16 @@ mod tests {
         );
     }
 
-    fn aval_lines(painel: &Painel) -> Vec<String> {
-        fs::read_to_string(painel.work.join(AVAIS_LOG))
+    fn aval_lines(painel: &Painel, log: &str) -> Vec<String> {
+        fs::read_to_string(painel.work.join(AVAIS_DIR).join(log))
             .unwrap_or_default()
             .lines()
             .map(String::from)
             .collect()
     }
 
-    fn last_aval_fields(painel: &Painel) -> Vec<String> {
-        let lines = aval_lines(painel);
+    fn last_aval_fields(painel: &Painel, log: &str) -> Vec<String> {
+        let lines = aval_lines(painel, log);
         lines
             .last()
             .unwrap()
@@ -916,7 +880,7 @@ mod tests {
     fn approval_aval_has_the_action_column() {
         let (_dir, painel) = project(VALID_EVIDENCE);
         approve_task_and_write_targets(&painel);
-        assert!(aval_lines(&painel)[0].ends_with("\tpainel\taprovar"));
+        assert!(aval_lines(&painel, "SPEC-001.log")[0].ends_with("\tpainel\taprovar"));
     }
 
     #[test]
@@ -928,7 +892,7 @@ mod tests {
         assert_eq!(reply.status, 200, "{}", body(&reply));
         let approved_hash = frontmatter_get(&painel.project.join(TASK), "approved_hash").unwrap();
         assert_eq!(
-            last_aval_fields(&painel),
+            last_aval_fields(&painel, "SPEC-001.log"),
             [
                 "SPEC-001/TASK-01",
                 approved_hash.as_str(),
@@ -936,7 +900,7 @@ mod tests {
                 "finalizar-tarefa"
             ]
         );
-        assert!(painel.work.join("pedidos/PED-001.md").is_file());
+        assert!(painel.work.join("pedidos/pendente/PED-001.md").is_file());
     }
 
     #[test]
@@ -946,8 +910,8 @@ mod tests {
         let reply = post(&painel, "pedidos", query, b"");
         assert_eq!(reply.status, 422);
         assert_eq!(body(&reply), "a tarefa não está aprovada");
-        assert!(!painel.work.join(REQUESTS_DIR).exists());
-        assert!(!painel.work.join(AVAIS_LOG).exists());
+        assert!(!painel.work.join("pedidos").exists());
+        assert!(!painel.work.join(AVAIS_DIR).exists());
     }
 
     #[test]
@@ -957,13 +921,13 @@ mod tests {
         let reply = post(&painel, "pedidos", "acao=aprovar-plano&spec=SPEC-001", b"");
         assert_eq!(reply.status, 200, "{}", body(&reply));
         assert_eq!(
-            last_aval_fields(&painel),
+            last_aval_fields(&painel, "SPEC-001.log"),
             ["SPEC-001", "plan-hash", "painel", "aprovar-plano"]
         );
         let reply = post(&painel, "pedidos", "acao=finalizar-spec&spec=SPEC-001", b"");
         assert_eq!(reply.status, 200, "{}", body(&reply));
         assert_eq!(
-            last_aval_fields(&painel),
+            last_aval_fields(&painel, "SPEC-001.log"),
             ["SPEC-001", "spec-hash", "painel", "finalizar-spec"]
         );
     }
@@ -979,7 +943,7 @@ mod tests {
         );
         assert_eq!(reply.status, 200, "{}", body(&reply));
         assert_eq!(
-            last_aval_fields(&painel),
+            last_aval_fields(&painel, "sem-spec.log"),
             [
                 "PED-001",
                 sha256_hex(b"Commit da onda 1.").as_str(),
@@ -994,7 +958,7 @@ mod tests {
         let (_dir, painel) = project(VALID_EVIDENCE);
         let query = "acao=ajustar-tarefa&spec=SPEC-001&tarefa=TASK-01";
         assert_eq!(post(&painel, "pedidos", query, b"x").status, 200);
-        assert!(!painel.work.join(AVAIS_LOG).exists());
+        assert!(!painel.work.join(AVAIS_DIR).exists());
     }
 
     #[test]
@@ -1015,7 +979,7 @@ mod tests {
             );
             assert_eq!(reply.status, 200, "{action}");
             let id = format!("PED-{:03}", index + 1);
-            let content = read(&painel, &format!("vostok/work/pedidos/{id}.md"));
+            let content = read(&painel, &format!("vostok/work/pedidos/pendente/{id}.md"));
             assert!(
                 content.contains(&format!("\nacao: {action}\n")),
                 "{content}"
@@ -1042,7 +1006,7 @@ mod tests {
             );
             assert_eq!(reply.status, 400, "{action}");
         }
-        assert!(!painel.work.join(REQUESTS_DIR).exists());
+        assert!(!painel.work.join("pedidos").exists());
     }
 
     #[test]
@@ -1057,14 +1021,21 @@ mod tests {
     }
 
     #[test]
-    fn next_request_id_follows_the_highest() {
+    fn next_request_id_follows_the_highest_of_every_folder() {
         let (_dir, painel) = project(VALID_EVIDENCE);
-        let dir = painel.work.join(REQUESTS_DIR);
-        write(&painel, "vostok/work/pedidos/PED-002.md", "x");
-        write(&painel, "vostok/work/pedidos/PED-010.md", "x");
+        write(&painel, "vostok/work/pedidos/pendente/PED-002.md", "x");
+        write(&painel, "vostok/work/pedidos/feito/PED-010.md", "x");
         write(&painel, "vostok/work/pedidos/notas.md", "x");
-        assert_eq!(next_request_id(&dir), "PED-011");
-        assert_eq!(next_request_id(&painel.work.join("vazia")), "PED-001");
+        let reply = post(
+            &painel,
+            "pedidos",
+            "acao=ajustar-tarefa&spec=SPEC-001&tarefa=TASK-01",
+            b"x",
+        );
+        assert_eq!(reply.status, 200);
+        assert!(String::from_utf8_lossy(&reply.body).contains("PED-011"));
+        assert!(painel.work.join("pedidos/pendente/PED-011.md").is_file());
+        assert!(painel.work.join("pedidos/notas.md").is_file());
     }
 
     #[test]

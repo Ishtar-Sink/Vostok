@@ -9,18 +9,23 @@ wave: 2
 covers: [RF-08, CT-09, CT-17]
 type: tarefa
 labels: [SPEC-033, julgamento]
-status: approved
-content_hash: 31edc6f436699876178b31be42531c13a056af9988ddf0e4717e00ad60bfb7cf
+status: done
+content_hash: 0a7e7676eaafb79e5082b58e93f9d26b69d14ab7e741927e93a1602347851219
 adjustments: 0
 adjusted_at: null
 approved_at: 2026-11-03T17:27:28Z
 approved_hash: 31edc6f436699876178b31be42531c13a056af9988ddf0e4717e00ad60bfb7cf
 attempts: 0
-tests_result: null
-regression_result: null
-evidence_result: null
+tests_result: passed
+regression_result: passed
+evidence_result: passed
 execution_hash: 7672fc5c59b09a0b7135ff40e56914ddd24fe08fb236ab5fbe949366ba90bace
 verification_hash: f11d4525302d603a8cad129532220d2fcef012e61ae555ab9dd4affb2abc0476
-criteria_hash: 33ad94c4ed7236742a96545cbdfb58fdba69d2a114811d1d55414d4397667979
-state_hash: e3c227bc1062a1989e9440bdb017fb4eba6b3e6d327063940b43a14eb314630e
+criteria_hash: 99cbc7334a0fa14e093d7c60a5164ab973550ade6b7412dc102d7e3c3cb3a8d8
+state_hash: 503b7f6ba69f1ff798ab4710681aee0eeae33f81c445ea467013d5d17de1f55e
 approved_by: chat
+model: claude-opus-5-5
+executive_hash: ae30918fb57dabc0f1503bfa96167caa295e1fd57e2332124a0cc7f8c72939c9
+technical_hash: 785e8c0b707d65431fb907dbde4ed6ee92aa549e14043bd734de8a380ae375d4
+check_result: passed
+checked_at: 2026-11-03T18:03:11Z

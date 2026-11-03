@@ -1189,8 +1189,7 @@ fn panel_approval_error(specs: &Specs, spec_id: &str, file: &Path) -> Result<Opt
         return Ok(None);
     }
     let hash = frontmatter_get(file, &specs.setting("approved_hash_field")?).unwrap_or_default();
-    let work = specs.harness.root.join("work");
-    if aval::has_panel_approval(&work, spec_id, &hash)? {
+    if aval::has_panel_approval(&specs.harness, spec_id, &hash)? {
         return Ok(None);
     }
     Ok(Some(PANEL_WITHOUT_AVAL.to_string()))

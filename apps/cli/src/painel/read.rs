@@ -7,6 +7,7 @@ use super::{
     json, json_string, live, not_found, percent_decode, query_value, safe_segment, text, Painel,
     Reply,
 };
+use crate::commands::pedidos::{Questions, Requests};
 use crate::harness::Harness;
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
 
@@ -102,6 +103,12 @@ impl<'a> Layout<'a> {
             archive: harness
                 .path("archive")
                 .unwrap_or_else(|_| painel.work.join(".archive")),
+        }
+    }
+
+    fn harness(&self) -> Harness {
+        Harness {
+            root: self.painel.root.clone(),
         }
     }
 
@@ -307,7 +314,10 @@ impl Layout<'_> {
     /// Cada pedido entra com a criação e, se mudou de estado, com o estado atual.
     fn request_rows(&self) -> Vec<ActivityRow> {
         let mut rows = Vec::new();
-        for file in markdown_files(&self.painel.work.join("pedidos")) {
+        let files = Requests::open(&self.harness())
+            .map(|requests| requests.files(None))
+            .unwrap_or_default();
+        for file in files {
             let field = |key| frontmatter_get(&file, key).unwrap_or_default();
             let (id, created, updated) = (field("id"), field("criado_em"), field("atualizado_em"));
             if id.is_empty() || created.is_empty() {
@@ -332,9 +342,9 @@ impl Layout<'_> {
         rows
     }
 
-    /// O `avais.log`, sem as linhas malformadas.
+    /// Os avais de todos os logs por spec, sem as linhas malformadas.
     fn approval_rows(&self) -> Vec<ActivityRow> {
-        let Ok((avais, _)) = crate::aval::read(&self.painel.work) else {
+        let Ok((avais, _)) = crate::aval::read_all(&self.harness()) else {
             return Vec::new();
         };
         avais
@@ -362,8 +372,9 @@ impl Layout<'_> {
     /// Perguntas abertas do agente para o usuário (`work/perguntas/*.md`): front-matter com `id`,
     /// `spec`, `task`, `status` e `created_at`, e o corpo com `## Pergunta` e `## Opções`.
     fn questions(&self) -> Vec<String> {
-        let mut files = markdown_files(&self.painel.work.join("perguntas"));
-        files.sort();
+        let files = Questions::open(&self.harness())
+            .map(|questions| questions.files("aberta"))
+            .unwrap_or_default();
         files
             .iter()
             .filter(|file| frontmatter_get(file, "status").is_ok_and(|status| status == "aberta"))
@@ -1184,6 +1195,37 @@ wave: 1
         );
         assert!(text.contains("\"id\":\"P-1\""));
         assert!(!text.contains("\"id\":\"P-2\""), "só perguntas abertas");
+    }
+
+    #[test]
+    fn pedidos_e_perguntas_vem_das_subpastas() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/pedidos/feito/PED-007.md",
+            "---\nid: PED-007\nacao: ajustar-tarefa\nspec: SPEC-001\ntarefa: TASK-01\nestado: feito\ncriado_em: 2026-01-05T10:00:00Z\natualizado_em: 2026-01-05T11:00:00Z\n---\n\n## Pedido\n\nx\n",
+        );
+        write(
+            dir.path(),
+            "vostok/work/perguntas/aberta/P-7.md",
+            "---\nid: P-7\nspec: SPEC-001\ntask: \"\"\nstatus: aberta\ncreated_at: 2026-01-05T10:00:00Z\n---\n\n## Pergunta\n\nQual?\n",
+        );
+        write(
+            dir.path(),
+            "vostok/work/perguntas/respondida/P-8.md",
+            "---\nid: P-8\nspec: SPEC-001\ntask: \"\"\nstatus: aberta\ncreated_at: 2026-01-05T10:00:00Z\n---\n\nJá respondida, com o status antigo.\n",
+        );
+        let activities = body(&get(&painel, "/api/atividades?tipo=pedido&limite=50"));
+        assert!(
+            activities.contains("\"target\":\"PED-007\""),
+            "{activities}"
+        );
+        let overview = body(&get(&painel, "/api/visao"));
+        assert!(overview.contains("\"id\":\"P-7\""), "{overview}");
+        assert!(
+            !overview.contains("\"id\":\"P-8\""),
+            "só a pasta de abertas"
+        );
     }
 
     #[test]

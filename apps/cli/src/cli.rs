@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    bug, commit, context, documents, finalize, init, memory, painel, pedidos, plan, rules, skill,
-    spec, suggest, task, update,
+    avais, bug, commit, context, documents, finalize, init, memory, painel, pedidos, perguntas,
+    plan, rules, skill, spec, suggest, task, update,
 };
 
 #[derive(Debug, Parser)]
@@ -66,6 +66,11 @@ pub enum Command {
     /// Pedidos gravados pelo painel.
     #[command(subcommand)]
     Pedidos(pedidos::PedidosCommand),
+    /// Perguntas do agente ao usuário, respondidas no painel.
+    #[command(subcommand)]
+    Perguntas(perguntas::PerguntasCommand),
+    /// Avais do painel de uma spec, tarefa ou pedido.
+    Avais(avais::AvaisArgs),
 }
 
 pub fn run(cli: Cli) -> Result<()> {
@@ -86,5 +91,7 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::Update => update::run(),
         Command::Painel(args) => painel::run(args),
         Command::Pedidos(command) => pedidos::run(command),
+        Command::Perguntas(command) => perguntas::run(command),
+        Command::Avais(args) => avais::run(args),
     }
 }

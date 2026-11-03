@@ -21,6 +21,7 @@ Problemas conhecidos que ficaram para depois: lacunas de comportamento, de cober
 | DT-013 | `vostok pedidos vigiar` sem teste com o Codex real | harness: loop de pedidos | média | aberto |
 | DT-014 | Forja de aval visível, mas não impedida | harness: trava de aval | baixa | aberto |
 | DT-015 | Painel ignora tarefas no formato antigo sem avisar | painel: leitura das tarefas | média | aberto |
+| DT-016 | Resumo do plano sai incompleto na resposta da plan-tasks | harness: respostas das skills | média | aberto |
 
 Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento sem prova; **baixa** confunde, mas não quebra nada.
 
@@ -262,6 +263,21 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 **Proposta.** Fazer o painel detectar specs com tarefas no formato antigo e mostrar um aviso com o comando `vostok task migrate <SPEC_ID>`. Avaliar também se o `vostok update` deve avisar sobre essas specs ao final.
 
 **Referências.** `apps/cli/src/painel/read.rs` (fn `task_dirs`), `apps/cli/src/commands/task.rs` (fn `migrate`).
+
+## DT-016: Resumo do plano sai incompleto na resposta da plan-tasks
+
+- **Área:** harness, respostas das skills `plan-tasks` e `adjust-plan`
+- **Encontrado em:** 2026-11-03, planejamento da SPEC-032
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** A `plan-tasks` pede que a resposta traga o resumo do plano: a visão geral, a tabela de tarefas com perfis, dependências, ondas e cobertura, e os arquivos em comum por onda. O agente montou esse resumo à mão e entregou só uma parte, sem a tabela de ondas e sem a coluna de cobertura, e o usuário precisou redirecionar o chat para ver o plano. Diferente do `vostok task status`, que imprime as tabelas prontas e é colado sem alteração, o resumo do plano depende de o agente copiar as tabelas certas do arquivo.
+
+**Impacto.** O usuário não consegue revisar o plano pela resposta e precisa pedir as tabelas de novo, o que atrasa a aprovação e quebra a confiança na comunicação do agente.
+
+**Proposta.** Criar um comando que imprima o resumo do plano pronto (tarefas com persona, perfil, dependências, onda e cobertura, e a tabela de ondas com os arquivos em comum), como o `vostok task status`, e fazer a `plan-tasks` e a `adjust-plan` colarem a saída sem alteração, na regra [agent/responses-07]. Avaliar também mudar o perfil de uma tarefa sem marcar fatos (hoje, subir o estudo para julgamento exigiu marcar inferência e risco alto).
+
+**Referências.** `packages/harness/skills/default/plan-tasks/SKILL.md` (passo 7 e "Resumo do plano"), `packages/harness/skills/default/adjust-plan/SKILL.md`.
 
 ## Como registrar um débito
 

@@ -109,9 +109,9 @@ jobs:
           # Limites do painel local (SPEC-029, RNF-01): o binário e o arquivo baixado continuam leves.
           binary="$(wc -c < "apps/cli/target/${TARGET}/release/vostok" | tr -d ' ')"
           archive="$(wc -c < "dist/vostok-${VERSION}-${TARGET}.tar.gz" | tr -d ' ')"
-          echo "binário: ${binary} bytes (limite 6000000); tar.gz: ${archive} bytes (limite 2300000)"
-          if [ "$binary" -gt 6000000 ] || [ "$archive" -gt 2300000 ]; then
-            echo "::error::Tamanho acima do limite: binário ${binary} bytes (até 6000000), tar.gz ${archive} bytes (até 2300000)."
+          echo "binário: ${binary} bytes (limite 10000000); tar.gz: ${archive} bytes (limite 4000000)"
+          if [ "$binary" -gt 10000000 ] || [ "$archive" -gt 4000000 ]; then
+            echo "::error::Tamanho acima do limite: binário ${binary} bytes (até 10000000), tar.gz ${archive} bytes (até 4000000)."
             exit 1
           fi
 

@@ -23,6 +23,7 @@ files:
   skills/default/approve-plan/SKILL.md: 85a5c9447d0c4cfc02bb2abdbbe756f7f1b5347a654a3995ee26e42845f1c8ca
   skills/default/approve-spec/SKILL.md: 61ce76d0c4efb6f51ad57124f5f802d128f3161233bb8a11224cdb9e0b1a98b1
   skills/default/approve-task/SKILL.md: 3bd82f71392523a01af76d6057b53da30a6d5de3fa8dca5d444775fc456c537d
+  skills/default/ask-agent/SKILL.md: fda5ae82dd06da0b6d86b75ff30fdc7be5d8e9296db2389c1e5c8d99058ddcc9
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 3769e9377990fcfa6c8e53592db526aad3678d444b249c6da4e2feba33b2df37
   skills/default/customize-documents/SKILL.md: fc4be6a890d245e758e2ecb5dec2888cdbfd39e5091877aec57c1684ddf95c0e
@@ -31,7 +32,7 @@ files:
   skills/default/finish-task/SKILL.md: acb340cfe1c99596021530eb5ddb3a71c9be75b22c0c1675e164e56741221bd4
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: b6a4e0f2eecdfaf9ccbc10ae68be60f3fddd2af5f9455140c5f0cd2ab5db6c78
-  skills/default/process-requests/SKILL.md: 8048da40c7e61353ac6b3e29956b6d9324b27c985825cf8dafd39a320aafbd6f
+  skills/default/process-requests/SKILL.md: fe3ce6da00939187c7df93987e9551b65ddddc8958ff05fdb2f03cc3beeae2f7
   skills/default/refine-spec/SKILL.md: 4ef9e1e944f41a62788f5174a94438c338d5b6338bb4aea250a6ea286abaed1a
   skills/default/refine-spec/references/sections.md: 88f68c241313d4b325bfb16ebc5f71fd8487f529280fb7574e8e7097de341d60
   skills/default/report-harness-bug/SKILL.md: 99d9f81600f39e3938adc61be5a4956f9a211e8aa75e1dc77e5aafe856f6878b

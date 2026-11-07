@@ -83,3 +83,5 @@ skills:
     - config/documents.yml
   process-requests:
     - config/tasks.yml
+  ask-agent:
+    - config/main.yml

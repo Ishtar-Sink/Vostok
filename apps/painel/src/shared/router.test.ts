@@ -14,6 +14,7 @@ describe('parseRoute', () => {
     ['/tarefas/SPEC-029/TASK-03', { page: 'task', spec: 'SPEC-029', task: 'TASK-03' }],
     ['/documentos', { page: 'documents' }],
     ['/atividades', { page: 'activity' }],
+    ['/perguntas', { page: 'ask' }],
     ['/configuracoes', { page: 'settings' }],
   ])('maps %s to the right page', (path, route) => {
     expect(parseRoute(path)).toEqual(route);

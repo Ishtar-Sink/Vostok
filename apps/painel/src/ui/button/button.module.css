@@ -33,6 +33,12 @@
   cursor: not-allowed;
 }
 
+.small {
+  min-height: calc(var(--space) * 8);
+  padding: calc(var(--space) * 1) calc(var(--space) * 3);
+  font-size: var(--font-size-sm);
+}
+
 .primary {
   border-color: var(--primary);
   background: var(--primary);

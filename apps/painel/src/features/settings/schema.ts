@@ -124,6 +124,14 @@ export const FILES: { name: string; label: string; summary: string; sections: Se
         ],
       },
       {
+        title: 'Painel',
+        description: 'Avisos do painel e acompanhamento dos pedidos.',
+        fields: [
+          { key: 'toast_dismiss_seconds', label: 'Tempo do aviso na tela', help: 'O aviso some sozinho depois deste tempo. 0 faz ele só sumir ao ser fechado.', control: { type: 'number', min: 0, unit: 's' } },
+          { key: 'request_note_warning_minutes', label: 'Aviso de falta de nota', help: 'Pedido em andamento sem nota nova por mais que isto mostra o aviso.', control: { type: 'number', min: 1, unit: 'min' } },
+        ],
+      },
+      {
         title: 'Pastas',
         description: 'Caminhos relativos à pasta do harness (a que contém config/).',
         fields: [
@@ -196,6 +204,7 @@ export const FILES: { name: string; label: string; summary: string; sections: Se
         fields: [
           { key: 'max_attempts', label: 'Falhas antes de bloquear', help: 'Testes que falham mais vezes que isto bloqueiam a tarefa até a sua decisão.', control: { type: 'number', min: 1, unit: 'tentativas' } },
           { key: 'max_subagents', label: 'Subagentes em paralelo numa onda', help: '', control: { type: 'range', min: 1, max: 6, unit: 'subagentes' } },
+          { key: 'manual_attachment_max_mb', label: 'Limite de anexo pelo painel', help: 'Tamanho máximo de uma evidência manual; também limita a soma dos anexos de uma pergunta.', control: { type: 'number', min: 1, unit: 'MB' } },
           { key: 'evidence_baseline_timeout', label: 'Tempo-limite das evidências no baseline', help: 'Passou do tempo, a gravação é interrompida. 0 desliga o limite.', control: { type: 'number', min: 0, unit: 's' } },
           { key: 'task_types', label: 'Tipos de tarefa', help: 'Tipo do card no board.', control: { type: 'tags' } },
           { key: 'id.prefix', label: 'ID das tarefas', control: { type: 'id', digits: 'id.digits' } },

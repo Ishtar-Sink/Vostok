@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActionDialog } from '../../shared/action-bar';
-import { formatDate, useResource, type Overview, type SpecMeta } from '../../shared/api';
-import { ACTION_LABELS, type AttentionItem } from '../../shared/attention';
+import { formatDate, useResource, type Overview, type PanelRequest, type SpecMeta } from '../../shared/api';
+import { ACTION_LABELS, activeRequest, requestLabel, type AttentionItem } from '../../shared/attention';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Badge } from '../../ui/badge/badge';
@@ -17,6 +17,7 @@ interface Row {
   meta: SpecMeta;
   done: number;
   total: number;
+  request?: PanelRequest;
 }
 
 const FILTERS = [
@@ -47,7 +48,10 @@ export function SpecsPage({ version }: { version: number }) {
   if (overview.kind === 'loading') return <LoadingState label="Carregando as specs" rows={6} />;
   if (overview.kind === 'error') return <ErrorState title="Não foi possível ler o harness" description={overview.message} retryLabel="Tentar de novo" onRetry={overview.retry} />;
 
-  const open: Row[] = overview.data.specs.map((spec) => ({ meta: spec.meta, done: spec.tasks.filter((task) => task.status === 'done').length, total: spec.tasks.length }));
+  const requests = overview.data.requests ?? [];
+  const working = (id: string) => activeRequest(requests, id) ?? requests.find((request) => request.spec === id);
+
+  const open: Row[] = overview.data.specs.map((spec) => ({ meta: spec.meta, request: working(spec.meta.id), done: spec.tasks.filter((task) => task.status === 'done').length, total: spec.tasks.length }));
   const archived: Row[] = overview.data.archived.map((spec) => ({ meta: spec.meta, done: spec.tasks_total, total: spec.tasks_total }));
   const rows = filter === 'abertas' ? open : filter === 'arquivadas' ? archived : [...open, ...archived];
   const counts = { abertas: open.length, arquivadas: archived.length, todas: open.length + archived.length };
@@ -73,7 +77,17 @@ export function SpecsPage({ version }: { version: number }) {
           { id: 'type', header: 'Tipo', width: '120px', cell: (row) => TYPE_LABELS[row.meta.type] ?? (row.meta.type || '—') },
           { id: 'progress', header: 'Tarefas', width: '150px', cell: (row) => <ProgressCell done={row.done} total={row.total} /> },
           { id: 'updated', header: 'Atualizada', width: '120px', align: 'end', cell: (row) => formatDate(row.meta.updated_at) },
-          { id: 'status', header: 'Status', width: '140px', cell: (row) => <Badge tone={statusTone(row.meta.status)}>{statusLabel(row.meta.status)}</Badge> },
+          {
+            id: 'status',
+            header: 'Status',
+            width: '190px',
+            cell: (row) => (
+              <span className={styles.status}>
+                <Badge tone={statusTone(row.meta.status)}>{statusLabel(row.meta.status)}</Badge>
+                {row.request ? <span className={styles.agentWork}>{requestLabel(row.request)}</span> : null}
+              </span>
+            ),
+          },
         ]}
       />
     </>

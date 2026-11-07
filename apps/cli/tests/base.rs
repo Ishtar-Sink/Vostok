@@ -157,7 +157,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 22, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 23, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))
@@ -195,6 +195,10 @@ fn ct13_skills_and_skill_templates_call_vostok() {
             .lines()
             .find_map(|line| line.strip_prefix("allowed-tools: "))
             .unwrap_or_default();
+        // A `ask-agent` só lê: o `Bash` dela fica restrito aos dois comandos que a skill usa.
+        if *skill == "skills/default/ask-agent/SKILL.md" {
+            continue;
+        }
         assert!(
             tools.contains("Bash(vostok *)") || tools.split_whitespace().any(|tool| tool == "Bash"),
             "{skill} sem `Bash(vostok *)` no allowed-tools: {tools}"
@@ -596,6 +600,7 @@ fn portuguese_folders() -> Folders {
             in_progress: "em_andamento".into(),
             done: "feito".into(),
             refused: "recusado".into(),
+            attachments: "anexos".into(),
         },
         questions: QuestionFolders {
             open: "aberta".into(),
@@ -639,6 +644,52 @@ fn communication_shipped_config_has_the_defaults() {
         "pendente"
     );
     assert_eq!(config_get(&main, "request_dispatch").unwrap(), "");
+    assert_eq!(
+        config_get(&main, "folders.requests.attachments").unwrap(),
+        "anexos"
+    );
+    assert_eq!(config_get(&main, "toast_dismiss_seconds").unwrap(), "5");
+    assert_eq!(
+        config_get(&main, "request_note_warning_minutes").unwrap(),
+        "15"
+    );
+    let tasks = project.harness().join("config/tasks.yml");
+    assert_eq!(
+        config_get(&tasks, "manual_attachment_max_mb").unwrap(),
+        "500"
+    );
+}
+
+#[test]
+fn communication_attachments_folder_follows_the_config() {
+    let (_project, harness) =
+        project_with_main("paths:\n  root: ../\nfolders:\n  requests:\n    attachments: uploads\n");
+    assert_eq!(harness.folders().unwrap().requests.attachments, "uploads");
+}
+
+#[test]
+fn communication_attachments_folder_rejects_a_state_name() {
+    let (_project, harness) = project_with_main(
+        "paths:\n  root: ../\nfolders:\n  requests:\n    pending: x\n    attachments: x\n",
+    );
+    let error = harness.folders().unwrap_err().to_string();
+    for part in ["folders.requests", "pending", "attachments", "'x'"] {
+        assert!(error.contains(part), "{error}");
+    }
+}
+
+#[test]
+fn communication_attachments_folder_rejects_unsafe_names() {
+    for value in ["a/b", ".."] {
+        let (_project, harness) = project_with_main(&format!(
+            "paths:\n  root: ../\nfolders:\n  requests:\n    attachments: {value}\n"
+        ));
+        let error = harness.folders().unwrap_err().to_string();
+        assert!(
+            error.contains("folders.requests.attachments"),
+            "{value}: {error}"
+        );
+    }
 }
 
 #[test]
@@ -666,6 +717,7 @@ fn communication_paths_follow_the_config() {
             in_progress: "in_progress".into(),
             done: "done".into(),
             refused: "refused".into(),
+            attachments: "anexos".into(),
         }
     );
     assert_eq!(

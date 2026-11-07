@@ -12,5 +12,11 @@
 .ref:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .commits { display: grid; gap: 8px; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: 12px; background: var(--surface); }
 .commitsTitle { margin: 0; font-size: var(--font-size-md); font-weight: 600; }
-.commitLines { margin: 0; padding-left: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); }
 .commitActions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.groups { display: grid; gap: 24px; }
+.group { display: grid; gap: 10px; }
+.groupTitle { margin: 0; font-size: var(--font-size-md); font-weight: 600; }
+.after { margin: 0; color: var(--text-faint); font-size: var(--font-size-sm); }
+.item[data-after] { border-left-color: var(--border-strong); }
+.answer { flex: 1 1 100%; min-width: 0; padding-top: 12px; border-top: 1px solid var(--border); }

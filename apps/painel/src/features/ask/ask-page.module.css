@@ -1,0 +1,29 @@
+.form { display: grid; gap: 12px; max-width: 720px; margin-bottom: 32px; }
+.field { display: grid; gap: 6px; color: var(--text-muted); font-size: var(--font-size-sm); }
+.field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.field textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.spec { max-width: 420px; }
+.submitRow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.hint { color: var(--text-muted); font-size: var(--font-size-sm); }
+.sent { margin: 0; color: var(--text); font-size: var(--font-size-sm); font-weight: 600; }
+.failed { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.sentList { display: grid; gap: 12px; min-width: 0; }
+.heading { margin: 0; color: var(--text); font-family: var(--font-display); font-size: var(--font-size-lg); }
+.list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.item { min-width: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.toggle { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px; width: 100%; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.title { min-width: 0; flex: 1 1 200px; overflow-wrap: anywhere; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 0; color: var(--text-muted); font-size: var(--font-size-xs); }
+.meta a { color: var(--primary); }
+.panel { min-width: 0; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.panel h3 { margin: 8px 0 4px; color: var(--text-muted); font-size: var(--font-size-sm); }
+.waiting { margin: 8px 0 0; color: var(--text-muted); }
+.attachments { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.attachment { display: grid; gap: 6px; min-width: 0; }
+.attachmentImage { display: block; max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; }
+.attachmentInfo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; }
+.attachmentName { min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-sm); font-weight: 600; }
+a.attachmentName { color: var(--primary); }
+.attachmentSize { color: var(--text-muted); font-size: var(--font-size-xs); }

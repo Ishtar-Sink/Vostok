@@ -4,13 +4,16 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
-use std::io::Read;
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
+use sha2::{Digest, Sha256};
 
 use crate::aval;
 use crate::harness::Harness;
@@ -44,6 +47,9 @@ pub enum TaskCommand {
     /// Ajustes de uma tarefa.
     #[command(subcommand)]
     Adjust(AdjustCommand),
+    /// Acrescenta ou tira dependência de tarefa em execução.
+    #[command(subcommand)]
+    Depends(DependsCommand),
     /// Inicia a execução.
     Start {
         spec_id: Option<String>,
@@ -148,6 +154,26 @@ pub enum AdjustCommand {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum DependsCommand {
+    /// Acrescenta uma dependência.
+    Add {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        dependency: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+    /// Tira uma dependência.
+    Remove {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        dependency: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum ApproveCommand {
     /// Lista as tarefas que podem ser aprovadas.
     Validate {
@@ -165,6 +191,9 @@ pub enum ApproveCommand {
     },
 }
 
+const BLOCKED_BY_PREFIX: &str = "- **Bloqueada por:** ";
+const WAITING_ON_FIELD: &str = "waiting_on";
+const WAITING_REASON_FIELD: &str = "waiting_reason";
 const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
 const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
 const MIGRATE_USAGE: &str = "Uso: vostok task migrate <SPEC_ID>";
@@ -173,6 +202,8 @@ const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>"
 const APPROVE_USAGE: &str =
     "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
+const DEPENDS_USAGE: &str =
+    "Uso: vostok task depends add|remove <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo \"texto\"";
 const STATUS_USAGE: &str = "Uso: vostok task status <SPEC_ID>";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
 const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
@@ -343,6 +374,252 @@ pub fn record_manual_at(project: &Path, spec: &str, task: &str) -> Result<Vec<St
     tasks.errors_of(spec, &file, EvidenceNames::Normalizable)
 }
 
+/// Pasta, dentro das evidências da tarefa, com os envios do painel ainda em andamento.
+pub const ATTACH_TEMP_DIR: &str = ".anexo-tmp";
+
+const ATTACH_BUFFER: usize = 64 * 1024;
+const ATTACH_HASH_DIGITS: usize = 8;
+
+/// Temporários de envios em andamento neste processo, que a limpeza da sobra não pode apagar.
+static ATTACH_IN_FLIGHT: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+static ATTACH_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Motivo de o painel não poder gravar um anexo; qualquer outro erro é falha de gravação.
+#[derive(Debug)]
+pub enum AttachRefusal {
+    WrongStatus(String),
+    Invalid(String),
+}
+
+impl std::fmt::Display for AttachRefusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AttachRefusal::WrongStatus(message) | AttachRefusal::Invalid(message) => {
+                formatter.write_str(message)
+            }
+        }
+    }
+}
+
+impl std::error::Error for AttachRefusal {}
+
+/// Anexo gravado: o nome, o tamanho e os primeiros dígitos do hash SHA-256.
+#[derive(Debug)]
+pub struct Attached {
+    pub evidence: String,
+    pub size: u64,
+    pub sha256: String,
+}
+
+/// Evidência manual pedida pela tarefa e o estado do arquivo dela.
+#[derive(Debug)]
+pub struct ManualEvidence {
+    pub name: String,
+    pub description: String,
+    pub extension: String,
+    pub attached: bool,
+    pub size: u64,
+    pub path: PathBuf,
+}
+
+fn invalid(message: impl Into<String>) -> anyhow::Error {
+    AttachRefusal::Invalid(message.into()).into()
+}
+
+fn attach_in_flight() -> MutexGuard<'static, Vec<PathBuf>> {
+    ATTACH_IN_FLIGHT
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Temporário de um envio: some no `Drop`, a menos que o `rename` já o tenha levado.
+struct AttachTemp {
+    path: PathBuf,
+}
+
+impl AttachTemp {
+    /// Apaga a sobra de envios que não estão em andamento e abre um temporário só deste envio.
+    fn create(folder: &Path) -> Result<(Self, File)> {
+        let mut in_flight = attach_in_flight();
+        fs::create_dir_all(folder)?;
+        for entry in fs::read_dir(folder)? {
+            let path = entry?.path();
+            if in_flight.contains(&path) {
+                continue;
+            }
+            if fs::symlink_metadata(&path)?.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else {
+                fs::remove_file(&path)?;
+            }
+        }
+        let counter = ATTACH_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = folder.join(format!("{}-{counter}", std::process::id()));
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)?;
+        in_flight.push(path.clone());
+        Ok((Self { path }, file))
+    }
+}
+
+impl Drop for AttachTemp {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+        attach_in_flight().retain(|path| path != &self.path);
+    }
+}
+
+/// Copia o corpo para `target` e confere o tamanho declarado. Falha de leitura e tamanho errado são
+/// recusas; falha de escrita, como disco cheio, sobe como erro de gravação.
+fn receive_body(
+    body: &mut impl Read,
+    target: &mut impl Write,
+    declared: u64,
+) -> Result<(u64, String)> {
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; ATTACH_BUFFER];
+    let mut total = 0u64;
+    loop {
+        let read = match body.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(invalid(format!("envio cortado: {error}; nada foi gravado"))),
+        };
+        total += read as u64;
+        if total > declared {
+            return Err(invalid(format!(
+                "o envio passou dos {declared} bytes declarados; nada foi gravado"
+            )));
+        }
+        hasher.update(&buffer[..read]);
+        target.write_all(&buffer[..read])?;
+    }
+    if total == 0 {
+        return Err(invalid("arquivo vazio; nada foi gravado"));
+    }
+    if total != declared {
+        return Err(invalid(format!(
+            "envio cortado: chegaram {total} de {declared} bytes; nada foi gravado"
+        )));
+    }
+    let digits = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    Ok((total, digits[..ATTACH_HASH_DIGITS].to_string()))
+}
+
+/// Extensão do nome, em minúsculas; vazia quando não há.
+fn extension_of(name: &str) -> String {
+    Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_lowercase)
+        .unwrap_or_default()
+}
+
+fn same_extension(expected: &str, sent: &str) -> bool {
+    let normal = |extension: &str| {
+        let extension = extension.trim_start_matches('.').to_lowercase();
+        if extension == "jpeg" {
+            "jpg".to_string()
+        } else {
+            extension
+        }
+    };
+    normal(expected) == normal(sent)
+}
+
+/// Anexo de uma evidência manual pelo painel: confere a evidência, a extensão, o status e a pasta,
+/// recebe o corpo num temporário e o põe no lugar por `rename`, registrando a etapa `anexo`.
+pub fn attach_evidence_from_panel(
+    project: &Path,
+    spec: &str,
+    task: &str,
+    evidence: &str,
+    extension: &str,
+    declared: u64,
+    body: &mut impl Read,
+) -> Result<Attached> {
+    let tasks = Tasks::new(Harness::locate(project)?)?;
+    let file = tasks
+        .find_task(spec, task)
+        .map_err(|error| invalid(error.to_string()))?;
+    tasks.require_attachable(&file, task)?;
+    if !tasks
+        .manual_items(&file)?
+        .iter()
+        .any(|(name, _)| name == evidence)
+    {
+        return Err(invalid(format!(
+            "'{evidence}' não é uma evidência manual de {task}; nada foi gravado"
+        )));
+    }
+    let expected = extension_of(evidence);
+    if !expected.is_empty() && !same_extension(&expected, extension) {
+        return Err(invalid(format!(
+            "a evidência {evidence} pede um arquivo .{expected}; nada foi gravado"
+        )));
+    }
+    let dir = tasks.attach_dir(&file)?;
+
+    let (temp, mut upload) = AttachTemp::create(&dir.join(ATTACH_TEMP_DIR))?;
+    let (size, hash) = receive_body(body, &mut upload, declared)?;
+    upload.sync_all()?;
+    drop(upload);
+
+    {
+        let _in_flight = attach_in_flight();
+        tasks.require_attachable(&file, task)?;
+        fs::rename(&temp.path, dir.join(evidence))?;
+        let doc = TaskDoc::at(&file);
+        if doc.get("evidence_result").unwrap_or_default() == "passed" {
+            doc.set("evidence_result", "null")?;
+        }
+        tasks.record_step(
+            &file,
+            "anexo",
+            Origin::Panel.as_str(),
+            &format!(
+                "{evidence} sha256 {hash} ({})",
+                human_size(size).replace('.', ",")
+            ),
+        )?;
+    }
+    Ok(Attached {
+        evidence: evidence.to_string(),
+        size,
+        sha256: hash,
+    })
+}
+
+/// As evidências manuais que a tarefa pede, com o estado do arquivo de cada uma.
+pub fn manual_evidence_at(project: &Path, spec: &str, task: &str) -> Result<Vec<ManualEvidence>> {
+    let tasks = Tasks::new(Harness::locate(project)?)?;
+    let file = tasks.find_task(spec, task)?;
+    let dir = tasks.evidence_dir(&file)?;
+    Ok(tasks
+        .manual_items(&file)?
+        .into_iter()
+        .map(|(name, description)| {
+            let path = dir.join(&name);
+            let size = fs::metadata(&path).map_or(0, |meta| meta.len());
+            ManualEvidence {
+                extension: extension_of(&name),
+                attached: size > 0,
+                size,
+                path,
+                name,
+                description,
+            }
+        })
+        .collect())
+}
+
 pub fn run(command: TaskCommand) -> Result<()> {
     let tasks = Tasks::new(Harness::from_current_dir()?)?;
     match command {
@@ -371,6 +648,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
         }
         TaskCommand::Approve(command) => tasks.run_approve(command),
         TaskCommand::Adjust(command) => tasks.run_adjust(command),
+        TaskCommand::Depends(command) => tasks.run_depends(command),
         TaskCommand::Start {
             spec_id,
             task_id,
@@ -747,6 +1025,77 @@ impl Tasks {
         Ok(trim_newlines(&text.unwrap_or_default()).to_string())
     }
 
+    /// Evidências manuais da tarefa, como (nome, descrição), na ordem em que aparecem.
+    fn manual_items(&self, file: &Path) -> Result<Vec<(String, String)>> {
+        let content = TaskDoc::at(file).text()?;
+        let text = self.subsection(&content, "evidence_subsection")?;
+        let manual = self.cfg("evidence_manual")?;
+        Ok(text
+            .lines()
+            .filter(|line| !is_indented(line))
+            .map(str::trim)
+            .filter(|line| is_manual_evidence(line, &manual))
+            .filter_map(evidence_item)
+            .filter(|(name, _, _)| is_valid_evidence_name(name))
+            .map(|(name, _, rest)| (name.to_string(), rest.to_string()))
+            .collect())
+    }
+
+    /// O anexo só vale com a tarefa em execução ou em validação.
+    fn require_attachable(&self, file: &Path, task: &str) -> Result<()> {
+        let status = status_of(file);
+        if status != self.status.in_progress && status != self.status.validating {
+            return Err(AttachRefusal::WrongStatus(format!(
+                "a tarefa {task} está com status '{status}'; o anexo só vale em execução ou em validação"
+            ))
+            .into());
+        }
+        Ok(())
+    }
+
+    /// Pasta de evidências da tarefa em pasta, conferida para receber o anexo.
+    fn attach_dir(&self, file: &Path) -> Result<PathBuf> {
+        if !is_task_folder(file) {
+            return Err(invalid(
+                "a tarefa está no formato de arquivo único; execute vostok task migrate antes de anexar",
+            ));
+        }
+        let dir = self.evidence_dir(file)?;
+        fs::create_dir_all(&dir)?;
+        if !dir.canonicalize()?.starts_with(file.canonicalize()?) {
+            return Err(invalid(
+                "a pasta de evidências sai da pasta da tarefa; nada foi gravado",
+            ));
+        }
+        let temp_is_link = fs::symlink_metadata(dir.join(ATTACH_TEMP_DIR))
+            .is_ok_and(|meta| meta.file_type().is_symlink());
+        if temp_is_link {
+            return Err(invalid(format!(
+                "{ATTACH_TEMP_DIR} é um link; nada foi gravado"
+            )));
+        }
+        Ok(dir)
+    }
+
+    /// Apaga a sobra dos envios do painel ao concluir a tarefa.
+    fn remove_attach_leftovers(&self, file: &Path) -> Result<()> {
+        if !is_task_folder(file) {
+            return Ok(());
+        }
+        let dir = self.evidence_dir(file)?;
+        let inside = dir
+            .canonicalize()
+            .and_then(|dir| file.canonicalize().map(|file| dir.starts_with(file)))
+            .unwrap_or(false);
+        if !inside {
+            return Ok(());
+        }
+        match fs::remove_dir_all(dir.join(ATTACH_TEMP_DIR)) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error.into()),
+            _ => Ok(()),
+        }
+    }
+
     fn evidence_dir(&self, file: &Path) -> Result<PathBuf> {
         if is_task_folder(file) {
             return Ok(file.join(&layout().evidence_dir));
@@ -829,7 +1178,7 @@ impl Tasks {
     fn brief(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
-        let has_baseline = self.evidence_dir(&file)?.join("baseline").is_dir();
+        let has_baseline = self.has_baseline(&file)?;
         if status != self.status.in_progress || !has_baseline {
             let hint = if has_baseline {
                 String::new()
@@ -1043,6 +1392,16 @@ impl Tasks {
             "\nSubagentes ao mesmo tempo: {}\n",
             self.max_subagents()
         ));
+        for file in &files {
+            let waiting = waiting_of(file);
+            if !waiting.is_empty() {
+                text.push_str(&format!(
+                    "Esperando: {} espera {}\n",
+                    task_id_of(file),
+                    waiting.join(", ")
+                ));
+            }
+        }
         Ok(text)
     }
 
@@ -1315,7 +1674,7 @@ impl Tasks {
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste manual {count} registrado em {task}: {summary}");
         self.drop_approval(&file, task)?;
-        self.restart_execution(&file, task, &summary)?;
+        self.settle_adjustment(spec, &file, task, &summary, None)?;
         let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
         if !errors.is_empty() {
             println!("Problemas de validação:\n{}", errors.join("\n"));
@@ -1360,12 +1719,257 @@ impl Tasks {
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste {count} registrado em {task}: {}", file.display());
         self.drop_approval(&file, task)?;
-        self.restart_execution(&file, task, &summary)
+        self.settle_adjustment(spec, &file, task, &summary, None)
+    }
+
+    // --- depends ---
+
+    fn run_depends(&self, command: DependsCommand) -> Result<()> {
+        let (add, spec_id, task_id, dependency, reason) = match command {
+            DependsCommand::Add {
+                spec_id,
+                task_id,
+                dependency,
+                reason,
+            } => (true, spec_id, task_id, dependency, reason),
+            DependsCommand::Remove {
+                spec_id,
+                task_id,
+                dependency,
+                reason,
+            } => (false, spec_id, task_id, dependency, reason),
+        };
+        let (spec, task) = filled(spec_id, task_id, DEPENDS_USAGE)?;
+        let dependency = dependency
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| usage(DEPENDS_USAGE))?;
+        let reason = clean_summary(&reason.ok_or_else(|| usage(DEPENDS_USAGE))?)?;
+        self.change_dependency(&spec, &task, &dependency, &reason, add)
+    }
+
+    fn change_dependency(
+        &self,
+        spec: &str,
+        task: &str,
+        dependency: &str,
+        reason: &str,
+        add: bool,
+    ) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        self.check_task_id(dependency)?;
+        self.require_dependency_status(&file, task)?;
+        if !self.hash_is_current(&file)? {
+            bail!(
+                "a tarefa {task} tem edição sem registro; registre-a antes (vostok task adjust record-manual {spec} {task})"
+            );
+        }
+        let mut dependencies = dependencies_of(&file);
+        if add {
+            self.check_new_dependency(spec, task, dependency, &dependencies)?;
+            dependencies.push(dependency.to_string());
+        } else {
+            let before = dependencies.len();
+            dependencies.retain(|id| id != dependency);
+            if dependencies.len() == before {
+                bail!("a tarefa {task} não depende de {dependency}; nada foi gravado");
+            }
+        }
+        let saved = self.stored_state(&file)?;
+        write_dependencies(&file, &dependencies)?;
+        let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
+        if !errors.is_empty() {
+            self.restore_state(&file, &saved)?;
+            bail!(
+                "a tarefa {task} ficaria com problemas; nada foi gravado:\n{}",
+                errors.join("\n")
+            );
+        }
+        let summary = if add {
+            format!("dependência {dependency} acrescentada: {reason}")
+        } else {
+            format!("dependência {dependency} retirada: {reason}")
+        };
+        let origin = self.spec_cfg("adjustment_origins.agent")?;
+        let count = self.record_adjustment(&file, &origin, &summary)?;
+        println!("Ajuste {count} registrado em {task}: {summary}");
+        self.settle_adjustment(spec, &file, task, &summary, add.then_some(reason))
+    }
+
+    /// A dependência só muda em tarefa em execução, em validação ou bloqueada por dependência.
+    fn require_dependency_status(&self, file: &Path, task: &str) -> Result<()> {
+        let status = status_of(file);
+        let blocked = status == self.status.blocked;
+        if status == self.status.in_progress || status == self.status.validating {
+            return Ok(());
+        }
+        if blocked && !waiting_of(file).is_empty() {
+            return Ok(());
+        }
+        if blocked {
+            bail!("a tarefa {task} está bloqueada por falha; decida o bloqueio antes (vostok task resume), para os dois motivos não se misturarem");
+        }
+        bail!("a tarefa {task} está com status '{status}'; a dependência só muda aqui em tarefa em execução, em validação ou bloqueada por dependência; nos demais casos, faça um novo plano");
+    }
+
+    fn check_new_dependency(
+        &self,
+        spec: &str,
+        task: &str,
+        dependency: &str,
+        dependencies: &[String],
+    ) -> Result<()> {
+        if dependency == task {
+            bail!("ciclo: {task} não pode depender dela mesma; nada foi gravado");
+        }
+        let dependency_file = self.task_file(spec, dependency);
+        if !dependency_file.exists() {
+            bail!("a dependência {dependency} não existe em {spec}: só vale dependência entre tarefas da mesma spec; nada foi gravado");
+        }
+        if dependencies.iter().any(|id| id == dependency) {
+            bail!("a tarefa {task} já depende de {dependency}; nada foi gravado");
+        }
+        let mut seen = HashSet::new();
+        let mut pending = vec![dependency.to_string()];
+        while let Some(id) = pending.pop() {
+            if id == task {
+                bail!("ciclo: {dependency} já depende de {task}, direta ou indiretamente; nada foi gravado");
+            }
+            if seen.insert(id.clone()) {
+                pending.extend(dependencies_of(&self.task_file(spec, &id)));
+            }
+        }
+        Ok(())
+    }
+
+    /// Texto do estado (`estado.yml` da pasta ou o arquivo único) para desfazer uma gravação.
+    fn stored_state(&self, file: &Path) -> Result<String> {
+        let doc = TaskDoc::at(file);
+        if doc.folder() {
+            read(&doc.part(&layout().state))
+        } else {
+            read(file)
+        }
+    }
+
+    fn restore_state(&self, file: &Path, saved: &str) -> Result<()> {
+        let doc = TaskDoc::at(file);
+        if doc.folder() {
+            write(&doc.part(&layout().state), saved)?;
+            return doc.write_readme();
+        }
+        write(file, saved)
+    }
+
+    /// Dependências da tarefa que ainda não foram concluídas.
+    fn pending_dependencies(&self, spec: &str, file: &Path) -> Vec<String> {
+        dependencies_of(file)
+            .into_iter()
+            .filter(|id| {
+                let dependency = self.task_file(spec, id);
+                !dependency.exists() || status_of(&dependency) != self.status.done
+            })
+            .collect()
+    }
+
+    /// Devolve a tarefa em espera a approved, mantendo a aprovação. Não grava o hash, para uma edição
+    /// sem registro feita durante a espera continuar aparecendo.
+    fn release_waiting(&self, file: &Path, task: &str, detail: &str) -> Result<()> {
+        let approved = &self.status.approved;
+        TaskDoc::at(file).set("status", approved)?;
+        write_waiting(file, &[], "")?;
+        self.append_record_row(file, "desbloqueio", approved, detail)?;
+        println!("Tarefa {task} desbloqueada: status '{approved}'.");
+        Ok(())
+    }
+
+    /// Depois de um ajuste registrado: reinicia a execução, bloqueia a tarefa que ficou com dependência
+    /// pendente ou a devolve a approved quando a espera acabou. O ajuste comum de arquivo único sem
+    /// espera não bloqueia.
+    fn settle_adjustment(
+        &self,
+        spec: &str,
+        file: &Path,
+        task: &str,
+        summary: &str,
+        reason: Option<&str>,
+    ) -> Result<()> {
+        if !self.is_running(&status_of(file)) {
+            return Ok(());
+        }
+        let waiting = waiting_of(file);
+        let watched = TaskDoc::at(file).folder() || reason.is_some() || !waiting.is_empty();
+        let pending = if watched {
+            self.pending_dependencies(spec, file)
+        } else {
+            Vec::new()
+        };
+        if pending.is_empty() && waiting.is_empty() {
+            return self.restart_execution(file, task, summary);
+        }
+        reset_results(file)?;
+        if pending.is_empty() {
+            self.record_step(file, "ajuste", &self.status.approved, summary)?;
+            return self.release_waiting(file, task, "sem dependência pendente depois do ajuste");
+        }
+        let blocked = &self.status.blocked;
+        TaskDoc::at(file).set("status", blocked)?;
+        self.record_step(file, "ajuste", blocked, summary)?;
+        let current = TaskDoc::at(file)
+            .get(WAITING_REASON_FIELD)
+            .unwrap_or_default();
+        let reason = reason
+            .map(str::to_string)
+            .or_else(|| Some(current).filter(|text| !text.is_empty()))
+            .unwrap_or_else(|| summary.to_string());
+        write_waiting(file, &pending, &reason)?;
+        if pending != waiting {
+            self.append_record_row(
+                file,
+                "bloqueio",
+                blocked,
+                &format!("espera {}: {reason}", pending.join(", ")),
+            )?;
+            self.store_hash(file)?;
+        }
+        println!("Tarefa {task} bloqueada: espera {}.", pending.join(", "));
+        Ok(())
+    }
+
+    /// Libera as tarefas em espera da `finished` e mantém bloqueadas as que ainda esperam outra.
+    fn release_dependents(&self, file: &Path, finished: &str) -> Result<()> {
+        for other in task_entries(file.parent().unwrap_or(Path::new("")))? {
+            let waiting = waiting_of(&other);
+            if !waiting.iter().any(|id| id == finished) {
+                continue;
+            }
+            let id = task_id_of(&other);
+            let rest: Vec<String> = waiting.into_iter().filter(|dep| dep != finished).collect();
+            if rest.is_empty() {
+                self.release_waiting(&other, &id, &format!("{finished} concluída"))?;
+                continue;
+            }
+            let reason = TaskDoc::at(&other)
+                .get(WAITING_REASON_FIELD)
+                .unwrap_or_default();
+            write_waiting(&other, &rest, &reason)?;
+            println!(
+                "Tarefa {id} continua bloqueada: espera {}.",
+                rest.join(", ")
+            );
+        }
+        Ok(())
     }
 
     /// Devolve uma tarefa aprovada para pending e avisa. Não faz nada nas demais.
     fn drop_approval(&self, file: &Path, task: &str) -> Result<()> {
         if status_of(file) != self.status.approved {
+            return Ok(());
+        }
+        if self.has_baseline(file)? {
+            println!(
+                "Ajuste em tarefa já iniciada: {task} continua '{}', com a aprovação mantida.",
+                self.status.approved
+            );
             return Ok(());
         }
         TaskDoc::at(file).set("status", &self.status.pending)?;
@@ -1407,6 +2011,10 @@ impl Tasks {
 
     // --- start e baseline ---
 
+    fn has_baseline(&self, file: &Path) -> Result<bool> {
+        Ok(self.evidence_dir(file)?.join("baseline").is_dir())
+    }
+
     fn start(&self, spec: &str, task: &str, model: Option<&str>) -> Result<()> {
         let model = match model.map(str::trim) {
             Some(value) if value.is_empty() || value.contains(['\n', '\r']) => {
@@ -1415,8 +2023,10 @@ impl Tasks {
             other => other,
         };
         let file = self.find_task(spec, task)?;
-        let mut blockers = self.start_blockers(spec, task, &file)?;
-        if blockers.is_empty() {
+        // Tarefa aprovada que já tem baseline saiu de uma espera: recomeça de onde parou.
+        let restart = status_of(&file) == self.status.approved && self.has_baseline(&file)?;
+        let mut blockers = self.start_blockers(spec, task, &file, restart)?;
+        if blockers.is_empty() && !restart {
             blockers = self.created_conflicts(&file)?;
         }
         if !blockers.is_empty() {
@@ -1424,6 +2034,9 @@ impl Tasks {
                 "a tarefa {task} não pode ser iniciada; nada foi alterado:\n{}",
                 blockers.join("\n")
             );
+        }
+        if restart {
+            return self.restart_task(&file, task, model);
         }
         // A tarefa aparece em execução antes da coleta, que pode demorar; se a coleta falhar, ela
         // continua em execução sem baseline, e o `vostok task baseline` coleta de novo.
@@ -1449,7 +2062,27 @@ impl Tasks {
         Ok(())
     }
 
-    fn start_blockers(&self, spec: &str, task: &str, file: &Path) -> Result<Vec<String>> {
+    /// Recomeça a tarefa desbloqueada: mantém o baseline, os hashes dos documentos e a aprovação.
+    fn restart_task(&self, file: &Path, task: &str, model: Option<&str>) -> Result<()> {
+        let in_progress = &self.status.in_progress;
+        TaskDoc::at(file).set("status", in_progress)?;
+        let mut detail = String::from("baseline mantido");
+        if let Some(model) = model {
+            TaskDoc::at(file).put("model", model)?;
+            detail.push_str(&format!("; modelo: {model}"));
+        }
+        self.record_step(file, "recomeço", in_progress, &detail)?;
+        println!("Tarefa {task} recomeçada: status '{in_progress}', com o baseline mantido.");
+        Ok(())
+    }
+
+    fn start_blockers(
+        &self,
+        spec: &str,
+        task: &str,
+        file: &Path,
+        restart: bool,
+    ) -> Result<Vec<String>> {
         let status = status_of(file);
         let approved = &self.status.approved;
         if status != *approved {
@@ -1461,7 +2094,13 @@ impl Tasks {
         let approved_hash = TaskDoc::at(file)
             .get(&self.spec_cfg("approved_hash_field")?)
             .unwrap_or_default();
-        if approved_hash != self.task_hash(file)? {
+        if restart {
+            if !self.hash_is_current(file)? {
+                blockers.push(format!(
+                    "a tarefa {task} mudou depois do último ajuste registrado; registre o ajuste (vostok task adjust record-manual) antes de recomeçar"
+                ));
+            }
+        } else if approved_hash != self.task_hash(file)? {
             blockers.push(format!(
                 "a tarefa {task} mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
             ));
@@ -1627,6 +2266,14 @@ impl Tasks {
     /// Recusa tarefa fora de in_progress e validating; a bloqueada só volta pelo resume.
     fn require_running(&self, file: &Path, task: &str) -> Result<()> {
         let status = status_of(file);
+        let waiting = waiting_of(file);
+        if !waiting.is_empty() {
+            bail!(
+                "a tarefa {task} espera {}; ela volta sozinha a '{}' quando a espera acabar",
+                waiting.join(", "),
+                self.status.approved
+            );
+        }
         if status == self.status.blocked {
             bail!("a tarefa {task} está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume");
         }
@@ -2245,6 +2892,7 @@ impl Tasks {
         if !problems.is_empty() {
             bail!("a tarefa {task} não pode ser concluída; nada foi alterado:\n{problems}");
         }
+        self.remove_attach_leftovers(&file)?;
 
         let done = &self.status.done;
         TaskDoc::at(&file).set("status", done)?;
@@ -2255,6 +2903,7 @@ impl Tasks {
             "testes, regressão e evidências passed; critérios de conclusão marcados",
         )?;
         println!("Tarefa {task} concluída: status '{done}'.");
+        self.release_dependents(&file, task)?;
 
         let unfinished: Vec<String> = task_entries(file.parent().unwrap_or(Path::new("")))?
             .iter()
@@ -2297,6 +2946,14 @@ impl Tasks {
         let blocked = &self.status.blocked;
         if status != *blocked {
             bail!("a tarefa {task} está com status '{status}'; só tarefas com status '{blocked}' são retomadas");
+        }
+        let waiting = waiting_of(&file);
+        if !waiting.is_empty() {
+            bail!(
+                "a tarefa {task} espera {}: não é retomada; ela volta sozinha a '{}' quando a dependência for concluída ou retirada",
+                waiting.join(", "),
+                self.status.approved
+            );
         }
         let decision = trim_lines(decision);
         if decision.is_empty() {
@@ -2921,6 +3578,12 @@ impl Tasks {
 
     /// Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo.
     fn record_step(&self, file: &Path, step: &str, result: &str, detail: &str) -> Result<()> {
+        self.append_record_row(file, step, result, detail)?;
+        self.store_hash(file)
+    }
+
+    /// Acrescenta uma linha ao "Registro de execução" sem gravar o hash.
+    fn append_record_row(&self, file: &Path, step: &str, result: &str, detail: &str) -> Result<()> {
         let section = self.cfg("record_section")?;
         let content = TaskDoc::at(file).text()?;
         let count = markdown_section(&content, &section)
@@ -2936,8 +3599,7 @@ impl Tasks {
         );
         let updated = insert_table_row(&content, &format!("## {section}"), &row, false)
             .ok_or_else(|| anyhow!("seção '## {section}' sem a tabela; nada registrado"))?;
-        TaskDoc::at(file).write_text(&updated)?;
-        self.store_hash(file)
+        TaskDoc::at(file).write_text(&updated)
     }
 
     /// Registra um ajuste: linha no histórico, contagem, datas e, por último, o hash. Devolve o número.
@@ -3047,7 +3709,7 @@ impl Tasks {
         } else {
             errors.extend(self.description_errors(&content)?);
         }
-        let running = self.is_running(&status_of(file));
+        let running = self.is_running(&status_of(file)) || self.has_baseline(file)?;
         errors.extend(self.change_errors(&content, upstream, running)?);
         errors.extend(self.done_errors(&content)?);
         let created = if running {
@@ -3928,10 +4590,10 @@ fn status_of(file: &Path) -> String {
     TaskDoc::at(file).get("status").unwrap_or_default()
 }
 
-/// Dependências do front-matter (`depends_on: [TASK-01, TASK-02]`).
-fn dependencies_of(file: &Path) -> Vec<String> {
+/// Lista de IDs de um campo do estado (`chave: [TASK-01, TASK-02]`).
+fn id_list(file: &Path, key: &str) -> Vec<String> {
     TaskDoc::at(file)
-        .get("depends_on")
+        .get(key)
         .unwrap_or_default()
         .replace(['[', ']'], "")
         .split(',')
@@ -3939,6 +4601,46 @@ fn dependencies_of(file: &Path) -> Vec<String> {
         .filter(|id| !id.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+/// Dependências do front-matter (`depends_on: [TASK-01, TASK-02]`).
+fn dependencies_of(file: &Path) -> Vec<String> {
+    id_list(file, "depends_on")
+}
+
+/// Dependências de que a tarefa bloqueada espera.
+fn waiting_of(file: &Path) -> Vec<String> {
+    id_list(file, WAITING_ON_FIELD)
+}
+
+fn write_dependencies(file: &Path, dependencies: &[String]) -> Result<()> {
+    let doc = TaskDoc::at(file);
+    doc.put("depends_on", &format!("[{}]", dependencies.join(", ")))?;
+    if doc.folder() {
+        return Ok(());
+    }
+    let blocked_by = if dependencies.is_empty() {
+        "-".to_string()
+    } else {
+        dependencies.join(", ")
+    };
+    let content = read(file)?;
+    let updated: Vec<String> = content
+        .split('\n')
+        .map(|line| match line.starts_with(BLOCKED_BY_PREFIX) {
+            true => format!("{BLOCKED_BY_PREFIX}{blocked_by}"),
+            false => line.to_string(),
+        })
+        .collect();
+    write(file, &updated.join("\n"))
+}
+
+fn write_waiting(file: &Path, waiting: &[String], reason: &str) -> Result<()> {
+    TaskDoc::at(file).put(WAITING_ON_FIELD, &format!("[{}]", waiting.join(", ")))?;
+    TaskDoc::at(file).put(
+        WAITING_REASON_FIELD,
+        &format!("\"{}\"", yaml_escape(reason)),
+    )
 }
 
 /// Limpa o resultado da conferência só nas tarefas que já o têm, para não mudar o estado das antigas.
@@ -5840,6 +6542,26 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct FullDisk;
+
+    impl Write for FullDisk {
+        fn write(&mut self, _: &[u8]) -> io::Result<usize> {
+            Err(io::Error::from_raw_os_error(28))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn attach_receive_body_write_failure_is_not_a_refusal() {
+        let error = receive_body(&mut io::Cursor::new(b"abc".to_vec()), &mut FullDisk, 3)
+            .expect_err("a escrita falha");
+        assert!(error.downcast_ref::<AttachRefusal>().is_none());
+        assert!(error.downcast_ref::<io::Error>().is_some());
+    }
 
     #[test]
     fn civil_dates_match_known_days() {

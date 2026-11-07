@@ -10,5 +10,22 @@
 .free textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
 .free textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .actionBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.done { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--success-soft); color: var(--success); }
-.failed { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); font-size: var(--font-size-sm); white-space: pre-wrap; }
+.failed { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.more { position: relative; }
+.menu { position: absolute; z-index: 20; top: calc(100% + 4px); right: 0; display: grid; min-width: 220px; max-width: calc(100vw - 32px); padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-elevated); box-shadow: var(--shadow-md); }
+.menuItem { padding: 8px 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.menuItem:hover { background: var(--surface-hover); }
+.menuItem:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; background: var(--surface-hover); }
+.hint { margin: 0; color: var(--warning); font-size: var(--font-size-sm); }
+.failedSummary { margin: 0; font-weight: 600; }
+.failedTask { margin: 8px 0 0; font-weight: 600; }
+.failed ul { margin: 4px 0 0; padding-left: 20px; }
+.register { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.registerFailed { flex-basis: 100%; margin: 0; white-space: pre-line; }
+@media (max-width: 600px) { .menu { right: auto; left: 0; } }
+
+.commitLines { margin: 0 0 12px; padding-left: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.commitDetails { margin: 0 0 12px; }
+.commitDetails summary { cursor: pointer; font-weight: 600; }
+.commitDetails summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.commitDetails .commitLines { margin: 8px 0 0; }

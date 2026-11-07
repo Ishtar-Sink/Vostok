@@ -1,0 +1,31 @@
+.wrap { position: relative; }
+.bell { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+.bell:hover { background: var(--surface-hover); }
+.bell:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.badge { position: absolute; top: -8px; right: -8px; min-width: 20px; padding: 1px 5px; border-radius: 99px; background: var(--primary); color: var(--primary-on); font-size: var(--font-size-xs); font-weight: 700; line-height: 1.4; text-align: center; font-variant-numeric: tabular-nums; }
+
+.panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; box-sizing: border-box; display: grid; gap: 12px; width: 420px; max-height: min(70vh, 560px); overflow: auto; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg); }
+.panel:focus { outline: none; }
+.heading { margin: 0; font-size: var(--font-size-md); font-weight: 700; }
+.group { display: grid; gap: 8px; }
+.groupTitle { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.error { margin: 0; color: var(--danger); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.select { font-size: var(--font-size-sm); }
+.list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.item { display: grid; gap: 4px; padding: 8px 12px; border-left: 3px solid var(--info); border-radius: 8px; background: var(--surface); font-size: var(--font-size-sm); }
+.item[data-tone='success'] { border-left-color: var(--success); }
+.item[data-tone='warning'] { border-left-color: var(--warning); }
+.item[data-read='true'] { background: var(--surface-muted); }
+.title, .message { margin: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.title { font-weight: 600; }
+.item[data-read='true'] .title { font-weight: 400; }
+.item[data-read='true'] .message { color: var(--text-muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-muted); font-size: var(--font-size-xs); }
+.meta a { color: var(--primary); font-weight: 600; }
+
+@media (max-width: 560px) {
+  .wrap { position: static; }
+  .panel { top: 100%; right: 16px; left: 16px; width: auto; }
+}

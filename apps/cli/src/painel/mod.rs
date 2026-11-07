@@ -21,6 +21,7 @@ pub struct Reply {
     pub status: u16,
     pub content_type: &'static str,
     pub body: Vec<u8>,
+    pub headers: Vec<(&'static str, String)>,
 }
 
 /// O harness servido pelo painel e o token da sessão.
@@ -66,6 +67,7 @@ pub fn text(status: u16, message: &str) -> Reply {
         status,
         content_type: "text/plain; charset=utf-8",
         body: message.as_bytes().to_vec(),
+        headers: Vec::new(),
     }
 }
 
@@ -78,6 +80,7 @@ pub fn json(body: String) -> Reply {
         status: 200,
         content_type: "application/json; charset=utf-8",
         body: body.into_bytes(),
+        headers: Vec::new(),
     }
 }
 

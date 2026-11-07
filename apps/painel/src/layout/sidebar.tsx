@@ -1,5 +1,7 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import type { OpenSpec } from '../shared/api';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { formatDateTime, type LoopRound, type OpenSpec, type PanelRequest } from '../shared/api';
+import { agentBusyLabel, noteWarningLabel } from '../shared/attention';
+import { RequestNotes } from '../shared/request-notes';
 import { onLinkClick, type Route } from '../shared/router';
 import type { Theme } from '../main';
 import styles from './layout.module.css';
@@ -11,6 +13,9 @@ export interface SidebarProps {
   icon: string;
   specs: OpenSpec[];
   pending: number;
+  unreadAnswers?: number;
+  loop: LoopRound | null;
+  requests: PanelRequest[];
   route: Route;
   theme: Theme;
   onToggleTheme: () => void;
@@ -31,6 +36,7 @@ const ICONS = {
   dashboard: <Icon><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></Icon>,
   inbox: <Icon><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z" /></Icon>,
   specs: <Icon><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></Icon>,
+  ask: <Icon><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></Icon>,
   tasks: <Icon><rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="10" y="4" width="5" height="10" rx="1.5" /><rect x="17" y="4" width="4" height="13" rx="1.5" /></Icon>,
   activity: <Icon><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></Icon>,
   documents: <Icon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></Icon>,
@@ -38,17 +44,34 @@ const ICONS = {
   settings: <Icon><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.2-1.3L14 3h-4l-.4 2.4a7 7 0 0 0-2.2 1.3l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.2 1.3L10 21h4l.4-2.4a7 7 0 0 0 2.2-1.3l2.3.9 2-3.4-2-1.5c.1-.4.1-.9.1-1.3z" /></Icon>,
 };
 
+const CLOCK_MS = 30_000;
+
+/** Hora atual, renovada a cada 30 segundos: o aviso do loop vale mesmo sem mudança de arquivo. */
+function useClock(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), CLOCK_MS);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
 function section(route: Route): string {
   if (route.page === 'spec') return 'specs';
   if (route.page === 'task') return 'tasks';
   return route.page;
 }
 
-export function Sidebar({ name, icon, specs, pending, route, theme, onToggleTheme, drawer, open, onClose }: SidebarProps) {
+export function Sidebar({ name, icon, specs, pending, unreadAnswers = 0, loop, requests, route, theme, onToggleTheme, drawer, open, onClose }: SidebarProps) {
   const ref = useRef<HTMLElement>(null);
   const current = section(route);
   const currentSpec = route.page === 'spec' ? route.id : route.page === 'task' ? route.spec : null;
   const active = specs.filter((spec) => spec.tasks.some((task) => task.status !== 'done') || spec.plan || spec.meta.status === 'refined');
+
+  const now = useClock();
+  const notice = noteWarningLabel(loop, requests) ?? agentBusyLabel(loop, requests, now);
+  const noted = requests.find((request) => request.estado === 'em_andamento' && request.nota);
+  const [notesOf, setNotesOf] = useState<string | null>(null);
 
   useEffect(() => {
     if (drawer && open) ref.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
@@ -61,6 +84,7 @@ export function Sidebar({ name, icon, specs, pending, route, theme, onToggleThem
   const items = [
     { id: 'dashboard', href: '/', label: 'Painel', icon: ICONS.dashboard },
     { id: 'inbox', href: '/pendencias', label: 'Pendências', icon: ICONS.inbox, count: pending },
+    { id: 'ask', href: '/perguntas', label: 'Perguntas', icon: ICONS.ask, count: unreadAnswers },
     { id: 'specs', href: '/specs', label: 'Specs', icon: ICONS.specs },
     { id: 'tasks', href: '/tarefas', label: 'Tarefas', icon: ICONS.tasks },
     { id: 'activity', href: '/atividades', label: 'Atividades', icon: ICONS.activity },
@@ -68,7 +92,8 @@ export function Sidebar({ name, icon, specs, pending, route, theme, onToggleThem
   ];
 
   return (
-    // O onKeyDown só fecha a gaveta com Esc; o aside não vira controle.
+    <>
+    {/* O onKeyDown só fecha a gaveta com Esc; o aside não vira controle. */}
     <aside
       id="sidebar"
       ref={ref}
@@ -95,9 +120,16 @@ export function Sidebar({ name, icon, specs, pending, route, theme, onToggleThem
             </li>
           ))}
         </ul>
-        {active.length > 0 ? (
+        {active.length > 0 || notice || noted ? (
           <>
             <p className={styles.navGroup}>Em andamento</p>
+            {notice ? <p className={styles.agentNotice} role="status">{notice}</p> : null}
+            {noted ? (
+              <button type="button" className={styles.agentNote} aria-label={`Ver as notas de ${noted.id}: ${noted.nota}`} onClick={() => setNotesOf(noted.id)}>
+                <span className={styles.agentNoteText}>{noted.nota}</span>
+                <span className={styles.agentNoteTime}>{formatDateTime(noted.nota_em ?? '', now)}</span>
+              </button>
+            ) : null}
             <ul className={styles.navList}>
               {active.map((spec) => {
                 const done = spec.tasks.filter((task) => task.status === 'done').length;
@@ -136,5 +168,7 @@ export function Sidebar({ name, icon, specs, pending, route, theme, onToggleThem
         </button>
       </div>
     </aside>
+    {notesOf ? <RequestNotes id={notesOf} onClose={() => setNotesOf(null)} /> : null}
+    </>
   );
 }

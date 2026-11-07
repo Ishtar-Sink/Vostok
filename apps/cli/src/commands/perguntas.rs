@@ -9,12 +9,21 @@ use clap::Subcommand;
 
 use crate::commands::pedidos::{Questions, Requests, ANSWERED, OPEN};
 use crate::harness::Harness;
-use crate::support::{frontmatter_get, utc_datetime};
+use crate::support::{frontmatter_get, markdown_section, utc_datetime};
 
 #[derive(Debug, Subcommand)]
 pub enum PerguntasCommand {
     /// Grava uma pergunta aberta do agente para o pedido; o texto vem da entrada padrão.
     Abrir { pedido: String },
+    /// Lista as perguntas de uma spec, com a resposta das respondidas.
+    Listar {
+        /// Spec das perguntas.
+        #[arg(long)]
+        spec: String,
+        /// Só as perguntas neste estado: aberta ou respondida.
+        #[arg(long)]
+        estado: Option<String>,
+    },
 }
 
 pub fn run(command: PerguntasCommand) -> Result<()> {
@@ -25,7 +34,62 @@ pub fn run(command: PerguntasCommand) -> Result<()> {
             std::io::stdin().read_to_string(&mut text)?;
             open(&harness, &pedido, &text)
         }
+        PerguntasCommand::Listar { spec, estado } => list(&harness, &spec, estado.as_deref()),
     }
+}
+
+fn list(harness: &Harness, spec: &str, state: Option<&str>) -> Result<()> {
+    if let Some(state) = state.filter(|state| ![OPEN, ANSWERED].contains(state)) {
+        bail!("estado de pergunta inválido '{state}': use aberta ou respondida");
+    }
+    let questions = Questions::open(harness)?;
+    let mut found: Vec<(u32, String, &str, PathBuf)> = Vec::new();
+    for status in [OPEN, ANSWERED] {
+        if state.is_some_and(|wanted| wanted != status) {
+            continue;
+        }
+        for file in questions.files(status) {
+            if frontmatter_get(&file, "spec").unwrap_or_default() != spec {
+                continue;
+            }
+            let id = file
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .unwrap_or_default()
+                .to_string();
+            let number = id
+                .strip_prefix("P-")
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(0);
+            found.push((number, id, status, file));
+        }
+    }
+    found.sort_by_key(|(number, ..)| *number);
+    if found.is_empty() {
+        println!("Nenhuma pergunta.");
+        return Ok(());
+    }
+    let blocks: Vec<String> = found
+        .iter()
+        .map(|(_, id, status, file)| {
+            let content = fs::read_to_string(file).unwrap_or_default();
+            let request = frontmatter_get(file, "pedido").unwrap_or_default();
+            let mut block = format!(
+                "## {id} (pedido {request}, {status})\n\n{}",
+                markdown_section(&content, "Pergunta")
+                    .unwrap_or_default()
+                    .trim()
+            );
+            if *status == ANSWERED {
+                if let Some(answer) = markdown_section(&content, "Resposta") {
+                    block.push_str(&format!("\n\n### Resposta\n\n{}", answer.trim()));
+                }
+            }
+            block
+        })
+        .collect();
+    println!("{}", blocks.join("\n\n"));
+    Ok(())
 }
 
 fn is_request_id(id: &str) -> bool {

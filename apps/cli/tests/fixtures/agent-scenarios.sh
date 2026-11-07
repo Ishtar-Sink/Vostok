@@ -85,7 +85,8 @@ plan() {
   V "$dir" plan create SPEC-001 > /dev/null
   F "$dir/vostok/work/plans/SPEC-001.md" \
    'PLAN_OVERVIEW=O trabalho começa pelo script que exporta um tipo de memória (TASK-01), base das demais. A exportação de todos os tipos (TASK-02) reaproveita esse script. Os testes (TASK-03) fecham o plano e dependem das duas tarefas.' \
-   'PLAN_TASKS=| TASK-01 | Exportar um tipo de memória | Cria `scripts/export-memory.sh` com a exportação de um tipo e a gravação em `vostok/memory/export.json`. | tarefa | - | - | RF-01, RF-03 |\n| TASK-02 | Exportar todos os tipos | Acrescenta o tipo `all`, que junta os três tipos num único arquivo. | tarefa | - | TASK-01 | RF-02 |\n| TASK-03 | Testes da exportação | Cobre a exportação de um tipo e de todos na suíte de testes. | tarefa | - | TASK-01, TASK-02 | CT-01, CT-02 |' \
+   'PLAN_TASKS=| TASK-01 | Exportar um tipo de memória | Cria `scripts/export-memory.sh` com a exportação de um tipo e a gravação em `vostok/memory/export.json`. | tarefa | desenvolvedor | - | - | - | RF-01, RF-03 |\n| TASK-02 | Exportar todos os tipos | Acrescenta o tipo `all`, que junta os três tipos num único arquivo. | tarefa | desenvolvedor | - | TASK-01 | - | RF-02 |\n| TASK-03 | Testes da exportação | Cobre a exportação de um tipo e de todos na suíte de testes. | tarefa | desenvolvedor | - | TASK-01, TASK-02 | - | CT-01, CT-02 |' \
+   'PLAN_COMPONENTS=| TASK-01 | `scripts/export-memory.sh` |\n| TASK-02 | `scripts/export-memory.sh` |\n| TASK-03 | - |' \
    'PLAN_FACTS=| TASK-01 | 1 | 0 | sim | não | não |\n| TASK-02 | 0 | 1 | não | não | não |\n| TASK-03 | 0 | 1 | não | não | não |'
   V "$dir" plan score SPEC-001 > /dev/null
 }
@@ -93,21 +94,21 @@ plan() {
 # Aprova o plano da SPEC-001 com tarefas preenchidas pela fixture e marca a spec como planejada.
 # A TASK-01 é detalhada de acordo com a spec; as demais usam os valores padrão de fill-refined.py.
 planned() {
-  local dir="$1" task
+  local dir="$1" tasks="$1/vostok/work/tasks/SPEC-001" file
   V "$dir" plan approve create-tasks SPEC-001 > /dev/null
-  F "$dir/vostok/work/tasks/SPEC-001/TASK-01.md" \
-   'TASK_READ=- `vostok/config/memory.yml`\n- `vostok/memory/`' \
-   'TASK_CHANGE=- `scripts/export-memory.sh` (criar): exporta um tipo de memória em JSON.' \
-   'TASK_STEPS=1. Criar `scripts/export-memory.sh`, que lê as entradas ativas do tipo e grava em `vostok/memory/export.json` uma lista JSON (`[]` quando não há entradas).\n2. Com tipo inválido, terminar com erro e listar os tipos.' \
-   'TASK_BASELINE=- `vostok memory search decision memória`' \
-   'TASK_VERIFY=```bash\ns=scripts/export-memory.sh\ntest -x "$s"\n"$s" decision\ntest "$(cat vostok/memory/export.json)" = "[]"   # memória vazia (CB-01)\nif "$s" nada; then exit 1; fi   # tipo inválido (FA-01)\n```' \
-   'TASK_EVIDENCE=- `export.txt` (automática): `cat vostok/memory/export.json`' \
-   'TASK_DONE=- [ ] O script exporta um tipo de memória em JSON (RF-01, RF-03).\n\n  > Como comprovar: com a memória vazia, exportar as decisões grava uma lista vazia no arquivo de exportação.\n- [ ] Tipo inválido termina com erro (FA-01).\n\n  > Como comprovar: pedir a exportação de um tipo que não existe termina com erro.' \
-   'TASK_EXECUTIVE_SUMMARY=Permite exportar as decisões, issues ou conhecimentos do agente em JSON para o painel web.' \
-   'TASK_TECHNICAL_DETAILS=Script bash que acha o arquivo do tipo em `vostok/config/memory.yml` e monta o JSON com awk (RF-01, RF-03, FA-01).' \
-   'TASK_CARD_DESCRIPTION=Cria o script que exporta um tipo de memória em JSON.' \
-   'TASK_CARD_CRITERIA=  - [ ] Exporta um tipo em JSON.\n  - [ ] Tipo inválido termina com erro.'
-  for task in "$dir"/vostok/work/tasks/SPEC-001/*.md; do F "$task"; done
+  for file in "$tasks"/TASK-01/*.md; do
+    F "$file" \
+     'TASK_READ=- `vostok/config/memory.yml`\n- `vostok/memory/`' \
+     'TASK_CHANGE=- `scripts/export-memory.sh` (criar): exporta um tipo de memória em JSON.' \
+     'TASK_STEPS=1. Criar `scripts/export-memory.sh`, que lê as entradas ativas do tipo e grava em `vostok/memory/export.json` uma lista JSON (`[]` quando não há entradas).\n2. Com tipo inválido, terminar com erro e listar os tipos.' \
+     'TASK_BASELINE=- `vostok memory search decision memória`' \
+     'TASK_VERIFY=```bash\ns=scripts/export-memory.sh\ntest -x "$s"\n"$s" decision\ntest "$(cat vostok/memory/export.json)" = "[]"   # memória vazia (CB-01)\nif "$s" nada; then exit 1; fi   # tipo inválido (FA-01)\n```' \
+     'TASK_EVIDENCE=- `export.txt` (automática): `cat vostok/memory/export.json`\n  - Prova: o arquivo exportado existe, com a lista JSON.\n  - Trecho: `[]`, com a memória vazia.\n  - Falha: arquivo ausente.' \
+     'TASK_DONE=- [ ] O script exporta um tipo de memória em JSON (RF-01, RF-03).\n\n  > Como comprovar: com a memória vazia, exportar as decisões grava uma lista vazia no arquivo de exportação.\n- [ ] Tipo inválido termina com erro (FA-01).\n\n  > Como comprovar: pedir a exportação de um tipo que não existe termina com erro.' \
+     'TASK_EXECUTIVE=Permite exportar as decisões, issues ou conhecimentos do agente em JSON para o painel web.' \
+     'TASK_TECHNICAL=Script bash que acha o arquivo do tipo em `vostok/config/memory.yml` e monta o JSON com awk (RF-01, RF-03, FA-01).'
+  done
+  for file in "$tasks"/TASK-*/*.md; do F "$file" 'TASK_EVIDENCE=- `saida.txt` (automática): `echo ok`\n  - Prova: o comando roda.\n  - Trecho: `ok`.\n  - Falha: sem saída.' 'TASK_EXECUTIVE=Entrega parte da exportação da memória em JSON.' 'TASK_TECHNICAL=Script bash que estende a exportação (RF-01).'; done
   V "$dir" plan approve mark-planned SPEC-001 > /dev/null
 }
 

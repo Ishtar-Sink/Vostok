@@ -28,7 +28,7 @@ export function TasksPage({ version }: { version: number }) {
           </button>
         ))}
       </div>
-      <Board tasks={tasks} showSpec={spec === 'todas'} />
+      <Board tasks={tasks} showSpec={spec === 'todas'} requests={overview.data.requests ?? []} />
     </>
   );
 }

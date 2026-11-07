@@ -12,31 +12,31 @@
 }
 
 .root {
-  max-width: calc(var(--space) * 105);
-  padding: calc(var(--space) * 3) calc(var(--space) * 4);
+  box-sizing: border-box;
+  max-width: 360px;
+  padding: calc(var(--space) * 2) calc(var(--space) * 3);
+  background: var(--surface);
+  color: var(--text);
+  border-left: 3px solid;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   font-family: var(--font-body);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   pointer-events: auto;
 }
 
 .info {
-  background: var(--info-soft);
-  color: var(--info);
+  border-left-color: var(--info);
 }
 
 .success {
-  background: var(--success-soft);
-  color: var(--success);
+  border-left-color: var(--success);
 }
 
 .warning {
-  background: var(--warning-soft);
-  color: var(--warning);
+  border-left-color: var(--warning);
 }
 
 .danger {
-  background: var(--danger-soft);
-  color: var(--danger);
+  border-left-color: var(--danger);
 }

@@ -543,6 +543,11 @@ pub fn utc_datetime_days_ago(days: u64) -> String {
     format_utc(now_seconds().saturating_sub(days * 86_400))
 }
 
+/// Data e hora em UTC de `minutes` minutos atrás, no formato de `utc_datetime`.
+pub fn utc_datetime_minutes_ago(minutes: u64) -> String {
+    format_utc(now_seconds().saturating_sub(minutes * 60))
+}
+
 fn now_seconds() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -1,3 +1,4 @@
+import { NotificationBell } from '../features/notifications/notification-bell';
 import { onLinkClick, type Route } from '../shared/router';
 import styles from './layout.module.css';
 
@@ -26,6 +27,8 @@ function crumbs(route: Route): Crumb[] {
       return [{ label: 'Documentos' }];
     case 'activity':
       return [{ label: 'Atividades' }];
+    case 'ask':
+      return [{ label: 'Perguntas' }];
     case 'settings':
       return [{ label: 'Configurações' }];
     default:
@@ -41,7 +44,7 @@ function MenuIcon() {
   );
 }
 
-export function Topbar({ route, connected, drawer, open, onToggle }: { route: Route; connected: boolean | null; drawer: boolean; open: boolean; onToggle: () => void }) {
+export function Topbar({ route, connected, unread, version, drawer, open, onToggle }: { route: Route; connected: boolean | null; unread: number; version: number; drawer: boolean; open: boolean; onToggle: () => void }) {
   const items = crumbs(route);
   return (
     <header className={styles.topbar}>
@@ -59,10 +62,13 @@ export function Topbar({ route, connected, drawer, open, onToggle }: { route: Ro
           ))}
         </ol>
       </nav>
-      <span className={styles.live} data-on={connected === true} role="status">
-        <i aria-hidden="true" />
-        {connected ? 'Ao vivo' : connected === null ? 'Conectando' : 'Reconectando'}
-      </span>
+      <div className={styles.topbarEnd}>
+        <NotificationBell unread={unread} version={version} />
+        <span className={styles.live} data-on={connected === true} role="status">
+          <i aria-hidden="true" />
+          {connected ? 'Ao vivo' : connected === null ? 'Conectando' : 'Reconectando'}
+        </span>
+      </div>
     </header>
   );
 }

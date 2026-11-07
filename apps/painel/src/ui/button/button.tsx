@@ -5,6 +5,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'muted' | 'succe
 
 export interface ButtonProps extends ComponentPropsWithRef<'button'> {
   variant?: ButtonVariant;
+  size?: 'default' | 'small';
   loading?: boolean;
   /** Cor CSS (por exemplo, a da raia) usada pela variação `muted`. */
   tint?: string;
@@ -12,6 +13,7 @@ export interface ButtonProps extends ComponentPropsWithRef<'button'> {
 
 export function Button({
   variant = 'secondary',
+  size = 'default',
   loading = false,
   tint,
   type = 'button',
@@ -23,7 +25,7 @@ export function Button({
 }: ButtonProps) {
   const unavailable = disabled === true || loading;
   const tinted = variant === 'muted' && tint !== undefined;
-  const classes = [styles.root, styles[variant], tinted ? styles.tinted : '', className]
+  const classes = [styles.root, styles[variant], size === 'small' ? styles.small : '', tinted ? styles.tinted : '', className]
     .filter(Boolean)
     .join(' ');
   return (

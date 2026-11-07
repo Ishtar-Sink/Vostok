@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { SpecPage } from './spec-page';
 
@@ -75,6 +75,35 @@ describe('SpecPage', () => {
   });
   const requests = (body: unknown) => (url: string) => (url.startsWith('/api/pedidos') ? json({ id: 'PED-8' }) : url.startsWith('/api/specs/') ? json(body) : new Response('', { status: 404 }));
   const lastButton = (name: string) => screen.getAllByRole('button', { name }).at(-1) as HTMLButtonElement;
+  const withOverview = (body: unknown, overview: unknown) => (url: string) => (url.startsWith('/api/visao') ? json(overview) : requests(body)(url));
+  const planning = { id: 'PED-9', acao: 'planejar-spec', spec: 'SPEC-001', tarefa: '', estado: 'em_andamento', atualizado_em: '2026-11-03T10:00:00Z' };
+  const approvedBody = { ...detail('vostok/work/specs/approved/SPEC-001.md', 'approved'), plan: false, tasks: [] };
+  const paused = (over: object = {}) => ({ id: 'PED-6', acao: 'aprovar-plano', desfecho: 'pausado', pergunta: '', saidas: ['criar-spec'], resultado: 'Falta a spec da lista de tarefas.', ...over });
+
+  it('mostra o pedido em andamento e esconde as ações', async () => {
+    mockFetch(withOverview(approvedBody, { requests: [planning] }));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    await screen.findByText('Planejando');
+    expect(screen.getByRole('region', { name: 'Estado do pedido' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Planejar tarefas' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajustar a spec' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mais ações' })).toBeNull();
+  });
+
+  it('mostra o motivo e a saída da pausa na spec', async () => {
+    mockFetch(withOverview({ ...approvedBody, last_outcome: paused() }, { requests: [] }));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    await screen.findByText('Falta a spec da lista de tarefas.');
+    expect(within(screen.getByRole('region', { name: 'Estado do pedido' })).getByRole('button', { name: 'Nova spec' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Planejar tarefas' }).length).toBeGreaterThan(0);
+  });
+
+  it('esconde as ações enquanto espera a resposta', async () => {
+    mockFetch(withOverview({ ...approvedBody, last_outcome: paused({ desfecho: 'aguardando-pergunta', pergunta: 'P-002', saidas: [] }) }, { requests: [] }));
+    render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    await screen.findByText('Aguardando sua resposta à P-002');
+    expect(screen.queryByRole('button', { name: 'Planejar tarefas' })).toBeNull();
+  });
 
   it('pede o refinamento da spec em rascunho', async () => {
     const body = { ...detail('vostok/work/specs/draft/SPEC-001.md', 'draft'), plan: false, tasks: [] };
@@ -113,7 +142,7 @@ describe('SpecPage', () => {
     expect(screen.getByText('Desatualizado: a spec mudou depois do plano.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Refazer o plano' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Aprovar plano' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Ajustar plano' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajustar o plano' })).toBeNull();
   });
 
   it('mostra o aviso de plano desatualizado na visão do plano', async () => {
@@ -137,19 +166,20 @@ describe('SpecPage', () => {
     render(<SpecPage id="SPEC-001" view="documento" version={0} />);
     await screen.findByRole('navigation', { name: 'Nesta página' });
     expect(screen.queryByText('Plano desatualizado')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Ajustar plano' }));
-    expect(lastButton('Ajustar plano').disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Mais ações' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ajustar o plano' }));
+    expect(lastButton('Ajustar o plano').disabled).toBe(true);
     fireEvent.input(screen.getByRole('textbox', { name: 'O que ajustar' }), { target: { value: 'Dividir a TASK-02' } });
-    fireEvent.click(lastButton('Ajustar plano'));
+    fireEvent.click(lastButton('Ajustar o plano'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=ajustar-plano&spec=SPEC-001', expect.objectContaining({ method: 'POST', body: 'Dividir a TASK-02' })));
   });
 
-  it('cita o log de avais da spec ao aprovar', async () => {
+  it('fecha a janela ao aprovar a spec', async () => {
     const body = { ...detail('vostok/work/specs/refined/SPEC-001.md', 'refined'), plan: false, tasks: [] };
     mockFetch((url) => (url.startsWith('/api/aprovacoes') ? json({ aprovadas: ['SPEC-001'] }) : requests(body)(url)));
     render(<SpecPage id="SPEC-001" view="documento" version={0} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Aprovar spec' }));
     fireEvent.click(lastButton('Aprovar spec'));
-    expect((await screen.findByRole('status')).textContent).toContain('vostok/work/avais/SPEC-001.log');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 });

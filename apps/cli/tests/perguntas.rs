@@ -169,3 +169,91 @@ fn abrir_usa_as_pastas_configuradas() {
     assert!(content.contains("\nstatus: aberta\n"), "{content}");
     assert!(!project.root().join("vostok/work/perguntas").exists());
 }
+
+// --- vostok perguntas listar (SPEC-035) ---
+
+fn write_question(project: &Project, folder: &str, id: &str, spec: &str, answer: Option<&str>) {
+    let mut content = format!(
+        "---\nid: {id}\npedido: PED-001\nspec: {spec}\ntask: \"\"\nstatus: {folder}\ncreated_at: 2026-11-02T10:00:00Z\n---\n\n## Pergunta\n\n# 1. Pergunta {id}\n\nEscolha: única\n"
+    );
+    if let Some(text) = answer {
+        content.push_str(&format!("\n## Resposta\n\n{text}\n"));
+    }
+    write(
+        project,
+        &format!("vostok/work/perguntas/{folder}/{id}.md"),
+        &content,
+    );
+}
+
+fn listar(project: &Project, args: &[&str]) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["perguntas", "listar"]).args(args);
+    command
+}
+
+fn three_questions(project: &Project) {
+    write_question(project, "respondida", "P-001", "SPEC-001", Some("1A, 2B"));
+    write_question(project, "aberta", "P-002", "SPEC-001", None);
+    write_question(project, "respondida", "P-003", "SPEC-002", Some("1B"));
+}
+
+#[test]
+fn listar_respondidas_da_spec_com_a_resposta() {
+    let project = Project::new();
+    three_questions(&project);
+
+    let out = stdout_of(&mut listar(
+        &project,
+        &["--spec", "SPEC-001", "--estado", "respondida"],
+    ));
+
+    assert!(
+        out.contains("## P-001 (pedido PED-001, respondida)"),
+        "{out}"
+    );
+    assert!(out.contains("# 1. Pergunta P-001"), "{out}");
+    assert!(out.contains("### Resposta\n\n1A, 2B"), "{out}");
+    assert!(!out.contains("P-002"));
+    assert!(!out.contains("P-003"));
+}
+
+#[test]
+fn listar_sem_estado_traz_abertas_e_respondidas_em_ordem() {
+    let project = Project::new();
+    three_questions(&project);
+
+    let out = stdout_of(&mut listar(&project, &["--spec", "SPEC-001"]));
+
+    let answered = out
+        .find("## P-001 (pedido PED-001, respondida)")
+        .expect(&out);
+    let open = out.find("## P-002 (pedido PED-001, aberta)").expect(&out);
+    assert!(answered < open);
+    assert!(!out.contains("P-003"));
+    assert!(!out[open..].contains("### Resposta"));
+}
+
+#[test]
+fn listar_sem_perguntas_diz_nenhuma() {
+    let project = Project::new();
+
+    let out = stdout_of(&mut listar(
+        &project,
+        &["--spec", "SPEC-009", "--estado", "respondida"],
+    ));
+
+    assert_eq!(out, "Nenhuma pergunta.\n");
+}
+
+#[test]
+fn listar_recusa_estado_desconhecido() {
+    let project = Project::new();
+
+    let stderr = failure_stderr(&mut listar(
+        &project,
+        &["--spec", "SPEC-001", "--estado", "fechada"],
+    ));
+
+    assert!(stderr.contains("'fechada'"), "{stderr}");
+}

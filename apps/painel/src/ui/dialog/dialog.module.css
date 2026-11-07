@@ -14,6 +14,12 @@
   max-width: min(calc(var(--space) * 140), calc(100vw - var(--s8)));
 }
 
+/* A página vai até 1440 px com 24 px de margem de cada lado (`.page` e `.pageInner`). */
+.content {
+  width: min(calc(var(--space) * 360 - 2 * var(--s6)), calc(100vw - var(--s8)));
+  max-width: none;
+}
+
 .root::backdrop {
   background: color-mix(in srgb, var(--bg) 70%, transparent);
 }

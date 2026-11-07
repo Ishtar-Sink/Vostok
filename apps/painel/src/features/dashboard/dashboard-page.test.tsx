@@ -49,6 +49,31 @@ describe('DashboardPage', () => {
     expect(await screen.findByText(/detalhe 1$/)).toBeTruthy();
   });
 
+  it('não mostra onda sem número', async () => {
+    const specs = [{ meta, plan: false, tasks: [task('TASK-01', 'pending', ''), task('TASK-02', 'in_progress', '')] }];
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ specs })))));
+    render(<DashboardPage version={0} name="" />);
+    await screen.findByText('Spec em andamento');
+    expect(screen.queryByRole('list', { name: 'Ondas' })).toBeNull();
+    expect(screen.queryByText(/^Onda/)).toBeNull();
+  });
+
+  it('mostra só as ondas com número', async () => {
+    const specs = [{ meta, plan: false, tasks: [task('TASK-01', 'pending', '2'), task('TASK-02', 'pending', '')] }];
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ specs })))));
+    render(<DashboardPage version={0} name="" />);
+    expect(await screen.findByText('Onda 2')).toBeTruthy();
+    expect(within(screen.getByRole('list', { name: 'Ondas' })).getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('não mostra ponto solto na atividade sem tarefa', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview()))));
+    vi.mocked(fetchActivities).mockResolvedValue([{ ...activityAt(0), task: '', step: 'status' }]);
+    render(<DashboardPage version={0} name="" />);
+    const link = await screen.findByRole('link', { name: 'status' });
+    expect(link.textContent?.trim()).toBe('status');
+  });
+
   it('lists what waits for the user', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview()))));
     render(<DashboardPage version={0} name="" />);
@@ -105,5 +130,22 @@ describe('DashboardPage', () => {
     render(<DashboardPage version={0} name="" />);
     const link = await screen.findByRole('link', { name: 'Ver todas' });
     expect(link.getAttribute('href')).toBe('/atividades');
+  });
+
+  it('abre o formulário de seleção pelo Responder', async () => {
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function close() {
+      this.removeAttribute('open');
+    };
+    const REAL = ['## Pergunta', '', '## O que aconteceu', '', 'A exportação parou na cópia.', '', '# 1. Como tratar a linha', '', 'Escolha: única', '', '| Opção | Descrição |', '|---|---|', '| A | Aceitar (recomendada) |', '| B | Mascarar |'].join('\n');
+    const question = { meta: { id: 'P-001', spec: 'SPEC-001', task: '', status: 'aberta', created_at: '', author: '' }, path: 'p.md', markdown: REAL };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ questions: [question] })))));
+    render(<DashboardPage version={0} name="" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Responder' }));
+    expect(await screen.findByRole('radio', { name: 'Outro' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Enviar resposta' })).toBeTruthy();
+    expect(screen.queryByText('Ou escreva a resposta')).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { buildReferences, type ReferenceIndex } from '../../shared/references';
 import { useReferencePopover } from '../../shared/ref-popover';
 import { Button } from '../../ui/button/button';
 import { navigate } from '../../shared/router';
-import { formatDate, useResource, type PlanDetail, type SpecDetail } from '../../shared/api';
+import { formatDate, useResource, type Overview, type PlanDetail, type SpecDetail } from '../../shared/api';
 import { headingsOf, Markdown } from '../../shared/markdown';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
@@ -16,8 +16,9 @@ import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
 import { Board } from '../board/board';
-import { specActions } from '../../shared/attention';
+import { activeRequest, specActions } from '../../shared/attention';
 import { ActionBar } from '../../shared/action-bar';
+import { RequestState } from '../../shared/request-state';
 import page from '../../shared/page.module.css';
 import styles from './spec-page.module.css';
 
@@ -27,12 +28,17 @@ const TYPE_LABELS: Record<string, string> = { feature: 'Recurso', improvement: '
 
 export function SpecPage({ id, view, version }: { id: string; view: View; version: number }) {
   const spec = useResource<SpecDetail>(`/api/specs/${encodeURIComponent(id)}`, version);
+  const overview = useResource<Overview>('/api/visao', version);
   const references = useMemo(() => (spec.kind === 'ready' ? buildReferences(spec.data.markdown, spec.data.tasks, id) : new Map()), [spec, id]);
   if (spec.kind === 'loading') return <LoadingState label={`Carregando ${id}`} rows={8} />;
   if (spec.kind === 'error') return <ErrorState title={`Não foi possível abrir ${id}`} description={spec.message} retryLabel="Tentar de novo" onRetry={spec.retry} />;
 
   const { meta, tasks, plan, plan_outdated } = spec.data;
   const outdated = plan && plan_outdated;
+  const requests = overview.kind === 'ready' ? (overview.data.requests ?? []) : [];
+  const request = activeRequest(requests, meta.id);
+  const outcome = spec.data.last_outcome ?? null;
+  const waitingAnswer = !request && outcome?.desfecho === 'aguardando-pergunta';
   const done = tasks.filter((task) => task.status === 'done').length;
   const views: { id: View; label: string; show: boolean }[] = [
     { id: 'documento', label: 'Documento', show: true },
@@ -51,13 +57,14 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
             <div className={styles.headerActions}>
               <Badge tone={statusTone(meta.status)}>{statusLabel(meta.status)}</Badge>
               {outdated ? <Badge tone="warning">Plano desatualizado</Badge> : null}
-              <ActionBar items={specActions(meta, plan, tasks, outdated)} />
+              <ActionBar items={waitingAnswer ? [] : specActions(meta, plan, tasks, outdated, requests)} />
               {tasks.length > 0 && view !== 'quadro' ? (
                 <Button variant="secondary" onClick={() => navigate(`/specs/${meta.id}/quadro`)}>Ver o quadro</Button>
               ) : null}
             </div>
           }
         />
+        <RequestState spec={meta.id} request={request} outcome={outcome} queued={requests.filter((item) => item.spec === meta.id).length} />
         <nav className={styles.views} aria-label="Visões da spec">
           {views
             .filter((item) => item.show)
@@ -69,7 +76,7 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
         </nav>
       </div>
       {view === 'quadro' ? (
-        <Board tasks={tasks.map((task) => ({ ...task, spec: meta.id }))} />
+        <Board tasks={tasks.map((task) => ({ ...task, spec: meta.id }))} requests={requests.filter((item) => item.spec === meta.id)} />
       ) : view === 'plano' ? (
         <PlanView id={meta.id} version={version} references={references} outdated={outdated} status={meta.status} />
       ) : (

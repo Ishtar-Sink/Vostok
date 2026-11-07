@@ -17,6 +17,8 @@ beforeAll(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+const working = (acao: string, over: object = {}) => ({ id: 'PED-001', acao, spec: 'SPEC-001', tarefa: '', onda: '', estado: 'em_andamento', atualizado_em: '2026-11-03T10:00:00Z', ...over });
+
 const overview = (over: object = {}) => ({
   project: 'p',
   specs: [{ meta: meta('SPEC-001'), plan: false, tasks: [task('TASK-01', 'done'), task('TASK-02', 'pending')] }],
@@ -27,6 +29,33 @@ const overview = (over: object = {}) => ({
 });
 
 describe('SpecsPage', () => {
+  it('mostra o trabalho do agente no status da spec', async () => {
+    mockFetch(() => json(overview({ requests: [working('aprovar-plano')] })));
+    render(<SpecsPage version={0} />);
+    expect(await screen.findByText('Detalhando as tarefas')).toBeTruthy();
+    expect(screen.getByText('planejada')).toBeTruthy();
+  });
+
+  it('mostra a tarefa com o agente no status da spec', async () => {
+    mockFetch(() => json(overview({ requests: [working('executar-tarefa', { tarefa: 'TASK-02' })] })));
+    render(<SpecsPage version={0} />);
+    expect(await screen.findByText('Executando a TASK-02')).toBeTruthy();
+  });
+
+  it('mostra o pedido na fila do agente', async () => {
+    mockFetch(() => json(overview({ requests: [working('ajustar-spec', { estado: 'pendente' })] })));
+    render(<SpecsPage version={0} />);
+    expect(await screen.findByText('Aguardando o agente')).toBeTruthy();
+  });
+
+  it('não mostra trabalho do agente sem pedido', async () => {
+    mockFetch(() => json(overview({ requests: [] })));
+    render(<SpecsPage version={0} />);
+    await screen.findByText('Spec SPEC-001');
+    expect(screen.queryByText('Aguardando o agente')).toBeNull();
+    expect(screen.queryByText('Detalhando as tarefas')).toBeNull();
+  });
+
   it('lists the open specs first and filters the archived ones', async () => {
     mockFetch(() => json(overview()));
     render(<SpecsPage version={0} />);
@@ -62,7 +91,7 @@ describe('SpecsPage', () => {
     fireEvent.input(screen.getByRole('textbox', { name: 'Assunto da spec' }), { target: { value: 'Tela de login' } });
     fireEvent.click(submit());
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/pedidos?acao=criar-spec', expect.objectContaining({ method: 'POST', body: 'Tela de login' })));
-    expect((await screen.findByRole('status')).textContent).toContain('PED-7');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('mostra a recusa do pedido de nova spec', async () => {

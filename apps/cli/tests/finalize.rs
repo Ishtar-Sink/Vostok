@@ -910,3 +910,78 @@ fn archive_records_archived_in_the_status_history() {
         .unwrap_or_else(|| panic!("sem status_history: {content}"));
     assert!(history.ends_with(" archived"), "{history}");
 }
+
+// --- anexos dos pedidos ---
+
+fn archive_output(project: &Project) -> String {
+    let output = project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+fn request_with_attachment(project: &Project, folder: &str, id: &str, spec: &str) {
+    let work = "vostok/work/pedidos";
+    communication_file(project, &format!("{work}/{folder}/{id}.md"), id, spec);
+    write_file(project, &format!("{work}/anexos/{id}/01-a.txt"), "x");
+}
+
+#[test]
+fn anexo_arquivamento_leva_a_pasta_do_pedido_concluido() {
+    let project = built_folder_project();
+    request_with_attachment(&project, "feito", "PED-010", "SPEC-001");
+
+    archive_output(&project);
+
+    let work = project.harness().join("work");
+    assert!(work
+        .join(".archive/SPEC-001/pedidos/anexos/PED-010/01-a.txt")
+        .is_file());
+    assert!(!work.join("pedidos/anexos/PED-010").exists());
+}
+
+#[test]
+fn anexo_arquivamento_deixa_a_pasta_do_pedido_pendente() {
+    let project = built_folder_project();
+    request_with_attachment(&project, "pendente", "PED-011", "SPEC-001");
+
+    let out = archive_output(&project);
+
+    let work = project.harness().join("work");
+    assert!(work.join("pedidos/pendente/PED-011.md").is_file());
+    assert!(work.join("pedidos/anexos/PED-011/01-a.txt").is_file());
+    assert!(!work.join(".archive/SPEC-001/pedidos").exists());
+    assert!(out.contains("fica na pasta de trabalho"), "{out}");
+}
+
+#[test]
+fn anexo_arquivamento_de_outra_spec_nao_leva_a_pasta() {
+    let project = built_folder_project();
+    request_with_attachment(&project, "feito", "PED-012", "SPEC-002");
+
+    archive_output(&project);
+
+    let work = project.harness().join("work");
+    assert!(work.join("pedidos/anexos/PED-012/01-a.txt").is_file());
+    assert!(!work.join(".archive/SPEC-001/pedidos").exists());
+}
+
+#[test]
+fn anexo_arquivamento_sem_anexos_nao_cria_a_pasta() {
+    let project = built_folder_project();
+    communication_file(
+        &project,
+        "vostok/work/pedidos/feito/PED-013.md",
+        "PED-013",
+        "SPEC-001",
+    );
+
+    archive_output(&project);
+
+    let archived = project.harness().join("work/.archive/SPEC-001/pedidos");
+    assert!(archived.join("PED-013.md").is_file());
+    assert!(!archived.join("anexos").exists());
+}

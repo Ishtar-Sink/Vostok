@@ -24,4 +24,14 @@ describe('Button', () => {
     expect(button.disabled).toBe(true);
     expect(button.getAttribute('aria-busy')).toBe('true');
   });
+
+  it('usa a variação menor com size small', () => {
+    render(<Button size="small">Responder</Button>);
+    expect(screen.getByRole('button', { name: 'Responder' }).className).toMatch(/small/);
+  });
+
+  it('não usa a variação menor por padrão', () => {
+    render(<Button>Responder</Button>);
+    expect(screen.getByRole('button', { name: 'Responder' }).className).not.toMatch(/small/);
+  });
 });

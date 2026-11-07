@@ -58,7 +58,7 @@ export function DashboardPage({ version, name }: { version: number; name: string
             <div className={styles.specCards}>
               {active.map((spec) => {
                 const counts = STATUS_ORDER.map((status) => ({ status, count: spec.tasks.filter((task) => task.status === status).length })).filter((item) => item.count > 0);
-                const waves = [...new Set(spec.tasks.map((task) => task.wave))].sort((a, b) => Number(a) - Number(b));
+                const waves = [...new Set(spec.tasks.map((task) => task.wave).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
                 return (
                   <article key={spec.meta.id} className={styles.specCard}>
                     <header className={styles.specHeader}>
@@ -166,7 +166,7 @@ function ActivityList({ state }: { state: ActivityState }) {
         <li key={`${item.spec}-${item.target}-${index}`} data-result={item.result}>
           <span className={styles.when}>{formatDateTime(item.date)}</span>
           <a href={activityHref(item)} onClick={onLinkClick} className={styles.what}>
-            {item.task} · {item.step}
+            {[item.task, item.step].filter(Boolean).join(' · ')}
           </a>
           <span className={styles.detail}>
             <Badge tone={statusTone(item.result)}>{statusLabel(item.result)}</Badge> {formatDatesIn(item.detail)}

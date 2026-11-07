@@ -1468,6 +1468,48 @@ fn status_of_a_spec_without_tasks_is_refused() {
 }
 
 #[test]
+fn esperando_ct26_linha_so_com_espera() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["status: blocked", "waiting_on: [TASK-20, TASK-21]"],
+    );
+    status_task(&project, "TASK-02", &["status: blocked"]);
+    status_task(&project, "TASK-03", &["status: approved", "waiting_on: []"]);
+    let output = status_run(&project).assert().success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).unwrap();
+    let lines: Vec<&str> = stdout
+        .lines()
+        .filter(|line| line.starts_with("Esperando:"))
+        .collect();
+    assert_eq!(
+        lines,
+        ["Esperando: TASK-01 espera TASK-20, TASK-21"],
+        "{stdout}"
+    );
+}
+
+#[test]
+fn esperando_sem_espera_a_saida_nao_muda() {
+    let project = Project::new();
+    status_task(&project, "TASK-01", &["status: blocked"]);
+    status_task(&project, "TASK-02", &["status: approved"]);
+    let output = status_run(&project).assert().success();
+    let stdout = String::from_utf8(output.get_output().stdout.clone()).unwrap();
+    assert!(!stdout.contains("Esperando:"), "{stdout}");
+    assert!(
+        stdout
+            .trim_end()
+            .lines()
+            .last()
+            .unwrap()
+            .starts_with("Subagentes ao mesmo tempo: "),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn status_prints_the_tasks_and_waves_tables() {
     let project = Project::new();
     status_task(
@@ -3253,10 +3295,9 @@ fn task_layer_status_lists_the_tasks_of_the_spec() {
 
 const FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01";
 
-/// Grava a TASK-01 em pasta, com o status dado e um `cat valor.txt` no Baseline.
-fn folder_task(status: &str) -> Project {
-    let project = Project::new();
-    write(&project, "valor.txt", "a\n");
+/// Grava a tarefa `id` em pasta, com o status dado e um `cat valor.txt` no Baseline.
+fn write_folder_task(project: &Project, id: &str, status: &str) {
+    let folder = format!("vostok/work/tasks/SPEC-001/{id}");
     let files = [
         ("estado.yml", format!("id: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n")),
         ("execucao.md", "### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n".to_string()),
@@ -3267,9 +3308,42 @@ fn folder_task(status: &str) -> Project {
         ("registro.md", "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n".to_string()),
     ];
     for (name, content) in files {
-        write(&project, &format!("{FOLDER}/{name}"), &content);
+        write(
+            project,
+            &format!("{folder}/{name}"),
+            &content.replace("TASK-01", id),
+        );
     }
+}
+
+fn folder_task(status: &str) -> Project {
+    let project = Project::new();
+    write(&project, "valor.txt", "a\n");
+    write_folder_task(&project, "TASK-01", status);
     project
+}
+
+/// Aprova e inicia a tarefa `id` em pasta, gravada como pendente.
+fn folder_start(project: &Project, id: &str) {
+    on(project, id, &["adjust", "record-manual"])
+        .assert()
+        .success();
+    on(project, id, &["approve", "approve"]).assert().success();
+    on(project, id, &["start"]).assert().success();
+}
+
+/// Valida e conclui a tarefa `id` em pasta, já iniciada.
+fn folder_finish(project: &Project, id: &str) {
+    for step in ["tests", "regression", "evidence"] {
+        on(project, id, &[step]).assert().success();
+    }
+    let base = format!("vostok/work/tasks/SPEC-001/{id}");
+    let criteria = read(project, &format!("{base}/criterios.md")).replace("- [ ]", "- [x]");
+    write(project, &format!("{base}/criterios.md"), &criteria);
+    for name in ["executivo.md", "tecnico.md"] {
+        append(project, &format!("{base}/{name}"), "\nEntregue.\n");
+    }
+    on(project, id, &["finish"]).assert().success();
 }
 
 fn folder_started() -> Project {
@@ -4097,4 +4171,1463 @@ fn finish_records_implemented_in_the_status_history() {
         .find(|line| line.starts_with("status_history: "))
         .unwrap_or_else(|| panic!("sem status_history: {content}"));
     assert!(history.ends_with(" implemented"), "{history}");
+}
+
+// --- Bloqueio e desbloqueio por dependência (SPEC-038) ---
+
+fn state_path(id: &str) -> String {
+    format!("vostok/work/tasks/SPEC-001/{id}/estado.yml")
+}
+
+fn edit_state(project: &Project, id: &str, from: &str, to: &str) {
+    let path = state_path(id);
+    let state = read(project, &path);
+    assert!(state.contains(from), "{from} não está em {state}");
+    write(project, &path, &state.replacen(from, to, 1));
+}
+
+fn record_of(project: &Project, id: &str) -> String {
+    read(
+        project,
+        &format!("vostok/work/tasks/SPEC-001/{id}/registro.md"),
+    )
+}
+
+/// TASK-01 iniciada e as demais pendentes, todas em pasta.
+fn folder_waiting_project(others: &[&str]) -> Project {
+    let project = folder_task("pending");
+    for id in others {
+        write_folder_task(&project, id, "pending");
+    }
+    folder_start(&project, "TASK-01");
+    project
+}
+
+/// TASK-01 em espera da TASK-02, pendente.
+fn folder_in_waiting() -> Project {
+    let project = folder_waiting_project(&["TASK-02"]);
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    project
+}
+
+fn record_adjust(project: &Project, id: &str, summary: &str) {
+    project
+        .vostok()
+        .args(["task", "adjust", "record", "SPEC-001", id, summary])
+        .assert()
+        .success();
+}
+
+fn resume(project: &Project) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "resume", "SPEC-001", "TASK-01", "decisão"]);
+    command
+}
+
+fn waiting_reason(project: &Project) -> String {
+    state_field(project, "TASK-01", "waiting_reason")
+}
+
+#[test]
+fn espera_ct20_edicao_a_mao_bloqueia_e_desbloqueia() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    let output = success_stdout(&mut on(&project, "TASK-01", &["adjust", "record-manual"]));
+    assert!(
+        output.contains("Tarefa TASK-01 bloqueada: espera TASK-02."),
+        "{output}"
+    );
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[TASK-02]");
+    assert!(
+        record_of(&project, "TASK-01").contains("| bloqueio | blocked | espera TASK-02: "),
+        "{}",
+        record_of(&project, "TASK-01")
+    );
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: [TASK-02]",
+        "depends_on: []",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[]");
+    assert_eq!(waiting_reason(&project), "\"\"");
+    assert!(record_of(&project, "TASK-01").contains("| desbloqueio | approved |"));
+}
+
+#[test]
+fn espera_cb18_ajuste_comum_continua_bloqueada() {
+    let project = folder_in_waiting();
+    let reason = waiting_reason(&project);
+    assert!(!reason.is_empty());
+    let execution = format!("{FOLDER}/execucao.md");
+    append(&project, &execution, "\nMais um passo.\n");
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    record_adjust(&project, "TASK-01", "texto");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[TASK-02]");
+    assert_eq!(waiting_reason(&project), reason);
+    let record = record_of(&project, "TASK-01");
+    assert!(record.contains("| ajuste | blocked |"), "{record}");
+    assert_eq!(record.matches("| bloqueio |").count(), 1, "{record}");
+}
+
+#[test]
+fn espera_cb19_ajuste_sem_espera_volta_a_aprovada() {
+    let project = folder_in_waiting();
+    edit_state(&project, "TASK-02", "status: pending", "status: done");
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nMais um passo.\n",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[]");
+    assert_eq!(waiting_reason(&project), "\"\"");
+}
+
+#[test]
+fn espera_validating_passa_a_bloqueada() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    edit_state(
+        &project,
+        "TASK-01",
+        "status: in_progress",
+        "status: validating",
+    );
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    assert_eq!(state_field(&project, "TASK-01", "attempts"), "0");
+    for key in ["tests_result", "regression_result", "evidence_result"] {
+        assert_eq!(state_field(&project, "TASK-01", key), "null", "{key}");
+    }
+    assert!(record_of(&project, "TASK-01").contains("| baseline |"));
+}
+
+#[test]
+fn espera_ct21_desbloqueia_so_depois_da_ultima() {
+    let project = folder_waiting_project(&["TASK-02", "TASK-03", "TASK-04"]);
+    for id in ["TASK-02", "TASK-03", "TASK-04"] {
+        folder_start(&project, id);
+    }
+    edit_state(
+        &project,
+        "TASK-04",
+        "status: in_progress",
+        "status: blocked",
+    );
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02, TASK-03]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    let reason = waiting_reason(&project);
+    let approved_at = state_field(&project, "TASK-01", "approved_at");
+    let approved_hash = state_field(&project, "TASK-01", "approved_hash");
+    folder_finish(&project, "TASK-02");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[TASK-03]");
+    assert_eq!(waiting_reason(&project), reason);
+    folder_finish(&project, "TASK-03");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[]");
+    assert_eq!(waiting_reason(&project), "\"\"");
+    assert_eq!(state_field(&project, "TASK-01", "approved_at"), approved_at);
+    assert_eq!(
+        state_field(&project, "TASK-01", "approved_hash"),
+        approved_hash
+    );
+    assert!(
+        record_of(&project, "TASK-01").contains("| desbloqueio | approved | TASK-03 concluída |")
+    );
+    assert_eq!(state_field(&project, "TASK-04", "status"), "blocked");
+}
+
+#[test]
+fn espera_desbloqueio_nao_esconde_edicao_sem_registro() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    folder_start(&project, "TASK-02");
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nSem registro.\n",
+    );
+    folder_finish(&project, "TASK-02");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    let output = success_stdout(&mut on(&project, "TASK-01", &["adjust", "record-manual"]));
+    assert!(output.contains("Ajuste manual"), "{output}");
+}
+
+#[test]
+fn espera_ct22_retomada_recusada() {
+    let project = folder_in_waiting();
+    let stderr = failure_stderr(&mut resume(&project));
+    assert!(stderr.contains("espera TASK-02"), "{stderr}");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+
+    let failed = folder_waiting_project(&[]);
+    edit_state(&failed, "TASK-01", "status: in_progress", "status: blocked");
+    resume(&failed).assert().success();
+    assert_eq!(state_field(&failed, "TASK-01", "status"), "validating");
+}
+
+#[test]
+fn espera_validacao_recusada_com_a_dependencia_na_mensagem() {
+    let project = folder_in_waiting();
+    let stderr = failure_stderr(&mut on(&project, "TASK-01", &["tests"]));
+    assert!(stderr.contains("espera TASK-02"), "{stderr}");
+}
+
+#[test]
+fn espera_arquivo_unico_ajuste_comum_segue_em_execucao() {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", MIGRATE_EVIDENCE),
+    );
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02.md",
+        "---\nid: TASK-02\nstatus: pending\n---\n",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    on(&project, "TASK-01", &["approve", "approve"])
+        .assert()
+        .success();
+    on(&project, "TASK-01", &["start"]).assert().success();
+    let content = read(&project, TASK_PATH).replacen(
+        "\nstatus: in_progress\n",
+        "\nstatus: in_progress\ndepends_on: [TASK-02]\n",
+        1,
+    );
+    write(&project, TASK_PATH, &content);
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    record_adjust(&project, "TASK-01", "texto");
+    assert_eq!(status(&project), "in_progress");
+    assert!(!read(&project, TASK_PATH).contains("waiting_on"));
+}
+
+// --- Dependência de tarefa em execução (SPEC-038) ---
+
+/// `vostok task depends <args[0]> SPEC-001 <id> <args[1..]>`.
+fn depends(project: &Project, id: &str, args: &[&str]) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command
+        .args(["task", "depends", args[0], "SPEC-001", id])
+        .args(&args[1..]);
+    command
+}
+
+/// Estado e registro da tarefa em pasta, para conferir que uma recusa não gravou nada.
+fn snapshot(project: &Project, id: &str) -> (String, String) {
+    (read(project, &state_path(id)), record_of(project, id))
+}
+
+fn depends_on_field(project: &Project, id: &str) -> String {
+    state_field(project, id, "depends_on")
+}
+
+fn finish_dependency(project: &Project, id: &str) {
+    edit_state(project, id, "status: pending", "status: done");
+}
+
+#[test]
+fn depends_ct14_acrescenta_com_pendente_concluida_e_inexistente() {
+    let pending = folder_waiting_project(&["TASK-02"]);
+    depends(&pending, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&pending, "TASK-01", "status"), "blocked");
+    assert_eq!(depends_on_field(&pending, "TASK-01"), "[TASK-02]");
+    assert_eq!(state_field(&pending, "TASK-01", "waiting_on"), "[TASK-02]");
+    assert_eq!(waiting_reason(&pending), "\"m\"");
+
+    let done = folder_waiting_project(&["TASK-02"]);
+    finish_dependency(&done, "TASK-02");
+    depends(&done, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(depends_on_field(&done, "TASK-01"), "[TASK-02]");
+    assert_eq!(state_field(&done, "TASK-01", "status"), "in_progress");
+
+    let before = snapshot(&done, "TASK-01");
+    let stderr = failure_stderr(&mut depends(
+        &done,
+        "TASK-01",
+        &["add", "TASK-09", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("SPEC-001"), "{stderr}");
+    assert!(stderr.contains("TASK-09"), "{stderr}");
+    assert_eq!(snapshot(&done, "TASK-01"), before);
+    assert_eq!(depends_on_field(&done, "TASK-01"), "[TASK-02]");
+}
+
+#[test]
+fn depends_ct15_ciclo_direto_e_em_si_mesma() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    edit_state(
+        &project,
+        "TASK-02",
+        "depends_on: []",
+        "depends_on: [TASK-01]",
+    );
+    let before = snapshot(&project, "TASK-01");
+    for dependency in ["TASK-01", "TASK-02"] {
+        let stderr = failure_stderr(&mut depends(
+            &project,
+            "TASK-01",
+            &["add", dependency, "--motivo", "m"],
+        ));
+        assert!(stderr.contains("ciclo"), "{stderr}");
+        assert_eq!(snapshot(&project, "TASK-01"), before);
+    }
+}
+
+#[test]
+fn depends_ct15_ciclo_indireto() {
+    let project = folder_waiting_project(&["TASK-02", "TASK-03"]);
+    edit_state(
+        &project,
+        "TASK-02",
+        "depends_on: []",
+        "depends_on: [TASK-03]",
+    );
+    edit_state(
+        &project,
+        "TASK-03",
+        "depends_on: []",
+        "depends_on: [TASK-01]",
+    );
+    let before = snapshot(&project, "TASK-01");
+    let stderr = failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["add", "TASK-02", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("ciclo"), "{stderr}");
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+#[test]
+fn depends_ct16_tira_em_espera_e_recusa_a_que_nao_tem() {
+    let project = folder_in_waiting();
+    depends(&project, "TASK-01", &["remove", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    assert_eq!(depends_on_field(&project, "TASK-01"), "[]");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[]");
+    assert_eq!(waiting_reason(&project), "\"\"");
+    assert!(record_of(&project, "TASK-01").contains("| desbloqueio | approved |"));
+
+    let running = folder_waiting_project(&["TASK-02"]);
+    let before = snapshot(&running, "TASK-01");
+    let stderr = failure_stderr(&mut depends(
+        &running,
+        "TASK-01",
+        &["remove", "TASK-09", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("não depende de TASK-09"), "{stderr}");
+    assert_eq!(snapshot(&running, "TASK-01"), before);
+}
+
+#[test]
+fn depends_tira_com_outra_em_espera_continua_bloqueada() {
+    let project = folder_waiting_project(&["TASK-02", "TASK-03"]);
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02, TASK-03]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    let reason = waiting_reason(&project);
+    depends(&project, "TASK-01", &["remove", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    assert_eq!(state_field(&project, "TASK-01", "waiting_on"), "[TASK-03]");
+    assert_eq!(depends_on_field(&project, "TASK-01"), "[TASK-03]");
+    assert_eq!(waiting_reason(&project), reason);
+}
+
+#[test]
+fn depends_ct17_status_recusados() {
+    let pending = folder_task("pending");
+    let approved = folder_task("pending");
+    on(&approved, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    on(&approved, "TASK-01", &["approve", "approve"])
+        .assert()
+        .success();
+    let done = folder_waiting_project(&["TASK-02"]);
+    edit_state(&done, "TASK-01", "status: in_progress", "status: done");
+    let blocked = folder_waiting_project(&["TASK-02"]);
+    edit_state(
+        &blocked,
+        "TASK-01",
+        "status: in_progress",
+        "status: blocked",
+    );
+    for (project, status) in [
+        (&pending, "pending"),
+        (&approved, "approved"),
+        (&done, "done"),
+    ] {
+        let before = read(project, &state_path("TASK-01"));
+        let stderr = failure_stderr(&mut depends(
+            project,
+            "TASK-01",
+            &["add", "TASK-02", "--motivo", "m"],
+        ));
+        assert!(
+            stderr.contains(&format!("está com status '{status}'")),
+            "{stderr}"
+        );
+        assert!(stderr.contains("faça um novo plano"), "{stderr}");
+        assert_eq!(read(project, &state_path("TASK-01")), before);
+    }
+    let before = read(&blocked, &state_path("TASK-01"));
+    let stderr = failure_stderr(&mut depends(
+        &blocked,
+        "TASK-01",
+        &["add", "TASK-02", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("bloqueada por falha"), "{stderr}");
+    assert_eq!(read(&blocked, &state_path("TASK-01")), before);
+
+    let validating = folder_waiting_project(&["TASK-02"]);
+    for step in ["tests", "regression", "evidence"] {
+        on(&validating, "TASK-01", &[step]).assert().success();
+    }
+    assert_eq!(state_field(&validating, "TASK-01", "status"), "validating");
+    depends(&validating, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&validating, "TASK-01", "status"), "blocked");
+
+    let running = folder_waiting_project(&["TASK-02"]);
+    finish_dependency(&running, "TASK-02");
+    depends(&running, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn depends_cb12_id_de_outra_spec_recusado() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    let before = snapshot(&project, "TASK-01");
+    failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["add", "SPEC-002/TASK-01", "--motivo", "m"],
+    ));
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+#[test]
+fn depends_cb23_arquivo_unico_atualiza_o_card() {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", MIGRATE_EVIDENCE),
+    );
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02.md",
+        "---\nid: TASK-02\nstatus: done\n---\n",
+    );
+    for step in [
+        &["adjust", "record-manual"][..],
+        &["approve", "approve"],
+        &["start"],
+    ] {
+        on(&project, "TASK-01", step).assert().success();
+    }
+    assert!(read(&project, TASK_PATH).contains("- **Bloqueada por:** -\n"));
+    depends(&project, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\ndepends_on: [TASK-02]\n"), "{content}");
+    assert!(
+        content.contains("- **Bloqueada por:** TASK-02\n"),
+        "{content}"
+    );
+    let output = success_stdout(&mut on(&project, "TASK-01", &["adjust", "record-manual"]));
+    assert!(output.contains("Nenhuma edição manual."), "{output}");
+}
+
+#[test]
+fn depends_grava_o_ajuste_zera_resultados_e_mantem_baseline() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    finish_dependency(&project, "TASK-02");
+    on(&project, "TASK-01", &["tests"]).assert().success();
+    assert_eq!(state_field(&project, "TASK-01", "tests_result"), "passed");
+    let adjustments: u64 = state_field(&project, "TASK-01", "adjustments")
+        .parse()
+        .unwrap();
+    depends(&project, "TASK-01", &["add", "TASK-02", "--motivo", "m"])
+        .assert()
+        .success();
+    assert_eq!(
+        state_field(&project, "TASK-01", "adjustments"),
+        (adjustments + 1).to_string()
+    );
+    assert_eq!(state_field(&project, "TASK-01", "tests_result"), "null");
+    assert_eq!(state_field(&project, "TASK-01", "attempts"), "0");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "in_progress");
+    let record = record_of(&project, "TASK-01");
+    assert!(
+        record.contains("dependência TASK-02 acrescentada: m"),
+        "{record}"
+    );
+    assert!(record.contains("| baseline |"), "{record}");
+}
+
+#[test]
+fn depends_motivo_obrigatorio() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    let before = snapshot(&project, "TASK-01");
+    failure_stderr(&mut depends(&project, "TASK-01", &["add", "TASK-02"]));
+    failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["add", "TASK-02", "--motivo", "   "],
+    ));
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+#[test]
+fn depends_recusa_edicao_sem_registro() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nSem registro.\n",
+    );
+    let before = snapshot(&project, "TASK-01");
+    let stderr = failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["add", "TASK-02", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("edição sem registro"), "{stderr}");
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+#[test]
+fn depends_recusa_a_repetida() {
+    let project = folder_in_waiting();
+    let before = snapshot(&project, "TASK-01");
+    let stderr = failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["add", "TASK-02", "--motivo", "m"],
+    ));
+    assert!(stderr.contains("já depende"), "{stderr}");
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+#[test]
+fn depends_tirar_que_invalida_mudar_restaura_o_estado() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    append(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02/execucao.md",
+        "\n- `arquivo-da-dois.txt` (criar): y\n",
+    );
+    let execution = read(&project, &format!("{FOLDER}/execucao.md")).replace(
+        "- `novo.txt` (criar): arquivo novo.",
+        "- `novo.txt` (criar): arquivo novo.\n- `arquivo-da-dois.txt` (alterar): x",
+    );
+    write(&project, &format!("{FOLDER}/execucao.md"), &execution);
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    let before = snapshot(&project, "TASK-01");
+    failure_stderr(&mut depends(
+        &project,
+        "TASK-01",
+        &["remove", "TASK-02", "--motivo", "m"],
+    ));
+    assert_eq!(snapshot(&project, "TASK-01"), before);
+}
+
+// --- Anexo de evidência pelo painel (SPEC-038) ---
+
+use std::io::{Cursor, Read};
+use vostok::commands::task::{
+    attach_evidence_from_panel, manual_evidence_at, AttachRefusal, Attached,
+};
+
+const ATTACH_DIR: &str = "vostok/work/tasks/SPEC-001/TASK-01/evidencias";
+
+/// Tarefa em pasta, em execução, com `evidence` como único conteúdo de "Evidências".
+fn attach_task(evidence: &str) -> Project {
+    let project = folder_task("pending");
+    let path = format!("{FOLDER}/verificacao.md");
+    let content = read(&project, &path);
+    let (head, _) = content
+        .split_once("### Evidências\n")
+        .expect("seção de evidências");
+    write(
+        &project,
+        &path,
+        &format!("{head}### Evidências\n\n{evidence}\n"),
+    );
+    folder_start(&project, "TASK-01");
+    project
+}
+
+fn manual(name: &str) -> String {
+    format!("- `{name}` (manual): vídeo do fluxo\n  - Prova: o fluxo.\n  - Trecho: o clipe.\n  - Falha: sem vídeo.")
+}
+
+fn attach_raw(
+    project: &Project,
+    evidence: &str,
+    extension: &str,
+    declared: u64,
+    body: &mut impl Read,
+) -> anyhow::Result<Attached> {
+    attach_evidence_from_panel(
+        project.root(),
+        "SPEC-001",
+        "TASK-01",
+        evidence,
+        extension,
+        declared,
+        body,
+    )
+}
+
+fn attach(
+    project: &Project,
+    evidence: &str,
+    extension: &str,
+    bytes: &[u8],
+) -> anyhow::Result<Attached> {
+    attach_raw(
+        project,
+        evidence,
+        extension,
+        bytes.len() as u64,
+        &mut Cursor::new(bytes.to_vec()),
+    )
+}
+
+fn refusal(result: anyhow::Result<Attached>) -> AttachRefusal {
+    result
+        .expect_err("o anexo deveria ser recusado")
+        .downcast::<AttachRefusal>()
+        .expect("recusa do anexo")
+}
+
+fn set_status(project: &Project, status: &str) {
+    let path = format!("{FOLDER}/estado.yml");
+    let lines: Vec<String> = read(project, &path)
+        .lines()
+        .map(|line| {
+            if line.starts_with("status: ") {
+                format!("status: {status}")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+    write(project, &path, &format!("{}\n", lines.join("\n")));
+}
+
+fn temp_files(project: &Project) -> usize {
+    std::fs::read_dir(project.root().join(format!("{ATTACH_DIR}/.anexo-tmp")))
+        .map_or(0, Iterator::count)
+}
+
+fn attached_bytes(project: &Project, name: &str) -> Vec<u8> {
+    std::fs::read(project.root().join(format!("{ATTACH_DIR}/{name}"))).unwrap_or_default()
+}
+
+fn attach_rows(project: &Project) -> usize {
+    read(project, &format!("{FOLDER}/registro.md"))
+        .matches("| anexo |")
+        .count()
+}
+
+#[test]
+fn attach_ct29_only_a_manual_evidence_of_the_task_is_accepted() {
+    let items = [
+        manual("video.mov"),
+        AUTOMATIC_EVIDENCE.to_string(),
+        print_item("tela.png", SHOT),
+        diff_item("novo.diff", "novo.txt"),
+    ]
+    .join("\n");
+    let project = attach_task(&items);
+    let attached = attach(&project, "video.mov", "mov", b"abc").unwrap();
+    assert_eq!(attached.evidence, "video.mov");
+    assert_eq!(attached.size, 3);
+    assert_eq!(attached_bytes(&project, "video.mov"), b"abc");
+    for other in ["saida.txt", "tela.png", "novo.diff", "outra.png", "../../x"] {
+        let result = attach(&project, other, "png", b"x");
+        assert!(
+            matches!(refusal(result), AttachRefusal::Invalid(_)),
+            "{other}"
+        );
+        assert!(
+            !exists(&project, &format!("{ATTACH_DIR}/{other}")),
+            "{other}"
+        );
+    }
+    assert!(!exists(&project, "vostok/work/tasks/SPEC-001/x"));
+    assert_eq!(attach_rows(&project), 1);
+}
+
+#[test]
+fn attach_cb29_a_declared_name_with_a_path_is_refused() {
+    let project = attach_task(&manual("video.mov"));
+    let path = format!("{FOLDER}/verificacao.md");
+    write(
+        &project,
+        &path,
+        &read(&project, &path).replace("video.mov", "../fora.png"),
+    );
+    let result = attach(&project, "../fora.png", "png", b"x");
+    assert!(matches!(refusal(result), AttachRefusal::Invalid(_)));
+    assert!(!exists(&project, &format!("{FOLDER}/fora.png")));
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/fora.png")));
+}
+
+#[test]
+fn attach_cb27_extension_ignores_case_and_treats_jpg_and_jpeg_as_equal() {
+    let project = attach_task(&format!("{}\n{}", manual("tela.png"), manual("foto.jpg")));
+    attach(&project, "tela.png", "PNG", b"png").unwrap();
+    attach(&project, "foto.jpg", "jpeg", b"jpg").unwrap();
+    assert_eq!(attached_bytes(&project, "tela.png"), b"png");
+    assert_eq!(attached_bytes(&project, "foto.jpg"), b"jpg");
+    let wrong = refusal(attach(&project, "tela.png", "mov", b"mov"));
+    assert!(
+        matches!(&wrong, AttachRefusal::Invalid(m) if m.contains(".png")),
+        "{wrong}"
+    );
+    let empty = refusal(attach(&project, "tela.png", "", b"mov"));
+    assert!(
+        matches!(&empty, AttachRefusal::Invalid(m) if m.contains(".png")),
+        "{empty}"
+    );
+    assert_eq!(attached_bytes(&project, "tela.png"), b"png");
+}
+
+#[test]
+fn attach_cb28_an_evidence_without_extension_accepts_any_file() {
+    let project = attach_task(&manual("live-tail-storage-event"));
+    attach(&project, "live-tail-storage-event", "zip", b"zip").unwrap();
+    assert_eq!(attached_bytes(&project, "live-tail-storage-event"), b"zip");
+}
+
+/// Entrega `data` e depois falha na leitura, como uma conexão derrubada no meio do envio.
+struct BrokenRead {
+    data: Cursor<Vec<u8>>,
+    failed: bool,
+}
+
+impl Read for BrokenRead {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.data.read(buf)?;
+        if read > 0 {
+            return Ok(read);
+        }
+        self.failed = true;
+        Err(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "conexão derrubada",
+        ))
+    }
+}
+
+#[test]
+fn attach_ct31_cut_or_empty_send_keeps_the_previous_file() {
+    let project = attach_task(&manual("video.mov"));
+    attach(&project, "video.mov", "mov", b"original").unwrap();
+    let rows = attach_rows(&project);
+    let result_before = state_line(&project, "evidence_result");
+    let record_before = read(&project, &format!("{FOLDER}/registro.md"));
+
+    let cut = attach_raw(
+        &project,
+        "video.mov",
+        "mov",
+        10,
+        &mut Cursor::new(b"abcd".to_vec()),
+    );
+    assert!(matches!(refusal(cut), AttachRefusal::Invalid(_)));
+    let mut broken = BrokenRead {
+        data: Cursor::new(b"abc".to_vec()),
+        failed: false,
+    };
+    let dropped = attach_raw(&project, "video.mov", "mov", 10, &mut broken);
+    assert!(broken.failed);
+    assert!(matches!(refusal(dropped), AttachRefusal::Invalid(_)));
+    let empty = attach_raw(
+        &project,
+        "video.mov",
+        "mov",
+        0,
+        &mut Cursor::new(Vec::new()),
+    );
+    assert!(matches!(refusal(empty), AttachRefusal::Invalid(_)));
+    let empty_declared = attach_raw(
+        &project,
+        "video.mov",
+        "mov",
+        5,
+        &mut Cursor::new(Vec::new()),
+    );
+    assert!(matches!(refusal(empty_declared), AttachRefusal::Invalid(_)));
+
+    assert_eq!(attached_bytes(&project, "video.mov"), b"original");
+    assert_eq!(temp_files(&project), 0);
+    assert_eq!(state_line(&project, "evidence_result"), result_before);
+    assert_eq!(attach_rows(&project), rows);
+    assert_eq!(
+        read(&project, &format!("{FOLDER}/registro.md")),
+        record_before
+    );
+}
+
+#[test]
+fn attach_ct33_print_review_survives_the_swap_and_the_new_evidence_run() {
+    let project = attach_task(&format!(
+        "{}\n{}",
+        print_item("tela.png", SHOT),
+        manual("video.mov")
+    ));
+    attach(&project, "video.mov", "mov", b"v1").unwrap();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "evidence_result"), "passed");
+
+    attach(&project, "video.mov", "MOV", b"v2").unwrap();
+    assert_eq!(state_line(&project, "evidence_result"), "null");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    let row = record
+        .lines()
+        .rfind(|line| line.contains("| anexo | painel | video.mov sha256 "))
+        .unwrap_or_else(|| panic!("sem a linha do anexo: {record}"));
+    let hash = row
+        .split("sha256 ")
+        .nth(1)
+        .and_then(|rest| rest.split(' ').next())
+        .unwrap_or_default();
+    assert_eq!(hash.len(), 8, "{row}");
+    assert!(hash.chars().all(|c| c.is_ascii_hexdigit()), "{row}");
+    assert!(row.ends_with(" (0,0 MB) |"), "{row}");
+    assert!(
+        record.contains("print tela.png conferido pelo usuário (sha256 "),
+        "{record}"
+    );
+
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        !stdout.contains("Prints sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert_eq!(state_line(&project, "evidence_result"), "passed");
+}
+
+#[test]
+fn attach_ct33_a_print_with_other_bytes_is_pending_again_as_today() {
+    let shot = "printf \"$(date +%s%N)\" > \"$VOSTOK_EVIDENCE/tela.png\"";
+    let project = attach_task(&format!(
+        "{}\n{}",
+        print_item("tela.png", shot),
+        manual("video.mov")
+    ));
+    attach(&project, "video.mov", "mov", b"v1").unwrap();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    attach(&project, "video.mov", "MOV", b"v2").unwrap();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Prints sem conferência humana"), "{stdout}");
+}
+
+#[test]
+fn attach_ct33_only_running_and_validating_accept() {
+    let project = attach_task(&manual("video.mov"));
+    attach(&project, "video.mov", "mov", b"um").unwrap();
+    set_status(&project, "validating");
+    attach(&project, "video.mov", "mov", b"dois").unwrap();
+    assert_eq!(attached_bytes(&project, "video.mov"), b"dois");
+    for status in ["blocked", "done"] {
+        set_status(&project, status);
+        let result = attach(&project, "video.mov", "mov", b"tres");
+        assert!(
+            matches!(refusal(result), AttachRefusal::WrongStatus(_)),
+            "{status}"
+        );
+        assert_eq!(attached_bytes(&project, "video.mov"), b"dois", "{status}");
+    }
+}
+
+/// Muda o status da tarefa na primeira leitura, como outro processo durante o envio.
+struct StatusFlipRead<'a> {
+    project: &'a Project,
+    data: Cursor<Vec<u8>>,
+    flipped: bool,
+}
+
+impl Read for StatusFlipRead<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if !self.flipped {
+            self.flipped = true;
+            set_status(self.project, "done");
+        }
+        self.data.read(buf)
+    }
+}
+
+#[test]
+fn attach_ct33_status_changed_during_the_send_writes_nothing() {
+    let project = attach_task(&manual("video.mov"));
+    let mut body = StatusFlipRead {
+        project: &project,
+        data: Cursor::new(b"abc".to_vec()),
+        flipped: false,
+    };
+    let result = attach_raw(&project, "video.mov", "mov", 3, &mut body);
+    assert!(matches!(refusal(result), AttachRefusal::WrongStatus(_)));
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/video.mov")));
+    assert_eq!(temp_files(&project), 0);
+}
+
+#[test]
+fn attach_ct33_keeps_a_result_that_is_not_passed() {
+    let project = attach_task(&manual("video.mov"));
+    let path = format!("{FOLDER}/estado.yml");
+    write(
+        &project,
+        &path,
+        &read(&project, &path).replace("evidence_result: null", "evidence_result: pending"),
+    );
+    attach(&project, "video.mov", "mov", b"abc").unwrap();
+    assert_eq!(state_line(&project, "evidence_result"), "pending");
+}
+
+#[test]
+fn attach_ct33_records_the_step_without_aval() {
+    let project = attach_task(&manual("video.mov"));
+    let attached = attach(&project, "video.mov", "mov", b"abc").unwrap();
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains(&format!(
+            "| anexo | painel | video.mov sha256 {} (0,0 MB) |",
+            &attached.sha256[..8]
+        )),
+        "{record}"
+    );
+    assert!(!read(&project, "vostok/work/avais/SPEC-001.log").contains("anexo"));
+}
+
+#[cfg(unix)]
+#[test]
+fn attach_ct35_evidence_folder_symlink_is_refused() {
+    let project = attach_task(&manual("video.mov"));
+    let outside = TempDir::new().unwrap();
+    let folder = project.root().join(ATTACH_DIR);
+    std::fs::remove_dir_all(&folder).unwrap();
+    std::os::unix::fs::symlink(outside.path(), &folder).unwrap();
+    let result = attach(&project, "video.mov", "mov", b"abc");
+    assert!(matches!(refusal(result), AttachRefusal::Invalid(_)));
+    assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn attach_cb31_upload_folder_symlink_is_refused() {
+    let project = attach_task(&manual("video.mov"));
+    let outside = TempDir::new().unwrap();
+    std::os::unix::fs::symlink(
+        outside.path(),
+        project.root().join(format!("{ATTACH_DIR}/.anexo-tmp")),
+    )
+    .unwrap();
+    let result = attach(&project, "video.mov", "mov", b"abc");
+    assert!(matches!(refusal(result), AttachRefusal::Invalid(_)));
+    assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(), 0);
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/video.mov")));
+}
+
+/// Espera o sinal do teste antes da primeira leitura, para manter o envio em andamento.
+struct GatedRead {
+    gate: std::sync::mpsc::Receiver<()>,
+    data: Cursor<Vec<u8>>,
+    waited: bool,
+}
+
+impl Read for GatedRead {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if !self.waited {
+            self.waited = true;
+            let _ = self.gate.recv();
+        }
+        self.data.read(buf)
+    }
+}
+
+#[test]
+fn attach_cb32_concurrent_sends_use_their_own_temp_and_the_last_complete_wins() {
+    let project = attach_task(&manual("video.mov"));
+    let (release, gate) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        let slow = scope.spawn(|| {
+            let mut body = GatedRead {
+                gate,
+                data: Cursor::new(b"lento".to_vec()),
+                waited: false,
+            };
+            attach_raw(&project, "video.mov", "mov", 5, &mut body)
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while temp_files(&project) != 1 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "o envio lento não começou"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        attach(&project, "video.mov", "mov", b"rapido").unwrap();
+        assert_eq!(attached_bytes(&project, "video.mov"), b"rapido");
+        assert_eq!(temp_files(&project), 1);
+        release.send(()).unwrap();
+        slow.join().unwrap().unwrap();
+    });
+    assert_eq!(attached_bytes(&project, "video.mov"), b"lento");
+    assert_eq!(temp_files(&project), 0);
+}
+
+#[test]
+fn attach_rf50_next_send_removes_the_leftovers() {
+    let project = attach_task(&manual("video.mov"));
+    write(&project, &format!("{ATTACH_DIR}/.anexo-tmp/velho"), "sobra");
+    write(
+        &project,
+        &format!("{ATTACH_DIR}/.anexo-tmp/pasta/velho"),
+        "sobra",
+    );
+    attach(&project, "video.mov", "mov", b"abc").unwrap();
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/.anexo-tmp/velho")));
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/.anexo-tmp/pasta")));
+    assert_eq!(temp_files(&project), 0);
+}
+
+#[test]
+fn attach_rf50_conclusion_removes_the_leftovers() {
+    let leftover = format!("{ATTACH_DIR}/.anexo-tmp/velho");
+    let project = folder_validated();
+    write(&project, &leftover, "sobra");
+    for name in ["executivo.md", "tecnico.md"] {
+        append(&project, &format!("{FOLDER}/{name}"), "\nEntregue.\n");
+    }
+    task(&project, &["finish"]).assert().success();
+    assert!(!exists(&project, &format!("{ATTACH_DIR}/.anexo-tmp")));
+
+    let refused = folder_validated();
+    write(&refused, &leftover, "sobra");
+    let criteria = read(&refused, &format!("{FOLDER}/criterios.md")).replace("- [x]", "- [ ]");
+    write(&refused, &format!("{FOLDER}/criterios.md"), &criteria);
+    failure_stderr(&mut task(&refused, &["finish"]));
+    assert!(exists(&refused, &leftover));
+}
+
+#[test]
+fn attach_single_file_task_is_refused() {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &manual("video.mov"));
+    let error = refusal(attach(&project, "video.mov", "mov", b"abc"));
+    assert!(
+        matches!(&error, AttachRefusal::Invalid(m) if m.contains("vostok task migrate")),
+        "{error}"
+    );
+}
+
+#[test]
+fn attach_manual_evidence_at_lists_what_the_task_asks() {
+    let items = [
+        manual("video.mov"),
+        manual("Tela.PNG"),
+        manual("live-tail"),
+        AUTOMATIC_EVIDENCE.to_string(),
+        print_item("print.png", SHOT),
+    ]
+    .join("\n");
+    let project = attach_task(&items);
+    attach(&project, "video.mov", "mov", b"abc").unwrap();
+    write(&project, &format!("{ATTACH_DIR}/Tela.PNG"), "");
+    let listed = manual_evidence_at(project.root(), "SPEC-001", "TASK-01").unwrap();
+    let summary: Vec<_> = listed
+        .iter()
+        .map(|item| {
+            (
+                item.name.as_str(),
+                item.description.as_str(),
+                item.extension.as_str(),
+                item.attached,
+                item.size,
+            )
+        })
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            ("video.mov", "vídeo do fluxo", "mov", true, 3),
+            ("Tela.PNG", "vídeo do fluxo", "png", false, 0),
+            ("live-tail", "vídeo do fluxo", "", false, 0),
+        ]
+    );
+}
+
+// --- Recomeço da tarefa desbloqueada (SPEC-038) ---
+
+/// TASK-01 iniciada, com trabalho feito (arquivo criado e documentos enriquecidos), que esperou a
+/// TASK-02 e foi desbloqueada: `approved`, com o baseline.
+fn folder_unblocked() -> Project {
+    let project = folder_started();
+    write_folder_task(&project, "TASK-02", "pending");
+    write(&project, "novo.txt", "feito\n");
+    for name in ["executivo.md", "tecnico.md"] {
+        append(&project, &format!("{FOLDER}/{name}"), "\nEnriquecido.\n");
+    }
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nMais um passo.\n",
+    );
+    record_adjust(&project, "TASK-01", "ajuste");
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: [TASK-02]",
+        "depends_on: []",
+    );
+    on(&project, "TASK-01", &["adjust", "record-manual"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    project
+}
+
+fn baseline_snapshot(project: &Project) -> Vec<(String, String)> {
+    let dir = project.root().join(format!("{FOLDER}/evidencias/baseline"));
+    let mut files: Vec<(String, String)> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().to_string();
+            (name, std::fs::read_to_string(&path).unwrap_or_default())
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+fn avais_snapshot(project: &Project) -> Vec<String> {
+    let dir = project.root().join("vostok/work/avais");
+    let mut names: Vec<String> = std::fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .map(|entry| {
+                    let path = entry.unwrap().path();
+                    format!(
+                        "{}:{}",
+                        path.display(),
+                        std::fs::read_to_string(&path).unwrap_or_default()
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
+
+#[test]
+fn recomeco_ct23_nao_coleta_nao_recusa_criados_nem_regrava_documentos() {
+    let project = folder_unblocked();
+    let executive = state_field(&project, "TASK-01", "executive_hash");
+    let technical = state_field(&project, "TASK-01", "technical_hash");
+    let baseline = baseline_snapshot(&project);
+    assert!(exists(&project, "novo.txt"));
+    let output = success_stdout(&mut on(&project, "TASK-01", &["start"]));
+    assert!(output.contains("recomeçada"), "{output}");
+    assert!(!output.contains("Coletando"), "{output}");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "in_progress");
+    assert_eq!(
+        state_field(&project, "TASK-01", "executive_hash"),
+        executive
+    );
+    assert_eq!(
+        state_field(&project, "TASK-01", "technical_hash"),
+        technical
+    );
+    assert_eq!(baseline_snapshot(&project), baseline);
+}
+
+#[test]
+fn recomeco_ct23_finish_passa_sem_recusa_por_documentos() {
+    let project = folder_unblocked();
+    on(&project, "TASK-01", &["start"]).assert().success();
+    for step in ["tests", "regression", "evidence"] {
+        on(&project, "TASK-01", &[step]).assert().success();
+    }
+    let criteria = format!("{FOLDER}/criterios.md");
+    let marked = read(&project, &criteria).replace("- [ ]", "- [x]");
+    write(&project, &criteria, &marked);
+    on(&project, "TASK-01", &["finish"]).assert().success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "done");
+}
+
+#[test]
+fn recomeco_ct24_recusa_edicao_sem_registro() {
+    let project = folder_unblocked();
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nSem registro.\n",
+    );
+    let stderr = failure_stderr(&mut on(&project, "TASK-01", &["start"]));
+    assert!(stderr.contains("registre o ajuste"), "{stderr}");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+}
+
+#[test]
+fn recomeco_ct25_aprovacao_mantida_e_etapa_gravada() {
+    let project = folder_unblocked();
+    let approved_at = state_field(&project, "TASK-01", "approved_at");
+    let approved_hash = state_field(&project, "TASK-01", "approved_hash");
+    let approved_by = state_field(&project, "TASK-01", "approved_by");
+    let avais = avais_snapshot(&project);
+    on(&project, "TASK-01", &["start"]).assert().success();
+    assert_eq!(state_field(&project, "TASK-01", "approved_at"), approved_at);
+    assert_eq!(
+        state_field(&project, "TASK-01", "approved_hash"),
+        approved_hash
+    );
+    assert_eq!(state_field(&project, "TASK-01", "approved_by"), approved_by);
+    assert_eq!(avais_snapshot(&project), avais);
+    assert!(
+        record_of(&project, "TASK-01").contains("| recomeço | in_progress | baseline mantido |"),
+        "{}",
+        record_of(&project, "TASK-01")
+    );
+}
+
+#[test]
+fn recomeco_cb20_sem_baseline_coleta_como_hoje() {
+    let project = folder_approved();
+    let output = success_stdout(&mut on(&project, "TASK-01", &["start"]));
+    assert!(output.contains("Coletando o baseline"), "{output}");
+    assert!(!output.contains("recomeçada"), "{output}");
+}
+
+#[test]
+fn recomeco_cb22_aprovacao_diferente_do_ultimo_ajuste_e_aceita() {
+    let project = folder_unblocked();
+    assert_ne!(
+        state_field(&project, "TASK-01", "approved_hash"),
+        state_field(&project, "TASK-01", "content_hash")
+    );
+    on(&project, "TASK-01", &["start"]).assert().success();
+}
+
+#[test]
+fn recomeco_ajuste_registrado_mantem_a_aprovacao() {
+    let project = folder_unblocked();
+    let approved_hash = state_field(&project, "TASK-01", "approved_hash");
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\nOutro passo.\n",
+    );
+    let output = success_stdout(&mut on(&project, "TASK-01", &["adjust", "record-manual"]));
+    assert!(output.contains("continua 'approved'"), "{output}");
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+    assert_eq!(
+        state_field(&project, "TASK-01", "approved_hash"),
+        approved_hash
+    );
+    on(&project, "TASK-01", &["start"]).assert().success();
+}
+
+#[test]
+fn recomeco_ajuste_nao_recusa_o_que_a_tarefa_criou() {
+    let project = folder_unblocked();
+    assert!(exists(&project, "novo.txt"));
+    on(&project, "TASK-01", &["adjust", "validate"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn recomeco_grava_o_modelo() {
+    let project = folder_unblocked();
+    on(&project, "TASK-01", &["start", "--model", "sonnet"])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "model"), "sonnet");
+    assert!(
+        record_of(&project, "TASK-01").contains("baseline mantido; modelo: sonnet"),
+        "{}",
+        record_of(&project, "TASK-01")
+    );
+}
+
+#[test]
+fn recomeco_recusa_dependencia_nao_concluida() {
+    let project = folder_unblocked();
+    edit_state(
+        &project,
+        "TASK-01",
+        "depends_on: []",
+        "depends_on: [TASK-02]",
+    );
+    on(&project, "TASK-01", &["start"]).assert().failure();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "approved");
+}
+
+#[test]
+fn ct34_uso_pelo_chat_sem_painel_e_sem_pedidos() {
+    let project = running_task_with_evidence(
+        &[("valor.txt", "a\n")],
+        "- `tela.png` (manual): print da tela\n  - Prova: a tela abre.\n  - Trecho: o título.\n  - Falha: tela em branco.",
+    );
+    set_config(&project, "persist_dir", "\"\"");
+    let pedidos = project.harness().join("work/pedidos");
+    let _ = std::fs::remove_dir_all(&pedidos);
+    std::fs::create_dir_all(project.root().join(EVIDENCE_DIR)).unwrap();
+    std::fs::write(project.root().join(format!("{EVIDENCE_DIR}/tela.png")), PNG).unwrap();
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("evidence_result: passed"), "{content}");
+    assert!(!content.contains("| anexo |"), "{content}");
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+    assert!(
+        !pedidos.exists(),
+        "os comandos de tarefa criaram work/pedidos"
+    );
+}
+
+#[test]
+fn ct34_depends_e_status_sem_painel_e_sem_pedidos() {
+    let project = folder_waiting_project(&["TASK-02"]);
+    let pedidos = project.harness().join("work/pedidos");
+    let _ = std::fs::remove_dir_all(&pedidos);
+    project
+        .vostok()
+        .args([
+            "task",
+            "depends",
+            "add",
+            "SPEC-001",
+            "TASK-01",
+            "TASK-02",
+            "--motivo",
+            "espera a TASK-02",
+        ])
+        .assert()
+        .success();
+    assert_eq!(state_field(&project, "TASK-01", "status"), "blocked");
+    let report = stdout(project.vostok().args(["task", "status", "SPEC-001"]));
+    assert!(report.contains("Esperando:"), "{report}");
+    assert!(
+        !pedidos.exists(),
+        "os comandos de tarefa criaram work/pedidos"
+    );
+}
+
+#[test]
+fn ct72_anexo_de_pergunta_nao_vira_evidencia() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    set_config(&project, "persist_dir", "\"\"");
+    write(
+        &project,
+        "vostok/work/pedidos/anexos/PED-001/01-tela.png",
+        "imagem",
+    );
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["finish"]).assert().success();
+    assert!(!exists(&project, &format!("{EVIDENCE_DIR}/01-tela.png")));
 }

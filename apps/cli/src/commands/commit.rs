@@ -23,6 +23,8 @@ const USAGE: &str =
 const STOP: &str = "PARE: responda com o template `blocker`, mostre os commits e pergunte ao usuário se os libera ou desfaz (skill approve-commit). Nunca libere nem desfaça commits por conta própria.";
 const NOTHING_PENDING: &str = "Nenhum commit sem liberação.";
 const TOKEN_LENGTH: usize = 12;
+/// Quantos nomes de arquivo a linha de um commit mostra (RF-27).
+const MAX_LISTED_FILES: usize = 5;
 const COMMIT_ACTION: &str = "fazer-commit";
 const RELEASE_ACTION: &str = "liberar-commits";
 const UNDO_ACTION: &str = "desfazer-commits";
@@ -305,6 +307,18 @@ fn revert(repo: &Repo, harness: &Harness, request: Option<&str>, code: Option<&s
     Ok(())
 }
 
+/// Os arquivos na linha de um commit: até `MAX_LISTED_FILES` nomes e, se houver mais, "e mais N" (RF-27).
+fn listed_files(files: &[String]) -> String {
+    if files.is_empty() {
+        return "-".to_string();
+    }
+    let listed = files[..files.len().min(MAX_LISTED_FILES)].join(", ");
+    match files.len().saturating_sub(MAX_LISTED_FILES) {
+        0 => listed,
+        more => format!("{listed} e mais {more}"),
+    }
+}
+
 fn print_lines(lines: &[String]) {
     for line in lines {
         println!("{line}");
@@ -573,9 +587,9 @@ impl Repo {
             ])?
             .lines()
             .filter(|line| !line.is_empty())
-            .collect::<Vec<_>>()
-            .join(", ");
-        let files = if files.is_empty() { "-" } else { &files };
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let files = listed_files(&files);
         let pushed = !self
             .query(&["branch", "-r", "--contains", hash])?
             .is_empty();

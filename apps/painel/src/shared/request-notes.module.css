@@ -1,0 +1,7 @@
+.state { margin: 0; color: var(--text-muted); }
+.list { display: grid; gap: var(--s3); max-height: 60vh; margin: 0; padding: 0 var(--s1) 0 0; overflow-y: auto; list-style: none; }
+.list:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.note { display: grid; gap: var(--s1); }
+.time { color: var(--text-muted); font-size: var(--font-size-xs); }
+.text { margin: 0; overflow-wrap: anywhere; }
+.detail { margin: 0; padding: var(--s2); border-radius: var(--radius-md); background: var(--surface-muted); font-size: var(--font-size-sm); white-space: pre-wrap; overflow-wrap: anywhere; }

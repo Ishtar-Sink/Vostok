@@ -3094,6 +3094,9 @@ impl Finalization {
                 remove_path(file)?;
             }
         }
+        for folder in &communication.attachments {
+            remove_path(folder)?;
+        }
         println!(
             "Spec {} arquivada em {}, com status 'archived'.",
             self.id,
@@ -3139,15 +3142,25 @@ impl Finalization {
             .harness
             .approvals_dir()
             .join(format!("{}.log", self.id));
+        let attachments = |paths: &[PathBuf]| -> Vec<PathBuf> {
+            paths
+                .iter()
+                .map(|path| requests.request_attachments_dir(&file_stem(path)))
+                .filter(|folder| folder.is_dir())
+                .collect()
+        };
+        let done_requests: Vec<PathBuf> = [DONE, REFUSED]
+            .iter()
+            .flat_map(|state| requests.files(Some(state)))
+            .filter(of_spec)
+            .collect();
         Ok(Communication {
+            attachments_dir: file_name(&requests.attachments_dir()),
+            attachments: attachments(&done_requests),
             requests_dir: file_name(requests.dir()),
             questions_dir: file_name(questions.dir()),
             approvals_dir: file_name(&self.harness.approvals_dir()),
-            requests: [DONE, REFUSED]
-                .iter()
-                .flat_map(|state| requests.files(Some(state)))
-                .filter(of_spec)
-                .collect(),
+            requests: done_requests,
             questions: [OPEN, ANSWERED]
                 .iter()
                 .flat_map(|status| questions.files(status))
@@ -3237,6 +3250,13 @@ impl Finalization {
                 copy_file(file, &target.join(file_name(file)))?;
             }
         }
+        for folder in &communication.attachments {
+            let target = archive
+                .join(&communication.requests_dir)
+                .join(&communication.attachments_dir)
+                .join(file_name(folder));
+            copy_dir(folder, &target)?;
+        }
         let spec = archive.join("spec.md");
         let archived = self
             .spec_setting("status.archived")
@@ -3259,7 +3279,10 @@ struct Communication {
     requests_dir: String,
     questions_dir: String,
     approvals_dir: String,
+    attachments_dir: String,
     requests: Vec<PathBuf>,
+    /// Pastas de anexos dos pedidos concluídos; não entram em `groups()`, que copia só arquivos.
+    attachments: Vec<PathBuf>,
     questions: Vec<PathBuf>,
     approvals: Vec<PathBuf>,
     /// Pedidos da spec ainda pendentes ou em andamento: ficam na pasta de trabalho.

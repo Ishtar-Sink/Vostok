@@ -1,37 +1,21 @@
 //! Ações do usuário no painel (POST e PUT), já com o token de sessão conferido.
 
 use std::fs;
+use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::Result;
+use sha2::{Digest, Sha256};
 
 use super::{json, json_string, not_found, query_value, text, Painel, Reply};
 use crate::aval;
-use crate::commands::pedidos::{self, Questions, Requests, ANSWERED, OPEN};
+use crate::commands::pedidos::{
+    self, AttachmentRefusal, MarkRead, Questions, Requests, ANSWERED, FREE_QUESTION, OPEN,
+    REQUEST_ACTIONS,
+};
 use crate::commands::{plan, rules, spec, task};
 use crate::harness::Harness;
 use crate::support::{config_get, frontmatter_get, frontmatter_set, sha256_hex, utc_datetime};
-
-/// Ações que o painel grava como pedido ao agente. Aprovar spec e tarefa não está aqui: o painel
-/// aprova direto, para que o agente não fique entre o clique e a aprovação (RN-04).
-const REQUEST_ACTIONS: &[&str] = &[
-    "aprovar-plano",
-    "planejar-spec",
-    "ajustar-spec",
-    "ajustar-plano",
-    "ajustar-tarefa",
-    "executar-tarefa",
-    "finalizar-tarefa",
-    "desbloquear-tarefa",
-    "finalizar-spec",
-    "responder-pergunta",
-    "fazer-commit",
-    "criar-spec",
-    "refinar-spec",
-    "executar-onda",
-    "liberar-commits",
-    "desfazer-commits",
-];
 
 /// Pedidos que o agente só cumpre com aval: o painel grava o aval junto do pedido (RF-10).
 const LOCKED_ACTIONS: &[&str] = &[
@@ -62,7 +46,11 @@ pub fn act(painel: &Painel, method: &str, parts: &[&str], query: &str, body: &[u
         }
         ("POST", ["api", "aprovacoes"]) => approve(painel, &value("spec"), &value("tarefas")),
         ("POST", ["api", "pedidos"]) => request(painel, query, body),
+        ("POST", ["api", "pedidos", id, "lida"]) => mark_read(painel, id),
         ("POST", ["api", "conferencias"]) => review_print(painel, query),
+        ("POST", ["api", "notificacoes", "lidas"]) => {
+            mark_notifications(painel, &value("ids"), &value("todas"))
+        }
         ("POST", ["api", "limpeza"]) => prune(painel, value("confirmar") == "sim"),
         _ => not_found(),
     }
@@ -180,6 +168,7 @@ fn write_with_hash(file: &Path, expected_hash: &str, content: &[u8]) -> Result<(
             status: 409,
             content_type: "application/json; charset=utf-8",
             body: body.into_bytes(),
+            headers: Vec::new(),
         });
     }
     let mut temporary = file.as_os_str().to_owned();
@@ -300,6 +289,10 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
     if !optional_id(&spec_id) || !optional_id(&task_id) {
         return text(400, "spec ou tarefa inválida");
     }
+    let draft = match checked_draft(painel, &action, &query_value(query, "rascunho")) {
+        Ok(draft) => draft,
+        Err(reply) => return reply,
+    };
     let text_of_user = String::from_utf8_lossy(body);
     let text_of_user = text_of_user.trim();
     let (spec_id, task_id, request_text) =
@@ -322,16 +315,25 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
         Ok(requests) => requests,
         Err(error) => return text(500, &error.to_string()),
     };
-    let created = requests.create(|id| {
+    let content = |id: &str| {
+        let attachments = match draft {
+            Some(_) => attachment_lines(painel, &requests, id),
+            None => Vec::new(),
+        };
         request_markdown(
             id,
             &action,
             &spec_id,
             &task_id,
             &request_text,
+            &attachments,
             &utc_datetime(),
         )
-    });
+    };
+    let created = match &draft {
+        Some(draft) => requests.create_from_draft(draft, content),
+        None => requests.create(content),
+    };
     let (id, path) = match created {
         Ok(created) => created,
         Err(error) => return text(500, &error.to_string()),
@@ -347,6 +349,28 @@ fn request(painel: &Painel, query: &str, body: &[u8]) -> Reply {
         }
     }
     json(format!("{{\"id\":{}}}", json_string(&id)))
+}
+
+/// Marca a resposta de uma pergunta livre como lida; ler de novo devolve a mesma data.
+fn mark_read(painel: &Painel, id: &str) -> Reply {
+    let requests = match Requests::open(&Harness {
+        root: painel.root.clone(),
+    }) {
+        Ok(requests) => requests,
+        Err(error) => return text(500, &error.to_string()),
+    };
+    match requests.mark_read(id) {
+        Ok(MarkRead::Marked(read_at)) => json(format!(
+            "{{\"id\":{},\"lida_em\":{}}}",
+            json_string(id),
+            json_string(&read_at)
+        )),
+        Ok(MarkRead::Missing) => not_found(),
+        Ok(MarkRead::NotAnswered) => {
+            text(409, "este pedido não é a resposta de uma pergunta livre")
+        }
+        Err(error) => text(500, &error.to_string()),
+    }
 }
 
 /// A spec, a tarefa e o texto do pedido, conferidos para as ações que exigem campos; a resposta
@@ -379,6 +403,10 @@ fn request_fields(
             };
             Ok((spec_id, task_id, request_text))
         }
+        FREE_QUESTION if text_of_user.is_empty() => {
+            Err(text(400, "o texto da pergunta é obrigatório"))
+        }
+        FREE_QUESTION => Ok((spec_id, String::new(), text_of_user.to_string())),
         "responder-pergunta" => {
             answer_question(painel, &query_value(query, "pergunta"), text_of_user)
         }
@@ -470,6 +498,29 @@ fn review_print(painel: &Painel, query: &str) -> Reply {
             json_string(&result)
         )),
         Err(error) => text(422, &format!("{error:#}")),
+    }
+}
+
+/// `POST /api/notificacoes/lidas`: `todas=sim` marca todas; senão, os `ids` separados por vírgula.
+fn mark_notifications(painel: &Painel, ids: &str, all: &str) -> Reply {
+    let harness = Harness {
+        root: painel.root.clone(),
+    };
+    let list: Vec<&str> = ids.split(',').map(str::trim).collect();
+    let selection = if all == "sim" {
+        None
+    } else if ids.trim().is_empty() {
+        return text(400, "informe ids ou todas=sim");
+    } else if let Some(invalid) = list.iter().find(|id| !pedidos::is_request_id(id)) {
+        return text(400, &format!("ID de pedido inválido '{invalid}'"));
+    } else {
+        Some(list.as_slice())
+    };
+    let marked =
+        Requests::open(&harness).and_then(|requests| requests.mark_notifications_read(selection));
+    match marked {
+        Ok(count) => json(format!("{{\"marcadas\":{count}}}")),
+        Err(error) => text(500, &format!("{error:#}")),
     }
 }
 
@@ -572,11 +623,154 @@ fn request_markdown(
     spec_id: &str,
     task_id: &str,
     text: &str,
+    attachments: &[String],
     now: &str,
 ) -> String {
+    let attachments = if attachments.is_empty() {
+        String::new()
+    } else {
+        format!("## Anexos\n\n{}\n\n", attachments.join("\n"))
+    };
     format!(
-        "---\nid: {id}\nacao: {action}\nspec: {spec_id}\ntarefa: {task_id}\nestado: pendente\norigem: painel\ncriado_em: {now}\natualizado_em: {now}\n---\n\n## Pedido\n\n{text}\n\n## Resultado\n\n"
+        "---\nid: {id}\nacao: {action}\nspec: {spec_id}\ntarefa: {task_id}\nestado: pendente\norigem: painel\ncriado_em: {now}\natualizado_em: {now}\n---\n\n## Pedido\n\n{text}\n\n{attachments}## Resultado\n\n"
     )
+}
+
+/// O rascunho de anexos do pedido: `None` sem `rascunho`; só a pergunta livre aceita um, e ele
+/// precisa ter um id válido e ao menos um arquivo.
+fn checked_draft(painel: &Painel, action: &str, draft: &str) -> Result<Option<String>, Reply> {
+    if draft.is_empty() {
+        return Ok(None);
+    }
+    if action != FREE_QUESTION {
+        return Err(text(400, "só a pergunta ao agente aceita anexos"));
+    }
+    if !pedidos::is_draft_id(draft) {
+        return Err(text(400, "rascunho de anexos inválido"));
+    }
+    let requests = Requests::open(&Harness {
+        root: painel.root.clone(),
+    })
+    .map_err(|error| text(500, &error.to_string()))?;
+    if pedidos::attachment_files(&requests.draft_dir(draft)).is_empty() {
+        return Err(text(400, "o rascunho de anexos não existe ou está vazio"));
+    }
+    Ok(Some(draft.to_string()))
+}
+
+/// Uma linha de `## Anexos` por arquivo da pasta do pedido: caminho no projeto, tamanho e hash.
+fn attachment_lines(painel: &Painel, requests: &Requests, id: &str) -> Vec<String> {
+    pedidos::attachment_files(&requests.request_attachments_dir(id))
+        .iter()
+        .map(|file| {
+            let relative = file
+                .path
+                .strip_prefix(&painel.project)
+                .unwrap_or(&file.path);
+            format!(
+                "- `{}` ({}, sha256 {})",
+                relative.display(),
+                format_size(file.size),
+                pedidos::file_sha256(&file.path).unwrap_or_default()
+            )
+        })
+        .collect()
+}
+
+/// O tamanho com uma casa e vírgula, em `B`, `KB` ou `MB`.
+fn format_size(bytes: u64) -> String {
+    let (value, unit) = match bytes {
+        0..=1023 => (bytes as f64, "B"),
+        1024..=1_048_575 => (bytes as f64 / 1024.0, "KB"),
+        _ => (bytes as f64 / 1_048_576.0, "MB"),
+    };
+    format!("{value:.1} {unit}").replace('.', ",")
+}
+
+const UPLOAD_BUFFER_BYTES: usize = 64 * 1024;
+const PARTIAL_FILE: &str = ".parte";
+const CUT_MESSAGE: &str = "o envio foi cortado; nada foi anexado";
+
+/// Recebe um anexo do rascunho por partes, sem carregá-lo na memória: confere as recusas pelo
+/// tamanho declarado antes de ler o corpo, grava em `.parte` calculando o hash e só então dá o
+/// nome limpo. Um envio cortado não deixa arquivo nem pasta vazia.
+pub fn upload_attachment(painel: &Painel, query: &str, length: u64, body: &mut impl Read) -> Reply {
+    let harness = Harness {
+        root: painel.root.clone(),
+    };
+    let requests = match Requests::open(&harness) {
+        Ok(requests) => requests,
+        Err(error) => return text(500, &error.to_string()),
+    };
+    let _ = requests.sweep_drafts();
+    let draft = query_value(query, "rascunho");
+    let original = query_value(query, "nome");
+    if !pedidos::is_draft_id(&draft) {
+        return text(400, "rascunho de anexos inválido");
+    }
+    if original.is_empty() {
+        return text(400, "o nome do arquivo é obrigatório");
+    }
+    let limit = pedidos::attachment_limit_bytes(&harness);
+    if let Err(refusal) = requests.check_attachment(&draft, &original, length, limit) {
+        let status = if refusal == AttachmentRefusal::OverLimit {
+            413
+        } else {
+            400
+        };
+        return text(status, &refusal.message());
+    }
+    let folder = requests.draft_dir(&draft);
+    if let Err(error) = fs::create_dir_all(&folder) {
+        return text(500, &format!("não foi possível criar o rascunho: {error}"));
+    }
+    let partial = folder.join(PARTIAL_FILE);
+    let received = receive_partial(&partial, length, body);
+    let Some(hash) = received else {
+        let _ = fs::remove_file(&partial);
+        let _ = fs::remove_dir(&folder);
+        return text(400, CUT_MESSAGE);
+    };
+    let name = requests.next_attachment_name(&draft, &original);
+    if let Err(error) = fs::rename(&partial, folder.join(&name)) {
+        let _ = fs::remove_file(&partial);
+        return text(500, &format!("não foi possível gravar o anexo: {error}"));
+    }
+    json(format!(
+        "{{\"anexo\":{},\"tamanho\":{length},\"sha256\":{}}}",
+        json_string(&name),
+        json_string(&hash)
+    ))
+}
+
+/// Grava até `length` bytes do corpo em `partial` e devolve o sha256; `None` quando o corpo
+/// acabou antes, falhou ou o arquivo não pôde ser gravado.
+fn receive_partial(partial: &Path, length: u64, body: &mut impl Read) -> Option<String> {
+    let mut file = fs::File::create(partial).ok()?;
+    let mut limited = body.take(length);
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; UPLOAD_BUFFER_BYTES];
+    let mut total = 0u64;
+    loop {
+        match limited.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => {
+                hasher.update(&buffer[..read]);
+                file.write_all(&buffer[..read]).ok()?;
+                total += read as u64;
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(_) => return None,
+        }
+    }
+    file.flush().ok()?;
+    (total == length).then(|| {
+        hasher
+            .finalize()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect()
+    })
 }
 
 fn is_id(value: &str) -> bool {
@@ -1130,7 +1324,7 @@ mod tests {
 
     #[test]
     fn request_actions_are_sixteen() {
-        assert_eq!(REQUEST_ACTIONS.len(), 16);
+        assert_eq!(REQUEST_ACTIONS.len(), 17);
     }
 
     fn pending(painel: &Painel, id: &str) -> String {
@@ -1406,7 +1600,7 @@ mod tests {
                 "{content}"
             );
         }
-        assert_eq!(REQUEST_ACTIONS.len(), 16);
+        assert_eq!(REQUEST_ACTIONS.len(), 17);
     }
 
     #[test]
@@ -1471,5 +1665,178 @@ mod tests {
             404
         );
         assert_eq!(act(&painel, "POST", &["api", "nada"], "", b"").status, 404);
+    }
+
+    // --- anexos do pedido (CT-62 a CT-66, CB-59, CB-70) ---
+
+    const DRAFTS: &str = "vostok/work/pedidos/anexos/.rascunho";
+
+    fn put_draft_file(painel: &Painel, draft: &str, name: &str, content: &[u8]) {
+        let dir = painel.project.join(DRAFTS).join(draft);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(name), content).unwrap();
+    }
+
+    fn ask(painel: &Painel, query: &str) -> Reply {
+        post(painel, "pedidos", query, b"Qual o problema?")
+    }
+
+    fn pending_files(painel: &Painel) -> usize {
+        fs::read_dir(painel.work.join("pedidos/pendente")).map_or(0, |entries| entries.count())
+    }
+
+    fn age_folder(path: &Path, hours: u64) {
+        let past = std::time::SystemTime::now() - std::time::Duration::from_secs(hours * 3600);
+        fs::File::open(path).unwrap().set_modified(past).unwrap();
+    }
+
+    #[test]
+    fn ct64_rascunho_vira_a_pasta_do_pedido_e_a_secao_anexos() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        put_draft_file(&painel, "r1", "01-a.txt", b"abc");
+        let reply = ask(&painel, "acao=perguntar-agente&rascunho=r1");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = read(&painel, "vostok/work/pedidos/pendente/PED-001.md");
+        let line = format!(
+            "- `vostok/work/pedidos/anexos/PED-001/01-a.txt` (3,0 B, sha256 {})",
+            sha256_hex(b"abc")
+        );
+        let expected =
+            format!("## Pedido\n\nQual o problema?\n\n## Anexos\n\n{line}\n\n## Resultado\n\n");
+        assert!(content.ends_with(&expected), "{content}");
+        assert!(painel
+            .work
+            .join("pedidos/anexos/PED-001/01-a.txt")
+            .is_file());
+        assert!(!painel.project.join(DRAFTS).join("r1").exists());
+    }
+
+    #[test]
+    fn ct64_sem_rascunho_nao_tem_a_secao_anexos() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let reply = ask(&painel, "acao=perguntar-agente");
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        let content = read(&painel, "vostok/work/pedidos/pendente/PED-001.md");
+        assert!(!content.contains("## Anexos"), "{content}");
+        assert!(
+            content.ends_with("## Pedido\n\nQual o problema?\n\n## Resultado\n\n"),
+            "{content}"
+        );
+    }
+
+    #[test]
+    fn ct64_rascunho_invalido_inexistente_ou_vazio_e_400_sem_pedido() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        fs::create_dir_all(painel.project.join(DRAFTS).join("vazio")).unwrap();
+        for draft in ["../x", "nao-existe", "vazio"] {
+            let reply = ask(&painel, &format!("acao=perguntar-agente&rascunho={draft}"));
+            assert_eq!(reply.status, 400, "{draft}: {}", body(&reply));
+        }
+        assert_eq!(pending_files(&painel), 0);
+        assert!(!painel.work.join("pedidos/anexos/PED-001").exists());
+    }
+
+    #[test]
+    fn ct64_rascunho_em_outra_acao_e_400_sem_mover() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        put_draft_file(&painel, "r1", "01-a.txt", b"abc");
+        let reply = ask(&painel, "acao=ajustar-spec&spec=SPEC-001&rascunho=r1");
+        assert_eq!(reply.status, 400, "{}", body(&reply));
+        assert!(painel.project.join(DRAFTS).join("r1/01-a.txt").is_file());
+        assert_eq!(pending_files(&painel), 0);
+    }
+
+    #[test]
+    fn ct66_envio_apaga_o_rascunho_de_25_horas_e_deixa_o_de_1_hora() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        put_draft_file(&painel, "velho", "01-a.txt", b"abc");
+        put_draft_file(&painel, "novo", "01-a.txt", b"abc");
+        age_folder(&painel.project.join(DRAFTS).join("velho"), 25);
+        age_folder(&painel.project.join(DRAFTS).join("novo"), 1);
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r1&nome=a.txt",
+            3,
+            &mut io::Cursor::new(b"xyz".to_vec()),
+        );
+        assert_eq!(reply.status, 200, "{}", body(&reply));
+        assert!(!painel.project.join(DRAFTS).join("velho").exists());
+        assert!(painel.project.join(DRAFTS).join("novo").is_dir());
+    }
+
+    #[test]
+    fn ct62_upload_cortado_nao_deixa_sobra() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r1&nome=a.txt",
+            10,
+            &mut io::Cursor::new(b"abc".to_vec()),
+        );
+        assert_eq!(reply.status, 400, "{}", body(&reply));
+        assert!(body(&reply).contains("o envio foi cortado"));
+        assert!(!painel.project.join(DRAFTS).join("r1").exists());
+
+        put_draft_file(&painel, "r2", "01-a.txt", b"abc");
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r2&nome=b.txt",
+            10,
+            &mut io::Cursor::new(b"abc".to_vec()),
+        );
+        assert_eq!(reply.status, 400);
+        let names: Vec<_> = fs::read_dir(painel.project.join(DRAFTS).join("r2"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["01-a.txt"]);
+    }
+
+    #[test]
+    fn cb59_upload_recusa_decimo_primeiro_e_soma() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        for number in 1..=10 {
+            put_draft_file(&painel, "r1", &format!("{number:02}-a.txt"), b"abc");
+        }
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r1&nome=b.txt",
+            3,
+            &mut io::Cursor::new(b"xyz".to_vec()),
+        );
+        assert_eq!(reply.status, 400, "{}", body(&reply));
+
+        write(
+            &painel,
+            "vostok/config/tasks.yml",
+            "manual_attachment_max_mb: 1\n",
+        );
+        put_draft_file(&painel, "r2", "01-a.txt", &vec![0u8; 700 * 1024]);
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r2&nome=b.txt",
+            400 * 1024,
+            &mut io::Cursor::new(vec![0u8; 400 * 1024]),
+        );
+        assert_eq!(reply.status, 413, "{}", body(&reply));
+        assert_eq!(
+            fs::read_dir(painel.project.join(DRAFTS).join("r2"))
+                .unwrap()
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn ct63_upload_recusa_nome_de_segredo_sem_criar_a_pasta() {
+        let (_dir, painel) = project(VALID_EVIDENCE);
+        let reply = upload_attachment(
+            &painel,
+            "rascunho=r1&nome=.ENV.local",
+            3,
+            &mut io::Cursor::new(b"abc".to_vec()),
+        );
+        assert_eq!(reply.status, 400, "{}", body(&reply));
+        assert!(!painel.project.join(DRAFTS).join("r1").exists());
     }
 }

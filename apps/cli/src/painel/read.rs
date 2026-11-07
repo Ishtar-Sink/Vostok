@@ -1,5 +1,6 @@
 //! Leitura dos arquivos de `vostok/` para o painel: visão, specs, planos, tarefas e documentos.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -7,11 +8,17 @@ use super::{
     json, json_string, live, not_found, percent_decode, query_value, safe_segment, text, Painel,
     Reply,
 };
-use crate::commands::pedidos::{Questions, Requests};
-use crate::commands::plan::plan_outdated;
+use crate::commands::pedidos::{
+    attachment_files, attachment_limit_bytes, request_result, request_text, LoopRound, Outcome,
+    Questions, Requests, ACCEPTED_ATTACHMENT_NAMES, DONE, FREE_QUESTION, IN_PROGRESS,
+    MAX_ATTACHMENTS, NOTIFICATION_READ, NOTIFICATION_UNREAD, PENDING, REFUSED,
+    REFUSED_ATTACHMENT_NAMES,
+};
+use crate::commands::plan::{plan_outdated, waves};
 use crate::commands::spec::STATUS_HISTORY_FIELD;
 use crate::harness::Harness;
-use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
+use crate::models;
+use crate::support::{config_get, frontmatter_get, markdown_section, sha256_hex, yaml_unescape};
 
 /// Arquivos da tarefa em pasta mostrados no painel, na ordem das abas.
 const TASK_FILES: &[&str] = &[
@@ -22,6 +29,10 @@ const TASK_FILES: &[&str] = &[
     "tecnico",
     "registro",
 ];
+
+/// Os únicos HTML que abrem na tela, e sem a origem do painel (RF-56).
+const FINAL_DOCUMENTS: &[&str] = &["executivo.html", "tecnico.html", "evidencias.html"];
+const FINAL_DOCUMENT_POLICY: &str = "sandbox allow-scripts allow-downloads";
 
 /// Campos do front-matter da spec que o painel mostra.
 const SPEC_FIELDS: &[&str] = &[
@@ -36,6 +47,11 @@ const SPEC_FIELDS: &[&str] = &[
     "approved_at",
     "adjustments",
 ];
+
+/// Campos do pedido na fila ou em andamento que vêm do front-matter, antes e depois da onda.
+const REQUEST_HEAD: &[&str] = &["id", "acao", "spec", "tarefa"];
+const REQUEST_TAIL: &[&str] = &["estado", "atualizado_em"];
+const WAVE_ACTION: &str = "executar-onda";
 
 /// Quantas linhas do registro de execução entram na atividade recente da visão.
 const ACTIVITY_LIMIT: usize = 20;
@@ -69,7 +85,22 @@ struct SpecFile {
     file: PathBuf,
 }
 
+struct DoneRequest {
+    id: String,
+    spec: String,
+    task: String,
+    updated: String,
+    file: PathBuf,
+}
+
 /// As pastas de `work/` resolvidas pela configuração do harness.
+/// Como um arquivo de `vostok/` sai pela rota: onde está, o tipo e os cabeçalhos.
+pub struct FileDelivery {
+    pub path: PathBuf,
+    pub content_type: &'static str,
+    pub headers: Vec<(&'static str, String)>,
+}
+
 struct Layout<'a> {
     painel: &'a Painel,
     spec_dirs: Vec<PathBuf>,
@@ -123,6 +154,32 @@ impl<'a> Layout<'a> {
     }
 }
 
+const DEFAULT_ATTACH_LIMIT_MB: u64 = 500;
+const NOTIFICATIONS_LIMIT: usize = 50;
+const DEFAULT_TOAST_SECONDS: u64 = 5;
+
+/// Segundos até o aviso sumir: `toast_dismiss_seconds` de `config/main.yml`, com 0 valendo 0 e
+/// o padrão para chave ausente, negativa ou texto.
+fn toast_dismiss_seconds(harness: &Harness) -> u64 {
+    config_get(&harness.config_file("main.yml"), "toast_dismiss_seconds")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_TOAST_SECONDS)
+}
+
+/// Limite de envio de um anexo, em MB: `manual_attachment_max_mb` de `config/tasks.yml`, ou 500
+/// quando a chave falta, é inválida ou é zero.
+pub fn attach_limit_mb(painel: &Painel) -> u64 {
+    config_get(
+        &painel.root.join("config/tasks.yml"),
+        "manual_attachment_max_mb",
+    )
+    .ok()
+    .and_then(|value| value.parse::<u64>().ok())
+    .filter(|limit| *limit > 0)
+    .unwrap_or(DEFAULT_ATTACH_LIMIT_MB)
+}
+
 /// Responde um `GET /api/...`; `parts` são os segmentos do caminho, a partir de `api`.
 /// `None` quando a rota não existe, e o servidor responde 404.
 pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
@@ -134,10 +191,14 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
             live::version(&painel.work)
         ))),
         ["api", "atividades"] => Ok(json(layout.activities(query))),
+        ["api", "notificacoes"] => Ok(json(layout.notifications())),
+        ["api", "pedidos", "anexos", "limites"] => Ok(json(layout.attachment_limits())),
+        ["api", "pedidos", id] => layout.request(id),
         ["api", "marca"] => Ok(json(layout.brand())),
         ["api", "documentos"] => Ok(json(layout.documents())),
         ["api", "configuracoes"] => Ok(json(layout.settings())),
         ["api", "commits"] => Ok(json(layout.commits())),
+        ["api", "perguntas-livres"] => Ok(json(layout.free_questions())),
         ["api", "specs", id] => layout.spec(id),
         ["api", "planos", id] => layout.plan(id),
         ["api", "tarefas", spec, task] => layout.task(spec, task),
@@ -153,6 +214,24 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
     Some(reply.unwrap_or_else(|reply| reply))
 }
 
+/// A decisão de `Layout::file` sem ler o arquivo, para o servidor entregá-lo por partes.
+/// `None` quando a rota não é de arquivo.
+pub fn file_delivery(
+    painel: &Painel,
+    parts: &[&str],
+    query: &str,
+) -> Option<Result<FileDelivery, Reply>> {
+    let relative = match parts {
+        ["api", "arquivo"] => query_value(query, "caminho"),
+        ["arquivos", rest @ ..] => {
+            let decoded: Vec<String> = rest.iter().map(|part| percent_decode(part)).collect();
+            decoded.join("/")
+        }
+        _ => return None,
+    };
+    Some(Layout::new(painel).delivery(&relative).map_err(nosniff))
+}
+
 impl Layout<'_> {
     /// `GET /api/commits`: as linhas do `vostok commit check`, sem recusar; erro vira lista vazia.
     fn commits(&self) -> String {
@@ -164,6 +243,7 @@ impl Layout<'_> {
     /// Specs abertas com as tarefas, specs arquivadas e a atividade recente do registro de execução.
     fn overview(&self) -> String {
         let harness = self.harness();
+        let done = self.done_requests();
         let open: Vec<String> = self
             .specs()
             .iter()
@@ -171,9 +251,10 @@ impl Layout<'_> {
                 let plan = self.plans.join(format!("{}.md", spec.id)).is_file();
                 let plan_outdated = plan_outdated(&harness, &spec.id);
                 format!(
-                    "{{\"meta\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"tasks\":[{}]}}",
+                    "{{\"meta\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"last_outcome\":{},\"tasks\":[{}]}}",
                     frontmatter_json(&spec.file, SPEC_FIELDS),
-                    self.task_summaries(&spec.id).join(",")
+                    last_outcome(&done, &spec.id, ""),
+                    self.task_summaries(&spec.id, &done).join(",")
                 )
             })
             .collect();
@@ -195,13 +276,55 @@ impl Layout<'_> {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
         format!(
-            "{{\"project\":{},\"specs\":[{}],\"archived\":[{}],\"activity\":[{}],\"questions\":[{}]}}",
+            "{{\"project\":{},\"specs\":[{}],\"archived\":[{}],\"activity\":[{}],\"questions\":[{}],\"requests\":[{}],\"loop\":{},\"respostas_nao_lidas\":[{}],\"notificacoes_nao_lidas\":{},\"toast_dismiss_seconds\":{}}}",
             json_string(&project),
             open.join(","),
             archived.join(","),
             self.activity().join(","),
-            self.questions().join(",")
+            self.questions().join(","),
+            self.requests().join(","),
+            self.round(),
+            self.unread_answers().join(","),
+            self.unread_notifications_count(),
+            toast_dismiss_seconds(&harness)
         )
+    }
+
+    fn unread_notifications_count(&self) -> usize {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return 0;
+        };
+        requests
+            .notification_files()
+            .iter()
+            .filter(|file| is_unread_notification(file))
+            .count()
+    }
+
+    /// `GET /api/notificacoes`: as 50 mais recentes e o total de não lidas.
+    fn notifications(&self) -> String {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return "{\"nao_lidas\":0,\"itens\":[]}".to_string();
+        };
+        let mut dated: Vec<(String, String, PathBuf)> = requests
+            .notification_files()
+            .into_iter()
+            .map(|file| {
+                let updated = frontmatter_get(&file, "atualizado_em").unwrap_or_default();
+                (updated, file_name_of(&file), file)
+            })
+            .collect();
+        let unread = dated
+            .iter()
+            .filter(|(_, _, file)| is_unread_notification(file))
+            .count();
+        dated.sort_by(|a, b| (&b.0, &b.1).cmp(&(&a.0, &a.1)));
+        let items: Vec<String> = dated
+            .iter()
+            .take(NOTIFICATIONS_LIMIT)
+            .map(|(_, _, file)| notification_json(file))
+            .collect();
+        format!("{{\"nao_lidas\":{unread},\"itens\":[{}]}}", items.join(","))
     }
 
     fn specs(&self) -> Vec<SpecFile> {
@@ -241,10 +364,13 @@ impl Layout<'_> {
         dirs
     }
 
-    fn task_summaries(&self, spec: &str) -> Vec<String> {
-        task_dirs(&self.tasks.join(spec))
+    fn task_summaries(&self, spec: &str, done: &[DoneRequest]) -> Vec<String> {
+        let tasks_dir = self.tasks.join(spec);
+        let waves = computed_waves(&tasks_dir);
+        let harness = self.harness();
+        task_dirs(&tasks_dir)
             .iter()
-            .map(|dir| task_summary(dir))
+            .map(|dir| task_summary(dir, done, spec, &harness, &waves))
             .collect()
     }
 
@@ -259,13 +385,17 @@ impl Layout<'_> {
     }
 
     /// `GET /api/atividades`: tarefas (abertas e arquivadas), specs, planos, pedidos e avais,
-    /// filtrados por `tipo` e `spec`, da mais nova para a mais antiga.
+    /// filtrados por `tipo` e `spec`, da mais nova para a mais antiga e paginados por `limite`
+    /// e `deslocamento`.
     fn activities(&self, query: &str) -> String {
         let kind = query_value(query, "tipo");
         let spec = query_value(query, "spec");
         let limit = query_value(query, "limite")
             .parse::<usize>()
             .unwrap_or(DEFAULT_ACTIVITIES);
+        let offset = query_value(query, "deslocamento")
+            .parse::<usize>()
+            .unwrap_or(0);
         let mut rows = self.task_rows();
         rows.extend(self.archived_task_rows());
         rows.extend(self.adjustment_rows());
@@ -276,7 +406,12 @@ impl Layout<'_> {
             (kind.is_empty() || row.kind == kind) && (spec.is_empty() || row.spec == spec)
         });
         sort_newest_first(&mut rows);
-        let items: Vec<String> = rows.iter().take(limit).map(ActivityRow::json).collect();
+        let items: Vec<String> = rows
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .map(ActivityRow::json)
+            .collect();
         format!("[{}]", items.join(","))
     }
 
@@ -428,6 +563,182 @@ impl Layout<'_> {
 
     /// Perguntas abertas do agente para o usuário (`work/perguntas/*.md`): front-matter com `id`,
     /// `spec`, `task`, `status` e `created_at`, e o corpo com `## Pergunta` e `## Opções`.
+    /// Pedidos na fila e em andamento, em ordem de ID.
+    fn requests(&self) -> Vec<String> {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return Vec::new();
+        };
+        let mut files = requests.files(Some(PENDING));
+        files.extend(requests.files(Some(IN_PROGRESS)));
+        files.sort_by_key(|file| file_name_of(file));
+        files.iter().map(|file| request_json(file)).collect()
+    }
+
+    /// Perguntas livres nos estados dadas, da maior numeração para a menor (a ordem do nome põe
+    /// `PED-99` depois de `PED-100`).
+    fn free_question_files(&self, states: &[&str]) -> Vec<PathBuf> {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return Vec::new();
+        };
+        let mut files: Vec<PathBuf> = states
+            .iter()
+            .flat_map(|state| requests.files(Some(state)))
+            .filter(|file| frontmatter_get(file, "acao").is_ok_and(|a| a == FREE_QUESTION))
+            .collect();
+        files.sort_by_key(|file| std::cmp::Reverse(request_number(file)));
+        files
+    }
+
+    /// `GET /api/perguntas-livres`: as perguntas livres nos quatro estados, com a resposta inteira.
+    fn free_questions(&self) -> String {
+        let requests = Requests::open(&self.harness()).ok();
+        let items: Vec<String> = self
+            .free_question_files(&[PENDING, IN_PROGRESS, DONE, REFUSED])
+            .iter()
+            .map(|file| {
+                let content = fs::read_to_string(file).unwrap_or_default();
+                let get = |key: &str| {
+                    (
+                        key.to_string(),
+                        frontmatter_get(file, key).unwrap_or_default(),
+                    )
+                };
+                let object = json_object(&[
+                    get("id"),
+                    get("spec"),
+                    get("estado"),
+                    ("texto".to_string(), request_text(&content)),
+                    ("resultado".to_string(), request_result(&content)),
+                    get("atualizado_em"),
+                    get("lida_em"),
+                ]);
+                let id = frontmatter_get(file, "id").unwrap_or_default();
+                let attachments = requests
+                    .as_ref()
+                    .map(|requests| self.attachments_json(&requests.request_attachments_dir(&id)))
+                    .unwrap_or_else(|| "[]".to_string());
+                format!(
+                    "{},\"anexos\":{attachments}}}",
+                    object.trim_end_matches('}')
+                )
+            })
+            .collect();
+        format!("[{}]", items.join(","))
+    }
+
+    /// Os arquivos que estão na pasta de anexos de um pedido, e não os citados no texto.
+    fn attachments_json(&self, dir: &Path) -> String {
+        let items: Vec<String> = attachment_files(dir)
+            .iter()
+            .map(|file| {
+                format!(
+                    "{{\"nome\":{},\"caminho\":{},\"tamanho\":{}}}",
+                    json_string(&file.name),
+                    json_string(&self.relative(&file.path)),
+                    file.size
+                )
+            })
+            .collect();
+        format!("[{}]", items.join(","))
+    }
+
+    /// `GET /api/pedidos/anexos/limites`: o que a CLI recusa, para o painel avisar antes do envio.
+    fn attachment_limits(&self) -> String {
+        let names = |names: &[&str]| {
+            let items: Vec<String> = names.iter().map(|name| json_string(name)).collect();
+            format!("[{}]", items.join(","))
+        };
+        format!(
+            "{{\"max_mb\":{},\"max_arquivos\":{MAX_ATTACHMENTS},\"nomes_recusados\":{},\"nomes_aceitos\":{}}}",
+            attachment_limit_bytes(&self.harness()) / (1024 * 1024),
+            names(REFUSED_ATTACHMENT_NAMES),
+            names(ACCEPTED_ATTACHMENT_NAMES)
+        )
+    }
+
+    /// Respostas (feitas ou recusadas) de perguntas livres que o usuário ainda não abriu; o pedido
+    /// antigo, sem `lida_em`, conta como não lido.
+    fn unread_answers(&self) -> Vec<String> {
+        self.free_question_files(&[DONE, REFUSED])
+            .iter()
+            .filter(|file| {
+                frontmatter_get(file, "lida_em")
+                    .unwrap_or_default()
+                    .is_empty()
+            })
+            .map(|file| {
+                let content = fs::read_to_string(file).unwrap_or_default();
+                json_object(&[
+                    (
+                        "id".to_string(),
+                        frontmatter_get(file, "id").unwrap_or_default(),
+                    ),
+                    (
+                        "spec".to_string(),
+                        frontmatter_get(file, "spec").unwrap_or_default(),
+                    ),
+                    ("texto".to_string(), request_text(&content)),
+                ])
+            })
+            .collect()
+    }
+
+    /// A última rodada do agente em loop, ou `null` sem o registro.
+    fn round(&self) -> String {
+        match LoopRound::read(&self.harness().requests_dir()) {
+            None => "null".to_string(),
+            Some(round) => {
+                let missing_note = if round.sem_nota_pedido.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        ",\"sem_nota_pedido\":{},\"sem_nota_desde\":{}",
+                        json_string(&round.sem_nota_pedido),
+                        json_string(&round.sem_nota_desde)
+                    )
+                };
+                format!(
+                    "{{\"ultima_rodada\":{},\"intervalo\":{},\"agente\":{}{missing_note}}}",
+                    json_string(&round.ultima_rodada),
+                    round.intervalo,
+                    json_string(&round.agente)
+                )
+            }
+        }
+    }
+
+    /// `GET /api/pedidos/<ID>`: o pedido com o texto, as notas, o resultado e `lida_em`.
+    fn request(&self, id: &str) -> Result<Reply, Reply> {
+        let id = safe_segment(id)?;
+        let file = Requests::open(&self.harness())
+            .ok()
+            .and_then(|requests| requests.find(id))
+            .ok_or_else(not_found)?;
+        Ok(json(request_detail_json(&file)))
+    }
+
+    fn done_requests(&self) -> Vec<DoneRequest> {
+        let Ok(requests) = Requests::open(&self.harness()) else {
+            return Vec::new();
+        };
+        requests
+            .files(Some(DONE))
+            .into_iter()
+            // A resposta de uma pergunta livre não é desfecho de spec nem de tarefa.
+            .filter(|file| frontmatter_get(file, "acao").is_ok_and(|a| a != FREE_QUESTION))
+            .map(|file| {
+                let get = |key| frontmatter_get(&file, key).unwrap_or_default();
+                DoneRequest {
+                    id: file_name_of(&file).trim_end_matches(".md").to_string(),
+                    spec: get("spec"),
+                    task: get("tarefa"),
+                    updated: get("atualizado_em"),
+                    file,
+                }
+            })
+            .collect()
+    }
+
     fn questions(&self) -> Vec<String> {
         let files = Questions::open(&self.harness())
             .map(|questions| questions.files("aberta"))
@@ -525,14 +836,18 @@ impl Layout<'_> {
         } else {
             self.tasks.join(safe_id)
         };
+        let done = self.done_requests();
+        let waves = computed_waves(&tasks_dir);
+        let harness = self.harness();
         let tasks: Vec<String> = task_dirs(&tasks_dir)
             .iter()
-            .map(|dir| task_summary(dir))
+            .map(|dir| task_summary(dir, &done, safe_id, &harness, &waves))
             .collect();
         Ok(json(format!(
-            "{{\"meta\":{},\"path\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"archived\":{archived},\"markdown\":{},\"tasks\":[{}]}}",
+            "{{\"meta\":{},\"path\":{},\"plan\":{plan},\"plan_outdated\":{plan_outdated},\"last_outcome\":{},\"archived\":{archived},\"markdown\":{},\"tasks\":[{}]}}",
             frontmatter_json(&file, SPEC_FIELDS),
             json_string(&self.relative(&file)),
+            last_outcome(&done, safe_id, ""),
             json_string(&strip_frontmatter(&markdown)),
             tasks.join(",")
         )))
@@ -585,17 +900,58 @@ impl Layout<'_> {
                 )
             })
             .collect();
+        let manual_evidence = if archived {
+            Vec::new()
+        } else {
+            crate::commands::task::manual_evidence_at(&self.painel.project, spec, task)
+                .unwrap_or_default()
+        };
+        let manual_evidence: Vec<String> = manual_evidence
+            .iter()
+            .map(|item| {
+                format!(
+                    "{{\"name\":{},\"description\":{},\"extension\":{},\"attached\":{},\"size\":{},\"path\":{}}}",
+                    json_string(&item.name),
+                    json_string(&item.description),
+                    json_string(&item.extension),
+                    item.attached,
+                    item.size,
+                    json_string(&self.relative(&item.path))
+                )
+            })
+            .collect();
         Ok(json(format!(
-            "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"files\":{{{}}},\"evidence\":[{}]}}",
+            "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"last_outcome\":{},\"files\":{{{}}},\"evidence\":[{}],\"manual_evidence\":[{}],\"attach_limit_mb\":{}}}",
             json_string(spec),
-            yaml_json(&dir.join("estado.yml")),
+            json_object(&with_task_facts(
+                estado_pairs(&dir.join("estado.yml")),
+                &dir,
+                &self.harness(),
+                &computed_waves(dir.parent().unwrap_or(dir.as_path()))
+            )),
+            last_outcome(&self.done_requests(), spec, task),
             files.join(","),
-            evidence.join(",")
+            evidence.join(","),
+            manual_evidence.join(","),
+            attach_limit_mb(self.painel)
         )))
     }
 
     /// Um arquivo de dentro do harness (`vostok/`), para evidências e documentos.
     fn file(&self, relative: &str) -> Result<Reply, Reply> {
+        let delivery = self.delivery(relative).map_err(nosniff)?;
+        let body = fs::read(&delivery.path).map_err(|_| nosniff(not_found()))?;
+        Ok(Reply {
+            status: 200,
+            content_type: delivery.content_type,
+            body,
+            headers: delivery.headers,
+        })
+    }
+
+    /// Como o arquivo é entregue: baixar é o padrão, para que nenhum HTML ou SVG rode na origem
+    /// do painel, onde leria o token de `GET /` (RN-14).
+    fn delivery(&self, relative: &str) -> Result<FileDelivery, Reply> {
         let path = Path::new(relative);
         let harness_dir = self
             .painel
@@ -615,12 +971,38 @@ impl Layout<'_> {
         if !canonical.starts_with(&self.painel.root) {
             return Err(text(400, "caminho fora de vostok/"));
         }
-        let body = fs::read(canonical).map_err(|_| not_found())?;
-        Ok(Reply {
-            status: 200,
-            content_type: content_type(relative),
-            body,
+        let mut headers = vec![nosniff_header()];
+        let content_type = if self.is_final_document(&canonical) {
+            headers.push(("Content-Security-Policy", FINAL_DOCUMENT_POLICY.to_string()));
+            "text/html; charset=utf-8"
+        } else if let Some(viewable) = viewable_type(relative) {
+            viewable
+        } else {
+            headers.push((
+                "Content-Disposition",
+                format!("attachment; filename=\"{}\"", clean_file_name(relative)),
+            ));
+            "application/octet-stream"
+        };
+        Ok(FileDelivery {
+            path: canonical,
+            content_type,
+            headers,
         })
+    }
+
+    /// Reconhece pelo caminho canônico: um atalho `docs/executivo.html` que aponte para outro
+    /// HTML sai da pasta de arquivo e não abre na tela.
+    fn is_final_document(&self, canonical: &Path) -> bool {
+        let Ok(archive) = fs::canonicalize(&self.archive) else {
+            return false;
+        };
+        let Ok(inside) = canonical.strip_prefix(archive) else {
+            return false;
+        };
+        let parts: Vec<_> = inside.iter().collect();
+        matches!(parts[..], [_, docs, name]
+            if docs == "docs" && FINAL_DOCUMENTS.iter().any(|document| name == *document))
     }
 
     /// Conteúdo e hash de um arquivo de `vostok/`, para abrir a edição com o controle otimista.
@@ -684,10 +1066,7 @@ impl Layout<'_> {
             return String::new();
         }
         fs::read(self.painel.project.join(path))
-            .map(|bytes| {
-                let mime = content_type(icon).split(';').next().unwrap_or("");
-                format!("data:{mime};base64,{}", base64(&bytes))
-            })
+            .map(|bytes| format!("data:{};base64,{}", icon_type(icon), base64(&bytes)))
             .unwrap_or_default()
     }
 }
@@ -819,12 +1198,154 @@ fn adjustment_rows_in(file: &Path, kind: &str, id: &str) -> Vec<ActivityRow> {
         .collect()
 }
 
+fn request_number(file: &Path) -> u32 {
+    file_name_of(file)
+        .trim_start_matches("PED-")
+        .trim_end_matches(".md")
+        .parse()
+        .unwrap_or(0)
+}
+
 fn json_object(pairs: &[(String, String)]) -> String {
     let items: Vec<String> = pairs
         .iter()
         .map(|(key, value)| format!("{}:{}", json_string(key), json_string(value)))
         .collect();
     format!("{{{}}}", items.join(","))
+}
+
+/// O desfecho do último pedido concluído da spec (`task` vazio) ou da tarefa, ou `null`.
+fn last_outcome(done: &[DoneRequest], spec: &str, task: &str) -> String {
+    done.iter()
+        .filter(|request| request.spec == spec && request.task == task)
+        .max_by(|a, b| (&a.updated, &a.id).cmp(&(&b.updated, &b.id)))
+        .map_or_else(|| "null".to_string(), |request| outcome_json(&request.file))
+}
+
+/// O número da onda pedida, só no `executar-onda` cujo texto começa com `Onda N.`.
+fn request_wave(file: &Path) -> String {
+    if frontmatter_get(file, "acao").unwrap_or_default() != WAVE_ACTION {
+        return String::new();
+    }
+    let content = fs::read_to_string(file).unwrap_or_default();
+    let section = markdown_section(&content, "Pedido").unwrap_or_default();
+    let Some(rest) = section.trim().strip_prefix("Onda ") else {
+        return String::new();
+    };
+    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+    if !digits.is_empty() && rest[digits.len()..].starts_with('.') {
+        digits
+    } else {
+        String::new()
+    }
+}
+
+fn is_unread_notification(file: &Path) -> bool {
+    frontmatter_get(file, "notificacao").is_ok_and(|value| value == NOTIFICATION_UNREAD)
+}
+
+fn notification_json(file: &Path) -> String {
+    let get = |key: &str| frontmatter_get(file, key).unwrap_or_default();
+    let mut pairs: Vec<(String, String)> = [
+        "id", "acao", "spec", "tarefa", "estado", "desfecho", "pergunta",
+    ]
+    .iter()
+    .map(|key| (key.to_string(), get(key)))
+    .collect();
+    pairs.push(("atualizado_em".to_string(), get("atualizado_em")));
+    let object = json_object(&pairs);
+    let read = get("notificacao") == NOTIFICATION_READ;
+    format!("{},\"lida\":{read}}}", object.trim_end_matches('}'))
+}
+
+fn request_json(file: &Path) -> String {
+    let get = |key: &&str| {
+        (
+            key.to_string(),
+            frontmatter_get(file, key).unwrap_or_default(),
+        )
+    };
+    let mut pairs: Vec<(String, String)> = REQUEST_HEAD.iter().map(get).collect();
+    pairs.push(("onda".to_string(), request_wave(file)));
+    pairs.extend(REQUEST_TAIL.iter().map(get));
+    let note = frontmatter_get(file, "nota").unwrap_or_default();
+    if !note.is_empty() {
+        pairs.push(("nota".to_string(), note));
+        pairs.push(("nota_em".to_string(), get(&"nota_em").1));
+    }
+    json_object(&pairs)
+}
+
+fn request_detail_json(file: &Path) -> String {
+    let content = fs::read_to_string(file).unwrap_or_default();
+    let section = |title: &str| markdown_section(&content, title).unwrap_or_default();
+    let get = |key: &str| frontmatter_get(file, key).unwrap_or_default();
+    let notes: Vec<String> = request_notes(&section("Notas"))
+        .iter()
+        .map(|(at, text, detail)| {
+            format!(
+                "{{\"em\":{},\"texto\":{},\"detalhe\":{}}}",
+                json_string(at),
+                json_string(text),
+                json_string(detail)
+            )
+        })
+        .collect();
+    format!(
+        "{{\"id\":{},\"acao\":{},\"spec\":{},\"tarefa\":{},\"estado\":{},\"texto\":{},\"notas\":[{}],\"resultado\":{},\"lida_em\":{}}}",
+        json_string(&get("id")),
+        json_string(&get("acao")),
+        json_string(&get("spec")),
+        json_string(&get("tarefa")),
+        json_string(&get("estado")),
+        json_string(section("Pedido").trim()),
+        notes.join(","),
+        json_string(section("Resultado").trim()),
+        json_string(&get("lida_em"))
+    )
+}
+
+/// As entradas de `## Notas`, na ordem do arquivo: `- <hora> <texto>` e o detalhe recuado, com a
+/// barra da cerca de código desfeita.
+fn request_notes(section: &str) -> Vec<(String, String, String)> {
+    let mut notes: Vec<(String, String, String)> = Vec::new();
+    for line in section.lines() {
+        if let Some(entry) = line.strip_prefix("- ") {
+            let (at, text) = entry.split_once(' ').unwrap_or((entry, ""));
+            notes.push((at.to_string(), text.to_string(), String::new()));
+        } else if let (Some(detail), Some(note)) = (line.strip_prefix("  "), notes.last_mut()) {
+            let detail = detail
+                .strip_prefix('\\')
+                .filter(|rest| rest.trim_start().starts_with("```"))
+                .unwrap_or(detail);
+            if !note.2.is_empty() {
+                note.2.push('\n');
+            }
+            note.2.push_str(detail);
+        }
+    }
+    notes
+}
+
+fn outcome_json(file: &Path) -> String {
+    let outcome = Outcome::read(file);
+    let content = fs::read_to_string(file).unwrap_or_default();
+    let result = markdown_section(&content, "Resultado").unwrap_or_default();
+    let get = |key| frontmatter_get(file, key).unwrap_or_default();
+    let exits: Vec<String> = outcome
+        .saidas
+        .iter()
+        .map(|exit| json_string(exit))
+        .collect();
+    format!(
+        "{{\"id\":{},\"acao\":{},\"desfecho\":{},\"pergunta\":{},\"saidas\":[{}],\"resultado\":{}}}",
+        json_string(&get("id")),
+        json_string(&get("acao")),
+        json_string(&outcome.desfecho),
+        json_string(&outcome.pergunta),
+        exits.join(","),
+        json_string(result.trim())
+    )
 }
 
 /// Campos escolhidos do front-matter de um arquivo, em JSON (texto, como no arquivo).
@@ -866,13 +1387,87 @@ fn estado_pairs(file: &Path) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Um YAML plano (`chave: valor`, como o `estado.yml`) em JSON, com os valores como texto.
-fn yaml_json(file: &Path) -> String {
-    json_object(&estado_pairs(file))
+/// O valor registrado, ou vazio para `""`, `-` e `null`, como o `task status` trata o campo.
+fn registered(value: &str) -> &str {
+    match value {
+        "-" | "null" => "",
+        value => value,
+    }
 }
 
-fn task_summary(dir: &Path) -> String {
-    let estado = estado_pairs(&dir.join("estado.yml"));
+/// Onda de cada tarefa da pasta, calculada pelas dependências como no `task status`.
+fn computed_waves(tasks_dir: &Path) -> BTreeMap<String, usize> {
+    let graph: Vec<(String, Vec<String>)> = task_dirs(tasks_dir)
+        .iter()
+        .map(|dir| {
+            let depends_on = estado_pairs(&dir.join("estado.yml"))
+                .into_iter()
+                .find(|(key, _)| key == "depends_on")
+                .map(|(_, value)| value)
+                .unwrap_or_default();
+            let ids = depends_on
+                .replace(['[', ']'], "")
+                .split(',')
+                .map(|id| id.trim().to_string())
+                .filter(|id| !id.is_empty())
+                .collect();
+            (file_name_of(dir), ids)
+        })
+        .collect();
+    waves(&graph)
+}
+
+/// Acrescenta ao estado a onda, o perfil e a persona, sem inventar valor onde não há.
+fn with_task_facts(
+    mut estado: Vec<(String, String)>,
+    dir: &Path,
+    harness: &Harness,
+    waves: &BTreeMap<String, usize>,
+) -> Vec<(String, String)> {
+    let registered_of = |estado: &[(String, String)], key: &str| {
+        estado
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| registered(value).to_string())
+            .unwrap_or_default()
+    };
+    let wave = match registered_of(&estado, "wave") {
+        wave if !wave.is_empty() => wave,
+        _ => waves
+            .get(&file_name_of(dir))
+            .map(|wave| wave.to_string())
+            .unwrap_or_default(),
+    };
+    let profile = match models::task_profile(harness, dir).as_str() {
+        "-" => String::new(),
+        profile => profile.to_string(),
+    };
+    let persona = registered_of(&estado, "persona");
+    let waiting_on = registered_of(&estado, "waiting_on");
+    let waiting_reason = registered_of(&estado, "waiting_reason");
+    for (key, value) in [
+        ("wave", wave),
+        ("profile", profile),
+        ("persona", persona),
+        ("waiting_on", waiting_on),
+        ("waiting_reason", waiting_reason),
+    ] {
+        match estado.iter_mut().find(|(name, _)| name == key) {
+            Some(pair) => pair.1 = value,
+            None => estado.push((key.to_string(), value)),
+        }
+    }
+    estado
+}
+
+fn task_summary(
+    dir: &Path,
+    done: &[DoneRequest],
+    spec: &str,
+    harness: &Harness,
+    waves: &BTreeMap<String, usize>,
+) -> String {
+    let estado = with_task_facts(estado_pairs(&dir.join("estado.yml")), dir, harness, waves);
     let keys = [
         "id",
         "title",
@@ -886,6 +1481,8 @@ fn task_summary(dir: &Path) -> String {
         "type",
         "description",
         "check_result",
+        "waiting_on",
+        "waiting_reason",
     ];
     let pairs: Vec<(String, String)> = keys
         .iter()
@@ -898,7 +1495,12 @@ fn task_summary(dir: &Path) -> String {
             (key.to_string(), value)
         })
         .collect();
-    json_object(&pairs)
+    let object = json_object(&pairs);
+    format!(
+        "{},\"last_outcome\":{}}}",
+        &object[..object.len() - 1],
+        last_outcome(done, spec, &file_name_of(dir))
+    )
 }
 
 /// Pares `chave: valor` de um grupo de primeiro nível, com as aspas e os comentários removidos.
@@ -987,19 +1589,63 @@ fn strip_html_comments(markdown: &str) -> String {
     out.trim().to_string()
 }
 
-fn content_type(name: &str) -> &'static str {
+/// Tipo do que abre na tela, pela extensão; o resto só baixa.
+fn viewable_type(name: &str) -> Option<&'static str> {
+    let extension = Path::new(name).extension()?.to_str()?.to_lowercase();
+    let content_type = match extension.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mov" => "video/quicktime",
+        "md" | "txt" | "yml" | "log" | "out" | "diff" | "csv" => "text/plain; charset=utf-8",
+        "json" => "application/json; charset=utf-8",
+        "css" => "text/css; charset=utf-8",
+        "js" => "text/javascript; charset=utf-8",
+        _ => return None,
+    };
+    Some(content_type)
+}
+
+/// Só ASCII: o nome vai no cabeçalho, e aspas ou quebras de linha o quebrariam (CB-40).
+fn clean_file_name(relative: &str) -> String {
+    let clean: String = relative
+        .rsplit('/')
+        .next()
+        .unwrap_or_default()
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '.' | '_' | ' ' | '-') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if clean.is_empty() {
+        "arquivo".to_string()
+    } else {
+        clean
+    }
+}
+
+fn nosniff_header() -> (&'static str, String) {
+    ("X-Content-Type-Options", "nosniff".to_string())
+}
+
+fn nosniff(mut reply: Reply) -> Reply {
+    reply.headers.push(nosniff_header());
+    reply
+}
+
+/// O ícone da marca vai embutido em `data:` e não passa por `Layout::file`; por isso aceita SVG.
+fn icon_type(name: &str) -> &'static str {
     match Path::new(name).extension().and_then(|ext| ext.to_str()) {
-        Some("html") => "text/html; charset=utf-8",
-        Some("md" | "txt" | "yml" | "log") => "text/plain; charset=utf-8",
-        Some("json") => "application/json; charset=utf-8",
-        Some("css") => "text/css; charset=utf-8",
-        Some("js") => "text/javascript; charset=utf-8",
         Some("svg") => "image/svg+xml",
         Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
         Some("webp") => "image/webp",
-        Some("gif") => "image/gif",
-        Some("mp4") => "video/mp4",
         _ => "application/octet-stream",
     }
 }
@@ -1156,6 +1802,17 @@ wave: 1
         );
         for reply in [&spec, &task] {
             assert!(!reply.contains(r#"\\\"Em"#), "{reply}");
+        }
+    }
+
+    #[test]
+    fn campos_calculados_na_tarefa_arquivada() {
+        let (_dir, painel) = project();
+        let spec = body(&get(&painel, "/api/specs/SPEC-000"));
+        let task = body(&get(&painel, "/api/tarefas/SPEC-000/TASK-01"));
+        for reply in [&spec, &task] {
+            assert!(reply.contains("\"wave\":\"1\""), "{reply}");
+            assert!(reply.contains("\"persona\":\"\""), "{reply}");
         }
     }
 
@@ -1337,6 +1994,42 @@ wave: 1
         assert_eq!(types_of(&reply), vec!["aval"]);
     }
 
+    fn details_of(reply: &Reply) -> Vec<String> {
+        body(reply)
+            .split("\"detail\":\"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn atividades_paginam_com_deslocamento() {
+        let (dir, painel) = project();
+        let mut registro =
+            String::from("| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n");
+        for number in 1..=30 {
+            registro.push_str(&format!(
+                "| {number} | 2026-11-02T10:{number:02}:00Z | etapa | ok | linha {number} |\n"
+            ));
+        }
+        write(
+            dir.path(),
+            "vostok/work/tasks/SPEC-001/TASK-01/registro.md",
+            &registro,
+        );
+        let base = "/api/atividades?tipo=tarefa&spec=SPEC-001";
+        let first = details_of(&get(&painel, &format!("{base}&limite=10")));
+        assert_eq!(first.first().unwrap(), "linha 30");
+        let second = details_of(&get(&painel, &format!("{base}&limite=10&deslocamento=10")));
+        let expected: Vec<String> = (11..=20).rev().map(|n| format!("linha {n}")).collect();
+        assert_eq!(second, expected);
+        let beyond = get(&painel, &format!("{base}&limite=10&deslocamento=500"));
+        assert_eq!(body(&beyond), "[]");
+        let without = get(&painel, &format!("{base}&limite=10"));
+        let zero = get(&painel, &format!("{base}&limite=10&deslocamento=0"));
+        assert_eq!(body(&without), body(&zero));
+    }
+
     #[test]
     fn atividades_respondem_em_ate_500_ms() {
         let (dir, painel) = project();
@@ -1356,6 +2049,31 @@ wave: 1
         let reply = get(&painel, "/api/atividades?limite=15");
         assert!(start.elapsed() < std::time::Duration::from_millis(500));
         assert_eq!(types_of(&reply).len(), 15);
+        let start = std::time::Instant::now();
+        let reply = get(&painel, "/api/atividades?limite=50&deslocamento=900");
+        assert!(start.elapsed() < std::time::Duration::from_millis(500));
+        assert_eq!(types_of(&reply).len(), 50);
+    }
+
+    #[test]
+    fn notificacoes_respondem_em_ate_500_ms() {
+        let (dir, painel) = project();
+        for number in 100..600 {
+            write(
+                dir.path(),
+                &format!("vostok/work/pedidos/feito/PED-{number}.md"),
+                &format!("---\nid: PED-{number}\nacao: ajustar-tarefa\nspec: SPEC-001\ntarefa: TASK-01\nestado: feito\natualizado_em: 2026-01-05T11:00:00Z\nnotificacao: nao_lida\n---\n\n## Pedido\n\nx\n"),
+            );
+        }
+        for route in ["/api/notificacoes", "/api/visao"] {
+            let start = std::time::Instant::now();
+            let reply = get(&painel, route);
+            assert!(
+                start.elapsed() < std::time::Duration::from_millis(500),
+                "{route}"
+            );
+            assert!(body(&reply).contains("500"), "{route}");
+        }
     }
 
     #[test]
@@ -1590,6 +2308,22 @@ wave: 1
         assert_eq!(
             get(&painel, "/api/arquivo?caminho=vostok/atalho.txt").status,
             400
+        );
+    }
+
+    #[test]
+    fn fonte_de_html_continua_em_json() {
+        let (dir, painel) = project();
+        write(dir.path(), "vostok/work/pagina.html", "<h1>oi</h1>");
+        let reply = get(&painel, "/api/fonte?caminho=vostok/work/pagina.html");
+        assert_eq!(reply.status, 200);
+        assert_eq!(reply.content_type, "application/json; charset=utf-8");
+        assert!(reply.headers.is_empty(), "{:?}", reply.headers);
+        let text = body(&reply);
+        assert!(text.contains("\"conteudo\":\"<h1>oi</h1>\""), "{text}");
+        assert!(
+            text.contains(&format!("\"hash\":\"{}\"", sha256_hex(b"<h1>oi</h1>"))),
+            "{text}"
         );
     }
 

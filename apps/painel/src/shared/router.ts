@@ -9,6 +9,7 @@ export type Route =
   | { page: 'task'; spec: string; task: string }
   | { page: 'documents' }
   | { page: 'activity' }
+  | { page: 'ask' }
   | { page: 'settings' }
   | { page: 'missing' };
 
@@ -21,6 +22,7 @@ export function parseRoute(pathname: string): Route {
   if (first === 'pendencias' && parts.length === 1) return { page: 'inbox' };
   if (first === 'documentos' && parts.length === 1) return { page: 'documents' };
   if (first === 'atividades' && parts.length === 1) return { page: 'activity' };
+  if (first === 'perguntas' && parts.length === 1) return { page: 'ask' };
   if (first === 'configuracoes' && parts.length === 1) return { page: 'settings' };
   if (first === 'specs' && parts.length === 1) return { page: 'specs' };
   if (first === 'specs' && parts.length <= 3) {

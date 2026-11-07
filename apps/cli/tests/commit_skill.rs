@@ -469,3 +469,96 @@ fn golden_normalization_hides_letter_only_commit_hashes() {
         "sem hash: abcdef ou decade\n"
     );
 }
+
+// --- limite de arquivos por commit (RF-27, CT-18) ---
+
+/// Grava `count` arquivos novos na pasta `dir` e faz o commit deles com a mensagem dada.
+fn commit_files(project: &Project, dir: &str, count: usize, message: &str) {
+    for index in 0..count {
+        write(
+            &project.root().join(format!("{dir}/f{index:03}.txt")),
+            "x\n",
+        );
+    }
+    git(project.root(), &["add", dir]);
+    git(project.root(), &["commit", "-q", "-m", message]);
+}
+
+/// Repositório com a referência gravada, para os commits seguintes aparecerem como não liberados.
+fn released_project() -> Project {
+    let project = git_project();
+    commit_files(&project, "base", 1, "base");
+    stdout(&mut commit_cmd(&project, &["check"]));
+    project
+}
+
+/// A linha do commit com a mensagem dada, a partir da recusa do `commit check`.
+fn commit_line(project: &Project, message: &str) -> String {
+    let stderr = failure_stderr(&mut commit_cmd(project, &["check"]));
+    stderr
+        .lines()
+        .find(|line| line.contains(&format!(" {message} (arquivos: ")))
+        .unwrap_or_else(|| panic!("sem a linha de {message}: {stderr}"))
+        .to_string()
+}
+
+#[test]
+fn commit_files_limit_one_file_is_listed() {
+    let project = released_project();
+    commit_files(&project, "d", 1, "um");
+    assert!(commit_line(&project, "um").ends_with(" um (arquivos: d/f000.txt)"));
+}
+
+#[test]
+fn commit_files_limit_exactly_five_has_no_remainder() {
+    let project = released_project();
+    commit_files(&project, "d", 5, "cinco");
+    assert!(commit_line(&project, "cinco").ends_with(
+        " cinco (arquivos: d/f000.txt, d/f001.txt, d/f002.txt, d/f003.txt, d/f004.txt)"
+    ));
+}
+
+#[test]
+fn commit_files_limit_six_shows_one_more() {
+    let project = released_project();
+    commit_files(&project, "d", 6, "seis");
+    assert!(commit_line(&project, "seis").ends_with(
+        " seis (arquivos: d/f000.txt, d/f001.txt, d/f002.txt, d/f003.txt, d/f004.txt e mais 1)"
+    ));
+}
+
+#[test]
+fn commit_files_limit_five_hundred_lists_only_five_names() {
+    let project = released_project();
+    commit_files(&project, "d", 500, "muitos");
+    let line = commit_line(&project, "muitos");
+    assert_eq!(line.matches("d/f").count(), 5);
+    assert!(line.ends_with(" e mais 495)"));
+}
+
+#[test]
+fn commit_files_limit_merge_counts_the_files_of_the_first_parent_diff() {
+    let project = released_project();
+    git(project.root(), &["checkout", "-q", "-b", "ramo"]);
+    commit_files(&project, "d", 7, "no ramo");
+    git(project.root(), &["checkout", "-q", "main"]);
+    git(
+        project.root(),
+        &["merge", "-q", "--no-ff", "-m", "juncao", "ramo"],
+    );
+    let line = commit_line(&project, "juncao");
+    assert_eq!(line.matches("d/f").count(), 5);
+    assert!(line.ends_with(" e mais 2)"));
+}
+
+#[test]
+fn commit_files_limit_golden_only_the_case_0493_goes_over() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/golden/commit");
+    let over: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| String::from_utf8_lossy(&fs::read(path).unwrap()).contains(" e mais "))
+        .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(over, ["0493.case"]);
+}

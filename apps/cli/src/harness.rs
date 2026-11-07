@@ -24,6 +24,7 @@ pub struct RequestFolders {
     pub in_progress: String,
     pub done: String,
     pub refused: String,
+    pub attachments: String,
 }
 
 /// Subpasta de cada status de uma pergunta.
@@ -122,6 +123,7 @@ impl Harness {
                 ("in_progress", "em_andamento"),
                 ("done", "feito"),
                 ("refused", "recusado"),
+                ("attachments", "anexos"),
             ],
         )?;
         let questions = self.folder_group(
@@ -138,6 +140,7 @@ impl Harness {
                 in_progress: requests[1].clone(),
                 done: requests[2].clone(),
                 refused: requests[3].clone(),
+                attachments: requests[4].clone(),
             },
             questions: QuestionFolders {
                 open: questions[0].clone(),

@@ -1,0 +1,14 @@
+.form { display: grid; gap: 16px; }
+.question { display: grid; gap: 10px; margin: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; min-width: 0; }
+.question legend { padding: 0 4px; font-weight: 600; color: var(--text); }
+.option { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: var(--font-size-sm); }
+.option input { margin-top: 3px; accent-color: var(--primary); }
+.option input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.letter { font-weight: 600; }
+.notes { display: grid; gap: 6px; color: var(--text-muted); font-size: var(--font-size-sm); }
+.notes textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; resize: vertical; }
+.notes textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.submit { justify-self: start; }
+.intro { display: grid; gap: 8px; }
+.other { width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+.other:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }

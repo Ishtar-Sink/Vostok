@@ -2,32 +2,49 @@
 
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
 use sha1::{Digest, Sha1};
 
+use crate::harness::Harness;
+
 const WEBSOCKET_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const WATCH: Duration = Duration::from_millis(500);
 
-/// Versão de `work/`: muda sempre que um arquivo de lá muda.
+/// Versão de `work/`: muda sempre que um arquivo de lá muda, menos os da pasta de anexos dos
+/// pedidos, que têm o próprio envio e podem ser grandes.
 pub fn version(work: &Path) -> u128 {
-    newest(work)
+    newest(work, &attachments_dir(work))
         .duration_since(SystemTime::UNIX_EPOCH)
         .map(|time| time.as_nanos())
         .unwrap_or(0)
 }
 
-fn newest(dir: &Path) -> SystemTime {
+fn attachments_dir(work: &Path) -> PathBuf {
+    let harness = Harness {
+        root: work.parent().map(Path::to_path_buf).unwrap_or_default(),
+    };
+    let requests = harness.requests_dir();
+    match harness.folders() {
+        Ok(folders) => requests.join(folders.requests.attachments),
+        Err(_) => work.join("pedidos/anexos"),
+    }
+}
+
+fn newest(dir: &Path, skipped: &Path) -> SystemTime {
     let mut latest = fs::metadata(dir)
         .and_then(|meta| meta.modified())
         .unwrap_or(SystemTime::UNIX_EPOCH);
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
+            if entry.file_name() == crate::commands::task::ATTACH_TEMP_DIR || path == skipped {
+                continue;
+            }
             let modified = if path.is_dir() {
-                newest(&path)
+                newest(&path, skipped)
             } else {
                 entry
                     .metadata()
@@ -128,6 +145,50 @@ mod tests {
         thread::sleep(Duration::from_millis(20));
         fs::write(sub.join("a.md"), "x").unwrap();
         assert_ne!(version(dir.path()), before);
+    }
+
+    #[test]
+    fn version_ignores_writes_in_the_upload_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let upload = dir.path().join("tasks/SPEC-001/TASK-01/evidencias");
+        let temp = upload.join(crate::commands::task::ATTACH_TEMP_DIR);
+        fs::create_dir_all(&temp).unwrap();
+        let before = version(dir.path());
+        thread::sleep(Duration::from_millis(20));
+        fs::write(temp.join("parcial"), "x").unwrap();
+        assert_eq!(version(dir.path()), before);
+        fs::write(upload.join("video.mov"), "x").unwrap();
+        assert_ne!(version(dir.path()), before);
+    }
+
+    fn work_with_requests() -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let work = dir.path().join("vostok/work");
+        fs::create_dir_all(work.join("pedidos/anexos")).unwrap();
+        fs::create_dir_all(work.join("pedidos/pendente")).unwrap();
+        (dir, work)
+    }
+
+    #[test]
+    fn ct66_escrita_na_pasta_de_anexos_nao_muda_a_versao() {
+        let (_dir, work) = work_with_requests();
+        let draft = work.join("pedidos/anexos/.rascunho/r1");
+        fs::create_dir_all(&draft).unwrap();
+        let before = version(&work);
+        thread::sleep(Duration::from_millis(20));
+        fs::write(draft.join(".parte"), "x").unwrap();
+        fs::write(draft.join("01-a.txt"), "x").unwrap();
+        fs::create_dir_all(work.join("pedidos/anexos/PED-001")).unwrap();
+        assert_eq!(version(&work), before);
+    }
+
+    #[test]
+    fn ct66_escrita_em_pendente_muda_a_versao() {
+        let (_dir, work) = work_with_requests();
+        let before = version(&work);
+        thread::sleep(Duration::from_millis(20));
+        fs::write(work.join("pedidos/pendente/PED-001.md"), "x").unwrap();
+        assert_ne!(version(&work), before);
     }
 
     #[test]

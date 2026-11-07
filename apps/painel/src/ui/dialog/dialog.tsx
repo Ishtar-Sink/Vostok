@@ -9,7 +9,7 @@ export interface DialogProps {
   children: ReactNode;
   actions: ReactNode;
   role?: 'dialog' | 'alertdialog';
-  size?: 'default' | 'wide';
+  size?: 'default' | 'wide' | 'content';
   close_on_backdrop?: boolean;
   described_by?: string;
   className?: string;
@@ -79,9 +79,8 @@ export function Dialog({
 
   if (!open) return null;
 
-  const classes = [styles.root, size === 'wide' ? styles.wide : '', className]
-    .filter(Boolean)
-    .join(' ');
+  const sizeClass = size === 'wide' ? styles.wide : size === 'content' ? styles.content : '';
+  const classes = [styles.root, sizeClass, className].filter(Boolean).join(' ');
 
   return (
     // O clique no próprio <dialog> é o clique no fundo; o teclado já fecha pelo Esc.

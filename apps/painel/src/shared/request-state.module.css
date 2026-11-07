@@ -1,0 +1,7 @@
+.root { display: grid; gap: 8px; margin-top: 16px; }
+.title { margin: 0; font-weight: 600; color: var(--text); }
+.line { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
+.outputs { display: flex; flex-wrap: wrap; gap: 8px; }
+.link { justify-self: start; color: var(--primary); font-weight: 600; font-size: var(--font-size-sm); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

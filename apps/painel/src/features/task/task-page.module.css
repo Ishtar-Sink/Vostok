@@ -20,6 +20,10 @@
 .evidenceSize { color: var(--text-muted); font-size: var(--font-size-sm); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .evidenceMedia { max-width: 100%; border: 1px solid var(--border); border-radius: 10px; }
 .evidenceText { margin: 0; max-height: 420px; overflow: auto; background: var(--surface-muted); border-radius: 10px; padding: 12px; font-size: var(--font-size-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+.evidenceDownload { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); }
+.evidenceDownload .evidenceName { flex: 1 1 auto; min-width: 0; }
+.downloadLink { color: var(--primary); font-size: var(--font-size-sm); font-weight: 600; }
+.downloadLink:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
 .headerActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
 .refList {
@@ -42,3 +46,10 @@
   color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
+
+.manualList { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.manualItem { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); min-width: 0; }
+.manualHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.manualText { flex: 1 1 220px; min-width: 0; }
+.manualAsk { margin: 2px 0 0; color: var(--text-muted); font-size: var(--font-size-sm); overflow-wrap: anywhere; }
+.manualProgress { display: grid; gap: 6px; }

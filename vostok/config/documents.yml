@@ -153,7 +153,7 @@ font:
 
 # Identidade do repositório, gravada pelo `vostok documents brand`. Vazio usa a do harness.
 brand:
-  name: ""
+  name: "Vostok"
   icon: ""        # caminho relativo à raiz do projeto: .svg, .png ou .webp, até 256 KB
   primary: ""
   secondary: ""

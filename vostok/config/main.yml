@@ -14,6 +14,9 @@ paths:
   finalize: ./work/finalize    # conteúdo e documentos de uma spec antes do arquivamento
   spec_docs: ../docs/specs
   bugs: ./work/bugs          # relatos de defeitos do próprio harness (skill report-harness-bug)
+  requests: ./work/pedidos      # pedidos do painel ao agente, numa subpasta por estado
+  questions: ./work/perguntas  # perguntas do agente ao usuário, numa subpasta por status
+  approvals: ./work/avais      # avais do painel, um arquivo por spec
 
 # Repositório das issues de defeitos do próprio harness (skills report-harness-bug e
 # validate-harness-bug e subcomando `vostok bug link`) e ferramenta de IA em uso no projeto, que
@@ -25,3 +28,26 @@ harness:
 # Trava de aval: com `true`, concluir, aprovar, arquivar e fazer commit exigem o aval do painel
 # (`vostok painel`) registrado no `avais.log`. Desligada por padrão.
 approval_lock: false
+
+# Nome da subpasta de cada estado dos pedidos e das perguntas, e do arquivo dos avais sem spec.
+# Os nomes são só de pasta: o estado gravado em cada arquivo não muda com eles.
+folders:
+  requests:
+    pending: pendente
+    in_progress: em_andamento
+    done: feito
+    refused: recusado
+  questions:
+    open: aberta
+    answered: respondida
+  approvals_without_spec: sem-spec.log
+
+# Disparo sob demanda: com `codex` ou `claude`, o `vostok painel` chama o agente para cada pedido
+# gravado, um por vez, sem precisar de um loop rodando. Vazio: desligado.
+request_dispatch: ""   # "" (desligado) | codex | claude
+
+# Tempo de um aviso na tela do painel, em segundos. 0: só some ao ser fechado. Ausente ou inválido, vale 5.
+toast_dismiss_seconds: 5
+
+# Minutos sem nota nova num pedido em andamento até o aviso de falta de nota.
+request_note_warning_minutes: 15

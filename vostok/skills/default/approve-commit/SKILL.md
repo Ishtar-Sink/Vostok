@@ -3,7 +3,7 @@ name: approve-commit
 description: "Faz commits a pedido do usuário, já liberados, e libera ou desfaz os commits apontados pela verificação de commits (vostok commit check): commits feitos sem liberação, pelo agente ou pelo próprio usuário. Liberar grava o estado atual do repositório como referência; desfazer remove os commits novos da branch atual mantendo as alterações na pasta de trabalho. Use quando o usuário pedir para fazer commit, ou para liberar, aprovar, aceitar, desfazer ou reverter os commits apontados."
 allowed-tools: Read Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok commit check, vostok commit show, vostok commit approve, vostok commit revert, vostok commit commit"
   templates: "templates/responses/question.md templates/responses/completion.md"
@@ -22,7 +22,7 @@ metadata:
 
 ## Regras
 
-[approve-commit-01]: Só execute esta skill a pedido do usuário, numa mensagem dele (ou num pedido `fazer-commit` do painel, que vale como o pedido dele) posterior à que mostrou os commits. Nunca libere nem desfaça na mesma resposta em que os commits foram apontados.
+[approve-commit-01]: Só execute esta skill a pedido do usuário, numa mensagem dele (ou num pedido `fazer-commit` do painel, que vale como o pedido dele, ou nos pedidos `liberar-commits` e `desfazer-commits`) posterior à que mostrou os commits. Nunca libere nem desfaça na mesma resposta em que os commits foram apontados.
 [approve-commit-02]: O pedido tem que dizer o que fazer: liberar ou desfazer. "Ok", "segue" ou um pedido sobre outro assunto não são liberação; na dúvida, pergunte (passo 3).
 [approve-commit-03]: Nunca edite nem apague o arquivo de referência. Só o comando o altera.
 [approve-commit-04]: Desfaça só pelo `vostok commit revert`. Se ele recusar, não use `git reset`, `git revert` nem outro comando: mostre o motivo e deixe a decisão com o usuário.
@@ -67,6 +67,8 @@ Compare a lista com a que o usuário viu. Execute o passo 4 sem perguntar só se
 
 Nos demais casos, **PARE** e pergunte com o template `question`, mostrando a lista e as opções: liberar todos ou desfazer os novos.
 
+Por um pedido `liberar-commits` ou `desfazer-commits`, a decisão é a ação do pedido: vá ao passo 4 sem perguntar.
+
 ### 4. Liberar ou desfazer
 
 Execute, com o código do passo 2:
@@ -77,6 +79,8 @@ vostok commit revert <código>
 ```
 
 O `vostok commit revert` desfaz os commits novos da branch atual com `git reset --mixed`: as alterações continuam na pasta de trabalho, fora de stage. Ele recusa commits já enviados ao remoto, commits removidos e commits fora da branch atual. Se recusar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
+
+Com a trava ligada (`approval_lock: true`), passe `--pedido PED-NNN` no `vostok commit approve` (pedido `liberar-commits` ou `fazer-commit`) e no `vostok commit revert` (pedido `desfazer-commits`).
 
 ### 5. Responder ao usuário
 

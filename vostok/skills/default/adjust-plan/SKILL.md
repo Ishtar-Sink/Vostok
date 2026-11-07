@@ -3,9 +3,9 @@ name: adjust-plan
 description: "Ajusta o plano de tarefas de uma especificação (spec) aprovada, em work/plans/. Aplica um ou vários ajustes pedidos numa mesma mensagem (dividir, juntar, remover ou reordenar tarefas, mudar dependências, cobertura ou fatos do perfil), registra edições feitas à mão, recalcula os perfis e mantém o histórico de ajustes do plano. Use quando o usuário pedir para ajustar, corrigir, mudar, dividir, juntar ou remover algo do plano de tarefas, ou comentar o plano logo depois de ele ser criado ou ajustado."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok plan adjust record-manual, vostok plan adjust validate, vostok plan adjust record"
+  scripts: "vostok context load, vostok memory search, vostok plan adjust record-manual, vostok plan adjust validate, vostok plan adjust record, vostok perguntas abrir"
 ---
 
 # Ajustar plano
@@ -37,6 +37,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [adjust-plan-06]: Não amplie o pedido. O que não foi pedido e for necessário para o plano continuar coerente (renumerar dependências, redistribuir cobertura) é inferência e aparece na resposta.
 [adjust-plan-07]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok plan adjust record`.
 [adjust-plan-08]: Não aprove o plano como parte do ajuste. A aprovação é feita pela skill `approve-plan`, só a pedido do usuário.
+[adjust-plan-09]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
 
 ## Checklist
 
@@ -130,7 +131,7 @@ Sem perguntas, vá para o passo 7.
 
 ### 6. Rodada de perguntas
 
-Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho do plano. **PARE** e aguarde a resposta.
+Envie numa única mensagem, com o template `question`, uma pergunta para cada ajuste classificado como pergunta, citando o ajuste e o trecho do plano. **PARE** e aguarde a resposta. Por um pedido, grave a rodada com `vostok perguntas abrir` ([adjust-plan-09]).
 
 Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique todos juntos. O que continuar sem resposta não é aplicado e aparece em "Pendências" da resposta.
 

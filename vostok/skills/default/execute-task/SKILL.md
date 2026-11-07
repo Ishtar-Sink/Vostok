@@ -30,7 +30,7 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 ## Regras
 
 [execute-task-01]: Uma tarefa ou uma onda por pedido. Ao terminar, não comece outra sem um novo pedido do usuário.
-[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências.
+[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências. Se descobrir que a tarefa espera outra, avise o usuário e não rode `vostok task depends`: a dependência só muda a pedido dele.
 [execute-task-03]: Colete o baseline antes de mudar qualquer arquivo do projeto.
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
@@ -123,7 +123,11 @@ Para iniciar cada tarefa:
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
 ```
 
-O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa.
+
+Uma tarefa aprovada que já tem baseline é uma tarefa desbloqueada (ela saiu de uma espera): o comando a recomeça, sem coletar o baseline de novo, sem recusar os arquivos que ela já criou e mantendo a aprovação e o aval originais, com a etapa `recomeço` no registro. O trabalho continua de onde parou. Na finalização, o que a dependência mudou pode aparecer como regressão: a saída é o aceite que já existe, com a decisão do usuário.
+
+Se o comando recusar, **PARE** e repasse a mensagem dele com o template `blocker`:
 
 | Recusa | Como resolver |
 |---|---|
@@ -131,6 +135,7 @@ O `--model` grava no front-matter e no registro de execução o modelo escolhido
 | Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
 | Dependência fora de `done` | Executar e concluir a dependência antes. |
 | Caminho `criar` de Mudar já existe | O estado anterior já foi alterado: restaurar o estado anterior, com a decisão do usuário, e iniciar de novo. |
+| Tarefa desbloqueada mudou depois do último ajuste | Registrar o ajuste (skill `adjust-task`), sem nova aprovação. |
 
 Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, seguindo o `vostok task brief` de cada uma, com o modelo da sessão.
 

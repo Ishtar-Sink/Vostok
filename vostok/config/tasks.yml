@@ -272,3 +272,6 @@ task_evidence_dir: evidencias
 # Pasta dos templates dos demais arquivos da tarefa em pasta: um por arquivo de `task_files`, com o
 # nome em minúsculas (README.md vira readme.md).
 task_folder_template_dir: task
+
+# Maior evidência manual anexada pelo painel, em MB; também limita a soma dos anexos de uma pergunta livre.
+manual_attachment_max_mb: 500

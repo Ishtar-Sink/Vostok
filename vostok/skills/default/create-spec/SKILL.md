@@ -3,9 +3,9 @@ name: create-spec
 description: "Cria uma especificação (spec) em rascunho a partir da conversa: cria o arquivo com vostok spec new e preenche as seções do rascunho só com o que o usuário já disse, sem refinar. Use quando o usuário pedir para criar, abrir, registrar ou escrever uma spec ou um rascunho de spec sobre um assunto, ou /create-spec. Não use para refinar uma spec (skill refine-spec) nem para ajustar uma spec refinada (skill adjust-spec)."
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok spec new"
+  scripts: "vostok context load, vostok spec list, vostok spec new, vostok perguntas abrir"
   templates: "templates/spec/new.md templates/responses/question.md templates/responses/completion.md templates/responses/blocker.md"
 ---
 
@@ -28,6 +28,7 @@ Registra um assunto da conversa como uma spec em rascunho, pronta para o refinam
 [create-spec-04]: Não edite o front-matter: o ID, o status draft e as datas são os do vostok spec new.
 [create-spec-05]: Seção sem informação na conversa fica com o texto do template, para o refinamento tratá-la como lacuna.
 [create-spec-06]: Não faça commit nem stage do rascunho ([agent/boundaries-01], [agent/boundaries-02]).
+[create-spec-07]: Rodando por um pedido do painel (process-requests), toda pergunta desta skill vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
 
 ## Checklist
 
@@ -58,9 +59,9 @@ vostok context load --skill create-spec
 
 Separe da conversa o que vai para cada seção: resumo (parágrafo logo abaixo do título), Contexto (o que será construído e de que tipo, dor ou problema, limitações, regras de negócio), Recursos, Detalhes Técnicos (caminhos, comandos, stack citados), Roteiro de Testes e Critérios de Aceite.
 
-Sem assunto na conversa (por exemplo, só `/create-spec`): **PARE** e pergunte o assunto com o template `question`, com as opções "descrever o assunto numa mensagem (recomendada)" e "citar um arquivo ou issue com o assunto".
+Sem assunto na conversa (por exemplo, só `/create-spec`): **PARE** e pergunte o assunto com o template `question`, com as opções "descrever o assunto numa mensagem (recomendada)" e "citar um arquivo ou issue com o assunto". Por um pedido, grave a pergunta com `vostok perguntas abrir` ([create-spec-07]).
 
-Vários assuntos independentes: **PARE** e pergunte com o template `question` ([create-spec-03]).
+Vários assuntos independentes: **PARE** e pergunte com o template `question` ([create-spec-03]). Por um pedido, grave a pergunta com `vostok perguntas abrir` ([create-spec-07]).
 
 ### 3. Conferir as specs existentes
 
@@ -70,7 +71,7 @@ Execute:
 vostok spec list
 ```
 
-Se já houver spec com o mesmo assunto, **PARE** e pergunte com o template `question`, com as opções "usar a spec existente, pela refine-spec ou pela adjust-spec (recomendada)" e "criar uma spec nova mesmo assim".
+Se já houver spec com o mesmo assunto, **PARE** e pergunte com o template `question`, com as opções "usar a spec existente, pela refine-spec ou pela adjust-spec (recomendada)" e "criar uma spec nova mesmo assim". Por um pedido, grave a pergunta com `vostok perguntas abrir` ([create-spec-07]).
 
 ### 4. Escolher o título
 

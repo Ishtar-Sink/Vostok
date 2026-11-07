@@ -28,6 +28,7 @@ Aprova as tarefas que o usuário escolheu, de forma determinística: todas as pe
 [approve-task-03]: Use `--all` só quando o usuário pedir explicitamente todas as tarefas ("aprova todas", "aprova todas as tarefas da SPEC-002"). "Aprova as tarefas" não é pedido de todas.
 [approve-task-04]: Nunca edite as tarefas nem o front-matter nesta skill. Quem grava a aprovação é o comando.
 [approve-task-05]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; mudanças na tarefa são feitas pela skill `adjust-task`.
+[approve-task-06]: Rodando por um pedido do painel (process-requests), a resposta a uma pergunta do painel não é pedido de aprovação. Pelo chat, o pedido explícito do usuário continua valendo, com a origem `chat`.
 
 ## Checklist
 

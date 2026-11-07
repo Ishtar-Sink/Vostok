@@ -26,6 +26,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 [approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 2).
 [approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o comando.
 [approve-spec-04]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; correções na spec são feitas pela skill `adjust-spec`.
+[approve-spec-05]: Rodando por um pedido do painel (process-requests), a resposta a uma pergunta do painel não é pedido de aprovação. Pelo chat, o pedido explícito do usuário continua valendo, com a origem `chat`.
 
 ## Checklist
 

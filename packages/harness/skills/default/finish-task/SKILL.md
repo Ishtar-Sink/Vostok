@@ -38,6 +38,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 [finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
 [finish-task-08]: Só finalize a pedido do usuário (no chat ou por um pedido `finalizar-tarefa` do painel, que vale como o pedido dele), uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
 [finish-task-09]: A conferência de um print é sempre do usuário, nunca do agente: no chat, execute `--reviewed` só com a confirmação dele; pelo painel, a conferência gravada com a origem painel vale como a dele (RN-01). Nunca execute `--reviewed` por um pedido do painel.
+[finish-task-10]: Por um pedido do painel, evidência manual sem arquivo nunca abre pergunta: conclua o pedido com `aguardando anexos no painel` e a lista dos arquivos. Pelo chat, nada muda: o arquivo continua sendo pedido no caminho indicado.
 
 ## Checklist
 
@@ -121,7 +122,7 @@ vostok task evidence <SPEC_ID> <TASK_ID>
 O comando grava a saída de cada evidência automática e confere as manuais:
 
 - Evidência automática com erro: corrija a causa no código da tarefa e execute `vostok task evidence` de novo. Se o erro estiver no próprio comando da evidência, **PARE** e responda com o template `blocker`: mudar a evidência é um ajuste (skill `adjust-task`).
-- Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo comando. Com os arquivos, execute `vostok task evidence` de novo.
+- Evidência manual sem arquivo: **PARE** e peça ao usuário, com o template `question`, que anexe cada arquivo no caminho listado pelo comando. Com os arquivos, execute `vostok task evidence` de novo. Por um pedido do painel, não pergunte ([finish-task-10]): conclua o pedido, com o desfecho `concluido`, com `aguardando anexos no painel` e a lista dos arquivos, com o nome e a descrição de cada um; depois de anexados, um novo `finalizar-tarefa` segue daqui.
 - Prints sem conferência listados na saída: mostre cada imagem ao usuário (o caminho) e pergunte com o template `question` se ela mostra o esperado, numa só pergunta com os prints de todas as tarefas finalizadas no mesmo pedido. Só com a confirmação dele, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>`. Print rejeitado: **PARE** e responda com o template `blocker`. Por um pedido do painel, não pergunte: conclua o pedido com `aguardando a conferência dos prints no painel` e a lista dos prints; depois de conferidos, um novo `finalizar-tarefa` segue daqui. Print rejeitado no painel deixa a tarefa bloqueada: siga a retomada da tarefa bloqueada.
 - Evidência com a mesma saída do baseline: o comando grava e avisa. Ela não comprova a mudança da tarefa; siga para o passo seguinte e cite o aviso em "Pendências" da resposta, sugerindo ajustar a evidência com a skill `adjust-task`.
 

@@ -26,17 +26,19 @@ harness:
   tool: claude-code   # claude-code | codex | cursor | gemini-cli | copilot
 
 # Trava de aval: com `true`, concluir, aprovar, arquivar e fazer commit exigem o aval do painel
-# (`vostok painel`) registrado no `avais.log`. Desligada por padrão.
+# (`vostok painel`) registrado nos logs de `work/avais/`, um `<SPEC>.log` por spec. Desligada por padrão.
 approval_lock: false
 
 # Nome da subpasta de cada estado dos pedidos e das perguntas, e do arquivo dos avais sem spec.
 # Os nomes são só de pasta: o estado gravado em cada arquivo não muda com eles.
+# `requests.attachments` é a pasta dos anexos das perguntas livres, em work/pedidos/, e não um estado.
 folders:
   requests:
     pending: pendente
     in_progress: em_andamento
     done: feito
     refused: recusado
+    attachments: anexos
   questions:
     open: aberta
     answered: respondida
@@ -45,3 +47,9 @@ folders:
 # Disparo sob demanda: com `codex` ou `claude`, o `vostok painel` chama o agente para cada pedido
 # gravado, um por vez, sem precisar de um loop rodando. Vazio: desligado.
 request_dispatch: ""   # "" (desligado) | codex | claude
+
+# Tempo de um aviso na tela do painel, em segundos. 0: só some ao ser fechado. Ausente ou inválido, vale 5.
+toast_dismiss_seconds: 5
+
+# Minutos sem nota nova num pedido em andamento até o aviso de falta de nota.
+request_note_warning_minutes: 15

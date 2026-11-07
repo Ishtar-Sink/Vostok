@@ -40,6 +40,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [adjust-spec-07]: O tipo da spec não muda num ajuste. Se o pedido exige outro tipo, **PARE** e responda com o template `blocker`.
 [adjust-spec-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok spec adjust record`.
 [adjust-spec-09]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
+[adjust-spec-10]: Rodando por um pedido do painel (process-requests), um pedido só de registro ("Só registrar a edição manual, sem outras mudanças. Não aprove.") roda o passo 3 e encerra, sem outras mudanças e sem aprovar; os problemas apontados pela validação vão para o resultado do pedido.
 
 ## Checklist
 
@@ -96,7 +97,7 @@ Execute:
 vostok spec adjust record-manual <SPEC_ID>
 ```
 
-Se o comando registrar um ajuste manual e listar problemas de validação, corrija-os no passo 7, junto com os ajustes do pedido.
+Se o comando registrar um ajuste manual e listar problemas de validação, corrija-os no passo 7, junto com os ajustes do pedido. Pedido só de registro ([adjust-spec-10]): termine aqui e responda com o que foi registrado.
 
 ### 4. Decompor o pedido em ajustes
 

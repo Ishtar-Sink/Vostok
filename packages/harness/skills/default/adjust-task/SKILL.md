@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.1.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status, vostok perguntas abrir"
+  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task depends, vostok task status, vostok perguntas abrir"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -32,7 +32,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-01]: Não ajuste tarefas `done`. Nunca edite a spec, o plano nem outras tarefas.
 [adjust-task-02]: Nunca edite uma tarefa sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os comandos os alteram.
-[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
+[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`. Exceção: a dependência de tarefa em execução (`in_progress`, `validating` ou bloqueada por dependência) muda só a pedido do usuário, pelo chat ou pelo pedido de ajustar a tarefa, com `vostok task depends`, nunca editando o campo; `wave` fica como registrada.
 [adjust-task-05]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-task-06]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-task-07]: Não amplie o pedido. O que não foi pedido e for necessário para a tarefa continuar coerente (um passo que cita o arquivo removido de "Mudar") é inferência e aparece na resposta.
@@ -42,6 +42,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 [adjust-task-12]: Ao ajustar "Verificação" ou "Evidências", use os formatos da skill `approve-plan`: comandos focados em "Mudar" e conferidos, rótulo `# evidência:`, `(automática)`, `(automática, da verificação)`, `(diff): caminho`, `(print): comando`, `(manual)` e o subitem `Espera:`. A evidência mostra o comportamento entregue, nunca a leitura do texto da tarefa.
 [adjust-task-13]: Rodando por um pedido do painel (process-requests), a rodada de perguntas vai pelo `vostok perguntas abrir PED-NNN`, no formato do template `question`, em vez do chat; depois, **PARE**.
+[adjust-task-14]: Rodando por um pedido do painel (process-requests), um pedido só de registro ("Só registrar a edição manual, sem outras mudanças. Não aprove.") roda o passo 3 e encerra, sem outras mudanças e sem aprovar; os problemas apontados pela validação vão para o resultado do pedido.
 
 ## Checklist
 
@@ -94,7 +95,7 @@ vostok task adjust record-manual <SPEC_ID> <TASK_ID>
 vostok task adjust validate <SPEC_ID> <TASK_ID>
 ```
 
-Os problemas apontados pela validação são corrigidos no passo 7, junto com os ajustes do pedido.
+Os problemas apontados pela validação são corrigidos no passo 7, junto com os ajustes do pedido. Pedido só de registro ([adjust-task-14]): termine aqui e responda com o que foi registrado.
 
 ### 4. Decompor o pedido em ajustes
 
@@ -121,7 +122,8 @@ Classifique cada ajuste:
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe | Pergunta |
 | Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
-| Muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
+| Pede para acrescentar ou tirar uma dependência de tarefa em `in_progress`, `validating` ou bloqueada por dependência | Aplicar pelo comando do passo 9 ([adjust-task-04]). |
+| Muda `covers`, `depends_on` (fora da exceção de [adjust-task-04]), `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
 | Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec planejada só muda num novo ciclo. |
 
 Sem perguntas, vá para o passo 7.
@@ -155,6 +157,15 @@ vostok task adjust record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGEN
 ```
 
 O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
+
+Dependência de tarefa em execução, só a pedido do usuário, sem editar o `depends_on`:
+
+```bash
+vostok task depends add <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "texto"
+vostok task depends remove <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "texto"
+```
+
+O comando recusa, sem gravar, tarefa inexistente, ciclo e status fora da regra, registra o ajuste e cuida do status: com dependência não concluída, a tarefa fica bloqueada, à espera dela; sem espera depois de tirá-la, volta a `approved`. Se o agente descobre a espera sozinho, ele avisa o usuário e não roda o comando.
 
 ### 10. Responder ao usuário
 

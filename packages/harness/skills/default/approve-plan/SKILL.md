@@ -37,6 +37,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 [approve-plan-07]: O "Resumo executivo" usa linguagem de negócio, sem nomes de arquivos, funções ou comandos.
 [approve-plan-08]: Detalhe cada tarefa para o modelo do perfil dela: em `mecanica`, passos quase mecânicos, com o texto-alvo e os caminhos exatos; em `padrao`, as decisões locais já tomadas; em `julgamento`, as alternativas e os critérios de escolha.
 [approve-plan-09]: Nos "Detalhes técnicos", cite os arquivos que a tarefa divide com outras da mesma onda, para o Coordenador executá-las em sequência.
+[approve-plan-10]: Rodando por um pedido do painel (process-requests), a resposta a uma pergunta do painel não é pedido de aprovação. Pelo chat, o pedido explícito do usuário continua valendo, com a origem `chat`.
 
 ## Checklist
 

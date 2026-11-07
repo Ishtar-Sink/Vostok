@@ -266,3 +266,6 @@ card_fields:
 persist_dir: ""
 persist_readme: README.md
 persist_max_mb: 10
+
+# Maior evidência manual anexada pelo painel, em MB; também limita a soma dos anexos de uma pergunta livre.
+manual_attachment_max_mb: 500

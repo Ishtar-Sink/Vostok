@@ -417,6 +417,61 @@ fn first_commit_of_an_empty_repository_is_released() {
 }
 
 #[test]
+fn chat_aval_commit_without_pedido_even_with_the_old_lock() {
+    let project = git_project();
+    let mut config = fs::OpenOptions::new()
+        .append(true)
+        .open(project.harness().join("config/main.yml"))
+        .unwrap();
+    std::io::Write::write_all(&mut config, b"approval_lock: true\n").unwrap();
+    stdout(&mut commit_cmd(&project, &["check"]));
+    write(&project.root().join("a.txt"), "a\n");
+
+    let out = stdout(commit_cmd(&project, &["commit", "a.txt"]).write_stdin("feat: a\n\n\n"));
+
+    assert!(out.starts_with("Commit feito e liberado: "), "{out}");
+    assert!(!project.harness().join("work/avais").exists());
+}
+
+#[test]
+fn chat_aval_commit_refuses_the_pedido_flag() {
+    let project = git_project();
+    stdout(&mut commit_cmd(&project, &["check"]));
+    write(&project.root().join("a.txt"), "a\n");
+
+    let stderr = failure_stderr(&mut commit_cmd(
+        &project,
+        &["commit", "--pedido", "PED-001", "a.txt"],
+    ));
+
+    assert!(stderr.contains("--pedido"), "{stderr}");
+    let log = Process::new("git")
+        .arg("-C")
+        .arg(project.root())
+        .args(["log", "--oneline"])
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&log.stdout).trim().is_empty());
+}
+
+#[test]
+fn chat_aval_removed_communication_subcommands_are_unknown() {
+    let project = git_project();
+    for (args, name) in [
+        (&["pedidos", "listar"][..], "pedidos"),
+        (&["perguntas", "listar"], "perguntas"),
+        (&["avais"], "avais"),
+    ] {
+        let stderr = failure_stderr(project.vostok().args(args));
+        assert!(stderr.contains("unrecognized subcommand"), "{stderr}");
+        assert!(stderr.contains(name), "{stderr}");
+    }
+    for folder in ["pedidos", "perguntas", "avais"] {
+        assert!(!project.harness().join("work").join(folder).exists());
+    }
+}
+
+#[test]
 fn show_and_approve_of_a_clean_repository() {
     let project = git_project();
     stdout(&mut commit_cmd(&project, &["check"]));

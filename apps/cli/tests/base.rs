@@ -17,7 +17,7 @@ fn ct01_version_is_0_1_0() {
         .arg("--version")
         .assert()
         .success()
-        .stdout("vostok 0.2.10\n");
+        .stdout("vostok 0.5.0\n");
 }
 
 #[test]
@@ -563,5 +563,20 @@ fn lexical_resolves_dots_without_touching_the_disk() {
     assert_eq!(
         lexical(std::path::Path::new("/a/b/../c/./d")),
         std::path::PathBuf::from("/a/c/d")
+    );
+}
+
+#[test]
+fn config_reads_three_levels() {
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("c.yml");
+    fs::write(&file, "a:\n  b:\n    c: 1\n  d: 2\ne: 3\n").unwrap();
+    assert_eq!(config_get(&file, "a.b.c").unwrap(), "1");
+    assert_eq!(config_get(&file, "a.d").unwrap(), "2");
+    assert_eq!(config_get(&file, "e").unwrap(), "3");
+    config_set(&file, "a.b.c", "9").unwrap();
+    assert_eq!(
+        fs::read_to_string(&file).unwrap(),
+        "a:\n  b:\n    c: 9\n  d: 2\ne: 3\n"
     );
 }

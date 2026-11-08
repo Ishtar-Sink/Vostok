@@ -1,9 +1,9 @@
 [package]
 name = "vostok"
-version = "0.2.10"
+version = "0.5.0"
 edition = "2021"
 description = "CLI do Vostok: instala o harness nos projetos e executa os comandos dele."
-license = "MIT"
+license = "AGPL-3.0-only"
 publish = false
 
 [lib]
@@ -19,6 +19,12 @@ anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }
 include_dir = "0.7"
 sha2 = "0.10"
+sha1 = { version = "0.10", optional = true }
+tiny_http = { version = "0.12", optional = true }
+
+[features]
+# Painel local (`vostok painel`): fora do padrão para o binário seguir pequeno sem ele.
+painel = ["dep:tiny_http", "dep:sha1"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

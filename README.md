@@ -10,9 +10,8 @@ O Vostok faz parte do ecossistema [Ishtar Sink](https://github.com/Ishtar-Sink).
 
 | Fase | O que entrega | Status |
 |---|---|---|
-| 1. Harness local | Regras, skills e a CLI `vostok`, instalada em qualquer projeto. | Em andamento |
-| 2. Serviços e painel | Servidor HTTP com MongoDB, servidor MCP e painel web. | Planejada |
-| 3. Harness nos dois sentidos | Harness local sincronizado com os serviços. | Planejada |
+| 1. Harness local | Regras, skills e a CLI `vostok`, instalada em qualquer projeto. | Entregue |
+| 2. Painel local | Painel somente leitura aberto pelo `vostok painel` em cada pasta, para acompanhar specs, tarefas, ondas e documentos; o trabalho é feito pelo chat. | Entregue na v0.5.0 |
 
 O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o que já existe e como as partes se conectam.
 
@@ -23,7 +22,7 @@ O [mapa do projeto](docs/mapa-vostok.html) mostra, em diagramas interativos, o q
 - **Configurável.** Caminhos, status, tipos, seções e sequências de IDs ficam em `vostok/config/`.
 - **Respostas com template.** Toda resposta do agente segue um dos templates de `templates/responses/`, com estrutura fixa por tipo; as respostas sobre tarefas trazem o quadro do `vostok task status`.
 - **Memória.** Decisões (DEC), issues (ISS) e conhecimento (KNW) em Markdown, criadas, buscadas e atualizadas pelo `vostok memory`.
-- **Serviços por pull** (fase 2). O agente busca trabalho no servidor MCP; o servidor HTTP é o único que grava no MongoDB. Specs podem ser aprovadas na ferramenta de IA, com envio pelo MCP, ou no painel web.
+- **Painel local.** O `vostok painel` abre, em cada pasta, um painel no navegador que só lê os arquivos de `vostok/`: specs, tarefas, ondas, as tarefas que faltam e os documentos, atualizados ao vivo. Nada é aprovado, pedido ou executado pelo painel; o trabalho é feito no chat. Veja [Painel local](#painel-local).
 
 ### Carregamento de contexto
 
@@ -105,16 +104,34 @@ suggest-harness-feature     → [harness-feature]      ┘
 
 A `triage-harness-issue` é uma skill customizada deste repositório e não é distribuída; as demais chegam aos projetos pelo `vostok update`. Nenhuma delas escreve no GitHub sem a autorização do usuário depois de ver o texto, e toda pergunta delas usa o template `question`, com a opção recomendada em primeiro.
 
+## Painel local
+
+```bash
+vostok painel
+```
+
+Dentro de um projeto com o harness, o comando abre no navegador um painel local, só em `127.0.0.1`, que lê os arquivos de `vostok/` e nunca grava neles nem executa comandos: qualquer método que não seja GET recebe 405. Não há servidor remoto nem banco: os arquivos são o banco, e o painel se atualiza sozinho quando o agente muda algo em `vostok/work/`. Use `--porta` para escolher a porta e `--sem-navegador` para só imprimir o endereço.
+
+![Página inicial do painel, com as specs em andamento e as tarefas que faltam](docs/imagens/painel/painel.png)
+
+| | |
+|---|---|
+| ![Documento de uma spec](docs/imagens/painel/spec.png) | ![Quadro das tarefas de uma spec](docs/imagens/painel/quadro.png) |
+| **Spec.** O documento refinado, com as referências e o histórico de ajustes. | **Quadro.** As tarefas da spec por status, com a onda e o perfil de cada uma, e as concluídas recolhidas. |
+| ![Tela de uma tarefa](docs/imagens/painel/tarefa.png) | ![Documentos publicados](docs/imagens/painel/documentos.png) |
+| **Tarefa.** Execução, verificação, critérios, evidências e registro. | **Documentos.** O executivo e o técnico de cada spec finalizada. |
+
+### Aprovações pelo chat
+
+O aval é o pedido explícito do usuário no chat: aprovar uma spec, um plano ou uma tarefa, finalizar uma tarefa ou uma spec e fazer um commit só acontecem quando o usuário pede ao agente, que roda a skill correspondente. Não há arquivo de aval nem trava; o painel só mostra o resultado.
+
 ## Estrutura
 
 ```
 apps/
   cli/          CLI `vostok` em Rust, com o harness embutido
-  mcp/          servidor MCP (fase 2)
-  server/       servidor HTTP (fase 2)
-  web/          painel web (fase 2)
+  painel/       frontend do painel local (Preact), embutido no binário
 packages/
-  contracts/    contratos compartilhados (fase 2)
   harness/      fonte do harness distribuído (config, context, personas, rules, skills, templates)
 vostok/         harness instalado neste projeto pelo `vostok init`
   config/       tudo o que é configurável
@@ -124,17 +141,39 @@ vostok/         harness instalado neste projeto pelo `vostok init`
   rules/        regras do agente e do projeto
   skills/       skills padrão (default/) e do usuário (custom/)
   templates/    respostas, specs, skills e memória
-  work/         specs e tarefas em andamento
-docs/           mapa do projeto, estudos e documentos das specs finalizadas
+  work/         specs, planos e tarefas
+docs/           mapa do projeto, estudos, imagens do painel, débitos e documentos das specs finalizadas
 ```
 
 ## Instalação
 
-Por enquanto, a partir do código (Rust estável):
+Pelo binário da [página de releases](https://github.com/Ishtar-Sink/Vostok/releases), com o painel embutido. Cada versão tem um `vostok-<versão>-<plataforma>.tar.gz` e o `.sha256` dele para `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin` e `aarch64-apple-darwin`. No Linux x86_64:
 
 ```bash
-cargo install --path apps/cli
+curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.5.0/vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz
 ```
+
+```bash
+curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.5.0/vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+```
+
+```bash
+sha256sum -c vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+```
+
+```bash
+tar xzf vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz && install vostok ~/.local/bin/
+```
+
+No macOS, troque a plataforma e use `shasum -a 256 -c` na conferência. Confira com `vostok --version`.
+
+Também dá para compilar a partir do código, com Rust estável, Node e pnpm (o build gera o painel):
+
+```bash
+cargo install --path apps/cli --features painel
+```
+
+Sem Node, o `cargo install --path apps/cli` compila a CLI sem o painel, e o `vostok painel` explica como obtê-lo.
 
 Depois, na raiz do projeto:
 
@@ -145,6 +184,12 @@ vostok init
 O `init` instala o harness em `vostok/`, pergunta onde ficam os documentos e quais ferramentas você usa (Claude Code, Codex, Cursor) e gera o roteamento só para elas. Use `vostok init --yes --tools claude-code,codex` para não responder às perguntas. Para trazer uma versão nova do harness sem perder o que é do projeto, use `vostok update`.
 
 Requer git, para detectar as seções alteradas em edições manuais e verificar commits.
+
+### Atualizar da 0.4.0
+
+A partir da 0.5.0, a `main` de `Ishtar-Sink/Vostok` foi reconstruída a partir da `v0.2.10`, com o histórico reescrito. O histórico anterior fica na tag `arquivo/main-0.4.0`; as tags `v0.3.0` e `v0.4.0` e a release `v0.3.0` continuam. Quem já tem um clone atualiza com `git fetch origin` e `git checkout -B main origin/main`, depois de guardar o que for seu.
+
+O `vostok update` da 0.5.0 remove as skills `process-requests` e `ask-agent`, os redirecionamentos delas, as chaves da comunicação das configurações e as pastas `vostok/work/pedidos/`, `vostok/work/perguntas/` e `vostok/work/avais/` (ou as configuradas no projeto), listando cada remoção. Antes de rodá-lo, copie essas três pastas para fora do projeto se quiser guardar os pedidos, as perguntas e os avais, por exemplo com `tar czf ~/vostok-comunicacao.tar.gz vostok/work/pedidos vostok/work/perguntas vostok/work/avais`.
 
 ## Testes
 

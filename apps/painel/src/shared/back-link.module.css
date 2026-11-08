@@ -1,0 +1,4 @@
+.back { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px 4px 4px; margin-left: -4px; border-radius: 8px; color: var(--primary); font-size: var(--font-size-sm); font-weight: 600; text-decoration: none; }
+.back:hover { background: var(--primary-soft); }
+.back:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.to { color: var(--text-muted); font-weight: 500; }

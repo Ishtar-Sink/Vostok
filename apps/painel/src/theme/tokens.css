@@ -1,0 +1,119 @@
+/* Tokens da identidade Ishtar Sink. Origem: Ishtar-Sink/.github docs/identidade-ecossistema.md (revisão 2026-10). Fonte única em tokens.ts; o teste confere que os dois espelham os mesmos valores. */
+
+:root,
+[data-theme='light'] {
+  --bg: #f3f0fa;
+  --bg-elevated: #faf8fe;
+  --surface: #ffffff;
+  --surface-muted: #eae5f6;
+  --surface-hover: #e1daf2;
+  --border: #d9d1ec;
+  --border-strong: #bfb3dd;
+  --elevation-1: #ffffff;
+  --elevation-2: #ffffff;
+  --elevation-3: #ffffff;
+  --primary: #6d28d9;
+  --primary-hover: #5b21b6;
+  --primary-bright: #a855f7;
+  --primary-soft: #ebe0fd;
+  --primary-on: #ffffff;
+  --accent: #0e7490;
+  --accent-fill: #06b6d4;
+  --accent-bright: #22d3ee;
+  --accent-soft: #d8f1f6;
+  --text: #1a1230;
+  --text-muted: #4f4469;
+  --text-faint: #8b84a3;
+  --success: #047857;
+  --success-soft: #d9f3e7;
+  --warning: #92400e;
+  --warning-soft: #fcefcf;
+  --danger: #be123c;
+  --danger-soft: #fde2e9;
+  --info: #0369a1;
+  --info-soft: #daeefb;
+  --shadow-sm: 0 1px 2px rgba(42, 24, 96, 0.08);
+  --shadow-md: 0 4px 12px rgba(42, 24, 96, 0.1), 0 1px 3px rgba(42, 24, 96, 0.06);
+  --shadow-lg: 0 18px 44px rgba(42, 24, 96, 0.2), 0 4px 12px rgba(42, 24, 96, 0.08);
+}
+
+[data-theme='dark'] {
+  --bg: #0b0816;
+  --bg-elevated: #110b21;
+  --surface: #181028;
+  --surface-muted: #130d22;
+  --surface-hover: #241a3d;
+  --border: #2f2250;
+  --border-strong: #45337a;
+  --elevation-1: #181028;
+  --elevation-2: #201638;
+  --elevation-3: #2a1d4a;
+  --primary: #a78bfa;
+  --primary-hover: #c4b5fd;
+  --primary-bright: #c084fc;
+  --primary-soft: #2b1d52;
+  --primary-on: #12082b;
+  --accent: #22d3ee;
+  --accent-fill: #06b6d4;
+  --accent-bright: #67e8f9;
+  --accent-soft: #0f3342;
+  --text: #f5f1ff;
+  --text-muted: #b1a5cf;
+  --text-faint: #7a6c9e;
+  --success: #34d399;
+  --success-soft: #0e2e27;
+  --warning: #fbbf24;
+  --warning-soft: #33260b;
+  --danger: #fb7185;
+  --danger-soft: #3a1222;
+  --info: #38bdf8;
+  --info-soft: #0c2c42;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(167, 139, 250, 0.08);
+  --shadow-lg: 0 22px 52px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(167, 139, 250, 0.14);
+}
+
+/* Escalas compartilhadas (iguais nos dois temas). */
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
+  --radius-pill: 999px;
+  --space: 4px;
+  --s1: calc(var(--space) * 1);
+  --s2: calc(var(--space) * 2);
+  --s3: calc(var(--space) * 3);
+  --s4: calc(var(--space) * 4);
+  --s5: calc(var(--space) * 5);
+  --s6: calc(var(--space) * 6);
+  --s8: calc(var(--space) * 8);
+  --s10: calc(var(--space) * 10);
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 21px;
+  --font-size-xxl: 30px;
+  --font-size-xxxl: 36px;
+  --brand-gradient: linear-gradient(135deg, #7c3aed, #06b6d4);
+  --calm-gradient: linear-gradient(135deg, #f3ebff, #e0f7fb);
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-linear: linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+}

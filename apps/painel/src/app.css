@@ -1,0 +1,10 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: light; }
+html[data-theme='dark'] { color-scheme: dark; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: var(--font-size-md); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3 { text-wrap: balance; }
+button.ref { display: inline; padding: 0 3px; margin: 0 -1px; border: 0; border-bottom: 1px dashed var(--primary); border-radius: 3px; background: transparent; color: var(--primary); font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; cursor: help; }
+button.ref:hover, button.ref[aria-expanded='true'] { background: var(--primary-soft); }
+button.ref:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+code button.ref { font-size: inherit; }

@@ -1,0 +1,45 @@
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.kpi { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-decoration: none; box-shadow: var(--shadow-sm); }
+.kpi:hover { border-color: var(--border-strong); }
+.kpi:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.kpi dt { color: var(--text-muted); font-size: var(--font-size-sm); }
+.kpi dd { margin: 0; font-family: var(--font-display); font-size: var(--font-size-xxl); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi[data-tone='primary'] { border-color: var(--primary); background: var(--primary-soft); }
+.kpi[data-tone='primary'] dd { color: var(--primary); }
+.kpi[data-tone='warning'] dd { color: var(--warning); }
+.kpiHint { color: var(--text-faint); font-size: var(--font-size-xs); }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
+.specCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.specCard { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-sm); min-width: 0; }
+.specHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.specLink { display: grid; gap: 4px; color: var(--text); text-decoration: none; min-width: 0; }
+.specLink:hover .specTitle { text-decoration: underline; }
+.specId { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); color: var(--primary); }
+.specTitle { font-family: var(--font-display); font-weight: 600; font-size: var(--font-size-base); line-height: 1.3; text-wrap: balance; }
+.stacked { display: flex; gap: 2px; height: 8px; border-radius: 99px; overflow: hidden; background: var(--surface-muted); }
+.stacked span, .legend li::before { background: var(--border-strong); }
+[data-status='approved'].stacked span, .stacked [data-status='approved'], .legend [data-status='approved']::before { background: var(--primary); }
+.stacked [data-status='in_progress'], .stacked [data-status='validating'], .legend [data-status='in_progress']::before, .legend [data-status='validating']::before { background: var(--info); }
+.stacked [data-status='blocked'], .legend [data-status='blocked']::before { background: var(--warning); }
+.stacked [data-status='done'], .legend [data-status='done']::before { background: var(--success); }
+.legend [data-status='plan']::before { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; color: var(--text-muted); font-size: var(--font-size-xs); }
+.legend li::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; }
+.waves { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.waves li { display: grid; gap: 2px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: var(--font-size-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.waves li span:first-child { font-weight: 600; color: var(--text); }
+.waves li[data-state='done'] { background: var(--success-soft); border-color: transparent; }
+.waves li[data-state='running'] { background: var(--info-soft); border-color: transparent; }
+.remaining { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.remainingSpec { margin: 0; font-size: var(--font-size-sm); font-weight: 600; }
+.remainingList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.remainingList li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.remainingList a { flex: 1 1 200px; min-width: 0; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.remainingList a:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.remainingWave { color: var(--text-muted); font-size: var(--font-size-xs); white-space: nowrap; }
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

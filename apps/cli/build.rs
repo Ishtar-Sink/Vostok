@@ -1,9 +1,13 @@
 //! Copia para `OUT_DIR/harness` só o conteúdo distribuível de `packages/harness` (RN-01),
-//! que `src/embedded.rs` embute no binário.
+//! que `src/embedded.rs` embute no binário. Com a feature `painel`, gera o bundle de `apps/painel`
+//! quando pode, reconstrói ou recusa um bundle mais antigo que o código e liga o cfg
+//! `painel_bundle` só com ele pronto.
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::SystemTime;
 
 /// Pastas e arquivos de primeiro nível que fazem parte do harness distribuído.
 const TOP_LEVEL: &[&str] = &[
@@ -15,6 +19,9 @@ const TOP_LEVEL: &[&str] = &[
     "skills",
     "templates",
 ];
+
+/// O que o bundle do painel compila: um bundle mais antigo que algum deles está desatualizado.
+const PAINEL_WATCHED: &[&str] = &["src", "index.html", "package.json"];
 
 /// Categorias de regras de projeto que acompanham o harness; as demais são do projeto que o usa.
 const DEFAULT_PROJECT_RULES: &[&str] = &["language.md", "naming-convention.md"];
@@ -39,6 +46,92 @@ fn main() {
     }
     neutralize_sequences(&target.join("config/sequences.yml"));
     neutralize_context(&target.join("config/context.yml"), &target);
+    prepare_painel_bundle(&manifest_dir.join("../painel"));
+}
+
+/// Sem Node e sem `dist`, o `vostok` compila sem o bundle e `vostok painel` explica como obtê-lo
+/// (RF-12 da SPEC-029). Com um `dist` mais antigo que o código, reconstrói ou recusa o build, para
+/// o binário nunca embutir telas velhas (RF-08 da SPEC-034).
+fn prepare_painel_bundle(painel: &Path) {
+    println!("cargo::rustc-check-cfg=cfg(painel_bundle)");
+    if std::env::var_os("CARGO_FEATURE_PAINEL").is_none() {
+        return;
+    }
+    for watched in PAINEL_WATCHED {
+        println!("cargo:rerun-if-changed={}", painel.join(watched).display());
+    }
+    let index = painel.join("dist/index.html");
+    if !index.is_file() {
+        if let Err(reason) = build_painel(painel) {
+            println!("cargo:warning=painel sem bundle: {reason}");
+        }
+    } else if bundle_is_outdated(painel, &index) {
+        let rebuilt = build_painel(painel).and_then(|()| {
+            index
+                .is_file()
+                .then_some(())
+                .ok_or_else(|| "a reconstrução não gerou dist/index.html".to_string())
+        });
+        if let Err(reason) = rebuilt {
+            panic!(
+                "o bundle do painel em {} é mais antigo que o código de apps/painel e não foi reconstruído ({reason}); rode `pnpm --dir apps/painel build` e compile de novo",
+                painel.join("dist").display()
+            );
+        }
+    }
+    if index.is_file() {
+        println!("cargo:rustc-cfg=painel_bundle");
+    }
+}
+
+/// Um `dist/index.html` que não dá para datar conta como em dia: na dúvida, o build não para.
+fn bundle_is_outdated(painel: &Path, index: &Path) -> bool {
+    let Ok(built) = fs::metadata(index).and_then(|metadata| metadata.modified()) else {
+        return false;
+    };
+    let mut newest = None;
+    for watched in PAINEL_WATCHED {
+        newest_modification(&painel.join(watched), &mut newest);
+    }
+    newest.is_some_and(|source| built < source)
+}
+
+/// A data da própria pasta conta: apagar um arquivo de `src` também deixa o bundle velho.
+fn newest_modification(path: &Path, newest: &mut Option<SystemTime>) {
+    let Ok(metadata) = fs::metadata(path) else {
+        return;
+    };
+    if let Ok(modified) = metadata.modified() {
+        if newest.is_none_or(|current| modified > current) {
+            *newest = Some(modified);
+        }
+    }
+    if metadata.is_dir() {
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                newest_modification(&entry.path(), newest);
+            }
+        }
+    }
+}
+
+fn build_painel(painel: &Path) -> Result<(), String> {
+    if !painel.join("package.json").is_file() {
+        return Err(format!("{} não tem package.json", painel.display()));
+    }
+    for args in [&["install", "--frozen-lockfile"][..], &["build"][..]] {
+        let status = Command::new("pnpm")
+            .arg("--dir")
+            .arg(painel)
+            .args(args)
+            .stdout(std::io::stderr())
+            .status()
+            .map_err(|error| format!("pnpm indisponível ({error})"))?;
+        if !status.success() {
+            return Err(format!("`pnpm {}` falhou ({status})", args.join(" ")));
+        }
+    }
+    Ok(())
 }
 
 fn env(name: &str) -> String {

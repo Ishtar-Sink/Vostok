@@ -1,0 +1,14 @@
+.root {
+  height: calc(var(--space) * 2);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  transition: width var(--motion-slow) var(--motion-ease-standard);
+}

@@ -1,0 +1,16 @@
+.views { display: flex; gap: 4px; margin-top: 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.views a { padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); font-weight: 600; font-size: var(--font-size-sm); text-decoration: none; white-space: nowrap; }
+.views a:hover { color: var(--text); }
+.views a[aria-current='page'] { border-bottom-color: var(--primary); color: var(--primary); }
+.taskList { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.taskList li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 8px; }
+.taskList li:hover { background: var(--surface-hover); }
+.taskList a { display: grid; gap: 3px; min-width: 0; color: var(--text); text-decoration: none; font-size: var(--font-size-sm); }
+.taskId { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); color: var(--primary); }
+.taskTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.path { margin: 8px 0 0; color: var(--text-faint); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.note { margin: 0; color: var(--text-muted); font-size: var(--font-size-sm); }
+.headerActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.asideHeader { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.pathRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 16px; }
+.pathRow .path { margin: 0; }

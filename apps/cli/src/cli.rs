@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    bug, commit, context, documents, finalize, init, memory, plan, rules, skill, spec, suggest,
-    task, update,
+    bug, commit, context, documents, finalize, init, memory, painel, plan, rules, skill, spec,
+    suggest, task, update,
 };
 
 #[derive(Debug, Parser)]
@@ -61,6 +61,8 @@ pub enum Command {
     Init(init::InitArgs),
     /// Atualiza o harness instalado.
     Update,
+    /// Abre o painel local do harness da pasta no navegador.
+    Painel(painel::PainelArgs),
 }
 
 pub fn run(cli: Cli) -> Result<()> {
@@ -79,5 +81,6 @@ pub fn run(cli: Cli) -> Result<()> {
         Command::Suggest(command) => suggest::run(command),
         Command::Init(args) => init::run(args),
         Command::Update => update::run(),
+        Command::Painel(args) => painel::run(args),
     }
 }

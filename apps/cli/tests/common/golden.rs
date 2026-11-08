@@ -504,7 +504,7 @@ fn replace_volatile(text: &str) -> String {
         if boundary {
             let len = bytes[index..]
                 .iter()
-                .take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+                .take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains::<u8>(b))
                 .count();
             let ends = !bytes
                 .get(index + len)
@@ -531,7 +531,11 @@ pub fn normalize(text: &str, root: &Path) -> String {
     let text = text
         .replace(root.to_str().unwrap(), "<ROOT>")
         .replace(GOLDEN_ROOT, "<ROOT>");
-    replace_volatile(&replace_tmp(&text))
+    let text = replace_volatile(&replace_tmp(&text));
+    // Os scripts bash nunca gravaram o histórico de status, que só a CLI grava.
+    text.split_inclusive('\n')
+        .filter(|line| !line.trim_end_matches('\n').starts_with("status_history:"))
+        .collect()
 }
 
 // --- Reprodução ---

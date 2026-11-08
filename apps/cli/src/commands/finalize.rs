@@ -3154,7 +3154,8 @@ impl Finalization {
             .spec_setting("status.archived")
             .map_err(|e| format!("{e}\n"))?;
         frontmatter_put(&spec, "status", &archived).map_err(|e| format!("{e}\n"))?;
-        frontmatter_put(&spec, "updated_at", &utc_datetime()).map_err(|e| format!("{e}\n"))
+        frontmatter_put(&spec, "updated_at", &utc_datetime()).map_err(|e| format!("{e}\n"))?;
+        crate::commands::spec::record_status(&spec, &archived).map_err(|e| format!("{e}\n"))
     }
 
     fn archive_documents(&self) -> Result<Vec<PathBuf>> {

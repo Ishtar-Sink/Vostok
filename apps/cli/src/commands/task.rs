@@ -2137,6 +2137,7 @@ impl Tasks {
         })?;
         frontmatter_set(&spec_file, "status", &implemented)?;
         frontmatter_put(&spec_file, "updated_at", &utc_now())?;
+        crate::commands::spec::record_status(&spec_file, &implemented)?;
         println!("Todas as tarefas de {spec} concluídas: spec marcada como '{implemented}'.");
         Ok(())
     }

@@ -781,3 +781,39 @@ fn coverage_ids_do_not_wrap() {
         "{evidence}"
     );
 }
+
+#[test]
+fn archive_records_archived_in_the_status_history() {
+    let project = built_folder_project();
+    project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .assert()
+        .success();
+    let content =
+        fs::read_to_string(project.harness().join("work/.archive/SPEC-001/spec.md")).unwrap();
+    let history = content
+        .lines()
+        .find(|line| line.starts_with("status_history: "))
+        .unwrap_or_else(|| panic!("sem status_history: {content}"));
+    assert!(history.ends_with(" archived"), "{history}");
+}
+
+#[test]
+fn chat_aval_archive_without_aval_file() {
+    let project = built_folder_project();
+    let mut config = fs::OpenOptions::new()
+        .append(true)
+        .open(project.harness().join("config/main.yml"))
+        .unwrap();
+    std::io::Write::write_all(&mut config, b"approval_lock: true\n").unwrap();
+    project
+        .vostok()
+        .args(["finalize", "archive", "SPEC-001"])
+        .assert()
+        .success();
+    let archived = project.harness().join("work/.archive/SPEC-001");
+    assert!(archived.join("spec.md").exists());
+    assert!(!archived.join("pedidos").exists());
+    assert!(!project.harness().join("work/avais").exists());
+}

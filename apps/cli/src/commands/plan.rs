@@ -96,6 +96,16 @@ const LEGACY_COLUMNS: [&str; 7] = [
 ];
 const JUDGMENT_FACTS: [&str; 3] = ["public_contract", "inference", "high_risk"];
 
+/// Se o plano da spec está desatualizado, pela regra do `vostok plan validate`; falso sem plano
+/// ou quando a spec ou a configuração não podem ser lidas, para o painel nunca recusar a leitura.
+pub fn plan_outdated(harness: &Harness, spec_id: &str) -> bool {
+    let workspace = Workspace::new(harness.clone());
+    let (Ok(plan), Ok(spec)) = (workspace.plan_path(spec_id), workspace.find_spec(spec_id)) else {
+        return false;
+    };
+    plan.is_file() && workspace.plan_is_outdated(&plan, &spec).unwrap_or(false)
+}
+
 pub fn run(command: PlanCommand) -> Result<()> {
     let workspace = Workspace::new(Harness::from_current_dir()?);
     match command {
@@ -1145,6 +1155,7 @@ impl Workspace {
             );
         };
         write(&spec, &frontmatter_put(&content, "updated_at", &utc_now())?)?;
+        crate::commands::spec::record_status(&spec, &planned)?;
         fs::remove_file(&plan)
             .with_context(|| format!("não foi possível remover {}", plan.display()))?;
         println!(

@@ -10,6 +10,7 @@ required:
   - templates/responses
   - rules/project/security.md
   - personas/coordenador.md
+  - rules/project/interaction.md
 
 # Carregado sob demanda por `vostok context load --skill <nome>`, no passo 1 de cada skill.
 # Cada entrada lista os arquivos que a skill carrega além de `required`, na ordem em que aparecem aqui.
@@ -79,3 +80,9 @@ skills:
     - config/main.yml
     - templates/suggestion/feature.md
   triage-harness-issue: []
+  customize-documents:
+    - config/documents.yml
+  process-requests:
+    - config/tasks.yml
+  ask-agent:
+    - config/main.yml

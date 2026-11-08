@@ -27,6 +27,7 @@ header.head { padding-block: 28px 0; }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
 .brand { font: 700 14px/1 var(--font-display); display: flex; align-items: center; gap: 10px; }
 .brand i { width: 14px; height: 14px; border-radius: 4px; background: var(--brand); display: inline-block; }
+.brand img { width: 18px; height: 18px; object-fit: contain; }
 .tbtn { font: 500 13px/1 var(--font-text); color: var(--text-muted); background: var(--surface); border: 1px solid var(--border);
         border-radius: 999px; padding: 8px 14px; cursor: pointer; }
 .tbtn:hover { border-color: var(--border-strong); color: var(--text); }
@@ -130,7 +131,7 @@ footer { padding-block: 0 40px; color: var(--text-muted); font-size: 13px; }
 </head>
 <body>
 <header class="head"><div class="wrap">
-  <div class="top"><span class="brand"><i></i>Vostok</span><button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema escuro</button></div>
+  <div class="top"><span class="brand">#{BRAND_MARK}#{BRAND_NAME}</span><button type="button" class="tbtn" id="theme-toggle" aria-pressed="false">Tema escuro</button></div>
   <span class="eyebrow">Resumo executivo · #{SPEC_ID}</span>
   <h1>#{SPEC_TITLE}</h1>
   <div class="meta"><span>#{SPEC_ID}</span><span>Aprovada em #{APPROVED}</span><span>Concluída em #{FINISHED}</span></div>

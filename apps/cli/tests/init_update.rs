@@ -656,6 +656,278 @@ fn update_outside_a_project_fails_pointing_to_init() {
     assert!(error.contains("vostok init"), "{error}");
 }
 
+// --- update a partir da 0.4.0 (RF-22 a RF-24, CT-20 a CT-22, CB-05 a CB-07, RNF-04) ---
+
+const FIXTURE_0_4_0: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/update-0-4-0");
+const DROPPED_SKILLS: [&str; 2] = ["process-requests", "ask-agent"];
+const COMMUNICATION_DIRS: [&str; 3] = [
+    "vostok/work/pedidos",
+    "vostok/work/perguntas",
+    "vostok/work/avais",
+];
+const OBSOLETE_KEYS: [&str; 9] = [
+    "config/main.yml: paths.requests",
+    "config/main.yml: paths.questions",
+    "config/main.yml: paths.approvals",
+    "config/main.yml: approval_lock",
+    "config/main.yml: folders",
+    "config/main.yml: request_dispatch",
+    "config/main.yml: toast_dismiss_seconds",
+    "config/main.yml: request_note_warning_minutes",
+    "config/tasks.yml: manual_attachment_max_mb",
+];
+
+const SPEC_DRAFT: &str = "vostok/work/specs/draft/SPEC-001-x.md";
+
+fn fixture_0_4_0(name: &str) -> String {
+    read(&Path::new(FIXTURE_0_4_0).join(name))
+}
+
+/// Projeto como a 0.4.0 o deixava: as skills e os redirecionamentos da comunicação, as configurações
+/// com as chaves dela, as três pastas e o manifesto da 0.4.0.
+fn installed_0_4_0() -> Workspace {
+    let workspace = installed("claude-code,codex");
+    for name in DROPPED_SKILLS {
+        workspace.write(
+            &format!("vostok/skills/default/{name}/SKILL.md"),
+            &fixture_0_4_0(&format!("{name}.md")),
+        );
+    }
+    workspace.update();
+    for file in ["main.yml", "tasks.yml"] {
+        workspace.write(&format!("vostok/config/{file}"), &fixture_0_4_0(file));
+    }
+    for file in [
+        "vostok/work/pedidos/pendente/PED-001.md",
+        "vostok/work/perguntas/aberta/PER-001.md",
+        "vostok/work/avais/SPEC-001.log",
+    ] {
+        workspace.write(file, "x\n");
+    }
+    let manifest_path = workspace.path("vostok/.manifest");
+    let mut manifest = Manifest::parse(&read(&manifest_path)).unwrap();
+    manifest.version = "0.4.0".to_string();
+    for name in DROPPED_SKILLS {
+        let content = fixture_0_4_0(&format!("{name}.md"));
+        manifest.files.insert(
+            format!("skills/default/{name}/SKILL.md"),
+            sha256_hex(content.as_bytes()),
+        );
+    }
+    write(&manifest_path, &manifest.render());
+    workspace
+}
+
+fn assert_folders_removed(workspace: &Workspace, out: &str, folders: &[&str]) {
+    for folder in folders {
+        assert!(!workspace.exists(folder), "{folder}");
+        assert!(
+            out.contains(&format!("Pasta removida: {folder}\n")),
+            "{out}"
+        );
+    }
+}
+
+#[test]
+fn ct20_update_from_0_4_0_removes_dropped_skills_and_redirects() {
+    let workspace = installed_0_4_0();
+    for name in DROPPED_SKILLS {
+        assert!(workspace.exists(&format!(".claude/skills/{name}/SKILL.md")));
+        assert!(workspace.exists(&format!(".agents/skills/{name}/SKILL.md")));
+    }
+
+    let out = workspace.update();
+
+    for name in DROPPED_SKILLS {
+        for dir in ["vostok/skills/default", ".claude/skills", ".agents/skills"] {
+            assert!(!workspace.exists(&format!("{dir}/{name}")), "{dir}/{name}");
+        }
+    }
+    assert!(
+        out.contains("Removido: vostok/skills/default/process-requests/SKILL.md\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Removido: .claude/skills/process-requests/SKILL.md\n"),
+        "{out}"
+    );
+    assert!(
+        out.contains("Removido: .agents/skills/ask-agent/SKILL.md\n"),
+        "{out}"
+    );
+    assert!(!out.contains(".local"), "{out}");
+    let catalog = workspace.read(CATALOG);
+    assert!(!catalog.contains("| process-requests |"), "{catalog}");
+    assert!(!catalog.contains("| ask-agent |"), "{catalog}");
+    let manifest = workspace.read("vostok/.manifest");
+    assert!(
+        manifest.starts_with(&format!("version: {VERSION}\n")),
+        "{manifest}"
+    );
+    assert!(!manifest.contains("process-requests"), "{manifest}");
+    assert!(!manifest.contains("ask-agent"), "{manifest}");
+}
+
+#[test]
+fn cb06_update_from_0_4_0_keeps_changed_dropped_skill_as_local() {
+    let workspace = installed_0_4_0();
+    let skill = "vostok/skills/default/ask-agent/SKILL.md";
+    let redirect = ".claude/skills/process-requests/SKILL.md";
+    workspace.write(skill, "minha versão\n");
+    workspace.write(redirect, "meu redirecionamento\n");
+
+    let out = workspace.update();
+
+    assert_eq!(workspace.read(&format!("{skill}.local")), "minha versão\n");
+    assert_eq!(
+        workspace.read(&format!("{redirect}.local")),
+        "meu redirecionamento\n"
+    );
+    assert!(!workspace.exists(skill));
+    assert!(!workspace.exists(redirect));
+    assert!(
+        out.contains(&format!("Versão local guardada: {skill}.local\n")),
+        "{out}"
+    );
+    assert!(
+        out.contains(&format!("Versão local guardada: {redirect}.local\n")),
+        "{out}"
+    );
+}
+
+#[test]
+fn ct21_update_from_0_4_0_removes_communication_keys() {
+    let workspace = installed_0_4_0();
+    let specs = workspace.config("main.yml", "paths.specs");
+    let repository = workspace.config("main.yml", "harness.repository");
+
+    let out = workspace.update();
+
+    for key in OBSOLETE_KEYS {
+        assert!(
+            out.contains(&format!("Configuração removida: {key}\n")),
+            "{key}: {out}"
+        );
+    }
+    let main = workspace.read("vostok/config/main.yml");
+    assert!(!main.contains("approval_lock"), "{main}");
+    assert!(!main.contains("folders:"), "{main}");
+    assert!(!main.contains("Trava de aval"), "{main}");
+    assert!(!main.contains("requests:"), "{main}");
+    let tasks = workspace.read("vostok/config/tasks.yml");
+    assert!(!tasks.contains("manual_attachment_max_mb"), "{tasks}");
+    assert_eq!(workspace.config("main.yml", "paths.specs"), specs);
+    assert_eq!(
+        workspace.config("main.yml", "harness.repository"),
+        repository
+    );
+}
+
+#[test]
+fn ct22_update_from_0_4_0_removes_communication_folders() {
+    let workspace = installed_0_4_0();
+    workspace.write(SPEC_DRAFT, "# Spec\n");
+
+    let out = workspace.update();
+
+    assert_folders_removed(&workspace, &out, &COMMUNICATION_DIRS);
+    assert!(workspace.exists(SPEC_DRAFT));
+}
+
+#[test]
+fn cb05_update_from_0_4_0_removes_folders_at_configured_paths() {
+    let workspace = installed_0_4_0();
+    let main = "vostok/config/main.yml";
+    workspace.replace(main, "./work/pedidos", "./work/meus-pedidos");
+    workspace.replace(main, "./work/perguntas", "./work/minhas-perguntas");
+    workspace.replace(main, "./work/avais", "./caixa/avais");
+    let configured = [
+        "vostok/work/meus-pedidos",
+        "vostok/work/minhas-perguntas",
+        "vostok/caixa/avais",
+    ];
+    for folder in configured {
+        workspace.write(&format!("{folder}/x.md"), "x\n");
+    }
+
+    let out = workspace.update();
+
+    assert_folders_removed(&workspace, &out, &configured);
+    assert!(workspace.exists("vostok/work/pedidos/pendente/PED-001.md"));
+    assert!(
+        !out.contains("Pasta removida: vostok/work/pedidos\n"),
+        "{out}"
+    );
+}
+
+#[test]
+fn cb05_update_from_0_4_0_never_removes_a_folder_that_holds_the_work() {
+    let workspace = installed_0_4_0();
+    workspace.write(SPEC_DRAFT, "# Spec\n");
+    workspace.replace("vostok/config/main.yml", "./work/pedidos", "./work");
+
+    let out = workspace.update();
+
+    assert!(workspace.exists(SPEC_DRAFT));
+    assert!(
+        out.contains("Aviso: pasta de pedidos não removida: vostok/work\n"),
+        "{out}"
+    );
+    assert!(!out.contains("Pasta removida: vostok/work\n"), "{out}");
+}
+
+#[test]
+fn ct22_update_from_0_4_0_uses_the_default_folders_without_the_keys() {
+    let workspace = installed_0_4_0();
+    let main = workspace.read("vostok/config/main.yml");
+    let without_keys: String = main
+        .lines()
+        .filter(|line| {
+            !["  requests:", "  questions:", "  approvals:"]
+                .iter()
+                .any(|key| line.starts_with(key) && line.contains("./work/"))
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    assert_eq!(without_keys.lines().count() + 3, main.lines().count());
+    workspace.write("vostok/config/main.yml", &without_keys);
+
+    let out = workspace.update();
+
+    assert_folders_removed(&workspace, &out, &COMMUNICATION_DIRS);
+}
+
+#[test]
+fn cb07_update_from_0_4_0_without_communication_lists_no_removal() {
+    let workspace = installed("claude-code,codex");
+    let manifest_path = workspace.path("vostok/.manifest");
+    let mut manifest = Manifest::parse(&read(&manifest_path)).unwrap();
+    manifest.version = "0.4.0".to_string();
+    manifest.files.insert(
+        "skills/default/process-requests/SKILL.md".to_string(),
+        sha256_hex(b"qualquer"),
+    );
+    write(&manifest_path, &manifest.render());
+
+    let out = workspace.update();
+
+    for line in ["Removido:", "Configuração removida:", "Pasta removida:"] {
+        assert!(!out.contains(line), "{out}");
+    }
+}
+
+#[test]
+fn rnf04_update_from_0_4_0_leaves_a_usable_project() {
+    let workspace = installed_0_4_0();
+
+    workspace.update();
+
+    stdout(workspace.vostok().args(["spec", "list"]));
+    let context = stdout(workspace.vostok().args(["context", "load"]));
+    assert!(!context.contains("process-requests"), "{context}");
+    assert!(!context.contains("ask-agent"), "{context}");
+}
+
 // --- subagentes (CT-08, RF-12) ---
 
 const SPECIALISTS: [&str; 7] = [

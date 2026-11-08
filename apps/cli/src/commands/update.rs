@@ -7,24 +7,50 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+use crate::commands::skill::{self, Scope};
 use crate::embedded;
 use crate::harness::Harness;
 use crate::manifest::{self, Manifest};
 use crate::routing;
-use crate::support::{config_list, sha256_hex};
+use crate::support::{config_get, config_list, lexical, sha256_hex};
 
 const CONFIG_DIR: &str = "config/";
 
 /// Itens que o contexto obrigatório precisa ter desde a v0.2.0 (RF-25).
 const REQUIRED_CONTEXT: &[&str] = &["personas/coordenador.md"];
 
+const SKILL_FILE: &str = "SKILL.md";
+
+/// Chaves da comunicação pelo painel que saíram na 0.5.0, por arquivo de configuração (RF-23).
+const OBSOLETE_KEYS: &[(&str, &str)] = &[
+    ("config/main.yml", "paths.requests"),
+    ("config/main.yml", "paths.questions"),
+    ("config/main.yml", "paths.approvals"),
+    ("config/main.yml", "approval_lock"),
+    ("config/main.yml", "folders"),
+    ("config/main.yml", "request_dispatch"),
+    ("config/main.yml", "toast_dismiss_seconds"),
+    ("config/main.yml", "request_note_warning_minutes"),
+    ("config/tasks.yml", "manual_attachment_max_mb"),
+];
+
+/// Pastas da comunicação: a chave de `paths`, o caminho padrão sem a chave e o rótulo do aviso (RF-24).
+const COMMUNICATION_DIRS: &[(&str, &str, &str)] = &[
+    ("requests", "./work/pedidos", "pedidos"),
+    ("questions", "./work/perguntas", "perguntas"),
+    ("approvals", "./work/avais", "avais"),
+];
+
 /// O que a atualização mudou, na ordem em que aparece na saída.
 #[derive(Debug, Default)]
 struct Changes {
     updated: Vec<PathBuf>,
     recreated: Vec<PathBuf>,
+    removed: Vec<PathBuf>,
     kept_locals: Vec<PathBuf>,
     added_keys: Vec<String>,
+    removed_keys: Vec<String>,
+    removed_dirs: Vec<PathBuf>,
     routing: Vec<PathBuf>,
     agents: Vec<PathBuf>,
     conflicts: Vec<String>,
@@ -35,8 +61,11 @@ impl Changes {
     fn is_empty(&self) -> bool {
         self.updated.is_empty()
             && self.recreated.is_empty()
+            && self.removed.is_empty()
             && self.kept_locals.is_empty()
             && self.added_keys.is_empty()
+            && self.removed_keys.is_empty()
+            && self.removed_dirs.is_empty()
             && self.routing.is_empty()
             && self.agents.is_empty()
             && !self.manifest
@@ -49,14 +78,22 @@ pub fn run() -> Result<()> {
     let current = Manifest::current(&harness)?;
     let mut changes = Changes::default();
 
+    remove_dropped_skills(&harness, &previous, &current, &mut changes)?;
+    remove_dropped_files(&harness, &previous, &current, &mut changes)?;
+    remove_communication_dirs(&harness, &mut changes)?;
+    remove_obsolete_keys(&harness, &mut changes)?;
     update_binary_files(&harness, &previous, &current, &mut changes)?;
     merge_configs(&harness, &mut changes)?;
     ensure_required_context(&harness, &mut changes)?;
     let routing = routing::generate(&harness)?;
-    changes.routing = routing.changed;
+    for path in routing.changed {
+        if !changes.routing.contains(&path) {
+            changes.routing.push(path);
+        }
+    }
     changes.agents = routing.agents;
     changes.kept_locals.extend(routing.kept_locals);
-    changes.conflicts = routing.conflicts;
+    changes.conflicts.extend(routing.conflicts);
     changes.manifest = current.write(&harness)?;
 
     print(&routing::project_root(&harness)?, &changes);
@@ -157,6 +194,242 @@ fn ensure_required_context(harness: &Harness, changes: &mut Changes) -> Result<(
     write(&path, merged.as_bytes())?;
     changes.added_keys.extend(added);
     Ok(())
+}
+
+/// Tira os redirecionamentos e a linha do catálogo de cada skill padrão do manifesto anterior que o
+/// binário não traz mais. O redirecionamento diferente do gerado do `SKILL.md` instalado é guardado
+/// antes como `.local` (RF-22, CB-06). Uma skill customizada com o mesmo nome fica intacta.
+fn remove_dropped_skills(
+    harness: &Harness,
+    previous: &Manifest,
+    current: &Manifest,
+    changes: &mut Changes,
+) -> Result<()> {
+    let config = harness.config_file("skills.yml");
+    let default_dir = config_get(&config, "dirs.default")?;
+    let prefix = format!(
+        "{}/",
+        default_dir.trim_start_matches("./").trim_end_matches('/')
+    );
+    let names: Vec<&str> = dropped(previous, current)
+        .filter_map(|(path, _)| path.strip_prefix(&prefix)?.strip_suffix("/SKILL.md"))
+        .filter(|name| !name.contains('/'))
+        .collect();
+    if names.is_empty() {
+        return Ok(());
+    }
+    let root = routing::project_root(harness)?;
+    let redirect_dirs: Vec<String> = config_list(&config, "redirect_dirs")?
+        .into_iter()
+        .filter(|dir| !dir.is_empty())
+        .collect();
+    for name in names {
+        if skill::skill_dir(harness, Scope::Custom, name)?
+            .join(SKILL_FILE)
+            .is_file()
+        {
+            continue;
+        }
+        let skill_file = skill::skill_dir(harness, Scope::Default, name)?.join(SKILL_FILE);
+        let expected = if skill_file.is_file() {
+            Some(skill::render_redirect(harness, &skill_file)?)
+        } else {
+            None
+        };
+        for dir in &redirect_dirs {
+            let target = root.join(dir).join(name).join(SKILL_FILE);
+            let Ok(installed) = fs::read_to_string(&target) else {
+                continue;
+            };
+            if expected.as_deref() != Some(installed.as_str()) {
+                changes.kept_locals.push(routing::keep_local(&target)?);
+            }
+            remove_file(&target)?;
+            changes.removed.push(target);
+            remove_empty_dir(&root.join(dir).join(name))?;
+        }
+        if let Some(catalog) = remove_catalog_row(harness, name)? {
+            if !changes.routing.contains(&catalog) {
+                changes.routing.push(catalog);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Caminhos e hashes do manifesto anterior que o binário atual não traz.
+fn dropped<'a>(
+    previous: &'a Manifest,
+    current: &'a Manifest,
+) -> impl Iterator<Item = (&'a String, &'a String)> {
+    previous
+        .files
+        .iter()
+        .filter(|(path, _)| !current.files.contains_key(*path))
+}
+
+/// Tira do catálogo a linha da skill na seção das padrão e devolve o catálogo se ele mudou.
+fn remove_catalog_row(harness: &Harness, name: &str) -> Result<Option<PathBuf>> {
+    let catalog = harness.root.join(manifest::catalog_path(harness)?);
+    let Ok(content) = fs::read_to_string(&catalog) else {
+        return Ok(None);
+    };
+    let section = config_get(
+        &harness.config_file("skills.yml"),
+        &format!("catalog_sections.{}", Scope::Default.key()),
+    )?;
+    let heading = format!("## {section}");
+    let row_start = format!("| {name} |");
+    let mut inside = false;
+    let mut removed = false;
+    let mut kept: Vec<&str> = Vec::new();
+    for line in content.split_inclusive('\n') {
+        if line.starts_with("## ") {
+            inside = line.trim_end() == heading;
+        }
+        if inside && line.starts_with(&row_start) {
+            removed = true;
+            continue;
+        }
+        kept.push(line);
+    }
+    if !removed {
+        return Ok(None);
+    }
+    write(&catalog, kept.concat().as_bytes())?;
+    Ok(Some(catalog))
+}
+
+/// Apaga os arquivos do manifesto anterior que o binário não traz mais. Um alterado no projeto,
+/// cujo hash não é o do manifesto anterior, é guardado antes como `.local` (RF-22, CB-06).
+fn remove_dropped_files(
+    harness: &Harness,
+    previous: &Manifest,
+    current: &Manifest,
+    changes: &mut Changes,
+) -> Result<()> {
+    for (path, hash) in dropped(previous, current) {
+        let target = harness.root.join(path);
+        let Ok(installed) = fs::read(&target) else {
+            continue;
+        };
+        if sha256_hex(&installed) != *hash {
+            changes.kept_locals.push(routing::keep_local(&target)?);
+        }
+        remove_file(&target)?;
+        let mut dir = target.parent();
+        while let Some(parent) =
+            dir.filter(|parent| parent.starts_with(&harness.root) && *parent != harness.root)
+        {
+            if !remove_empty_dir(parent)? {
+                break;
+            }
+            dir = parent.parent();
+        }
+        changes.removed.push(target);
+    }
+    Ok(())
+}
+
+/// Apaga as pastas de pedidos, perguntas e avais nos caminhos configurados, ou nos padrão sem a
+/// chave (RF-24, CB-05). Nunca apaga uma pasta fora do projeto, a do harness nem uma que guarde as
+/// specs ou as tarefas: essa vira um aviso.
+fn remove_communication_dirs(harness: &Harness, changes: &mut Changes) -> Result<()> {
+    let root = routing::project_root(harness)?;
+    let main = harness.config_file("main.yml");
+    let work = [
+        lexical(&harness.path("specs")?),
+        lexical(&harness.path("tasks")?),
+    ];
+    let harness_root = lexical(&harness.root);
+    for (key, default, label) in COMMUNICATION_DIRS {
+        let configured = config_get(&main, &format!("paths.{key}")).ok();
+        let dir = lexical(&harness.resolve(configured.as_deref().unwrap_or(default)));
+        if !dir.is_dir() {
+            continue;
+        }
+        let protected = !dir.starts_with(&root)
+            || dir == root
+            || dir == harness_root
+            || work.iter().any(|path| path.starts_with(&dir));
+        if protected {
+            let shown = dir
+                .strip_prefix(&root)
+                .unwrap_or(&dir)
+                .display()
+                .to_string();
+            changes
+                .conflicts
+                .push(format!("Aviso: pasta de {label} não removida: {shown}"));
+            continue;
+        }
+        fs::remove_dir_all(&dir)
+            .with_context(|| format!("não foi possível apagar {}", dir.display()))?;
+        changes.removed_dirs.push(dir);
+    }
+    Ok(())
+}
+
+/// Tira das configurações instaladas as chaves de `OBSOLETE_KEYS` (RF-23).
+fn remove_obsolete_keys(harness: &Harness, changes: &mut Changes) -> Result<()> {
+    let mut by_file: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for (file, key) in OBSOLETE_KEYS {
+        by_file.entry(file).or_default().push(key);
+    }
+    for (file, keys) in by_file {
+        let target = harness.root.join(file);
+        let Ok(installed) = fs::read_to_string(&target) else {
+            continue;
+        };
+        let (content, removed) = remove_keys(&installed, &keys);
+        if removed.is_empty() {
+            continue;
+        }
+        write(&target, content.as_bytes())?;
+        changes
+            .removed_keys
+            .extend(removed.into_iter().map(|key| format!("{file}: {key}")));
+    }
+    Ok(())
+}
+
+/// Conteúdo sem as chaves pedidas (`pai` ou `pai.filho`) e as que foram encontradas, na ordem pedida.
+/// Uma chave de primeiro nível sai com os comentários de antes; uma filha, só com as linhas dela.
+fn remove_keys(installed: &str, keys: &[&str]) -> (String, Vec<String>) {
+    let lines: Vec<&str> = installed.lines().collect();
+    let installed_blocks = blocks(&lines);
+    let mut dropped = vec![false; lines.len()];
+    let mut removed = Vec::new();
+    for key in keys {
+        let (parent, child) = match key.split_once('.') {
+            Some((parent, child)) => (parent, Some(child)),
+            None => (*key, None),
+        };
+        let Some(block) = installed_blocks.iter().find(|block| block.key == parent) else {
+            continue;
+        };
+        let range = match child {
+            None => block.lead..block.end,
+            Some(child) => {
+                let Some(found) = children(&lines, block)
+                    .into_iter()
+                    .find(|other| other.key == child)
+                else {
+                    continue;
+                };
+                found.start..found.end
+            }
+        };
+        dropped[range].iter_mut().for_each(|line| *line = true);
+        removed.push(key.to_string());
+    }
+    let kept: Vec<&str> = lines
+        .iter()
+        .zip(&dropped)
+        .filter(|(_, dropped)| !**dropped)
+        .map(|(line, _)| *line)
+        .collect();
+    (kept.join("\n") + "\n", removed)
 }
 
 /// Chave de primeiro nível de um YAML de configuração, da linha `chave:` até a última linha recuada.
@@ -318,6 +591,10 @@ fn print(root: &Path, changes: &Changes) {
             .to_string()
     };
     for conflict in &changes.conflicts {
+        if conflict.starts_with("Aviso:") {
+            println!("{conflict}");
+            continue;
+        }
         println!(
             "Aviso: a skill customizada '{conflict}' tem o mesmo nome de uma skill padrão; a customizada foi preservada e os redirecionamentos apontam para ela."
         );
@@ -335,11 +612,20 @@ fn print(root: &Path, changes: &Changes) {
     for path in &changes.recreated {
         println!("Recriado: {}", shown(path));
     }
+    for path in &changes.removed {
+        println!("Removido: {}", shown(path));
+    }
     for path in &changes.kept_locals {
         println!("Versão local guardada: {}", shown(path));
     }
     for key in &changes.added_keys {
         println!("Configuração acrescentada: {key}");
+    }
+    for key in &changes.removed_keys {
+        println!("Configuração removida: {key}");
+    }
+    for path in &changes.removed_dirs {
+        println!("Pasta removida: {}", shown(path));
     }
     for path in &changes.routing {
         println!("Roteamento regenerado: {}", shown(path));
@@ -356,4 +642,19 @@ fn write(path: &Path, content: &[u8]) -> Result<()> {
             .with_context(|| format!("não foi possível criar {}", parent.display()))?;
     }
     fs::write(path, content).with_context(|| format!("não foi possível gravar {}", path.display()))
+}
+
+fn remove_file(path: &Path) -> Result<()> {
+    fs::remove_file(path).with_context(|| format!("não foi possível apagar {}", path.display()))
+}
+
+/// Apaga a pasta se ela estiver vazia e diz se apagou.
+fn remove_empty_dir(dir: &Path) -> Result<bool> {
+    let mut entries =
+        fs::read_dir(dir).with_context(|| format!("não foi possível ler {}", dir.display()))?;
+    if entries.next().is_some() {
+        return Ok(false);
+    }
+    fs::remove_dir(dir).with_context(|| format!("não foi possível apagar {}", dir.display()))?;
+    Ok(true)
 }

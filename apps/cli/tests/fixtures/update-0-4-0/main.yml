@@ -1,0 +1,55 @@
+# Configurações gerais do harness.
+# Caminhos relativos partem da raiz do harness (a pasta que contém `config/`).
+
+paths:
+  root: ../
+  specs: ./work/specs
+  plans: ./work/plans
+  tasks: ./work/tasks
+  templates: ./templates
+  docs: ../docs
+  agent_memory: ./memory
+  state: ./.state          # estado local de cada clone, fora do git
+  archive: ./work/.archive    # specs finalizadas, com tarefas e evidências, fora do git
+  finalize: ./work/finalize    # conteúdo e documentos de uma spec antes do arquivamento
+  spec_docs: ../docs/specs  # documentos publicados de cada spec finalizada (executivo e técnico)
+  bugs: ./work/bugs          # relatos de defeitos do próprio harness (skill report-harness-bug)
+  requests: ./work/pedidos      # pedidos do painel ao agente, numa subpasta por estado
+  questions: ./work/perguntas  # perguntas do agente ao usuário, numa subpasta por status
+  approvals: ./work/avais      # avais do painel, um arquivo por spec
+
+# Repositório das issues de defeitos do próprio harness (skills report-harness-bug e
+# validate-harness-bug e subcomando `vostok bug link`) e ferramenta de IA em uso no projeto, que
+# escolhe o apelido de reserva de `config/models.yml`. Vazio: o vostok informa "modelo da sessão".
+harness:
+  repository: Ishtar-Sink/Vostok
+  tool: claude-code   # claude-code | codex | cursor | gemini-cli | copilot
+
+# Trava de aval: com `true`, concluir, aprovar, arquivar e fazer commit exigem o aval do painel
+# (`vostok painel`) registrado nos logs de `work/avais/`, um `<SPEC>.log` por spec. Desligada por padrão.
+approval_lock: false
+
+# Nome da subpasta de cada estado dos pedidos e das perguntas, e do arquivo dos avais sem spec.
+# Os nomes são só de pasta: o estado gravado em cada arquivo não muda com eles.
+# `requests.attachments` é a pasta dos anexos das perguntas livres, em work/pedidos/, e não um estado.
+folders:
+  requests:
+    pending: pendente
+    in_progress: em_andamento
+    done: feito
+    refused: recusado
+    attachments: anexos
+  questions:
+    open: aberta
+    answered: respondida
+  approvals_without_spec: sem-spec.log
+
+# Disparo sob demanda: com `codex` ou `claude`, o `vostok painel` chama o agente para cada pedido
+# gravado, um por vez, sem precisar de um loop rodando. Vazio: desligado.
+request_dispatch: ""   # "" (desligado) | codex | claude
+
+# Tempo de um aviso na tela do painel, em segundos. 0: só some ao ser fechado. Ausente ou inválido, vale 5.
+toast_dismiss_seconds: 5
+
+# Minutos sem nota nova num pedido em andamento até o aviso de falta de nota.
+request_note_warning_minutes: 15

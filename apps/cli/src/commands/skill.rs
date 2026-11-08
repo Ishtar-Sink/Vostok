@@ -425,9 +425,21 @@ fn context_paths(harness: &Harness, name: &str) -> Result<Vec<String>> {
 
 /// Grava o redirecionamento da skill em cada pasta de `redirect_dirs` (RF-25) e devolve os arquivos gravados.
 pub fn write_redirects(harness: &Harness, name: &str, skill_file: &Path) -> Result<Vec<PathBuf>> {
-    let config = skills_config(harness);
-    let keys = config_list(&config, "redirect_keys")?;
-    let dirs = config_list(&config, "redirect_dirs")?;
+    let dirs = config_list(&skills_config(harness), "redirect_dirs")?;
+    let root = project_root(harness)?;
+    let redirect = render_redirect(harness, skill_file)?;
+    let mut written = Vec::new();
+    for dir in dirs.iter().filter(|dir| !dir.is_empty()) {
+        let target = root.join(dir).join(name).join(SKILL_FILE);
+        write_new(&target, &redirect)?;
+        written.push(target);
+    }
+    Ok(written)
+}
+
+/// Redirecionamento de uma skill, como `write_redirects` o grava em cada pasta de `redirect_dirs`.
+pub fn render_redirect(harness: &Harness, skill_file: &Path) -> Result<String> {
+    let keys = config_list(&skills_config(harness), "redirect_keys")?;
     let root = project_root(harness)?;
     let content = read(skill_file)?;
     let front_matter = pick_front_matter(&content, &keys);
@@ -440,14 +452,7 @@ pub fn write_redirects(harness: &Harness, name: &str, skill_file: &Path) -> Resu
         ("FRONT_MATTER", format!("---\n{front_matter}\n---")),
         ("SKILL_PATH", skill_path),
     ]);
-    let redirect = render_template(harness, "redirect_template", &values)?;
-    let mut written = Vec::new();
-    for dir in dirs.iter().filter(|dir| !dir.is_empty()) {
-        let target = root.join(dir).join(name).join(SKILL_FILE);
-        write_new(&target, &redirect)?;
-        written.push(target);
-    }
-    Ok(written)
+    render_template(harness, "redirect_template", &values)
 }
 
 /// Linhas do front-matter das chaves pedidas, inclusive as de continuação, na ordem do arquivo.

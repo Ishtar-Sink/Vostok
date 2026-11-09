@@ -765,7 +765,11 @@ fn task_summary(dir: &Path, harness: &Harness, waves: &BTreeMap<String, usize>) 
         "type",
         "description",
         "check_result",
+        "waiting_on",
+        "waiting_reason",
+        "closes_after",
     ];
+    let waiting_keys = ["waiting_on", "waiting_reason", "closes_after"];
     let pairs: Vec<(String, String)> = keys
         .iter()
         .map(|key| {
@@ -774,6 +778,11 @@ fn task_summary(dir: &Path, harness: &Harness, waves: &BTreeMap<String, usize>) 
                 .find(|(name, _)| name == key)
                 .map(|(_, value)| value.clone())
                 .unwrap_or_default();
+            let value = if waiting_keys.contains(key) {
+                registered(&value).to_string()
+            } else {
+                value
+            };
             (key.to_string(), value)
         })
         .collect();
@@ -1062,6 +1071,37 @@ wave: 1
         for reply in [&spec, &task] {
             assert!(!reply.contains(r#"\\\"Em"#), "{reply}");
         }
+    }
+
+    #[test]
+    fn espera_visao_traz_os_campos_de_espera() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/tasks/SPEC-001/TASK-02/estado.yml",
+            "id: TASK-02\ntitle: \"Segunda\"\nstatus: blocked\nwave: 1\nwaiting_on: [TASK-03]\nwaiting_reason: \"espera o comando novo\"\ncloses_after: [TASK-12]\n",
+        );
+        let visao = body(&get(&painel, "/api/visao"));
+        assert!(visao.contains(r#""waiting_on":"[TASK-03]""#), "{visao}");
+        assert!(
+            visao.contains(r#""waiting_reason":"espera o comando novo""#),
+            "{visao}"
+        );
+        assert!(visao.contains(r#""closes_after":"[TASK-12]""#), "{visao}");
+    }
+
+    #[test]
+    fn espera_campos_vazios_ou_null_saem_vazios() {
+        let (dir, painel) = project();
+        write(
+            dir.path(),
+            "vostok/work/tasks/SPEC-001/TASK-02/estado.yml",
+            "id: TASK-02\ntitle: \"Segunda\"\nstatus: pending\nwave: 1\nwaiting_on: []\nwaiting_reason: null\n",
+        );
+        let visao = body(&get(&painel, "/api/visao"));
+        assert!(visao.contains(r#""waiting_reason":"""#), "{visao}");
+        assert!(visao.contains(r#""closes_after":"""#), "{visao}");
+        assert!(visao.contains(r#""waiting_on":"""#), "{visao}");
     }
 
     #[test]

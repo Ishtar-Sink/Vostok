@@ -13,6 +13,9 @@ export interface TaskSummary {
   type: string;
   description: string;
   check_result?: string;
+  waiting_on?: string;
+  waiting_reason?: string;
+  closes_after?: string;
 }
 
 export interface SpecMeta {

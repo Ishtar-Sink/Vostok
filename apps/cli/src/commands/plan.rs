@@ -12,9 +12,10 @@ use clap::Subcommand;
 
 use super::task::{
     before_section, created_of, dashdash_commands, dashdash_warning, delivery_errors,
-    evidence_item, evidence_name_problem, evidence_rule_errors, evidence_title_errors, expected_change, init_layout,
-    is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name, task_entries,
-    task_template_dir, verify_block, EvidenceKinds, TaskDoc, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
+    evidence_item, evidence_name_problem, evidence_rule_errors, evidence_title_errors,
+    expected_change, init_layout, is_task_folder, layout, new_folders, new_kind_name,
+    normalized_evidence_name, task_entries, task_template_dir, verify_block, EvidenceKinds,
+    TaskDoc, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
 use crate::harness::Harness;
 use crate::support::{

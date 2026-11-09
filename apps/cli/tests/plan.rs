@@ -102,7 +102,8 @@ fn plan_outside_a_harness_fails() {
 
 // --- Nome de evidência com caminho no planejamento (SPEC-010, SPEC-011) ---
 
-const SUBITEMS: &str = "  - Título: Saída do comando.\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.";
+const SUBITEMS: &str =
+    "  - Título: Saída do comando.\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.";
 
 /// Grava a spec aprovada SPEC-001 (com hashes válidos) e o plano dela, com os corpos dados.
 fn spec_and_plan(project: &Project, kind: &str, spec_body: &str, plan_body: &str) {

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Tira o print de uma rota do painel: sobe a API de PAINEL_BIN na raiz do projeto (ou em PAINEL_PASTA)
-# e o vite do frontend.
+# e o vite do frontend, e fotografa com o Playwright (scripts/print.mjs).
 # Uso: [PAINEL_PASTA=<pasta do projeto>] PAINEL_BIN=<caminho do vostok> bash apps/painel/scripts/print.sh <rota> <arquivo.png> [largura,altura]
+# A rota aceita âncora (#evidencias). PAINEL_ROLAR (pixels ou "fim") rola antes do print;
+# PAINEL_STORAGE (JSON) grava o localStorage antes de abrir a página.
 
 set -euo pipefail
 
@@ -36,14 +38,6 @@ wait_for() {
   done
 }
 
-find_chromium() {
-  [ -n "${PAINEL_CHROMIUM:-}" ] && { echo "$PAINEL_CHROMIUM"; return; }
-  find "$HOME/.cache/ms-playwright" -path '*chromium-*/chrome-linux*/chrome' -type f 2>/dev/null | sort | tail -1
-}
-
-CHROMIUM="$(find_chromium)"
-[ -n "$CHROMIUM" ] || { echo "Chromium do Playwright não encontrado (defina PAINEL_CHROMIUM)" >&2; exit 1; }
-
 API_PORT="$(free_port)"
 (cd "$ROOT" && exec "$BIN" painel --sem-navegador --porta "$API_PORT" --pasta "${PAINEL_PASTA:-$ROOT}") >"$WORK/api.log" 2>&1 &
 PIDS+=("$!")
@@ -55,9 +49,8 @@ PIDS+=("$!")
 wait_for "http://127.0.0.1:$WEB_PORT/"
 
 mkdir -p "$(dirname "$OUTPUT")"
-"$CHROMIUM" --headless=new --no-sandbox --disable-gpu --hide-scrollbars \
-  --window-size="$SIZE" --virtual-time-budget=3000 \
-  --screenshot="$OUTPUT" "http://127.0.0.1:$WEB_PORT$ROUTE" >"$WORK/chromium.log" 2>&1
+(cd "$PAINEL_DIR" && node scripts/print.mjs "http://127.0.0.1:$WEB_PORT$ROUTE" "$OUTPUT" "$SIZE") >"$WORK/print.log" 2>&1 \
+  || { cat "$WORK/print.log" >&2; exit 1; }
 
-[ -s "$OUTPUT" ] || { cat "$WORK/chromium.log" >&2; exit 1; }
+[ -s "$OUTPUT" ] || { cat "$WORK/print.log" >&2; exit 1; }
 echo "$OUTPUT"

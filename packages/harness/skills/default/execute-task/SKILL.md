@@ -20,7 +20,8 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 ## Termos
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
-- **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`.
+- **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`, inclusive a que voltou de um bloqueio por dependência e já tem baseline: o `start` a recomeça.
+- **À espera:** tarefa `blocked` com `waiting_on`, à espera de uma dependência acrescentada em execução; aparece na espera de dependência do `vostok task status` e não é executável.
 - **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `<TASK_ID>/evidencias/baseline/` (no formato antigo, `evidence/<TASK_ID>/baseline/`). A `finish-task` os executa de novo e compara, para achar regressões.
 - **Registro:** o `registro.md` da tarefa em pasta (no formato antigo, a seção "Registro de execução"), com uma linha por etapa, escrito só pelos comandos. `estado.yml`, `registro.md` e `README.md` nunca são editados à mão.
 - **Onda:** as tarefas da spec com o mesmo `wave`, mostrado pelo `vostok task status`; podem rodar em paralelo.
@@ -30,7 +31,7 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 ## Regras
 
 [execute-task-01]: Uma tarefa ou uma onda por pedido. Ao terminar, não comece outra sem um novo pedido do usuário.
-[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências.
+[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências. Tarefa à espera de dependência não é executada: avise o usuário de qual tarefa ela espera. Ao descobrir sozinho que uma tarefa espera outra, avise o usuário e não rode `vostok task depends`; a mudança de dependência em execução é feita só a pedido dele, pela skill `adjust-task`.
 [execute-task-03]: Colete o baseline antes de mudar qualquer arquivo do projeto.
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
@@ -125,20 +126,22 @@ Para iniciar cada tarefa:
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
 ```
 
-O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
 
 | Recusa | Como resolver |
 |---|---|
 | Tarefa fora de `approved` | Aprovar a tarefa (skill `approve-task`), a pedido do usuário. |
 | Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
 | Dependência fora de `done` | Executar e concluir a dependência antes. |
+| Tarefa recomeçada mudou depois do último ajuste | Registrar o ajuste (skill `adjust-task`), sem nova aprovação, e iniciar de novo. |
+| Tarefa à espera de dependência (`blocked` com `waiting_on`) | Concluir a dependência; ao concluí-la, a tarefa volta a `approved` e é iniciada de novo. |
 | Caminho `criar` de Mudar já existe | O estado anterior já foi alterado: restaurar o estado anterior, com a decisão do usuário, e iniciar de novo. |
 
 Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, seguindo o `vostok task brief` de cada uma, com o modelo da sessão.
 
 ### 6. Consolidar
 
-Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
+Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` (ou `recomeço`, na tarefa recomeçada) e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
 
 ### 7. Gerar as evidências e pedir a conferência
 

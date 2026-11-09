@@ -32,15 +32,18 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-01]: Não ajuste tarefas `done`. Nunca edite a spec, o plano nem outras tarefas.
 [adjust-task-02]: Nunca edite uma tarefa sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-task-03]: Nunca edite o front-matter nem o "Histórico de ajustes". Só os comandos os alteram.
-[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`.
+[adjust-task-04]: Um ajuste não muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` nem `type`, nem os campos do card que os repetem ("Tipo", "Estimativa", "Rótulos", "Bloqueada por"). Pedido que exige mudá-los vai para um novo plano: responda com o template `blocker`. Exceção: a pedido do usuário, a dependência de uma tarefa `in_progress`, `validating` ou bloqueada por dependência muda com `vostok task depends add|remove <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "<decisão do usuário>"`, sem editar a tarefa (passo 9). Ao descobrir sozinho que uma tarefa espera outra, avise o usuário e não rode o comando.
 [adjust-task-05]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
 [adjust-task-06]: No máximo 1 rodada de perguntas, sempre antes de qualquer edição.
 [adjust-task-07]: Não amplie o pedido. O que não foi pedido e for necessário para a tarefa continuar coerente (um passo que cita o arquivo removido de "Mudar") é inferência e aparece na resposta.
 [adjust-task-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok task adjust record`.
 [adjust-task-09]: Não aprove nem execute a tarefa como parte do ajuste. A aprovação é feita pela skill `approve-task`, só a pedido do usuário.
-[adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`.
+[adjust-task-10]: Numa tarefa em execução (`in_progress`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`. Exceção: com a decisão do usuário, mude a subseção e, depois do `vostok task adjust record`, recolete com `vostok task baseline <SPEC_ID> <TASK_ID> --recoletar --motivo "<decisão do usuário>"`. Sem mudar a subseção, ofereça a recoleta quando o baseline gravado deixou de valer por uma mudança fora da tarefa (como a de uma dependência), sempre com a decisão do usuário; o baseline anterior fica em `evidencias/baseline-anterior-N/`.
 [adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 [adjust-task-12]: Ao ajustar "Verificação" ou "Evidências", use os formatos da skill `approve-plan`: comandos focados em "Mudar" e conferidos, rótulo `# evidência:`, `(automática)`, `(automática, da verificação)`, `(diff): caminho`, `(print): comando`, `(manual)` e o subitem `Espera:`; cada evidência leva o subitem `Título:`, um nome curto em linguagem simples com até 60 caracteres, antes de `Prova`, `Trecho` e `Falha`. A evidência mostra o comportamento entregue, nunca a leitura do texto da tarefa.
+[adjust-task-13]: Ao ajustar "Passos" ou "Baseline", todo comando de "Baseline" que mede algo que os passos renomeiam ou removem leva `(muda): motivo`, como na skill `approve-plan`.
+[adjust-task-14]: Recuse em "Concluída quando" o critério que só se comprova na finalização da spec. Se nenhum critério de aceite da spec o cobre, **PARE** e responda com o template `blocker`, propondo ajustar a spec pela skill `adjust-spec`, com `--ids` numa spec `planned`.
+[adjust-task-15]: Tarefa que voltou a `pending` pela reaprovação de uma spec com `changed_ids` é detalhada de novo: reescreva, nos formatos do passo 4 da skill `approve-plan`, as partes que cobrem os IDs mudados, registre o ajuste e informe que ela precisa ser aprovada de novo (skill `approve-task`).
 
 ## Checklist
 
@@ -120,8 +123,10 @@ Classifique cada ajuste:
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe | Pergunta |
 | Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
-| Muda `covers`, `depends_on`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` ou `type` | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
-| Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec planejada só muda num novo ciclo. |
+| Muda `depends_on` de tarefa em execução, a pedido do usuário | Aplicar com `vostok task depends` ([adjust-task-04], passo 9) |
+| Muda `covers`, `wave`, `profile` (ou `effort`, nas tarefas antigas), `persona` ou `type`, ou `depends_on` fora da exceção | **PARE**: responda com o template `blocker`; a mudança exige um novo plano. |
+| Exige mudar a spec | **PARE**: responda com o template `blocker`; a spec planejada é ajustada pela skill `adjust-spec`, com `--ids` dos IDs mudados. |
+| Critério de "Concluída quando" que só se comprova na finalização da spec | Recusar ([adjust-task-14]) |
 
 Sem perguntas, vá para o passo 7.
 
@@ -133,7 +138,7 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t
 
 ### 7. Editar a tarefa
 
-Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções "Execução" e "Descrição", mantendo as duas coerentes (um critério de conclusão novo também entra nos "Critérios de aceite" do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação e, numa tarefa em execução, conta como enriquecimento para o `vostok task finish`.
+Aplique os ajustes nos formatos da `approve-plan`: na tarefa em pasta, em `execucao.md`, `verificacao.md`, `criterios.md`, `executivo.md` ou `tecnico.md` (o card é gerado e nunca é editado); no formato antigo, nas seções "Execução" e "Descrição", mantendo as duas coerentes (um critério de conclusão novo também entra nos "Critérios de aceite" do card). Mudar só `executivo.md` ou `tecnico.md` não pede nova aprovação e, numa tarefa em execução, conta como enriquecimento para o `vostok task finish`. Numa tarefa que voltou a `pending` por `changed_ids`, refaça as partes ligadas aos IDs mudados ([adjust-task-15]).
 
 ### 8. Validar
 
@@ -155,6 +160,14 @@ vostok task adjust record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGEN
 
 O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
 
+Dependência de tarefa em execução ([adjust-task-04]): sem editar a tarefa nem rodar `vostok task adjust record`, execute, com a decisão do usuário no motivo:
+
+```bash
+vostok task depends add <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "<decisão do usuário>"
+```
+
+O comando muda `depends_on`, grava a linha `ajuste`, que derruba as conferências de evidência anteriores, e, com a dependência fora de `done`, deixa a tarefa `blocked` com `waiting_on` e `waiting_reason` (linha `bloqueio`). Ele recusa, sem gravar, a própria tarefa, ciclo, tarefa de outra spec, dependência repetida e tarefa bloqueada por falha (nesta, rode antes o `vostok task resume`, com a decisão do usuário). Com `vostok task depends remove`, a tarefa que fica sem espera volta a `approved`. Quando a dependência é concluída, a tarefa volta a `approved` e o `vostok task start` a recomeça sem coletar o baseline de novo; se a regressão vier da dependência, a skill `finish-task` oferece a recoleta.
+
 ### 10. Responder ao usuário
 
 Responda com o template `completion`:
@@ -162,7 +175,7 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho da tarefa, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
-- **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação.
+- **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação. Se a tarefa ficou à espera de uma dependência, informe qual e que ela recomeça quando a dependência for concluída. Se o baseline foi recoletado, informe o motivo e onde ficou o anterior.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
 - **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).
 

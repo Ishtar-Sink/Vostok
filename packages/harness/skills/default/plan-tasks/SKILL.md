@@ -27,6 +27,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 - **Perfil:** o que a tarefa exige do modelo (`mecanica`, `padrao` ou `julgamento`), calculado pelo comando a partir dos fatos, pelo que a tarefa faz. Nunca indica um modelo.
 - **Persona:** o nome da persona que executa a tarefa, como `desenvolvedor`, ou `-`.
 - **Onda:** o número da onda da tarefa, calculado pelo `vostok plan score` a partir das dependências (1 sem dependências; senão, 1 mais a maior onda das dependências). Tarefas da mesma onda podem rodar em paralelo.
+- **Fecha depois de:** os IDs das tarefas que precisam estar `done` antes de a tarefa ser concluída, gravados em `closes_after` pelo `vostok plan approve`. Não muda a onda nem impede a tarefa de começar; "Dependências" impede começar e define a onda.
 
 ## Regras
 
@@ -108,6 +109,8 @@ Para dividir o trabalho:
 - Use os "Componentes afetados", os "Fluxos" e os "Casos de teste" da spec para agrupar mudanças relacionadas. Uma tarefa não mistura partes independentes.
 - Prefira mais tarefas simples a poucas complexas. Uma tarefa com muitos arquivos ou muitos IDs cobertos provavelmente deve ser dividida.
 - As dependências formam uma ordem sem ciclos: uma tarefa só depende das que precisam existir antes dela.
+- "Dependências" é para o que a tarefa precisa para começar; "Fecha depois de" é para o que ela precisa só para concluir. Use "Fecha depois de" quando a conclusão depende de uma evidência, de uma conferência ou de uma tela entregue por outra tarefa. Exemplo: a TASK-07 muda uma skill e a evidência dela usa a tela que a TASK-12 entrega; a TASK-07 pode começar e ser validada antes, então fica com "Dependências" `-` e "Fecha depois de" `TASK-12`, e roda na mesma onda que a TASK-12.
+- "Fecha depois de" não cita a própria tarefa, uma tarefa que não existe nem forma ciclo: o `vostok plan validate` recusa. Uma tarefa que também está em "Dependências" é aceita, mas é redundante.
 - Separe as frentes independentes em tarefas sem dependência entre si, para caberem na mesma onda.
 - Evite que duas tarefas sem dependência entre si mudem o mesmo arquivo; quando for inevitável, diga na visão geral quais tarefas o Coordenador vai sequenciar.
 
@@ -147,11 +150,11 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 
 ### Tabela de tarefas
 
-`Tipo` é `tarefa`, `historia` ou `bug`. Em "Persona", o nome da persona que executa a tarefa (como `desenvolvedor`) ou `-`. Sem dependências, use `-`. Deixe `-` em "Perfil" e em "Onda": o `vostok plan score` os preenche.
+`Tipo` é `tarefa`, `historia` ou `bug`. Em "Persona", o nome da persona que executa a tarefa (como `desenvolvedor`) ou `-`. Sem dependências, use `-` em "Dependências"; sem espera de fechamento, `-` em "Fecha depois de", que vem logo depois de "Dependências". Deixe `-` em "Perfil" e em "Onda": o `vostok plan score` os preenche.
 
 ```markdown
-| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | - | RF-01, CT-01 |
-| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | - | RF-02, CT-02 |
+| TASK-01 | Título curto | O que a tarefa entrega, em uma frase. | tarefa | desenvolvedor | - | - | - | - | - | RF-01, CT-01 |
+| TASK-02 | Título curto | O que a tarefa entrega, em uma frase. | historia | desenvolvedor | - | TASK-01 | - | - | - | RF-02, CT-02 |
 ```
 
 ### Tabela de personas
@@ -190,9 +193,9 @@ A visão geral em prosa, a tabela de tarefas com os perfis e as ondas gravados, 
 ```markdown
 Visão geral do plano.
 
-| ID | Título | Persona | Perfil | Dependências | Onda | Cobre |
+| ID | Título | Persona | Perfil | Dependências | Fecha depois de | Onda | Cobre |
 |---|---|---|---|---|---|---|
-| TASK-01 | Título curto | desenvolvedor | mecanica | - | 1 | RF-01, CT-01 |
+| TASK-01 | Título curto | desenvolvedor | mecanica | - | - | 1 | RF-01, CT-01 |
 
 Arquivos em comum por onda (executar em sequência):
 

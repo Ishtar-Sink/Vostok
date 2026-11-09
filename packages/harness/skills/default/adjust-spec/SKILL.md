@@ -19,8 +19,10 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 
 ## Termos
 
-- **Refinada:** a spec em `refined/`, com status `refined` ou `approved`. É a única que esta skill edita.
+- **Refinada:** a spec em `refined/`, com status `refined`, `approved` ou `planned`. É a única que esta skill edita.
 - **Aprovada:** a refinada com status `approved`. Todo ajuste registrado nela derruba a aprovação e volta o status para `refined`.
+- **Planejada:** a refinada com status `planned`, que já tem tarefas. O ajuste dela exige `--ids` e volta o status para `refined`; a reaprovação (skill `approve-spec`) a devolve a `planned` e trata só as tarefas que cobrem os IDs.
+- **IDs mudados:** os IDs da spec criados ou alterados pelo ajuste, inclusive os indiretos, passados em `--ids` e gravados em `changed_ids` no front-matter.
 - **Rascunho:** a spec original, em `draft/`. Nunca é editada por esta skill e deixa de existir quando a spec é aprovada.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
@@ -31,7 +33,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 
 ## Regras
 
-[adjust-spec-01]: Só ajuste specs com status `refined` ou `approved`. Nunca edite o rascunho nem uma spec com status `planned`.
+[adjust-spec-01]: Só ajuste specs com status `refined`, `approved` ou `planned`. Nunca edite o rascunho. O ajuste de uma spec `planned` é registrado com `--ids`; o comando recusa spec `planned` sem `--ids`.
 [adjust-spec-02]: Nunca edite uma spec sem ter certeza de que é a correta. Na dúvida, pergunte (passo 2).
 [adjust-spec-03]: Nunca edite à mão o front-matter nem o "Histórico de ajustes". Só o comando os altera.
 [adjust-spec-04]: Todo ajuste do pedido é aplicado ou vira pergunta. Nenhum é descartado sem aviso.
@@ -73,9 +75,9 @@ Use a spec sem perguntar em qualquer um destes casos:
 
 - O usuário a cita por ID, título ou arquivo.
 - O pedido vem logo depois de a spec ser refinada ou ajustada nesta conversa.
-- Existe uma única spec refinada ou aprovada.
+- Existe uma única spec refinada, aprovada ou planejada.
 
-Para saber quais specs podem ser ajustadas, execute `vostok spec list refined` e `vostok spec list approved` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
+Para saber quais specs podem ser ajustadas, execute `vostok spec list refined`, `vostok spec list approved` e `vostok spec list planned` e considere só as linhas com arquivo em `refined/`. O rascunho de uma spec refinada também aparece na lista, com o mesmo ID.
 
 Nos demais casos:
 
@@ -83,11 +85,13 @@ Nos demais casos:
 2. Nenhuma: **PARE** e informe que não há specs refinadas para ajustar.
 3. Mais de uma: **PARE** e pergunte qual ajustar, com o template `question`, com uma opção por spec (ID e título). Aceite também resposta livre. Não edite nada antes da resposta.
 
-Spec citada com status `draft`: **PARE** e informe o status atual. Só specs refinadas ou aprovadas são ajustadas.
+Spec citada com status `draft`: **PARE** e informe o status atual. Só specs refinadas, aprovadas ou planejadas são ajustadas.
 
-Spec citada com status `planned`: **PARE** e informe que as tarefas dela já foram criadas e que mudá-la exige um novo ciclo, com uma nova spec.
+Spec citada com status `planned`: siga. Leia também o `vostok task status <SPEC_ID>` e o `covers` do `estado.yml` de cada tarefa, para o passo 10.
 
 ### 3. Registrar edições manuais
+
+Numa spec `planned`, pule este passo: o `record-manual` ainda recusa essa spec.
 
 Execute:
 
@@ -153,7 +157,7 @@ Execute:
 vostok spec adjust validate <SPEC_ID>
 ```
 
-O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+Numa spec `planned`, pule este passo: o `validate` ainda recusa essa spec e o `record` do passo 9 valida o ajuste. O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
 
 Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do projeto mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário e sem nova rodada ([adjust-spec-05]); o que for acrescentado ou trocado além do pedido entra no "Registro de decisões" como inferência ([adjust-spec-06]).
 
@@ -165,6 +169,14 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 vostok spec adjust record <SPEC_ID> "RF-03 aceita o título; CB-04 removido; nova RN-05"
 ```
 
+Numa spec `planned`, passe em `--ids` os IDs mudados, separados por vírgula:
+
+```bash
+vostok spec adjust record <SPEC_ID> "RF-03 aceita o título; CT-05 novo" --ids RF-03,CT-05
+```
+
+O comando recusa, sem registrar, um ID que não existe na spec e uma spec `planned` sem `--ids`; com eles, grava `changed_ids` no front-matter e volta o status para `refined`. Numa spec `approved`, que ainda não tem tarefas, não passe `--ids`.
+
 O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa spec aprovada, ele também derruba a aprovação e avisa na saída. Se ele recusar o ajuste, volte ao passo 8.
 
 ### 10. Responder ao usuário
@@ -174,6 +186,7 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho da refinada, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Se o comando avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
+- Numa spec `planned`, a [tabela de tarefas afetadas](#tabela-de-tarefas-afetadas), com as tarefas que cobrem os IDs mudados, montada com o `vostok task status <SPEC_ID>` e o `covers` de cada tarefa: `pending` e `approved` serão refeitas (voltam a `pending` e são detalhadas de novo pela skill `adjust-task`); `in_progress`, `validating` e `blocked` serão ajustadas (ganham a linha `ajuste` e seguem sem nova aprovação); `done` só são avisadas, sem mudar, com a sugestão de uma tarefa nova num novo plano. As que não cobrem os IDs não mudam. Informe que nada muda nas tarefas até a reaprovação da spec (skill `approve-spec`).
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
 
@@ -189,4 +202,16 @@ Uma linha por ajuste identificado no pedido, na ordem em que aparecem.
 | # | Ajuste pedido | O que foi feito |
 |---|---|---|
 | 1 | Resumo do pedido, com o alvo. | Seções e IDs alterados. |
+```
+
+### Tabela de tarefas afetadas
+
+Uma linha por tarefa que cobre algum ID mudado, na ordem dos IDs.
+
+```markdown
+| Tarefa | Status | IDs mudados que cobre | O que acontece na reaprovação |
+|---|---|---|---|
+| TASK-03 | approved | RF-03 | Refeita: volta a `pending` e é detalhada de novo. |
+| TASK-05 | in_progress | CT-05 | Ajustada: linha `ajuste`, sem nova aprovação. |
+| TASK-01 | done | RF-03 | Só avisada: não muda; sugerir tarefa nova num novo plano. |
 ```

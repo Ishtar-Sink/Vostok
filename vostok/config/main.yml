@@ -21,3 +21,6 @@ paths:
 harness:
   repository: Ishtar-Sink/Vostok
   tool: claude-code   # claude-code | codex | cursor | gemini-cli | copilot
+
+# Porta fixa do painel. 0 ou ausente: uma porta livre. O --porta prevalece.
+panel_port: 0

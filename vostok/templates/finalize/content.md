@@ -112,7 +112,7 @@
 
 ## Mapa de cobertura
 
-<!-- Tabela "| ID | O que foi verificado | Evidência |", uma linha por requisito funcional (RF) e não funcional (RNF) da spec, citando a evidência ("TASK-NN / arquivo") que o prova. -->
+<!-- Tabela "| ID | O que foi verificado | Evidência |": uma linha por requisito funcional (RF) e não funcional (RNF) da spec, citando a evidência ("TASK-NN / arquivo") que o prova, e uma linha por critério de aceite (CA-NN) da spec, com o resultado da conferência ("atendido" ou "não atendido: motivo") e a evidência que o sustenta. -->
 #{EVIDENCE_COVERAGE}
 
 <!-- Um bloco por evidência, criado pelo `vostok finalize create`. Preencha "Prova" (o requisito que a evidência sustenta, em linguagem direta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela). -->

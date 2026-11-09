@@ -18,8 +18,8 @@ Documento para revisão. É removido quando o plano é aprovado.
 
 ## Tarefas
 
-| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Onda | Cobre |
-|---|---|---|---|---|---|---|---|---|
+| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Fecha depois de | Onda | Cobre |
+|---|---|---|---|---|---|---|---|---|---|
 #{PLAN_TASKS}
 
 ## Componentes por tarefa

@@ -109,7 +109,7 @@ Leia o plano inteiro e a spec. Depois, separe o pedido em ajustes, qualquer que 
 
 O mesmo pedido repetido em formas diferentes é um único ajuste.
 
-Para cada ajuste, anote o alvo e tudo o que ele afeta indiretamente: dividir uma tarefa pede novos fatos e redistribui a cobertura; remover uma tarefa tira-a das dependências das outras e exige que os IDs que ela cobria passem a outra tarefa.
+Para cada ajuste, anote o alvo e tudo o que ele afeta indiretamente: dividir uma tarefa pede novos fatos e redistribui a cobertura; remover uma tarefa tira-a das colunas "Dependências" e "Fecha depois de" das outras e exige que os IDs que ela cobria passem a outra tarefa.
 
 ### 5. Analisar os ajustes
 
@@ -121,6 +121,7 @@ Classifique cada ajuste:
 | Ambíguo: mais de uma interpretação válida | Pergunta |
 | Deixa um ID da spec sem tarefa e não diz qual tarefa o assume | Pergunta |
 | Cria dependência em ciclo | Pergunta |
+| Cria ciclo em "Fecha depois de" ou cita nela a própria tarefa | Pergunta |
 | Contradiz outro ajuste do mesmo pedido | Pergunta |
 | Cita um alvo que não existe (ex.: `TASK-40`) | Pergunta |
 | Contradiz uma decisão ativa da memória (`vostok memory search decision <termos>`) | Pergunta, citando o ID da decisão |
@@ -138,7 +139,8 @@ Não edite nada antes da resposta, nem os ajustes claros. Depois dela, aplique t
 
 Aplique os ajustes nas seções "Visão geral", "Tarefas", "Componentes por tarefa" e "Fatos de esforço":
 
-- Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as dependências.
+- Os IDs das tarefas continuam sequenciais a partir de `TASK-01`. Ao renumerar, atualize as colunas "Dependências" e "Fecha depois de".
+- "Fecha depois de" segue o formato da skill `plan-tasks`: IDs separados por vírgula ou `-`, sem mudar a onda. Num plano sem a coluna, um ajuste que pede espera de fechamento acrescenta a coluna logo depois de "Dependências", com `-` nas demais tarefas.
 - Toda tarefa tem uma linha na tabela de fatos, e toda linha de fatos tem uma tarefa.
 - Em planos com a seção "Componentes por tarefa", toda tarefa tem uma linha nela, e todo componente da spec fica em alguma tarefa. Os números de arquivos a criar e a alterar são recalculados pelo `vostok plan adjust record`.
 - Na coluna "Perfil" (ou "Nível", em planos antigos) e na coluna "Onda", deixe o valor atual ou `-`: o `vostok plan adjust record` recalcula, inclusive a seção "Arquivos em comum por onda". Não mexa na seção "Perfis de execução".

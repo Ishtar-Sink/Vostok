@@ -20,7 +20,8 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 ## Termos
 
 - **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`.
-- **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`.
+- **Executável:** tarefa com status `approved` e todas as dependências (`depends_on`) com status `done`, inclusive a que voltou de um bloqueio por dependência e já tem baseline: o `start` a recomeça.
+- **À espera:** tarefa `blocked` com `waiting_on`, à espera de uma dependência acrescentada em execução; aparece na espera de dependência do `vostok task status` e não é executável.
 - **Baseline:** a saída e o código de saída dos comandos de "Baseline", gravados antes de qualquer mudança em `<TASK_ID>/evidencias/baseline/` (no formato antigo, `evidence/<TASK_ID>/baseline/`). A `finish-task` os executa de novo e compara, para achar regressões.
 - **Registro:** o `registro.md` da tarefa em pasta (no formato antigo, a seção "Registro de execução"), com uma linha por etapa, escrito só pelos comandos. `estado.yml`, `registro.md` e `README.md` nunca são editados à mão.
 - **Onda:** as tarefas da spec com o mesmo `wave`, mostrado pelo `vostok task status`; podem rodar em paralelo.
@@ -30,17 +31,18 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 ## Regras
 
 [execute-task-01]: Uma tarefa ou uma onda por pedido. Ao terminar, não comece outra sem um novo pedido do usuário.
-[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências.
+[execute-task-02]: Só execute tarefas que o `vostok task start` aceitar. Não contorne uma recusa mudando o status, o hash ou as dependências. Tarefa à espera de dependência não é executada: avise o usuário de qual tarefa ela espera. Ao descobrir sozinho que uma tarefa espera outra, avise o usuário e não rode `vostok task depends`; a mudança de dependência em execução é feita só a pedido dele, pela skill `adjust-task`.
 [execute-task-03]: Colete o baseline antes de mudar qualquer arquivo do projeto.
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os comandos os alteram.
-[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A finalização é um pedido separado do usuário.
+[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A única exceção é do Coordenador: com todas as tarefas da onda terminadas, ele roda `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que gera as evidências sem mudar status nem resultados; o subagente nunca roda `vostok task evidence`. A finalização é um pedido separado do usuário.
 [execute-task-08]: O chat segue como Coordenador: ele escolhe o modelo, executa as tarefas que ficam na própria sessão, dispara os subagentes das paralelas e consolida a resposta. Cada tarefa segue a persona do `vostok task brief` (persona Coordenador, RF-25).
 [execute-task-09]: O modelo vem do perfil da tarefa, nunca do usuário (RN-03): o Coordenador escolhe, entre os modelos que a ferramenta oferece, o que atende à descrição do perfil; se a ferramenta não deixa listar ou escolher, usa o apelido de reserva; com "modelo da sessão", segue com o modelo da sessão. O modelo usado vai no `vostok task start --model`.
 [execute-task-10]: Tarefas da onda com arquivos em comum rodam em sequência, na ordem dos IDs, na própria sessão, e o usuário é avisado (RF-16, FA-02). As demais, quando são 2 ou mais, rodam em paralelo em subagentes, com no máximo o valor de `max_subagents` (linha `Subagentes ao mesmo tempo` do `vostok task status`) ao mesmo tempo; as excedentes esperam uma vaga.
 [execute-task-11]: Sem subagentes ou sem escolha de modelo na ferramenta, as tarefas rodam uma por vez na própria sessão, com o modelo da sessão (FA-01).
 [execute-task-12]: O Coordenador faz o máximo possível: a onda com uma tarefa e as tarefas em sequência são executadas na própria sessão, seguindo o `vostok task brief` de cada uma; subagente só existe para paralelismo real (RN-01).
+[execute-task-13]: A conferência das evidências é sempre do usuário: o Coordenador roda `--reviewed` ou `--rejected --motivo` só com o aceite ou a rejeição explícitos dele no chat, nunca por conta própria.
 
 ## Checklist
 
@@ -53,7 +55,8 @@ Copie e marque o progresso:
 - [ ] 4. Conferir os arquivos em comum
 - [ ] 5. Disparar os subagentes
 - [ ] 6. Consolidar
-- [ ] 7. Responder ao usuário
+- [ ] 7. Gerar as evidências e pedir a conferência
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
@@ -123,32 +126,50 @@ Para iniciar cada tarefa:
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
 ```
 
-O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
 
 | Recusa | Como resolver |
 |---|---|
 | Tarefa fora de `approved` | Aprovar a tarefa (skill `approve-task`), a pedido do usuário. |
 | Tarefa mudou depois da aprovação | Registrar o ajuste (skill `adjust-task`) e aprovar de novo. |
 | Dependência fora de `done` | Executar e concluir a dependência antes. |
+| Tarefa recomeçada mudou depois do último ajuste | Registrar o ajuste (skill `adjust-task`), sem nova aprovação, e iniciar de novo. |
+| Tarefa à espera de dependência (`blocked` com `waiting_on`) | Concluir a dependência; ao concluí-la, a tarefa volta a `approved` e é iniciada de novo. |
 | Caminho `criar` de Mudar já existe | O estado anterior já foi alterado: restaurar o estado anterior, com a decisão do usuário, e iniciar de novo. |
 
 Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes de implementar a primeira (CB-05); depois executa cada tarefa na própria sessão, uma por vez, seguindo o `vostok task brief` de cada uma, com o modelo da sessão.
 
 ### 6. Consolidar
 
-Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
+Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` (ou `recomeço`, na tarefa recomeçada) e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
 
-### 7. Responder ao usuário
+### 7. Gerar as evidências e pedir a conferência
+
+Depois que todas as tarefas da onda voltaram (inclusive as de subagentes), execute para cada uma, na ordem dos IDs:
+
+```bash
+vostok task evidence <SPEC_ID> <TASK_ID> --antecipada
+```
+
+O comando gera as evidências de tarefa `in_progress` sem mudar `status`, `tests_result`, `regression_result`, `evidence_result` nem `attempts`, e lista com o caminho as que exigem aval e ainda não têm conferência válida e as manuais sem arquivo.
+
+Faça uma única pergunta agrupada, com o template `question`, para a tarefa ou para a onda inteira (CB-16), com cada evidência a conferir e o caminho dela; o usuário a vê na pasta ou no painel e responde no chat. Evidência manual sem arquivo: peça o anexo na mesma pergunta.
+
+Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição bloqueia a tarefa até o `vostok task resume` com a decisão do usuário.
+
+Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Evidência automática com erro no `--antecipada`: não corrija nem repita; cite a falha em Pendências (FA-04).
+
+### 8. Responder ao usuário
 
 Execute `vostok commit check` e responda com o template `completion`:
 
 - **Resumo:** as tarefas foram implementadas e seguem `in_progress`.
 - **O que foi feito:** uma linha por tarefa (ID, persona, modelo, resultado), os avisos de sequência do passo 4 e as tarefas da onda que ficaram fora.
-- **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: os testes, a regressão e as evidências ficam para a `finish-task`.
+- **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: as evidências geradas pelo `--antecipada`, as conferidas e as rejeitadas; os testes, a regressão e a validação ficam para a `finish-task`.
 - **Status das tarefas:** a saída de `vostok task status <SPEC_ID>`.
 - **Próximos passos:** o pedido em linguagem natural para finalizar cada tarefa, por exemplo `- "finaliza a TASK-04" (skill finish-task): executar os testes, comparar com o baseline e concluir a tarefa`. Nunca indique um comando.
 
-Esta skill não chama a `finish-task` nem roda `vostok task tests`, `vostok task regression` ou `vostok task evidence` (RN-03): a conclusão só começa quando o usuário pedir.
+Esta skill não chama a `finish-task` nem roda `vostok task tests` ou `vostok task regression`, e só roda `vostok task evidence` com `--antecipada`, `--reviewed` ou `--rejected`, como no passo 7 (RN-03, RN-06): a conclusão só começa quando o usuário pedir.
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 

@@ -272,3 +272,10 @@ task_evidence_dir: evidencias
 # Pasta dos templates dos demais arquivos da tarefa em pasta: um por arquivo de `task_files`, com o
 # nome em minúsculas (README.md vira readme.md).
 task_folder_template_dir: task
+
+# Tipos de evidência que exigem aval do usuário. Ausente: todos. Lista vazia: nenhum.
+evidence_review_kinds: [automática, "automática, da verificação", diff, manual, print]
+
+evidence_title_field: Título
+
+evidence_title_max: 60

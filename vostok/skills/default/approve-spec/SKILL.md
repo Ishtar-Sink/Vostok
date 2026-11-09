@@ -19,6 +19,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 - **Rascunho:** a spec original, em `draft/`. É removido pelo comando depois da aprovação.
 - **Impedimento:** o que impede a aprovação: status errado, problema de validação, pendência aberta ou edição manual sem registro.
 - **Versão aprovada:** o `content_hash` no momento da aprovação, gravado em `approved_hash`. Um ajuste depois dela derruba a aprovação.
+- **IDs mudados:** o `changed_ids` do front-matter, gravado pelo ajuste de uma spec `planned` (skill `adjust-spec`). A spec com `changed_ids` está `refined`, mas já tem tarefas: a aprovação dela é uma reaprovação.
 
 ## Regras
 
@@ -26,6 +27,7 @@ Aprova a spec refinada certa, de forma determinística, deixando registrado qual
 [approve-spec-02]: Nunca aprove uma spec sobre a qual tenha dúvida de ser a correta. Na dúvida, pergunte (passo 2).
 [approve-spec-03]: Nunca edite a spec nem o front-matter nesta skill. Quem aprova e remove o rascunho é o comando.
 [approve-spec-04]: Não resolva impedimentos por conta própria. Responda com o template `blocker`; correções na spec são feitas pela skill `adjust-spec`.
+[approve-spec-05]: Na reaprovação de uma spec com `changed_ids`, não chame a skill `plan-tasks` nem crie plano: a spec volta a `planned` com as mesmas tarefas, e a resposta lista as tarefas a refazer, as ajustadas e as só avisadas.
 
 ## Checklist
 
@@ -90,7 +92,7 @@ Execute:
 vostok spec approve approve <SPEC_ID>
 ```
 
-O comando confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
+O comando confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Numa spec com `changed_ids`, o comando a devolve a `planned`, sem plano novo, volta a `pending` as tarefas `pending` ou `approved` que cobrem os IDs, registra um ajuste (linha `ajuste`) nas `in_progress`, `validating` ou `blocked` que os cobrem, lista as `done` que os cobrem sem mudá-las, mantém as demais e limpa `changed_ids`. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
 
 ### 5. Responder ao usuário
 
@@ -98,4 +100,5 @@ Responda com o template `completion`:
 
 - **O que foi feito:** o ID e o caminho da spec aprovada e se o rascunho foi removido.
 - **Verificação:** os comandos executados e o resultado.
-- **Pendências:** informe que um ajuste na spec derruba a aprovação e que ela está pronta para a granularização.
+- **Pendências:** informe que um ajuste na spec derruba a aprovação e que ela está pronta para a granularização (skill `plan-tasks`). Na reaprovação com `changed_ids`, informe que a spec voltou a `planned` sem plano novo ([approve-spec-05]).
+- **Tarefas a refazer:** só na reaprovação com `changed_ids`, as tarefas listadas pelo comando em três grupos: refeitas (voltaram a `pending`: detalhar de novo pela skill `adjust-task` e aprovar pela `approve-task`), ajustadas (seguem em execução, sem nova aprovação, com as conferências de evidência derrubadas) e só avisadas (`done`, sem mudança: sugerir uma tarefa nova num novo plano). Sem tarefa que cubra os IDs, diga que nenhuma é refeita.

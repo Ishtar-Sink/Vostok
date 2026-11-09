@@ -33,6 +33,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 [finalize-spec-08]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [finalize-spec-09]: A skill é executada no Coordenador, uma spec por vez, sem disparar subagente: ele já tem as fontes no contexto, e um subagente recomeçaria a leitura do zero.
 [finalize-spec-10]: Escreva em prosa por padrão: cada seção abre pela conclusão, e cada parágrafo, de 2 a 5 frases, trata de uma ideia. Lista só para passos em ordem ou para itens curtos e paralelos (até 7, de no máximo duas linhas); tabela para comparar, para números e para os mapas. Nenhum número sem a frase que o explica; cada decisão com o contexto, a alternativa descartada e a consequência. Os tamanhos são faixas de referência, não limites.
+[finalize-spec-11]: Antes de arquivar, confira cada critério de aceite da spec (`CA-NN`) contra as evidências, as tarefas e o código, e registre o resultado de cada um no "Mapa de cobertura" do documento de evidências: "atendido", com a evidência que o sustenta, ou "não atendido", com o motivo. Não marque `[x]` na spec ([finalize-spec-05]).
 
 ## Checklist
 
@@ -93,7 +94,7 @@ Substitua cada variável `#{...}` seguindo os comentários do arquivo, que traze
 
 - `# Executivo`: Em resumo (a conclusão de tudo, na faixa do topo), Em números (até 3 itens `- **<valor>** <rótulo>`, ou "Não se aplica."), Objetivo, O que foi entregue (um parágrafo por entrega, com o nome em negrito), Valor e impacto (com a tabela antes e depois quando houver), Ganhos secundários, Riscos e limites e Próximos passos.
 - `# Técnico`: Em resumo, Em números, Contexto, Como funciona (seguindo uma operação real), Decisões (uma por parágrafo), O que foi feito (por tema, com os requisitos e os commits), Operação e diagnóstico (passos numerados e a tabela de sintomas), Mapa do código (tabela de caminho, papel e testes), Limites e dívidas e Referências.
-- `# Evidências`: Em resumo, Mapa de cobertura (uma linha por RF e RNF da spec, com a evidência que o prova) e, em cada bloco, "Prova" (o requisito que a evidência sustenta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela).
+- `# Evidências`: Em resumo, Mapa de cobertura (uma linha por RF e RNF da spec, com a evidência que o prova, e uma linha por critério de aceite, com o resultado da conferência, [finalize-spec-11]) e, em cada bloco, "Prova" (o requisito que a evidência sustenta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela).
 
 Use só o Markdown aceito, descrito no topo do arquivo. O `vostok finalize validate` confere o que é mecânico (seções, Em números, as tabelas do técnico, o mapa de cobertura, o executivo sem código e itens de lista longos demais); o resto destas regras é seu.
 
@@ -105,7 +106,7 @@ Execute:
 vostok finalize validate <SPEC_ID>
 ```
 
-Corrija no conteúdo cada problema listado e valide de novo, respeitando [finalize-spec-07]. Uma evidência ausente não se corrige no conteúdo: **PARE** e responda com o template `blocker`, citando a evidência e a tarefa.
+Corrija no conteúdo cada problema listado e valide de novo, respeitando [finalize-spec-07]. O comando confere no mapa só os RF e RNF; confira você que há uma linha por critério de aceite da spec antes de seguir. Um critério de aceite não atendido não se corrige no conteúdo: registre-o como "não atendido" e cite-o na resposta. Uma evidência ausente não se corrige no conteúdo: **PARE** e responda com o template `blocker`, citando a evidência e a tarefa.
 
 ### 6. Gerar e conferir os documentos
 
@@ -119,7 +120,7 @@ Confira os três documentos listados pelo comando:
 
 - `executivo.html`: o resumo e os números na faixa do topo; o objetivo antes das entregas; cada número explicado; nenhum caminho, comando ou nome de função ([finalize-spec-03]).
 - `tecnico.html`: contexto, como funciona e decisões antes da referência; operação e diagnóstico e mapa do código prontos para quem dá sustentação; requisitos, arquivos, diffs e commits.
-- `evidencias.html`: o mapa de cobertura primeiro e uma peça por evidência, com "Prova", "Como chegar" e "Como ler".
+- `evidencias.html`: o mapa de cobertura primeiro, com uma linha por critério de aceite e o resultado da conferência, e uma peça por evidência, com "Prova", "Como chegar" e "Como ler".
 
 Se algo estiver errado, corrija o conteúdo e repita os passos 5 e 6.
 

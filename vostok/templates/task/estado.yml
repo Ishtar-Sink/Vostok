@@ -5,6 +5,7 @@ description: "#{TASK_DESCRIPTION_YAML}"
 profile: #{TASK_PROFILE}
 persona: #{TASK_PERSONA}
 depends_on: [#{TASK_DEPENDS}]
+closes_after: [#{TASK_CLOSES_AFTER}]
 wave: #{TASK_WAVE}
 covers: [#{TASK_COVERS}]
 type: #{TASK_TYPE}
@@ -19,3 +20,5 @@ attempts: 0
 tests_result: null
 regression_result: null
 evidence_result: null
+waiting_on: []
+waiting_reason: null

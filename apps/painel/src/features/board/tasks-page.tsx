@@ -3,17 +3,67 @@ import { useResource, type Overview } from '../../shared/api';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
-import { Board } from './board';
+import { EmptyState } from '../../ui/empty-state/empty-state';
+import { Board, type BoardGroup, type BoardOrder } from './board';
 import styles from './board.module.css';
+
+const GROUPS: { value: BoardGroup; label: string }[] = [{ value: 'etapa', label: 'Etapa' }, { value: 'spec', label: 'Spec' }, { value: 'onda', label: 'Onda' }];
+const ORDERS: { value: BoardOrder; label: string }[] = [{ value: 'numero', label: 'Número' }, { value: 'spec', label: 'Spec' }, { value: 'onda', label: 'Onda' }];
+
+function readChoice(key: string, allowed: string[] | null, fallback: string): string {
+  try {
+    const value = localStorage.getItem(`vostok.quadro.${key}`);
+    return value === null || (allowed && !allowed.includes(value)) ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveChoice(key: string, value: string) {
+  try {
+    localStorage.setItem(`vostok.quadro.${key}`, value);
+  } catch {
+    // sem armazenamento disponível, a escolha vale só até recarregar
+  }
+}
+
+/** Opções do filtro, sempre com o valor escolhido para o filtro guardado continuar visível. */
+function withSelected(values: string[], selected: string): string[] {
+  return selected === 'todas' || values.includes(selected) ? values : [...values, selected];
+}
+
+function Select({ label, value, options, onChange }: { label: string; value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }) {
+  return (
+    <label className={styles.control}>
+      {label}
+      <select value={value} onChange={(event) => onChange((event.target as HTMLSelectElement).value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export function TasksPage({ version }: { version: number }) {
   const overview = useResource<Overview>('/api/visao', version);
   const [spec, setSpec] = useState('todas');
+  const [agrupamento, setAgrupamento] = useState(() => readChoice('agrupamento', GROUPS.map((item) => item.value), 'etapa'));
+  const [ordem, setOrdem] = useState(() => readChoice('ordem', ORDERS.map((item) => item.value), 'numero'));
+  const [onda, setOnda] = useState(() => readChoice('onda', null, 'todas'));
+  const [persona, setPersona] = useState(() => readChoice('persona', null, 'todas'));
+  const choose = (key: string, set: (value: string) => void) => (value: string) => { set(value); saveChoice(key, value); };
   if (overview.kind === 'loading') return <LoadingState label="Carregando as tarefas" rows={6} />;
   if (overview.kind === 'error') return <ErrorState title="Não foi possível ler o harness" description={overview.message} retryLabel="Tentar de novo" onRetry={overview.retry} />;
 
   const specs = overview.data.specs.filter((item) => item.tasks.length > 0);
-  const tasks = specs.filter((item) => spec === 'todas' || item.meta.id === spec).flatMap((item) => item.tasks.map((task) => ({ ...task, spec: item.meta.id })));
+  const everyTask = specs.flatMap((item) => item.tasks);
+  const waves = withSelected([...new Set(everyTask.map((task) => task.wave).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), onda);
+  const personas = withSelected([...new Set(everyTask.map((task) => task.persona).filter(Boolean))].sort(), persona);
+  const tasks = specs
+    .filter((item) => spec === 'todas' || item.meta.id === spec)
+    .flatMap((item) => item.tasks.map((task) => ({ ...task, spec: item.meta.id })))
+    .filter((task) => (onda === 'todas' || task.wave === onda) && (persona === 'todas' || task.persona === persona));
 
   return (
     <>
@@ -28,7 +78,17 @@ export function TasksPage({ version }: { version: number }) {
           </button>
         ))}
       </div>
-      <Board tasks={tasks} showSpec={spec === 'todas'} />
+      <div className={styles.controls} role="group" aria-label="Organizar o quadro">
+        <Select label="Agrupar por" value={agrupamento} options={GROUPS} onChange={choose('agrupamento', setAgrupamento)} />
+        <Select label="Ordenar por" value={ordem} options={ORDERS} onChange={choose('ordem', setOrdem)} />
+        <Select label="Onda" value={onda} options={[{ value: 'todas', label: 'Todas' }, ...waves.map((wave) => ({ value: wave, label: `Onda ${wave}` }))]} onChange={choose('onda', setOnda)} />
+        <Select label="Persona" value={persona} options={[{ value: 'todas', label: 'Todas' }, ...personas.map((item) => ({ value: item, label: item }))]} onChange={choose('persona', setPersona)} />
+      </div>
+      {tasks.length === 0 ? (
+        <EmptyState title="Nenhuma tarefa com esses filtros" description="Troque a spec, a onda ou a persona para ver outras tarefas." />
+      ) : (
+        <Board tasks={tasks} showSpec={spec === 'todas'} group={agrupamento as BoardGroup} order={ordem as BoardOrder} />
+      )}
     </>
   );
 }

@@ -17,7 +17,9 @@
 .wave { color: var(--text-faint); font-size: var(--font-size-xs); white-space: nowrap; }
 .title { font-weight: 600; font-size: var(--font-size-sm); line-height: 1.4; }
 .facts { display: flex; gap: 6px; color: var(--text-muted); font-size: var(--font-size-xs); }
-.waiting { justify-self: start; padding: 2px 8px; border-radius: 99px; background: var(--surface-muted); color: var(--text-muted); font-size: var(--font-size-xs); }
+.waiting { justify-self: start; padding: 2px 8px; border-radius: 99px; background: var(--warning-soft, var(--surface-muted)); color: var(--text); font-size: var(--font-size-xs); }
+.closesAfter { justify-self: start; padding: 2px 8px; border-radius: 99px; background: var(--surface-muted); color: var(--text-muted); border: 1px dashed var(--border-strong); font-size: var(--font-size-xs); }
+.dependsOn { justify-self: start; padding: 2px 8px; border-radius: 99px; background: var(--surface-muted); color: var(--text-muted); font-size: var(--font-size-xs); }
 .empty { padding: 10px 4px; color: var(--text-faint); font-size: var(--font-size-sm); text-align: center; }
 .filters { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; padding: 4px; border-radius: 12px; background: var(--surface-muted); }
 .filters button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--font-size-sm); font-weight: 500; cursor: pointer; }
@@ -34,4 +36,9 @@
 .sectionToggle::before { content: '▸'; margin-right: 8px; color: var(--text-muted); }
 .sectionToggle[aria-expanded='true']::before { content: '▾'; }
 .sectionToggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-@media (min-width: 720px) { .card { grid-template-columns: 230px minmax(0, 1fr) auto auto; align-items: center; column-gap: 16px; } .cardTop { justify-content: flex-start; } }
+@media (min-width: 720px) { .card { grid-template-columns: 230px minmax(0, 1fr) auto; align-items: center; column-gap: 16px; } .card > .waiting, .card > .closesAfter, .card > .dependsOn { grid-column: 2 / -1; } .cardTop { justify-content: flex-start; } }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 16px; }
+.control { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--font-size-sm); }
+.control select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); font: inherit; }
+.control select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

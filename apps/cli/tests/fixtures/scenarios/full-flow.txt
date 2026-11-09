@@ -41,6 +41,12 @@ Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.
 $ vostok task evidence SPEC-001 TASK-01
 exit: 0
 --- stdout
+Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-001 TASK-01 --reviewed <arquivo>:
+- <EVIDENCIAS>/saida.txt
+
+$ vostok task evidence SPEC-001 TASK-01 --reviewed saida.txt
+exit: 0
+--- stdout
 Evidências de TASK-01 gravadas em <EVIDENCIAS>: 1 item(ns). Resultado: passed.
 
 $ vostok task finish SPEC-001 TASK-01
@@ -101,8 +107,10 @@ exit: 0
 | 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0; 1 evidência(s) automática(s) gravada(s) para comparação |
 | 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
 | 4 | <DATA> | regressão | passed | 1 comando(s) iguais ao baseline |
-| 5 | <DATA> | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
-| 6 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
+| 5 | <DATA> | evidências | pending | evidência sem conferência humana |
+| 6 | <DATA> | conferência | usuário | evidência saida.txt conferida pelo usuário (sha256 <HASH>) |
+| 7 | <DATA> | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
+| 8 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 **Histórico de ajustes**
 
@@ -164,8 +172,10 @@ approved_hash preenchido: true
 | 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0; 1 evidência(s) automática(s) gravada(s) para comparação |
 | 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
 | 4 | <DATA> | regressão | passed | 1 comando(s) iguais ao baseline |
-| 5 | <DATA> | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
-| 6 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
+| 5 | <DATA> | evidências | pending | evidência sem conferência humana |
+| 6 | <DATA> | conferência | usuário | evidência saida.txt conferida pelo usuário (sha256 <HASH>) |
+| 7 | <DATA> | evidências | passed | 1 evidência(s) em evidence/TASK-01/ |
+| 8 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 
 ## evidências TASK-01
 baseline/01.out

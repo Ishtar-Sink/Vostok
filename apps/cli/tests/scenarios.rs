@@ -496,7 +496,9 @@ fn normalize(text: &str, root: &std::path::Path) -> String {
     let text = drop_edited_files(&text);
     let text = drop_migration_rows(&text);
     let text = drop_sources_documents(&text);
-    replace_commit_header(&replace_hashes(&replace_dates(&text)))
+    replace_commit_header(&replace_review_hashes(&replace_hashes(&replace_dates(
+        &text,
+    ))))
 }
 
 /// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.
@@ -619,6 +621,27 @@ fn replace_hashes(text: &str) -> String {
     out
 }
 
+/// O hash curto da conferência, `(sha256 <8>)`, vira `(sha256 <HASH>)`: o arquivo da evidência
+/// tem data e commit no cabeçalho, então o hash muda a cada execução.
+fn replace_review_hashes(text: &str) -> String {
+    const MARK: &str = "(sha256 ";
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(index) = rest.find(MARK) {
+        let (before, after) = rest.split_at(index + MARK.len());
+        out.push_str(before);
+        let digits = after.chars().take_while(|c| c.is_ascii_hexdigit()).count();
+        if digits == 8 && after[digits..].starts_with(')') {
+            out.push_str("<HASH>");
+            rest = &after[digits..];
+        } else {
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// A linha `# commit: <hash> [...]` do cabeçalho dos logs vira `# commit: <COMMIT>`.
 fn replace_commit_header(text: &str) -> String {
     let lines: Vec<String> = text
@@ -665,6 +688,9 @@ fn scenario_full_flow() {
             s.task("tests", id, &[]);
             s.task("regression", id, &[]);
             s.task("evidence", id, &[]);
+            if id == "TASK-01" {
+                s.task("evidence", id, &["--reviewed", "saida.txt"]);
+            }
             s.task("finish", id, &[]);
         }
         s.run(&["finalize", "sources", SPEC]);
@@ -780,6 +806,11 @@ fn scenario_requires_and_timeout() {
         s.task("tests", "TASK-01", &[]);
         s.task("regression", "TASK-01", &[]);
         s.task("evidence", "TASK-01", &[]);
+        s.task(
+            "evidence",
+            "TASK-01",
+            &["--reviewed", "esperada.txt", "--reviewed", "lenta.txt"],
+        );
         s.task("finish", "TASK-01", &[]);
         s.finish();
     }

@@ -497,3 +497,87 @@ fn rnf01_ler_500_mb_nao_sobe_a_memoria() {
         "levou {elapsed:?} (limite 500 ms)"
     );
 }
+
+// --- Estado da conferência no JSON da tarefa (SPEC-043) ---
+
+const REVIEW_TASKS_CONFIG: &str = "status:
+  pending: pending
+  approved: approved
+  in_progress: in_progress
+  validating: validating
+  blocked: blocked
+  done: done
+execution_section: Execução
+evidence_subsection: Evidências
+record_section: Registro de execução
+evidence_from_verify: \"automática, da verificação\"
+evidence_review_kinds: [automática]
+";
+
+fn review_hash(bytes: &[u8]) -> String {
+    vostok::support::sha256_hex(bytes)[..8].to_string()
+}
+
+fn review_project() -> TempDir {
+    let project = project();
+    let root = project.path().join("vostok");
+    fs::write(
+        root.join("config/main.yml"),
+        "paths:\n  work: ./work\n  tasks: ./work/tasks\n",
+    )
+    .unwrap();
+    fs::write(root.join("config/tasks.yml"), REVIEW_TASKS_CONFIG).unwrap();
+    let task = root.join("work/tasks/SPEC-001/TASK-01");
+    let evidence = task.join("evidencias");
+    fs::create_dir_all(&evidence).unwrap();
+    fs::write(task.join("estado.yml"), "status: in_progress\n").unwrap();
+    fs::write(
+        task.join("verificacao.md"),
+        "### Evidências\n\n- `conferida.txt` (automática): `cat conferida.txt`\n- `rejeitada.txt` (automática): `cat rejeitada.txt`\n- `pendente.txt` (automática): `cat pendente.txt`\n- `tela.png` (print): tela\n",
+    )
+    .unwrap();
+    for name in ["conferida.txt", "rejeitada.txt", "pendente.txt", "tela.png"] {
+        fs::write(evidence.join(name), format!("conteúdo de {name}")).unwrap();
+    }
+    let hash = |name: &str| review_hash(&fs::read(evidence.join(name)).unwrap());
+    fs::write(
+        task.join("registro.md"),
+        format!(
+            "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-11-09 | conferência | usuário | evidência conferida.txt conferida pelo usuário (sha256 {}) |\n| 2 | 2026-11-09 | rejeição | blocked | evidência rejeitada.txt rejeitada pelo usuário (sha256 {}): falta o total |\n",
+            hash("conferida.txt"),
+            hash("rejeitada.txt")
+        ),
+    )
+    .unwrap();
+    project
+}
+
+#[test]
+fn reviews_ct22_returns_the_four_states() {
+    let project = review_project();
+    let painel = start(project.path());
+    let response = get_raw(painel.address, "/api/tarefas/SPEC-001/TASK-01", None);
+    assert!(response.status().contains(" 200 "), "{}", response.head);
+    let body = String::from_utf8(response.body).unwrap();
+    for expected in [
+        r#"{"name":"conferida.txt","kind":"automática","status":"conferida","reason":""}"#,
+        r#""status":"rejeitada","reason":"falta o total""#,
+        r#""name":"pendente.txt","kind":"automática","status":"a conferir""#,
+        r#""name":"tela.png","kind":"print","status":"sem aval""#,
+    ] {
+        assert!(body.contains(expected), "faltou {expected} em {body}");
+    }
+}
+
+#[test]
+fn reviews_only_get_post_is_405() {
+    let project = review_project();
+    let painel = start(project.path());
+    for method in ["POST", "PUT", "DELETE"] {
+        let raw = format!(
+            "{method} /api/tarefas/SPEC-001/TASK-01 HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        );
+        let response = request(painel.address, &raw);
+        assert!(status_line(&response).contains(" 405 "), "{response}");
+    }
+}

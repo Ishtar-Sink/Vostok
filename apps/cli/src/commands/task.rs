@@ -87,9 +87,18 @@ pub enum TaskCommand {
     Evidence {
         spec_id: Option<String>,
         task_id: Option<String>,
-        /// Print conferido pelo usuário, relativo à pasta de evidências da tarefa.
+        /// Evidência conferida pelo usuário, de qualquer tipo, relativa à pasta de evidências da tarefa.
         #[arg(long, value_name = "ARQUIVO")]
         reviewed: Vec<String>,
+        /// Evidência rejeitada pelo usuário; exige --motivo e bloqueia a tarefa.
+        #[arg(long, value_name = "ARQUIVO")]
+        rejected: Option<String>,
+        /// Motivo da rejeição, nas palavras do usuário.
+        #[arg(long, value_name = "MOTIVO", allow_hyphen_values = true)]
+        motivo: Option<String>,
+        /// Gera as evidências no fim da execução, sem mudar status nem resultados.
+        #[arg(long, conflicts_with_all = ["reviewed", "rejected"])]
+        antecipada: bool,
     },
     /// Conclui a tarefa.
     Finish {
@@ -174,7 +183,7 @@ const APPROVE_USAGE: &str =
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
 const STATUS_USAGE: &str = "Uso: vostok task status <SPEC_ID>";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
-const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
+const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task evidence <SPEC_ID> <TASK_ID> [--reviewed <ARQUIVO>]... [--rejected <ARQUIVO> --motivo \"motivo\"] | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
 
 /// Aceites de diferença de regressão, em `validation/regression/`: uma linha por aceite, com número,
 /// SHA-256 da saída aceita, data, comando, decisão e código de saída aceito, separados por tabulação.
@@ -225,7 +234,7 @@ const BRIEF_ROUTE: &str = "1. Confira no registro abaixo a linha `baseline` e n�
 3. Implemente primeiro os testes pedidos e confirme que falham.
 4. Siga os \"Passos\", mudando só os arquivos de \"Mudar\".
 5. Verifique com `vostok task check <SPEC_ID> <TASK_ID>` até passar.
-6. Sem commit, sem stage, sem `vostok task tests|regression|evidence|finish`, sem ler segredos.
+6. Sem commit, sem stage, sem `vostok task tests|regression|evidence|finish` (nem `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que é do Coordenador depois da onda), sem ler segredos.
 7. Se um passo exigir algo fora da tarefa, pare e devolva a pergunta.
 8. Devolva um bloco de até 5 linhas: `Resultado:`, `Arquivos:`, `Verificação:` (a última linha do `vostok task check`), `Em aberto:`.
 ";
@@ -307,9 +316,21 @@ pub fn run(command: TaskCommand) -> Result<()> {
             spec_id,
             task_id,
             reviewed,
+            rejected,
+            motivo,
+            antecipada,
         } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
-            tasks.evidence(&spec, &task, &reviewed)
+            if antecipada {
+                return tasks.evidence_ahead(&spec, &task);
+            }
+            tasks.evidence(
+                &spec,
+                &task,
+                &reviewed,
+                rejected.as_deref(),
+                motivo.as_deref(),
+            )
         }
         TaskCommand::Finish { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
@@ -533,6 +554,29 @@ impl Tasks {
         EvidenceKinds::read(|key| self.cfg(key).ok())
     }
 
+    /// Tipos de evidência com aval do usuário: `evidence_review_kinds`, em bloco ou em lista na
+    /// linha; ausente vale todos os tipos e `[]` vale nenhum.
+    fn review_kinds(&self) -> Vec<String> {
+        if let Some(inline) = self
+            .cfg("evidence_review_kinds")
+            .ok()
+            .filter(|value| value.starts_with('[') && value.ends_with(']'))
+        {
+            return inline_list(&inline);
+        }
+        self.cfg_list("evidence_review_kinds")
+            .unwrap_or_else(|_| self.evidence_kinds().all())
+    }
+
+    /// Itens de `evidence_review_kinds` que não são um tipo de evidência conhecido.
+    fn unknown_review_kinds(&self) -> Vec<String> {
+        let known = self.evidence_kinds().all();
+        self.review_kinds()
+            .into_iter()
+            .filter(|kind| !known.contains(kind))
+            .collect()
+    }
+
     /// `(nome, comando)` das evidências automáticas de "Evidências", pela leitura do `evidence`.
     fn automatic_evidences(&self, content: &str) -> Result<Vec<(String, String)>> {
         let automatic = self.cfg("evidence_automatic")?;
@@ -552,6 +596,13 @@ impl Tasks {
     /// Subitens das evidências; sem `evidence_fields` na configuração, só o formato é conferido.
     /// O subitem do texto esperado vale mesmo sem estar em `evidence_optional_fields`, que o
     /// `vostok update` não completa em projetos antigos.
+    /// Campo e limite do título das evidências; sem as chaves (projeto antigo) não há limite.
+    fn evidence_title(&self) -> Option<(String, usize)> {
+        let field = self.cfg("evidence_title_field").ok()?;
+        let max = self.cfg("evidence_title_max").ok()?.trim().parse().ok()?;
+        Some((field, max))
+    }
+
     fn evidence_fields(&self) -> Option<EvidenceFields> {
         let mut optional = self
             .cfg_list("evidence_optional_fields")
@@ -1819,19 +1870,42 @@ impl Tasks {
         bail!("a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário")
     }
 
-    fn evidence(&self, spec: &str, task: &str, reviewed: &[String]) -> Result<()> {
+    fn evidence(
+        &self,
+        spec: &str,
+        task: &str,
+        reviewed: &[String],
+        rejected: Option<&str>,
+        motivo: Option<&str>,
+    ) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
+        let known = self.evidence_kinds().all();
+        for kind in self.unknown_review_kinds() {
+            println!("{}", review_kind_warning(&kind, &known));
+        }
         let dir = self.evidence_dir(&file)?;
         let content = TaskDoc::at(&file).text()?;
+        if let Some(name) = rejected {
+            if !reviewed.is_empty() {
+                bail!("use --reviewed e --rejected em chamadas separadas; nada foi registrado");
+            }
+            let reason = normalized_reason(motivo.unwrap_or_default());
+            if reason.is_empty() {
+                bail!("informe o motivo da rejeição em --motivo; nada foi registrado");
+            }
+            return self.reject(&file, task, name, &reason);
+        }
+        let mut approvals: Vec<(&String, Vec<u8>)> = Vec::new();
+        for name in reviewed {
+            approvals.push((name, self.reviewable(&content, &dir, name)?));
+        }
         let text = self.subsection(&content, "evidence_subsection")?;
         let items: Vec<&str> = text
             .lines()
             .filter(|line| has_text(line) && !is_indented(line))
             .collect();
         let none = self.cfg("evidence_none")?;
-        let automatic = self.cfg("evidence_automatic")?;
-        let manual = self.cfg("evidence_manual")?;
 
         let trimmed: Vec<&str> = items.iter().map(|line| line.trim()).collect();
         if trimmed.join("\n") == none {
@@ -1841,7 +1915,216 @@ impl Tasks {
             return Ok(());
         }
 
-        fs::create_dir_all(&dir)?;
+        let Generated {
+            same,
+            missing,
+            failed,
+            kept,
+        } = self.generate_evidences(&file, &content, &dir, reviewed, false)?;
+        if !failed.is_empty() {
+            self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
+            bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
+        }
+        for (name, bytes) in &approvals {
+            self.record_step(
+                &file,
+                "conferência",
+                "usuário",
+                &evidence_review(name, bytes),
+            )?;
+        }
+        if !kept.is_empty() {
+            println!("Conferidas mantidas sem gerar de novo: {}", kept.join(", "));
+        }
+        let record = TaskDoc::at(&file).text()?;
+        let rows = self.record_rows(&record)?;
+        let entries = self.evidence_entries(&record)?;
+        let review_kinds = self.review_kinds();
+        let mut unreviewed: Vec<&String> = Vec::new();
+        for entry in &entries {
+            let path = dir.join(&entry.name);
+            if !review_kinds.contains(&entry.kind) || !path.is_file() {
+                continue;
+            }
+            if !review_is_valid(&rows, &entry.name, &review_hash(&fs::read(&path)?)) {
+                unreviewed.push(&entry.name);
+            }
+        }
+        if !unreviewed.is_empty() {
+            TaskDoc::at(&file).set("evidence_result", "pending")?;
+            self.record_step(
+                &file,
+                "evidências",
+                "pending",
+                &with_kept("evidência sem conferência humana", &kept),
+            )?;
+            println!("Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <arquivo>:");
+            for name in unreviewed {
+                println!("- {}", dir.join(name).display());
+            }
+            print_same_as_baseline(&same);
+            return Ok(());
+        }
+        if !missing.is_empty() {
+            TaskDoc::at(&file).set("evidence_result", "pending")?;
+            self.record_step(
+                &file,
+                "evidências",
+                "pending",
+                &with_kept("evidência manual sem arquivo", &kept),
+            )?;
+            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
+            print_same_as_baseline(&same);
+            return Ok(());
+        }
+        TaskDoc::at(&file).set("evidence_result", "passed")?;
+        let folder = dir
+            .strip_prefix(file.parent().unwrap_or(Path::new("")))
+            .unwrap_or(&dir)
+            .to_string_lossy();
+        let mut detail = format!("{} evidência(s) em {folder}/", items.len());
+        if !same.is_empty() {
+            let names: Vec<&str> = same.iter().map(|(name, _)| name.as_str()).collect();
+            detail.push_str(&format!(
+                "; {} igual(is) ao baseline: {}",
+                same.len(),
+                names.join(", ")
+            ));
+        }
+        self.record_step(&file, "evidências", "passed", &with_kept(&detail, &kept))?;
+        println!(
+            "Evidências de {task} gravadas em {}: {} item(ns). Resultado: passed.",
+            dir.display(),
+            items.len()
+        );
+        print_same_as_baseline(&same);
+        Ok(())
+    }
+
+    /// Gera as evidências com a tarefa em execução, sem mudar status nem resultados, e lista o que
+    /// falta o usuário conferir.
+    fn evidence_ahead(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        if status != self.status.in_progress {
+            bail!(
+                "a tarefa {task} está com status '{status}'; vostok task evidence --antecipada só roda com a tarefa em execução ({}); nada foi gerado",
+                self.status.in_progress
+            );
+        }
+        let dir = self.evidence_dir(&file)?;
+        let content = TaskDoc::at(&file).text()?;
+        let text = self.subsection(&content, "evidence_subsection")?;
+        let none = self.cfg("evidence_none")?;
+        if text.trim() == none {
+            self.record_step(
+                &file,
+                "evidências antecipadas",
+                "geradas",
+                "0 evidências; a conferir: -",
+            )?;
+            println!("Evidências antecipadas de {task}: {none}");
+            return Ok(());
+        }
+        let generated = self.generate_evidences(&file, &content, &dir, &[], true)?;
+        if !generated.failed.is_empty() {
+            bail!(
+                "evidências antecipadas de {task} com erro; nada mudou nos resultados:\n{}",
+                generated.failed
+            );
+        }
+        let entries = self.evidence_entries(&content)?;
+        let rows = self.record_rows(&content)?;
+        let review_kinds = self.review_kinds();
+        let mut pending: Vec<&String> = Vec::new();
+        for entry in &entries {
+            let path = dir.join(&entry.name);
+            if review_kinds.contains(&entry.kind)
+                && path.is_file()
+                && !review_is_valid(&rows, &entry.name, &review_hash(&fs::read(&path)?))
+            {
+                pending.push(&entry.name);
+            }
+        }
+        println!(
+            "Evidências antecipadas de {task}: {} gerada(s).",
+            entries.len()
+        );
+        if !pending.is_empty() {
+            println!("Evidências a conferir (mostre ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <arquivo> ou --rejected <arquivo> --motivo \"...\"):");
+            for name in &pending {
+                println!("- {}", dir.join(name).display());
+            }
+        }
+        if !generated.missing.is_empty() {
+            print!("Evidências manuais sem arquivo:\n{}", generated.missing);
+        }
+        let names: Vec<&str> = pending.iter().map(|name| name.as_str()).collect();
+        let listed = if names.is_empty() {
+            "-".to_string()
+        } else {
+            names.join(", ")
+        };
+        self.record_step(
+            &file,
+            "evidências antecipadas",
+            "geradas",
+            &format!("{} evidências; a conferir: {listed}", entries.len()),
+        )
+    }
+
+    /// Roda só o comando rotulado de uma evidência da verificação e grava a saída como log.
+    fn run_labeled_ahead(
+        &self,
+        name: &str,
+        command: &str,
+        target: &Path,
+        root: &Path,
+        outputs: &mut Vec<(String, Vec<u8>)>,
+        failed: &mut String,
+    ) -> Result<()> {
+        if target.exists() {
+            fs::remove_file(target)?;
+        }
+        if command.is_empty() {
+            failed.push_str(&format!(
+                "- {name}: a evidência {name} não tem comando rotulado na Verificação\n"
+            ));
+            return Ok(());
+        }
+        let (code, output) = shell_output(command, root)?;
+        if code != 0 {
+            failed.push_str(&format!(
+                "- {name}: `{command}` terminou com erro\n{}\n",
+                trim_newlines(&indented_tail(&output, 5))
+            ));
+            return Ok(());
+        }
+        let mut log = log_header(command, code, root);
+        log.extend_from_slice(&output);
+        fs::write(target, log)?;
+        outputs.push((name.to_string(), output));
+        Ok(())
+    }
+
+    /// Gera cada evidência do texto de "Evidências". Com `ahead`, a que vem da verificação roda só o
+    /// comando rotulado, em vez de copiar a saída do `tests`; a de conferência válida é mantida.
+    fn generate_evidences(
+        &self,
+        file: &Path,
+        content: &str,
+        dir: &Path,
+        reviewed: &[String],
+        ahead: bool,
+    ) -> Result<Generated> {
+        let text = self.subsection(content, "evidence_subsection")?;
+        let items: Vec<&str> = text
+            .lines()
+            .filter(|line| has_text(line) && !is_indented(line))
+            .collect();
+        let automatic = self.cfg("evidence_automatic")?;
+        let manual = self.cfg("evidence_manual")?;
+        fs::create_dir_all(dir)?;
         let root = self.project_root()?;
         let ignore = self.regression_ignore();
         let baseline_dir = self
@@ -1853,21 +2136,54 @@ impl Tasks {
         let from_verify = self.evidence_from_verify();
         let diff = self.evidence_diff();
         let print = self.evidence_print();
-        let mut prints: Vec<String> = Vec::new();
         let expectations = self.evidence_expectations(&text);
-        let block = verify_block(&self.subsection(&content, "verify_subsection")?);
+        let block = verify_block(&self.subsection(content, "verify_subsection")?);
         let labeled: HashMap<String, String> = labeled_commands(&block, &self.verify_label())
             .into_iter()
             .collect();
         // Saída de cada evidência gravada, sem o cabeçalho, para conferir o texto esperado.
         let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
+        let rows = self.record_rows(content)?;
+        let mut kept: Vec<String> = Vec::new();
         for item in &items {
+            if let Some(name) = evidence_name(item, &from_verify) {
+                match self.review_kept(&rows, dir, name)? {
+                    Some(true) => {
+                        kept.push(name.to_string());
+                        continue;
+                    }
+                    Some(false) => {
+                        failed.push_str(&format!(
+                            "- {name}: conferida, mas o arquivo {} está vazio; apague-o para gerar de novo\n",
+                            dir.join(name).display()
+                        ));
+                        continue;
+                    }
+                    None => {}
+                }
+            }
+            if let Some(name) = evidence_name(item, &from_verify) {
+                if reviewed.iter().any(|approved| approved == name) {
+                    continue;
+                }
+            }
             if let Some(name) = verify_evidence_name(item, &from_verify) {
                 if !is_valid_evidence_name(name) {
                     bail!("nome de evidência inválido: '{name}'");
                 }
                 let command = labeled.get(name).map_or("", String::as_str);
-                match self.copy_verify_output(&file, name, command, &root)? {
+                if ahead {
+                    self.run_labeled_ahead(
+                        name,
+                        command,
+                        &dir.join(name),
+                        &root,
+                        &mut outputs,
+                        &mut failed,
+                    )?;
+                    continue;
+                }
+                match self.copy_verify_output(file, name, command, &root)? {
                     Some(output) => outputs.push((name.to_string(), output)),
                     None => failed.push_str(&format!(
                         "- {name}: a evidência {name} vem da verificação; execute vostok task tests\n"
@@ -1891,7 +2207,7 @@ impl Tasks {
                     fs::remove_file(&target)?;
                 }
                 let (code, output) =
-                    shell_output_with(command, &root, &[("VOSTOK_EVIDENCE", &dir)])?;
+                    shell_output_with(command, &root, &[("VOSTOK_EVIDENCE", dir)])?;
                 if code != 0 {
                     failed.push_str(&format!(
                         "- {name}: `{command}` terminou com erro\n{}\n",
@@ -1902,8 +2218,6 @@ impl Tasks {
                         "- {name}: o comando não gerou a imagem em {}\n",
                         target.display()
                     ));
-                } else {
-                    prints.push(name.to_string());
                 }
             } else if kind == diff {
                 let path = rest
@@ -1977,76 +2291,69 @@ impl Tasks {
                 }
             }
         }
-        for name in reviewed {
-            if !prints.contains(name) {
-                bail!("'{name}' não é um print desta tarefa; nada foi registrado");
-            }
-        }
-        if !failed.is_empty() {
-            self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
-            bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
-        }
-        for name in reviewed {
-            let review = print_review(name, &fs::read(dir.join(name))?);
-            self.record_step(&file, "conferência", "usuário", &review)?;
-        }
-        let record = TaskDoc::at(&file).text()?;
-        let unreviewed: Vec<&String> = prints
+        Ok(Generated {
+            same,
+            missing,
+            failed,
+            kept,
+        })
+    }
+
+    /// Bytes da evidência `name` que o usuário confere ou rejeita; recusa o que não é evidência da
+    /// tarefa, não foi gerado ou está vazio.
+    fn reviewable(&self, content: &str, dir: &Path, name: &str) -> Result<Vec<u8>> {
+        if !self
+            .evidence_entries(content)?
             .iter()
-            .filter(|name| {
-                let image = fs::read(dir.join(name.as_str())).unwrap_or_default();
-                !record.contains(&print_review(name, &image))
-            })
-            .collect();
-        if !unreviewed.is_empty() {
-            TaskDoc::at(&file).set("evidence_result", "pending")?;
-            self.record_step(
-                &file,
-                "evidências",
-                "pending",
-                "print sem conferência humana",
-            )?;
-            println!("Prints sem conferência humana; mostre cada um ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <arquivo>:");
-            for name in unreviewed {
-                println!("- {}", dir.join(name.as_str()).display());
-            }
-            print_same_as_baseline(&same);
-            return Ok(());
+            .any(|entry| entry.name == name)
+        {
+            bail!("'{name}' não é uma evidência desta tarefa; nada foi registrado");
         }
-        if !missing.is_empty() {
-            TaskDoc::at(&file).set("evidence_result", "pending")?;
-            self.record_step(
-                &file,
-                "evidências",
-                "pending",
-                "evidência manual sem arquivo",
-            )?;
-            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
-            print_same_as_baseline(&same);
-            return Ok(());
+        let path = dir.join(name);
+        if !path.is_file() {
+            bail!("'{name}' ainda não foi gerada; nada foi registrado");
         }
-        TaskDoc::at(&file).set("evidence_result", "passed")?;
-        let folder = dir
-            .strip_prefix(file.parent().unwrap_or(Path::new("")))
-            .unwrap_or(&dir)
-            .to_string_lossy();
-        let mut detail = format!("{} evidência(s) em {folder}/", items.len());
-        if !same.is_empty() {
-            let names: Vec<&str> = same.iter().map(|(name, _)| name.as_str()).collect();
-            detail.push_str(&format!(
-                "; {} igual(is) ao baseline: {}",
-                same.len(),
-                names.join(", ")
-            ));
+        let bytes = fs::read(&path)?;
+        if bytes.is_empty() {
+            bail!("'{name}' está vazia; nada foi registrado");
         }
-        self.record_step(&file, "evidências", "passed", &detail)?;
-        println!(
-            "Evidências de {task} gravadas em {}: {} item(ns). Resultado: passed.",
-            dir.display(),
-            items.len()
-        );
-        print_same_as_baseline(&same);
-        Ok(())
+        Ok(bytes)
+    }
+
+    /// Rejeição de uma evidência pelo usuário: grava o motivo e bloqueia a tarefa (RF-12, RF-13).
+    fn reject(&self, file: &Path, task: &str, name: &str, reason: &str) -> Result<()> {
+        let dir = self.evidence_dir(file)?;
+        let content = TaskDoc::at(file).text()?;
+        let bytes = self.reviewable(&content, &dir, name)?;
+        let doc = TaskDoc::at(file);
+        doc.set("evidence_result", "failed")?;
+        doc.set("status", &self.status.blocked)?;
+        self.record_step(
+            file,
+            "rejeição",
+            &self.status.blocked,
+            &evidence_rejection(name, &bytes, reason),
+        )?;
+        bail!("a tarefa {task} ficou bloqueada: o usuário rejeitou a evidência {name}: {reason}. PARE: responda com o template `blocker`, com o motivo, e aguarde a decisão do usuário; a retomada é por vostok task resume")
+    }
+
+    /// Linhas do "Registro de execução" de `content`, na ordem.
+    fn record_rows(&self, content: &str) -> Result<Vec<RecordRow>> {
+        let section = self.cfg("record_section")?;
+        Ok(markdown_section(content, &section)
+            .map(|text| text.lines().filter_map(record_row).collect())
+            .unwrap_or_default())
+    }
+
+    /// Evidência com conferência válida: `Some(true)` se o arquivo tem conteúdo e fica como está,
+    /// `Some(false)` se está vazio, `None` se não há conferência válida para o arquivo.
+    fn review_kept(&self, rows: &[RecordRow], dir: &Path, name: &str) -> Result<Option<bool>> {
+        let path = dir.join(name);
+        if !is_valid_evidence_name(name) || !path.is_file() {
+            return Ok(None);
+        }
+        let bytes = fs::read(&path)?;
+        Ok(review_is_valid(rows, name, &review_hash(&bytes)).then_some(!bytes.is_empty()))
     }
 
     /// Grava na evidência, como log do comando rotulado, a saída do rótulo `name` gravada pelo
@@ -2231,12 +2538,20 @@ impl Tasks {
     /// Evidências de "Evidências" com os subitens de cada uma.
     fn evidence_entries(&self, content: &str) -> Result<Vec<EvidenceEntry>> {
         let text = self.subsection(content, "evidence_subsection")?;
+        let from_verify = self.evidence_from_verify();
         let mut entries: Vec<EvidenceEntry> = Vec::new();
         for line in text.lines().filter(|line| has_text(line)) {
             if let Some((field, value)) = evidence_subitem(line) {
                 if let Some(entry) = entries.last_mut() {
                     entry.fields.insert(field.to_string(), value.to_string());
                 }
+            } else if let Some(name) = verify_evidence_name(line, &from_verify) {
+                entries.push(EvidenceEntry {
+                    name: name.to_string(),
+                    kind: from_verify.clone(),
+                    rest: String::new(),
+                    fields: HashMap::new(),
+                });
             } else if let Some((name, kind, rest)) = evidence_item(line) {
                 entries.push(EvidenceEntry {
                     name: name.to_string(),
@@ -3159,6 +3474,9 @@ impl Tasks {
         );
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), false));
+        if let Some((field, max)) = self.evidence_title() {
+            errors.extend(evidence_title_errors(&text, &sub, &field, max));
+        }
         Ok(errors)
     }
 
@@ -4409,6 +4727,48 @@ impl EvidenceKinds {
             print: value("evidence_print", DEFAULT_EVIDENCE_PRINT),
         }
     }
+
+    /// Os cinco tipos que podem pedir aval.
+    fn all(&self) -> Vec<String> {
+        [
+            &self.automatic,
+            &self.from_verify,
+            &self.diff,
+            &self.manual,
+            &self.print,
+        ]
+        .map(String::clone)
+        .to_vec()
+    }
+}
+
+/// Itens de uma lista na linha (`[a, "b, c", d]`): separa por vírgula fora de aspas duplas.
+fn inline_list(value: &str) -> Vec<String> {
+    let inner = value.trim().trim_start_matches('[').trim_end_matches(']');
+    let mut items = Vec::new();
+    let mut item = String::new();
+    let mut quoted = false;
+    for character in inner.chars() {
+        match character {
+            '"' => quoted = !quoted,
+            ',' if !quoted => items.push(std::mem::take(&mut item)),
+            _ => item.push(character),
+        }
+    }
+    items.push(item);
+    items
+        .into_iter()
+        .map(|item| item.trim().to_string())
+        .filter(|item| !item.is_empty())
+        .collect()
+}
+
+/// Aviso de um tipo desconhecido em `evidence_review_kinds`.
+fn review_kind_warning(kind: &str, known: &[String]) -> String {
+    format!(
+        "Aviso: evidence_review_kinds: tipo '{kind}' desconhecido, ignorado; tipos válidos: {}",
+        known.join(", ")
+    )
 }
 
 /// Caminhos com a ação `criar` de "Mudar".
@@ -4615,6 +4975,32 @@ pub(super) fn dashdash_commands(block: &str) -> Vec<String> {
         .collect()
 }
 
+/// Erros dos títulos de evidência acima do limite; o título ausente não é erro aqui.
+pub(super) fn evidence_title_errors(
+    text: &str,
+    section: &str,
+    field: &str,
+    max: usize,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut item = "";
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        if !is_indented(line) {
+            item = line;
+            continue;
+        }
+        if let Some((name, value)) = evidence_subitem(line) {
+            let count = value.trim().chars().count();
+            if name == field && count > max {
+                errors.push(format!(
+                    "'{section}' com '{field}' de mais de {max} caracteres ({count}): {item}"
+                ));
+            }
+        }
+    }
+    errors
+}
+
 /// Aviso de um comando de `dashdash_commands`.
 pub(super) fn dashdash_warning(task: &str, command: &str) -> String {
     format!("Aviso: {task}: o comando '{command}' passa argumentos depois de '--' para o script; confira se o filtro é aplicado")
@@ -4627,13 +5013,223 @@ fn is_print_evidence(line: &str, print: &str) -> bool {
         .is_some_and(|(_, rest)| rest.is_empty())
 }
 
-/// Linha do registro que marca a conferência de um print pelo usuário; o SHA-256 da imagem faz a
-/// conferência valer só para a imagem conferida.
-fn print_review(name: &str, image: &[u8]) -> String {
+/// Nome de um item de "Evidências", o da verificação (`from_verify`) ou o de qualquer outro tipo.
+fn evidence_name<'a>(line: &'a str, from_verify: &str) -> Option<&'a str> {
+    verify_evidence_name(line, from_verify).or_else(|| evidence_item(line).map(|(name, _, _)| name))
+}
+
+/// Linha do registro que marca a conferência de uma evidência pelo usuário; o SHA-256 do arquivo
+/// faz a conferência valer só para o arquivo conferido.
+fn evidence_review(name: &str, bytes: &[u8]) -> String {
     format!(
-        "print {name} conferido pelo usuário (sha256 {})",
-        &sha256_hex(image)[..8]
+        "evidência {name} conferida pelo usuário (sha256 {})",
+        review_hash(bytes)
     )
+}
+
+/// Linha do registro de uma evidência rejeitada pelo usuário, com o motivo depois dos dois pontos.
+fn evidence_rejection(name: &str, bytes: &[u8], reason: &str) -> String {
+    format!(
+        "evidência {name} rejeitada pelo usuário (sha256 {}): {reason}",
+        review_hash(bytes)
+    )
+}
+
+/// Motivo da rejeição numa linha só, sem espaços sobrando.
+fn normalized_reason(reason: &str) -> String {
+    reason.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Oito primeiros dígitos do SHA-256 do arquivo conferido.
+fn review_hash(bytes: &[u8]) -> String {
+    sha256_hex(bytes)[..8].to_string()
+}
+
+/// Linha do "Registro de execução" com as colunas que a conferência lê.
+struct RecordRow {
+    step: String,
+    detail: String,
+}
+
+/// Conferência (aceita ou rejeitada) de uma evidência, como está no registro.
+struct Review {
+    name: String,
+    accepted: bool,
+    hash: String,
+}
+
+fn record_row(line: &str) -> Option<RecordRow> {
+    if !is_numbered_row(line) {
+        return None;
+    }
+    let cells = record_cells(line);
+    let [_, _, step, _, detail, ..] = cells.as_slice() else {
+        return None;
+    };
+    Some(RecordRow {
+        step: step.clone(),
+        detail: detail.clone(),
+    })
+}
+
+/// Células de uma linha de tabela, com `\|` lido como `|`.
+fn record_cells(line: &str) -> Vec<String> {
+    let trimmed = line.trim();
+    let inner = trimmed.strip_prefix('|').unwrap_or(trimmed);
+    let inner = inner.strip_suffix('|').unwrap_or(inner);
+    let mut cells = Vec::new();
+    let mut cell = String::new();
+    for character in inner.chars() {
+        if character == '|' && !cell.ends_with('\\') {
+            cells.push(cell.trim().replace("\\|", "|"));
+            cell.clear();
+        } else {
+            cell.push(character);
+        }
+    }
+    cells.push(cell.trim().replace("\\|", "|"));
+    cells
+}
+
+/// Conferência ou rejeição de uma evidência, pelas formas `evidência <nome> conferida ...`,
+/// `evidência <nome> rejeitada ...` e a antiga `print <nome> conferido ...`, que continua lida.
+fn review_of(row: &RecordRow) -> Option<Review> {
+    let rest = row
+        .detail
+        .strip_prefix("evidência ")
+        .or_else(|| row.detail.strip_prefix("print "))?;
+    let (name, tail) = rest.split_once(' ')?;
+    let (accepted, hash) = match row.step.as_str() {
+        "conferência" => (
+            true,
+            [
+                "conferida pelo usuário (sha256 ",
+                "conferido pelo usuário (sha256 ",
+            ]
+            .iter()
+            .find_map(|prefix| tail.strip_prefix(prefix))?,
+        ),
+        "rejeição" => (false, tail.strip_prefix("rejeitada pelo usuário (sha256 ")?),
+        _ => return None,
+    };
+    Some(Review {
+        name: name.to_string(),
+        accepted,
+        hash: hash.split(')').next()?.to_string(),
+    })
+}
+
+/// Conferência válida de `name`: a última linha de conferência ou rejeição dele é uma aceitação com
+/// o hash atual e vem depois do último ajuste ou retomada; a rejeição posterior vence (RN-05).
+fn review_is_valid(rows: &[RecordRow], name: &str, hash: &str) -> bool {
+    let reset = rows
+        .iter()
+        .rposition(|row| matches!(row.step.as_str(), "ajuste" | "retomada"));
+    rows.iter()
+        .enumerate()
+        .rev()
+        .find_map(|(index, row)| {
+            review_of(row)
+                .filter(|review| review.name == name)
+                .map(|review| (index, review))
+        })
+        .is_some_and(|(index, review)| {
+            review.accepted && review.hash == hash && reset.is_none_or(|reset| index > reset)
+        })
+}
+
+#[cfg(feature = "painel")]
+/// Estado de conferência de uma evidência, como o painel o mostra (RF-28).
+pub(crate) struct ReviewState {
+    pub name: String,
+    pub kind: String,
+    pub status: &'static str,
+    pub reason: String,
+}
+
+#[cfg(feature = "painel")]
+/// Estado de `name` pela última conferência ou rejeição com o hash atual, depois do último ajuste
+/// ou retomada; sem linha válida fica `a conferir`.
+fn review_status(rows: &[RecordRow], name: &str, hash: &str) -> (&'static str, String) {
+    let reset = rows
+        .iter()
+        .rposition(|row| matches!(row.step.as_str(), "ajuste" | "retomada"));
+    let last = rows.iter().enumerate().rev().find_map(|(index, row)| {
+        review_of(row)
+            .filter(|review| review.name == name)
+            .map(|review| (index, row, review))
+    });
+    match last {
+        Some((index, row, review))
+            if review.hash == hash && reset.is_none_or(|reset| index > reset) =>
+        {
+            if review.accepted {
+                ("conferida", String::new())
+            } else {
+                let reason = row
+                    .detail
+                    .split_once("): ")
+                    .map_or("", |(_, reason)| reason);
+                ("rejeitada", reason.to_string())
+            }
+        }
+        _ => ("a conferir", String::new()),
+    }
+}
+
+#[cfg(feature = "painel")]
+/// Estado de conferência de cada evidência da tarefa em pasta; erro de leitura devolve lista vazia.
+pub(crate) fn evidence_review_states(harness: &Path, task_dir: &Path) -> Vec<ReviewState> {
+    review_states(harness, task_dir).unwrap_or_default()
+}
+
+#[cfg(feature = "painel")]
+fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
+    let tasks = Tasks::new(Harness {
+        root: harness.to_path_buf(),
+    })?;
+    let layout = layout();
+    let verification = fs::read_to_string(task_dir.join(&layout.verification))?;
+    let record = fs::read_to_string(task_dir.join(&layout.record))?;
+    let content = format!(
+        "## {}\n\n{}\n\n{}\n",
+        tasks.cfg("execution_section")?,
+        verification.trim_end(),
+        record
+    );
+    let rows = tasks.record_rows(&content)?;
+    let review_kinds = tasks.review_kinds();
+    let evidence_dir = task_dir.join(&layout.evidence_dir);
+    Ok(tasks
+        .evidence_entries(&content)?
+        .into_iter()
+        .map(|entry| {
+            let (status, reason) = if !review_kinds.contains(&entry.kind) {
+                ("sem aval", String::new())
+            } else {
+                match fs::read(evidence_dir.join(&entry.name)) {
+                    Ok(bytes) if is_valid_evidence_name(&entry.name) => {
+                        review_status(&rows, &entry.name, &review_hash(&bytes))
+                    }
+                    _ => ("a conferir", String::new()),
+                }
+            };
+            ReviewState {
+                name: entry.name,
+                kind: entry.kind,
+                status,
+                reason,
+            }
+        })
+        .collect())
+}
+
+/// Detalhe da linha `evidências` do registro, com as conferidas mantidas sem gerar de novo.
+fn with_kept(detail: &str, kept: &[String]) -> String {
+    if kept.is_empty() {
+        return detail.to_string();
+    }
+    format!("{detail}; conferida(s) mantida(s): {}", kept.join(", "))
 }
 
 /// Item "- `arquivo` (diff): `caminho`".
@@ -5251,6 +5847,14 @@ enum PersistCopy {
         hash: String,
         origin: String,
     },
+}
+
+/// Resultado da geração das evidências de uma tarefa.
+struct Generated {
+    same: Vec<(String, String)>,
+    missing: String,
+    failed: String,
+    kept: Vec<String>,
 }
 
 struct EvidenceEntry {

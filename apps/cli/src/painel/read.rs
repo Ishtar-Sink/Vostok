@@ -9,6 +9,7 @@ use super::{
     Reply,
 };
 use crate::commands::plan::{plan_outdated, waves};
+use crate::commands::task::evidence_review_states;
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
@@ -394,8 +395,20 @@ impl Layout<'_> {
                 )
             })
             .collect();
+        let reviews: Vec<String> = evidence_review_states(&self.painel.root, &dir)
+            .iter()
+            .map(|review| {
+                format!(
+                    "{{\"name\":{},\"kind\":{},\"status\":{},\"reason\":{}}}",
+                    json_string(&review.name),
+                    json_string(&review.kind),
+                    json_string(review.status),
+                    json_string(&review.reason)
+                )
+            })
+            .collect();
         Ok(json(format!(
-            "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"files\":{{{}}},\"evidence\":[{}]}}",
+            "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"files\":{{{}}},\"evidence\":[{}],\"reviews\":[{}]}}",
             json_string(spec),
             json_object(&with_task_facts(
                 estado_pairs(&dir.join("estado.yml")),
@@ -404,7 +417,8 @@ impl Layout<'_> {
                 &computed_waves(dir.parent().unwrap_or(dir.as_path()))
             )),
             files.join(","),
-            evidence.join(",")
+            evidence.join(","),
+            reviews.join(",")
         )))
     }
 

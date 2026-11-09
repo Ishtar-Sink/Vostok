@@ -12,7 +12,7 @@ use clap::Subcommand;
 
 use super::task::{
     before_section, created_of, dashdash_commands, dashdash_warning, delivery_errors,
-    evidence_item, evidence_name_problem, evidence_rule_errors, expected_change, init_layout,
+    evidence_item, evidence_name_problem, evidence_rule_errors, evidence_title_errors, expected_change, init_layout,
     is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name, task_entries,
     task_template_dir, verify_block, EvidenceKinds, TaskDoc, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
@@ -185,6 +185,18 @@ impl Workspace {
     /// Subitens das evidências; sem `evidence_fields` na configuração, eles não são exigidos.
     /// O subitem do texto esperado vale mesmo sem estar em `evidence_optional_fields`, como na
     /// validação de tarefa.
+    /// Campo e limite do título das evidências; sem as chaves (projeto antigo) não há limite.
+    fn evidence_title(&self) -> Option<(String, usize)> {
+        let field = self.task_setting("evidence_title_field").ok()?;
+        let max = self
+            .task_setting("evidence_title_max")
+            .ok()?
+            .trim()
+            .parse()
+            .ok()?;
+        Some((field, max))
+    }
+
     fn evidence_fields(&self) -> Option<EvidenceFields> {
         let mut optional = self
             .task_list("evidence_optional_fields")
@@ -1571,6 +1583,9 @@ impl Workspace {
         ));
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));
+        if let Some((field, max)) = self.evidence_title() {
+            errors.extend(evidence_title_errors(&text, &sub, &field, max));
+        }
         Ok(errors)
     }
 

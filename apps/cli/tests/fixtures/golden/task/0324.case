@@ -22,8 +22,10 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 128
-Evidências de TASK-01 gravadas em <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01: 2 item(ns). Resultado: passed.
+@stdout 302
+Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-008 TASK-01 --reviewed <arquivo>:
+- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
 
 @stderr 0
 
@@ -32,4 +34,4 @@ Evidências de TASK-01 gravadas em <ROOT>/packages/harness/work/tasks/SPEC-008/e
 @pre 129
 W cd7d99c3190c3482a116e43590c7c02643e0a57e89dee108dccd8e0b40b4b711 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
 @post 114
-W 2d8d423354bc15ac90e753738acf35b1dc19643cd69459719affb8711942cf4b packages/harness/work/tasks/SPEC-008/TASK-01.md
+W 57b4f6ff40958183ca78e5628ecbf7a636fb56f7556598d131a532f0be2dc215 packages/harness/work/tasks/SPEC-008/TASK-01.md

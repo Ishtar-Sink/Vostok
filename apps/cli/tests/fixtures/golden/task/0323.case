@@ -22,9 +22,10 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 214
-Evidências manuais de TASK-01 sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:
-- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt: anotação do usuário
+@stdout 302
+Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-008 TASK-01 --reviewed <arquivo>:
+- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
 
 @stderr 0
 
@@ -33,4 +34,4 @@ Evidências manuais de TASK-01 sem arquivo; peça ao usuário para anexá-las e 
 @pre 129
 W e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/nota.txt
 @post 114
-W e1e907c003de4c70721413e8505d811caff3010ee624c018eea59b29ad21939b packages/harness/work/tasks/SPEC-008/TASK-01.md
+W aaeab90efe173db1cb549ea3a8c1df36c5eab172c150633c1044a0d41d13b95c packages/harness/work/tasks/SPEC-008/TASK-01.md

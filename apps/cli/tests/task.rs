@@ -142,6 +142,7 @@ fn task_before_baseline(files: &[(&str, &str)], evidence: &str) -> Project {
         "vostok/work/tasks/SPEC-001/TASK-02.md",
         "---\nid: TASK-02\nstatus: pending\n---\n",
     );
+    with_review_kinds(&project, PRINT_ONLY_REVIEW);
     project
 }
 
@@ -975,6 +976,7 @@ fn complete_task(status: &str, evidence: &str) -> String {
 fn task_with_evidence(status: &str, evidence: &str) -> Project {
     let project = Project::new();
     write(&project, TASK_PATH, &complete_task(status, evidence));
+    with_review_kinds(&project, PRINT_ONLY_REVIEW);
     project
 }
 
@@ -1120,6 +1122,45 @@ fn evidence_name_reserved_or_hidden_is_refused_by_the_task_validation() {
         let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
         assert!(refused.contains(&format!("`{name}`")), "{name}: {refused}");
     }
+}
+
+// --- Título das evidências (SPEC-043) ---
+
+#[test]
+fn evidence_title_absent_in_an_old_task_is_accepted() {
+    let project = Project::new();
+    write(
+        &project,
+        TASK_PATH,
+        &complete_task("pending", &automatic("saida.txt", "echo ok", None)),
+    );
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "validate"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    success_stdout(&mut task(&project, &["start"]));
+    assert_eq!(status(&project), "in_progress");
+}
+
+fn automatic_with_title(chars: usize) -> String {
+    format!(
+        "{}\n  - Título: {}",
+        automatic("saida.txt", "echo ok", None),
+        "á".repeat(chars)
+    )
+}
+
+#[test]
+fn evidence_title_of_60_chars_is_accepted() {
+    let project = task_with_evidence("pending", &automatic_with_title(60));
+    success_stdout(&mut nested(&project, "adjust", "validate"));
+}
+
+#[test]
+fn evidence_title_61_chars_is_refused_by_the_task_validation() {
+    let project = task_with_evidence("pending", &automatic_with_title(61));
+    let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(refused.contains("mais de 60 caracteres"), "{refused}");
+    assert!(refused.contains("saida.txt"), "{refused}");
 }
 
 // --- Ajuste de tarefa em execução com criar e remover (SPEC-012) ---
@@ -2540,11 +2581,14 @@ const SHOT: &str = "printf 'PNG' > \"$VOSTOK_EVIDENCE/tela.png\"";
 fn evidence_print_is_pending_until_the_user_reviews_it() {
     let project = print_task(SHOT);
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
-    assert!(stdout.contains("Prints sem conferência humana"), "{stdout}");
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
     assert!(stdout.contains("tela.png"), "{stdout}");
     assert_eq!(read(&project, &format!("{EVIDENCE_DIR}/tela.png")), "PNG");
     assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
-    assert!(read(&project, TASK_PATH).contains("print sem conferência humana"));
+    assert!(read(&project, TASK_PATH).contains("evidência sem conferência humana"));
 }
 
 #[test]
@@ -2565,7 +2609,7 @@ fn evidence_print_reviewed_by_the_user_passes() {
     assert!(stdout.contains("Resultado: passed."), "{stdout}");
     let content = read(&project, TASK_PATH);
     assert!(
-        content.contains("print tela.png conferido pelo usuário (sha256 "),
+        content.contains("evidência tela.png conferida pelo usuário (sha256 "),
         "{content}"
     );
     assert!(content.contains("evidence_result: passed"));
@@ -2574,11 +2618,20 @@ fn evidence_print_reviewed_by_the_user_passes() {
 #[test]
 fn evidence_print_changed_after_the_review_is_pending_again() {
     let project = print_task("printf \"$(date +%s%N)\" > \"$VOSTOK_EVIDENCE/tela.png\"");
+    task(&project, &["evidence"]).assert().success();
     task(&project, &["evidence", "--reviewed", "tela.png"])
         .assert()
         .success();
+    write(
+        &project,
+        &format!("{EVIDENCE_DIR}/tela.png"),
+        "outra imagem",
+    );
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
-    assert!(stdout.contains("Prints sem conferência humana"), "{stdout}");
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
 }
 
 #[test]
@@ -2589,7 +2642,7 @@ fn evidence_print_review_of_an_unknown_print_fails() {
         &["evidence", "--reviewed", "outra.png"],
     ));
     assert!(
-        stderr.contains("'outra.png' não é um print desta tarefa"),
+        stderr.contains("'outra.png' não é uma evidência desta tarefa"),
         "{stderr}"
     );
 }
@@ -2624,6 +2677,544 @@ fn evidence_legacy_task_finishes_as_before() {
     );
     task(&project, &["tests"]).assert().success();
     task(&project, &["regression"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}
+
+// --- Conferência válida por hash e registro (SPEC-043) ---
+
+const VARIABLE_SHOT: &str = "printf \"$(date +%s%N)\" > \"$VOSTOK_EVIDENCE/tela.png\"";
+
+fn short_hash(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("{:x}", Sha256::digest(bytes))[..8].to_string()
+}
+
+fn append_row(project: &Project, step: &str, result: &str, detail: &str) {
+    append(
+        project,
+        TASK_PATH,
+        &format!("| 90 | 2026-01-01 | {step} | {result} | {detail} |\n"),
+    );
+}
+
+fn append_review(project: &Project, name: &str) {
+    let bytes = std::fs::read(project.root().join(format!("{EVIDENCE_DIR}/{name}"))).unwrap();
+    append_row(
+        project,
+        "conferência",
+        "usuário",
+        &format!(
+            "evidência {name} conferida pelo usuário (sha256 {})",
+            short_hash(&bytes)
+        ),
+    );
+}
+
+fn evidence_file(project: &Project, name: &str) -> String {
+    read(project, &format!("{EVIDENCE_DIR}/{name}"))
+}
+
+#[test]
+fn review_kept_print_is_not_generated_again() {
+    let project = print_task(VARIABLE_SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let kept = evidence_file(&project, "tela.png");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert_eq!(evidence_file(&project, "tela.png"), kept);
+    assert!(
+        stdout.contains("Conferidas mantidas sem gerar de novo: tela.png"),
+        "{stdout}"
+    );
+    assert!(read(&project, TASK_PATH).contains("conferida(s) mantida(s): tela.png"));
+}
+
+#[test]
+fn review_kept_automatic_with_the_new_line() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "date +%s%N", None),
+    );
+    task(&project, &["evidence"]).assert().success();
+    append_review(&project, "saida.txt");
+    let kept = evidence_file(&project, "saida.txt");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert_eq!(evidence_file(&project, "saida.txt"), kept);
+    assert!(
+        stdout.contains("Conferidas mantidas sem gerar de novo: saida.txt"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_kept_verify_output_survives_new_tests() {
+    let project = labeled_task(
+        "# evidência: saida.txt\ndate +%s%N",
+        &from_verify("saida.txt"),
+    );
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    append_review(&project, "saida.txt");
+    let kept = evidence_file(&project, "saida.txt");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    assert_eq!(evidence_file(&project, "saida.txt"), kept);
+}
+
+#[test]
+fn review_kept_dropped_by_an_adjustment() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
+}
+
+#[test]
+fn review_kept_dropped_by_a_resume() {
+    let project = print_task(VARIABLE_SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let reviewed = evidence_file(&project, "tela.png");
+    write(&project, "a.txt", "dois\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    task(&project, &["resume", "refazer"]).assert().success();
+    task(&project, &["tests"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert_ne!(evidence_file(&project, "tela.png"), reviewed);
+}
+
+#[test]
+fn review_kept_dropped_by_a_resume_with_acceptance() {
+    let project = print_task(VARIABLE_SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let reviewed = evidence_file(&project, "tela.png");
+    write(&project, "a.txt", "dois\n");
+    block_and_accept(&project, "1");
+    task(&project, &["tests"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert_ne!(evidence_file(&project, "tela.png"), reviewed);
+}
+
+fn reviewed_automatic() -> Project {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo novo", None),
+    );
+    task(&project, &["evidence"]).assert().success();
+    append_review(&project, "saida.txt");
+    project
+}
+
+#[test]
+fn review_kept_changed_file_is_generated_again() {
+    let project = reviewed_automatic();
+    write(&project, &format!("{EVIDENCE_DIR}/saida.txt"), "outro");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let file = evidence_file(&project, "saida.txt");
+    assert!(!file.contains("outro"), "{file}");
+    assert!(file.contains("novo"), "{file}");
+    assert!(!stdout.contains("Conferidas mantidas"), "{stdout}");
+}
+
+#[test]
+fn review_kept_deleted_file_is_generated_again() {
+    let project = reviewed_automatic();
+    std::fs::remove_file(project.root().join(format!("{EVIDENCE_DIR}/saida.txt"))).unwrap();
+    task(&project, &["evidence"]).assert().success();
+    assert!(evidence_file(&project, "saida.txt").contains("novo"));
+}
+
+#[test]
+fn review_kept_empty_file_is_refused() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo novo", None),
+    );
+    write(&project, &format!("{EVIDENCE_DIR}/saida.txt"), "");
+    append_review(&project, "saida.txt");
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("- saida.txt: conferida, mas o arquivo"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("está vazio"), "{stderr}");
+}
+
+// --- Tipos que exigem aval, conferir e rejeitar (SPEC-043) ---
+
+/// Troca a chave `evidence_review_kinds` do `config/tasks.yml` do projeto pelo bloco dado.
+fn with_review_kinds(project: &Project, block: &str) {
+    let path = "vostok/config/tasks.yml";
+    let mut in_key = false;
+    let mut content: String = read(project, path)
+        .lines()
+        .filter(|line| {
+            if line.starts_with("evidence_review_kinds:") {
+                in_key = true;
+                return false;
+            }
+            in_key = in_key && line.starts_with("  - ");
+            !in_key
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    content.push_str(block);
+    write(project, path, &content);
+}
+
+/// Configuração em que só os prints pedem conferência: os testes de outras regras usam este
+/// bloco para que uma evidência automática já passe sem conferência.
+const PRINT_ONLY_REVIEW: &str = "evidence_review_kinds:\n  - print\n";
+
+/// Tarefa com a evidência automática `saida.txt` e todos os tipos pedindo conferência.
+fn reviewed_kinds_task(command: &str) -> Project {
+    let project =
+        running_task_with_evidence(&[("a.txt", "um\n")], &automatic("saida.txt", command, None));
+    with_review_kinds(&project, "");
+    project
+}
+
+#[test]
+fn review_kinds_default_asks_for_a_diff() {
+    let project = git_task(&diff_item("mudanca.diff", "a.txt"));
+    with_review_kinds(&project, "");
+    write(&project, "a.txt", "dois\n");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("mudanca.diff"), "{stdout}");
+    assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
+    append_review(&project, "mudanca.diff");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}
+
+#[test]
+fn review_kinds_out_of_the_list_passes() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ok", None),
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(!stdout.contains("sem conferência humana"), "{stdout}");
+}
+
+#[test]
+fn review_kinds_one_of_two_reviewed_is_pending() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("um.txt", "echo um", None),
+        automatic("dois.txt", "echo dois", None)
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    task(&project, &["evidence"]).assert().success();
+    append_review(&project, "um.txt");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("dois.txt"), "{stdout}");
+    assert!(
+        !stdout
+            .lines()
+            .any(|line| line.starts_with("- ") && line.ends_with("um.txt")),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Conferidas mantidas sem gerar de novo: um.txt"),
+        "{stdout}"
+    );
+    assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
+}
+
+#[test]
+fn review_kinds_unknown_kind_warns() {
+    let project = reviewed_kinds_task("echo ok");
+    with_review_kinds(&project, "evidence_review_kinds:\n  - print\n  - foo\n");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Aviso: evidence_review_kinds: tipo 'foo' desconhecido, ignorado"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}
+
+#[test]
+fn review_kinds_empty_list_asks_nothing() {
+    let project = print_task(SHOT);
+    with_review_kinds(&project, "evidence_review_kinds: []\n");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+}
+
+#[test]
+fn review_kinds_inline_list_is_read() {
+    let project = reviewed_kinds_task("echo ok");
+    with_review_kinds(
+        &project,
+        "evidence_review_kinds: [automática, \"automática, da verificação\", diff]\n",
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("Aviso: evidence_review_kinds"), "{stdout}");
+}
+
+#[test]
+fn review_kinds_verify_output_and_manual_are_asked() {
+    let project = labeled_task(
+        "# evidência: saida.txt\necho um",
+        &format!(
+            "{}\n- `nota.txt` (manual): anotação\n  - Prova: a nota.\n  - Trecho: o texto.\n  - Falha: sem nota.",
+            from_verify("saida.txt")
+        ),
+    );
+    with_review_kinds(&project, "");
+    write(&project, &format!("{EVIDENCE_DIR}/nota.txt"), "anotação\n");
+    task(&project, &["tests"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("saida.txt"), "{stdout}");
+    assert!(stdout.contains("nota.txt"), "{stdout}");
+}
+
+#[test]
+fn review_user_reviewed_automatic_records_the_hash() {
+    let project = reviewed_kinds_task("date +%s%N");
+    task(&project, &["evidence"]).assert().success();
+    let kept = evidence_file(&project, "saida.txt");
+    task(&project, &["evidence", "--reviewed", "saida.txt"])
+        .assert()
+        .success();
+    assert_eq!(evidence_file(&project, "saida.txt"), kept);
+    let content = read(&project, TASK_PATH);
+    let line = format!(
+        "| conferência | usuário | evidência saida.txt conferida pelo usuário (sha256 {}) |",
+        short_hash(kept.as_bytes())
+    );
+    assert!(content.contains(&line), "{content}");
+    assert!(content.contains("evidence_result: passed"), "{content}");
+}
+
+#[test]
+fn review_user_reviewed_unknown_or_missing_is_refused() {
+    let project = reviewed_kinds_task("echo ok");
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--reviewed", "saida.txt"],
+    ));
+    assert!(
+        stderr.contains("'saida.txt' ainda não foi gerada; nada foi registrado"),
+        "{stderr}"
+    );
+    task(&project, &["evidence"]).assert().success();
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--reviewed", "outro.txt"],
+    ));
+    assert!(
+        stderr.contains("'outro.txt' não é uma evidência desta tarefa; nada foi registrado"),
+        "{stderr}"
+    );
+    assert!(!read(&project, TASK_PATH).contains("conferida pelo usuário"));
+}
+
+#[test]
+fn review_user_reviewed_with_a_failing_evidence_records_nothing() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("ok.txt", "echo ok", None),
+        automatic("ruim.txt", "false", None)
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    write(&project, &format!("{EVIDENCE_DIR}/ok.txt"), "ok\n");
+    let stderr = failure_stderr(&mut task(&project, &["evidence", "--reviewed", "ok.txt"]));
+    assert!(stderr.contains("ruim.txt"), "{stderr}");
+    assert!(!read(&project, TASK_PATH).contains("conferida pelo usuário"));
+}
+
+#[test]
+fn review_user_rejected_blocks_with_the_reason() {
+    let project = reviewed_kinds_task("echo ok");
+    task(&project, &["evidence"]).assert().success();
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &[
+            "evidence",
+            "--rejected",
+            "saida.txt",
+            "--motivo",
+            "falta o total",
+        ],
+    ));
+    assert!(stderr.contains("saida.txt"), "{stderr}");
+    assert!(stderr.contains("falta o total"), "{stderr}");
+    assert_eq!(status(&project), "blocked");
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content
+            .contains("| rejeição | blocked | evidência saida.txt rejeitada pelo usuário (sha256 "),
+        "{content}"
+    );
+    assert!(content.contains("): falta o total |"), "{content}");
+}
+
+#[test]
+fn review_user_rejected_without_reason_is_refused() {
+    let project = reviewed_kinds_task("echo ok");
+    task(&project, &["evidence"]).assert().success();
+    for args in [
+        vec!["evidence", "--rejected", "saida.txt"],
+        vec!["evidence", "--rejected", "saida.txt", "--motivo", "  "],
+    ] {
+        let stderr = failure_stderr(&mut task(&project, &args));
+        assert!(
+            stderr.contains("informe o motivo da rejeição em --motivo; nada foi registrado"),
+            "{stderr}"
+        );
+    }
+    assert_eq!(status(&project), "in_progress");
+    assert!(!read(&project, TASK_PATH).contains("rejeitada"));
+}
+
+#[test]
+fn review_user_blocked_task_is_refused() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ok", None),
+    );
+    write(&project, "a.txt", "dois\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--reviewed", "saida.txt"],
+    ));
+    assert!(stderr.contains("vostok task resume"), "{stderr}");
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--rejected", "saida.txt", "--motivo", "x"],
+    ));
+    assert!(stderr.contains("vostok task resume"), "{stderr}");
+}
+
+#[test]
+fn review_user_reviewed_and_rejected_together_is_refused() {
+    let project = reviewed_kinds_task("echo ok");
+    task(&project, &["evidence"]).assert().success();
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &[
+            "evidence",
+            "--reviewed",
+            "saida.txt",
+            "--rejected",
+            "saida.txt",
+            "--motivo",
+            "x",
+        ],
+    ));
+    assert!(
+        stderr.contains("use --reviewed e --rejected em chamadas separadas; nada foi registrado"),
+        "{stderr}"
+    );
+    let content = read(&project, TASK_PATH);
+    assert!(!content.contains("conferida pelo usuário"), "{content}");
+    assert!(!content.contains("rejeitada"), "{content}");
+}
+
+#[test]
+fn review_user_rejection_after_review_wins() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let hash = short_hash(
+        &std::fs::read(project.root().join(format!("{EVIDENCE_DIR}/tela.png"))).unwrap(),
+    );
+    append_row(
+        &project,
+        "rejeição",
+        "blocked",
+        &format!("evidência tela.png rejeitada pelo usuário (sha256 {hash}): cortada"),
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("tela.png"), "{stdout}");
+}
+
+#[test]
+fn review_user_resume_after_rejection_asks_again() {
+    let project = reviewed_kinds_task("echo ok");
+    task(&project, &["evidence"]).assert().success();
+    task(
+        &project,
+        &[
+            "evidence",
+            "--rejected",
+            "saida.txt",
+            "--motivo",
+            "falta o total",
+        ],
+    )
+    .assert()
+    .failure();
+    task(&project, &["resume", "refazer a saída"])
+        .assert()
+        .success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("saida.txt"), "{stdout}");
+}
+
+#[test]
+fn review_user_legacy_print_line_still_counts() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    task(&project, &["evidence", "--reviewed", "tela.png"])
+        .assert()
+        .success();
+    let content = read(&project, TASK_PATH).replace(
+        "evidência tela.png conferida pelo usuário",
+        "print tela.png conferido pelo usuário",
+    );
+    write(&project, TASK_PATH, &content);
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert!(stdout.contains("Resultado: passed."), "{stdout}");
 }
@@ -3174,6 +3765,7 @@ const FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01";
 /// Grava a TASK-01 em pasta, com o status dado e um `cat valor.txt` no Baseline.
 fn folder_task(status: &str) -> Project {
     let project = Project::new();
+    with_review_kinds(&project, PRINT_ONLY_REVIEW);
     write(&project, "valor.txt", "a\n");
     let files = [
         ("estado.yml", format!("id: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n")),
@@ -3651,6 +4243,7 @@ fn validate_single(project: &Project, task: &str) {
 /// Spec no formato atual com a TASK-01 concluída e a TASK-02 em execução, com o baseline coletado.
 fn single_file_spec() -> Project {
     let project = Project::new();
+    with_review_kinds(&project, PRINT_ONLY_REVIEW);
     write(
         &project,
         "vostok/work/specs/refined/SPEC-001-exemplo.md",
@@ -4015,4 +4608,143 @@ fn finish_records_implemented_in_the_status_history() {
         .find(|line| line.starts_with("status_history: "))
         .unwrap_or_else(|| panic!("sem status_history: {content}"));
     assert!(history.ends_with(" implemented"), "{history}");
+}
+
+// --- Evidências antecipadas (SPEC-043) ---
+
+const STATE_KEYS: [&str; 5] = [
+    "status:",
+    "tests_result:",
+    "regression_result:",
+    "evidence_result:",
+    "attempts:",
+];
+
+/// Linhas do estado da tarefa que o `--antecipada` nunca pode mudar.
+fn state_lines(project: &Project) -> Vec<String> {
+    read(project, TASK_PATH)
+        .lines()
+        .filter(|line| STATE_KEYS.iter().any(|key| line.starts_with(key)))
+        .map(str::to_string)
+        .collect()
+}
+
+fn ahead(project: &Project) -> assert_cmd::Command {
+    task(project, &["evidence", "--antecipada"])
+}
+
+fn manual_item(name: &str, description: &str) -> String {
+    format!("- `{name}` (manual): {description}\n  - Prova: a nota existe.\n  - Trecho: o texto.\n  - Falha: arquivo ausente.")
+}
+
+#[test]
+fn antecipada_generates_without_changing_results() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", None),
+    );
+    let before = state_lines(&project);
+    success_stdout(&mut ahead(&project));
+    let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(output.contains("ola"), "{output}");
+    assert_eq!(state_lines(&project), before);
+}
+
+#[test]
+fn antecipada_runs_only_the_labeled_command() {
+    let project = labeled_task(
+        "echo rodou >> contador.txt\n# evidência: saida.txt\necho dois\necho fora >> contador.txt",
+        &from_verify("saida.txt"),
+    );
+    let before = state_lines(&project);
+    success_stdout(&mut ahead(&project));
+    let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(output.contains("dois"), "{output}");
+    assert_eq!(state_lines(&project), before);
+    assert!(!exists(&project, "contador.txt"));
+}
+
+#[test]
+fn antecipada_lists_pending_reviews_and_manual_without_file() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("saida.txt", "echo ola", None),
+        manual_item("notas.md", "anexar a nota.")
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    let stdout = success_stdout(&mut ahead(&project));
+    let (reviews, manuals) = stdout
+        .split_once("Evidências manuais sem arquivo")
+        .unwrap_or_else(|| panic!("sem manuais: {stdout}"));
+    assert!(reviews.contains("Evidências a conferir"), "{stdout}");
+    assert!(
+        reviews.contains(&format!("{EVIDENCE_DIR}/saida.txt")),
+        "{stdout}"
+    );
+    assert!(
+        manuals.contains(&format!("{EVIDENCE_DIR}/notas.md")),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn antecipada_records_the_register_line() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", None),
+    );
+    with_review_kinds(&project, "");
+    success_stdout(&mut ahead(&project));
+    let record = read(&project, TASK_PATH);
+    assert!(
+        record
+            .contains("| evidências antecipadas | geradas | 1 evidências; a conferir: saida.txt |"),
+        "{record}"
+    );
+}
+
+#[test]
+fn antecipada_failed_automatic_changes_nothing() {
+    let project =
+        running_task_with_evidence(&[("a.txt", "um\n")], &automatic("saida.txt", "false", None));
+    let before = state_lines(&project);
+    let stderr = failure_stderr(&mut ahead(&project));
+    assert!(stderr.contains("saida.txt"), "{stderr}");
+    assert_eq!(state_lines(&project), before);
+}
+
+#[test]
+fn antecipada_refused_outside_in_progress() {
+    for status in ["validating", "approved", "blocked", "done"] {
+        let project = running_task_with_evidence(
+            &[("a.txt", "um\n")],
+            &automatic("saida.txt", "echo ola", None),
+        );
+        let record =
+            read(&project, TASK_PATH).replace("status: in_progress", &format!("status: {status}"));
+        write(&project, TASK_PATH, &record);
+        let stderr = failure_stderr(&mut ahead(&project));
+        assert!(
+            stderr.contains("só roda com a tarefa em execução (in_progress); nada foi gerado"),
+            "{status}: {stderr}"
+        );
+        assert!(
+            !exists(&project, &format!("{EVIDENCE_DIR}/saida.txt")),
+            "{status}"
+        );
+    }
+}
+
+#[test]
+fn brief_route_cites_the_coordinator_antecipada() {
+    let brief = brief_of(&started_task(&[]));
+    assert!(
+        brief.contains("sem `vostok task tests|regression|evidence|finish`"),
+        "{brief}"
+    );
+    assert!(
+        brief.contains("vostok task evidence SPEC-001 TASK-01 --antecipada`, que é do Coordenador"),
+        "{brief}"
+    );
 }

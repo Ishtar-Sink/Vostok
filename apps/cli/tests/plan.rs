@@ -102,7 +102,7 @@ fn plan_outside_a_harness_fails() {
 
 // --- Nome de evidência com caminho no planejamento (SPEC-010, SPEC-011) ---
 
-const SUBITEMS: &str = "  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.";
+const SUBITEMS: &str = "  - Título: Saída do comando.\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.";
 
 /// Grava a spec aprovada SPEC-001 (com hashes válidos) e o plano dela, com os corpos dados.
 fn spec_and_plan(project: &Project, kind: &str, spec_body: &str, plan_body: &str) {
@@ -246,6 +246,43 @@ fn evidence_name_ambiguous_or_reserved_is_refused_by_the_plan_validation() {
         assert!(refused.contains("TASK-01:"), "{refused}");
         assert_eq!(std::fs::read_to_string(&task).unwrap(), before);
     }
+}
+
+// --- Título das evidências (SPEC-043) ---
+
+#[test]
+fn evidence_title_missing_is_refused_by_the_plan_approval() {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        "- `saida.txt` (automática): `echo ok`\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.",
+    );
+    let refused = failure_stderr(
+        project
+            .vostok()
+            .args(["plan", "approve", "validate", "SPEC-001"]),
+    );
+    assert!(refused.contains("sem o subitem 'Título'"), "{refused}");
+    assert!(refused.contains("saida.txt"), "{refused}");
+}
+
+#[test]
+fn evidence_title_longer_than_60_is_refused_by_the_plan_approval() {
+    let project = Project::new();
+    plan_with_evidence(
+        &project,
+        &format!(
+            "- `saida.txt` (automática): `echo ok`\n  - Título: {}\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.",
+            "á".repeat(61)
+        ),
+    );
+    let refused = failure_stderr(
+        project
+            .vostok()
+            .args(["plan", "approve", "validate", "SPEC-001"]),
+    );
+    assert!(refused.contains("mais de 60 caracteres"), "{refused}");
+    assert!(refused.contains("saida.txt"), "{refused}");
 }
 
 // --- Perfis de execução (SPEC-014: RF-17, RF-21, RF-26, CT-12, CT-16) ---

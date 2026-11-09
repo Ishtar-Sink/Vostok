@@ -218,15 +218,21 @@ evidence_expect_field: Espera
 # Tipo da evidência gerada por um comando de print ("- `tela.png` (print): `comando`"): o comando grava a
 # imagem em $VOSTOK_EVIDENCE/<arquivo>, e a tarefa só conclui com a conferência do usuário.
 evidence_print: print
+# Tipos de evidência que exigem aval do usuário. Ausente: todos. Lista vazia: nenhum.
+evidence_review_kinds: [automática, "automática, da verificação", diff, manual, print]
 evidence_none: Não se aplica.
 
 # Subitens recuados sob cada evidência ("  - Prova: texto"), escritos na aprovação do plano: o que a
 # evidência prova e o critério coberto, o que procurar na saída, o que indicaria falha e, quando houver,
 # o artefato medido. A aprovação do plano exige os obrigatórios; os leitores das evidências os ignoram.
+# O título (até evidence_title_max caracteres) é exigido só nas tarefas criadas pelo vostok plan approve; as tarefas antigas seguem válidas sem ele.
 evidence_fields:
+  - Título
   - Prova
   - Trecho
   - Falha
+evidence_title_field: Título
+evidence_title_max: 60
 evidence_optional_fields:
   - Artefato
   - Espera

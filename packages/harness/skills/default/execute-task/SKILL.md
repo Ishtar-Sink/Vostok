@@ -35,12 +35,13 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os comandos os alteram.
-[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A finalização é um pedido separado do usuário.
+[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A única exceção é do Coordenador: com todas as tarefas da onda terminadas, ele roda `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que gera as evidências sem mudar status nem resultados; o subagente nunca roda `vostok task evidence`. A finalização é um pedido separado do usuário.
 [execute-task-08]: O chat segue como Coordenador: ele escolhe o modelo, executa as tarefas que ficam na própria sessão, dispara os subagentes das paralelas e consolida a resposta. Cada tarefa segue a persona do `vostok task brief` (persona Coordenador, RF-25).
 [execute-task-09]: O modelo vem do perfil da tarefa, nunca do usuário (RN-03): o Coordenador escolhe, entre os modelos que a ferramenta oferece, o que atende à descrição do perfil; se a ferramenta não deixa listar ou escolher, usa o apelido de reserva; com "modelo da sessão", segue com o modelo da sessão. O modelo usado vai no `vostok task start --model`.
 [execute-task-10]: Tarefas da onda com arquivos em comum rodam em sequência, na ordem dos IDs, na própria sessão, e o usuário é avisado (RF-16, FA-02). As demais, quando são 2 ou mais, rodam em paralelo em subagentes, com no máximo o valor de `max_subagents` (linha `Subagentes ao mesmo tempo` do `vostok task status`) ao mesmo tempo; as excedentes esperam uma vaga.
 [execute-task-11]: Sem subagentes ou sem escolha de modelo na ferramenta, as tarefas rodam uma por vez na própria sessão, com o modelo da sessão (FA-01).
 [execute-task-12]: O Coordenador faz o máximo possível: a onda com uma tarefa e as tarefas em sequência são executadas na própria sessão, seguindo o `vostok task brief` de cada uma; subagente só existe para paralelismo real (RN-01).
+[execute-task-13]: A conferência das evidências é sempre do usuário: o Coordenador roda `--reviewed` ou `--rejected --motivo` só com o aceite ou a rejeição explícitos dele no chat, nunca por conta própria.
 
 ## Checklist
 
@@ -53,7 +54,8 @@ Copie e marque o progresso:
 - [ ] 4. Conferir os arquivos em comum
 - [ ] 5. Disparar os subagentes
 - [ ] 6. Consolidar
-- [ ] 7. Responder ao usuário
+- [ ] 7. Gerar as evidências e pedir a conferência
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
@@ -138,17 +140,33 @@ Sem subagentes (FA-01): a sessão também inicia todas as tarefas da onda antes 
 
 Espere todos os subagentes. Para cada tarefa, confira com `vostok task status <SPEC_ID>` que ela está `in_progress`, confira no "Registro de execução" a linha `baseline` e veja o que mudou com `git diff --stat`, sem reler os diffs; o bloco de até 5 linhas devolvido por cada subagente vai para a resposta. Um subagente que parou com `blocker` ou `question` tem a mensagem repassada ao usuário, sem resolver por ele.
 
-### 7. Responder ao usuário
+### 7. Gerar as evidências e pedir a conferência
+
+Depois que todas as tarefas da onda voltaram (inclusive as de subagentes), execute para cada uma, na ordem dos IDs:
+
+```bash
+vostok task evidence <SPEC_ID> <TASK_ID> --antecipada
+```
+
+O comando gera as evidências de tarefa `in_progress` sem mudar `status`, `tests_result`, `regression_result`, `evidence_result` nem `attempts`, e lista com o caminho as que exigem aval e ainda não têm conferência válida e as manuais sem arquivo.
+
+Faça uma única pergunta agrupada, com o template `question`, para a tarefa ou para a onda inteira (CB-16), com cada evidência a conferir e o caminho dela; o usuário a vê na pasta ou no painel e responde no chat. Evidência manual sem arquivo: peça o anexo na mesma pergunta.
+
+Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição bloqueia a tarefa até o `vostok task resume` com a decisão do usuário.
+
+Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Evidência automática com erro no `--antecipada`: não corrija nem repita; cite a falha em Pendências (FA-04).
+
+### 8. Responder ao usuário
 
 Execute `vostok commit check` e responda com o template `completion`:
 
 - **Resumo:** as tarefas foram implementadas e seguem `in_progress`.
 - **O que foi feito:** uma linha por tarefa (ID, persona, modelo, resultado), os avisos de sequência do passo 4 e as tarefas da onda que ficaram fora.
-- **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: os testes, a regressão e as evidências ficam para a `finish-task`.
+- **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: as evidências geradas pelo `--antecipada`, as conferidas e as rejeitadas; os testes, a regressão e a validação ficam para a `finish-task`.
 - **Status das tarefas:** a saída de `vostok task status <SPEC_ID>`.
 - **Próximos passos:** o pedido em linguagem natural para finalizar cada tarefa, por exemplo `- "finaliza a TASK-04" (skill finish-task): executar os testes, comparar com o baseline e concluir a tarefa`. Nunca indique um comando.
 
-Esta skill não chama a `finish-task` nem roda `vostok task tests`, `vostok task regression` ou `vostok task evidence` (RN-03): a conclusão só começa quando o usuário pedir.
+Esta skill não chama a `finish-task` nem roda `vostok task tests` ou `vostok task regression`, e só roda `vostok task evidence` com `--antecipada`, `--reviewed` ou `--rejected`, como no passo 7 (RN-03, RN-06): a conclusão só começa quando o usuário pedir.
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 

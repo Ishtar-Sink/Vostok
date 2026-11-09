@@ -14,6 +14,7 @@ import { TasksPage } from './features/board/tasks-page';
 import { TaskPage } from './features/task/task-page';
 import { DocumentsPage } from './features/documents/documents-page';
 import { EmptyState } from './ui/empty-state/empty-state';
+import { BackToTop } from './shared/back-to-top';
 import styles from './layout/layout.module.css';
 
 export type Theme = 'light' | 'dark';
@@ -97,6 +98,7 @@ function App() {
             {route.page === 'missing' && <EmptyState title="Página não encontrada" description="Volte pelo menu da barra lateral." />}
           </div>
         </main>
+        <BackToTop />
       </div>
     </div>
   );

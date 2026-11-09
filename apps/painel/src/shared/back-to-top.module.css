@@ -1,0 +1,39 @@
+.button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 22;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.button[hidden] {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .button {
+    right: 16px;
+    bottom: 16px;
+  }
+}

@@ -1,20 +1,21 @@
 .part { display: grid; gap: 8px; scroll-margin-top: 80px; min-width: 0; }
 .part h2, .part h3 { scroll-margin-top: 80px; }
+.part + .part { padding-top: 20px; border-top: 1px solid var(--border); }
+.tabIntro { margin: 0 0 12px; color: var(--text-faint); font-size: var(--font-size-sm); }
 .partTitle { margin: 0 0 4px; font-family: var(--font-display); font-size: var(--font-size-lg); }
-.agentPart { background: var(--bg-elevated); }
-.agentPart .partTitle { font-size: var(--font-size-base); color: var(--text-muted); }
-.agentDivider { margin-top: 12px; padding-top: 20px; border-top: 1px dashed var(--border-strong); scroll-margin-top: 80px; }
-.agentDivider h2 { margin: 0; font-family: var(--font-display); font-size: var(--font-size-base); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.agentDivider p { margin: 6px 0 0; color: var(--text-faint); font-size: var(--font-size-sm); }
 .muted { margin: 0; color: var(--text-muted); }
 .dep { margin-right: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--primary); text-decoration: none; }
 .results { list-style: none; margin: 0; padding: 4px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 .results li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: var(--font-size-sm); }
 .results li:last-child { border-bottom: 0; }
 .evidenceList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.evidenceItem { display: grid; gap: 8px; min-width: 0; }
-.evidenceButton { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); color: var(--text); font: inherit; cursor: pointer; text-align: left; }
-.evidenceButton:hover { background: var(--surface-hover); }
+.evidenceItem { display: grid; gap: 8px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.evidenceTitle { margin: 0; font-family: var(--font-display); font-size: var(--font-size-base); overflow-wrap: anywhere; }
+.evidenceField { display: grid; gap: 2px; min-width: 0; font-size: var(--font-size-sm); }
+.evidenceLabel { color: var(--text-faint); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.evidenceFile { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--text-faint); font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.evidenceButton { justify-self: start; width: auto; padding: 0; border: 0; background: none; color: var(--primary); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.evidenceButton:hover { text-decoration: underline; }
 .evidenceButton:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .evidenceName { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-sm); overflow-wrap: anywhere; }
 .evidenceSize { color: var(--text-muted); font-size: var(--font-size-sm); white-space: nowrap; font-variant-numeric: tabular-nums; }

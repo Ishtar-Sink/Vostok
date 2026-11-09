@@ -1,7 +1,0 @@
-.root { position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; font-size: var(--font-size-sm); }
-.label { margin: 0 0 8px; color: var(--text-faint); font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-.list { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--border); }
-.list li[data-depth='3'] a { padding-left: 24px; font-size: var(--font-size-xs); }
-.list a { display: block; margin-left: -1px; padding: 5px 10px 5px 12px; border-left: 2px solid transparent; color: var(--text-muted); text-decoration: none; line-height: 1.35; }
-.list a:hover { color: var(--text); }
-.list a[aria-current='location'] { border-left-color: var(--primary); color: var(--primary); font-weight: 600; }

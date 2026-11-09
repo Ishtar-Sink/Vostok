@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { fileUrl, formatDate, listOf, readTextPreview, useResource, type EvidenceReview, type FileRef, type ManualEvidence, type ReviewStatus, type SpecDetail, type TaskDetail } from '../../shared/api';
 import { BackLink } from '../../shared/back-link';
 import { buildReferences } from '../../shared/references';
 import { useReferencePopover } from '../../shared/ref-popover';
-import { Markdown, slug, type Heading } from '../../shared/markdown';
+import { Markdown, slug } from '../../shared/markdown';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
-import { Toc } from '../../shared/toc';
 import { Badge, type BadgeTone } from '../../ui/badge/badge';
-import { Card } from '../../ui/card/card';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
+import { Tabs } from '../../ui/tabs/tabs';
 import page from '../../shared/page.module.css';
 import styles from './task-page.module.css';
 
@@ -27,6 +26,17 @@ const AGENT = [
   { file: 'registro', title: 'Registro de execução' },
 ];
 
+const TASK_TABS = [
+  { id: 'resumo', label: 'Resumo' },
+  { id: 'evidencias', label: 'Evidências' },
+  { id: 'agente', label: 'Para o agente' },
+];
+
+function tabFromHash(hash: string): string {
+  const id = hash.replace(/^#/, '');
+  return TASK_TABS.some((tab) => tab.id === id) ? id : 'resumo';
+}
+
 const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 const VIDEO = /\.(mp4|webm|mov)$/i;
 const TEXT = /\.(md|txt|yml|log|out|diff|csv|json|css|js)$/i;
@@ -36,23 +46,12 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
   const specDetail = useResource<SpecDetail>(`/api/specs/${encodeURIComponent(spec)}`, version);
   const references = useMemo(() => (specDetail.kind === 'ready' ? buildReferences(specDetail.data.markdown, specDetail.data.tasks, spec) : new Map()), [specDetail, spec]);
   const { bind, popover } = useReferencePopover(references);
-  const headings = useMemo<Heading[]>(() => {
-    if (detail.kind !== 'ready') return [];
-    const out: Heading[] = [];
-    for (const part of HUMAN) out.push({ id: slug(part.title), text: part.title, depth: 2 });
-    out.push({ id: 'evidencias', text: 'Evidências', depth: 2 });
-    out.push({ id: 'para-o-agente', text: 'Para o agente', depth: 2 });
-    for (const part of AGENT) out.push({ id: slug(part.title), text: part.title, depth: 3 });
-    return out;
-  }, [detail]);
-
-  const ready = detail.kind === 'ready';
-  useEffect(() => {
-    if (!ready || window.location.hash !== '#evidencias') return;
-    const heading = document.getElementById('evidencias');
-    heading?.scrollIntoView({ block: 'start' });
-    heading?.focus({ preventScroll: true });
-  }, [ready]);
+  const notes = useMemo(() => evidenceNotes(detail.kind === 'ready' ? detail.data.files.verificacao ?? '' : ''), [detail]);
+  const [tab, setTab] = useState(() => tabFromHash(window.location.hash));
+  function select(id: string) {
+    setTab(id);
+    history.replaceState(history.state, '', '#' + id);
+  }
 
   if (detail.kind === 'loading') return <LoadingState label={`Carregando ${task}`} rows={8} />;
   if (detail.kind === 'error') return <ErrorState title={`Não foi possível abrir ${task}`} description={detail.message} retryLabel="Tentar de novo" onRetry={detail.retry} />;
@@ -67,6 +66,8 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
     ['Regressão', state.regression_result],
     ['Evidências', state.evidence_result],
   ];
+  const waitingOn = listOf(state.waiting_on ?? '');
+  const closesAfter = specDetail.kind === 'ready' ? listOf(state.closes_after ?? '').filter((id) => specDetail.data.tasks.find((item) => item.id === id)?.status !== 'done') : [];
 
   return (
     <div className={page.stack}>
@@ -76,45 +77,64 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
           </div>
         } />
       <div className={page.docLayout}>
-        <Toc headings={headings} label="Nesta tarefa" />
         <div className={page.docMain}>
-          {HUMAN.map((part) => (
-            <Card as="section" key={part.file} aria-labelledby={slug(part.title)} className={styles.part}>
-              <div className={styles.partHeader}>
-                <h2 id={slug(part.title)} className={styles.partTitle}>{part.title}</h2>
-              </div>
-              {files[part.file] ? <Markdown source={stripTitle(files[part.file])} prefix={`${part.file}-`} references={references} bind={bind} /> : <p className={styles.muted}>Ainda não escrito.</p>}
-            </Card>
-          ))}
-          <Card as="section" aria-labelledby="evidencias" className={styles.part}>
-            <h2 id="evidencias" tabIndex={-1} className={styles.partTitle}>Evidências</h2>
-            {manual.length === 0 && otherEvidence.length === 0 ? <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p> : null}
-            {manual.length > 0 ? (
-              <ul aria-label="Evidências que o harness pede" className={styles.manualList}>
-                {manual.map((item) => (
-                  <ManualEvidenceItem key={item.name} item={item} reviews={reviews} />
-                ))}
-              </ul>
-            ) : null}
-            {otherEvidence.length > 0 ? <Evidence files={otherEvidence} reviews={reviews} /> : null}
-          </Card>
-          <div className={styles.agentDivider} id="para-o-agente">
-            <h2>Para o agente</h2>
-            <p>Roteiro que o agente segue: arquivos, passos, comandos de verificação e o registro de cada etapa.</p>
-          </div>
-          {AGENT.map((part) => (
-            <Card as="section" key={part.file} aria-labelledby={slug(part.title)} className={`${styles.part} ${styles.agentPart}`}>
-              <div className={styles.partHeader}>
-                <h3 id={slug(part.title)} className={styles.partTitle}>{part.title}</h3>
-              </div>
-              {files[part.file] ? <Markdown source={stripTitle(files[part.file])} prefix={`${part.file}-`} references={references} bind={bind} /> : <p className={styles.muted}>Vazio.</p>}
-            </Card>
-          ))}
+          <Tabs
+            label="Partes da tarefa"
+            value={tab}
+            onChange={select}
+            tabs={[
+              {
+                id: 'resumo',
+                label: 'Resumo',
+                panel: HUMAN.map((part) => (
+                  <section key={part.file} aria-labelledby={slug(part.title)} className={styles.part}>
+                    <h2 id={slug(part.title)} className={styles.partTitle}>{part.title}</h2>
+                    {files[part.file] ? <Markdown source={stripTitle(files[part.file])} prefix={`${part.file}-`} references={references} bind={bind} /> : <p className={styles.muted}>Ainda não escrito.</p>}
+                  </section>
+                )),
+              },
+              {
+                id: 'evidencias',
+                label: 'Evidências',
+                panel: (
+                  <section aria-labelledby="evidencias" className={styles.part}>
+                    <h2 id="evidencias" className={styles.partTitle}>Evidências</h2>
+                    {manual.length === 0 && otherEvidence.length === 0 ? <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p> : null}
+                    {manual.length > 0 ? (
+                      <ul aria-label="Evidências que o harness pede" className={styles.manualList}>
+                        {manual.map((item) => (
+                          <ManualEvidenceItem key={item.name} item={item} reviews={reviews} notes={notes} />
+                        ))}
+                      </ul>
+                    ) : null}
+                    {otherEvidence.length > 0 ? <Evidence files={otherEvidence} reviews={reviews} notes={notes} /> : null}
+                  </section>
+                ),
+              },
+              {
+                id: 'agente',
+                label: 'Para o agente',
+                panel: (
+                  <>
+                    <p className={styles.tabIntro}>Roteiro que o agente segue: arquivos, passos, comandos de verificação e o registro de cada etapa.</p>
+                    {AGENT.map((part) => (
+                      <section key={part.file} aria-labelledby={slug(part.title)} className={styles.part}>
+                        <h2 id={slug(part.title)} className={styles.partTitle}>{part.title}</h2>
+                        {files[part.file] ? <Markdown source={stripTitle(files[part.file])} prefix={`${part.file}-`} references={references} bind={bind} /> : <p className={styles.muted}>Vazio.</p>}
+                      </section>
+                    ))}
+                  </>
+                ),
+              },
+            ]}
+          />
         </div>
         <aside className={page.docAside}>
           <dl className={page.meta}>
             <div><dt>Status</dt><dd>{statusLabel(state.status)}</dd></div>
             {state.wave ? <div><dt>Onda</dt><dd>{state.wave}</dd></div> : null}
+            {waitingOn.length > 0 ? <div><dt>Espera</dt><dd>{`${waitingOn.join(', ')}${state.waiting_reason ? `: ${state.waiting_reason}` : ''}`}</dd></div> : null}
+            {closesAfter.length > 0 ? <div><dt>Fecha depois de</dt><dd>{closesAfter.map((id) => <a key={id} href={`/tarefas/${spec}/${id}`} onClick={onLinkClick} className={styles.dep}>{id}</a>)}</dd></div> : null}
             <div><dt>Depende de</dt><dd>{listOf(state.depends_on ?? '').map((dep) => <a key={dep} href={`/tarefas/${spec}/${dep}`} onClick={onLinkClick} className={styles.dep}>{dep}</a>)}{listOf(state.depends_on ?? '').length === 0 ? '—' : null}</dd></div>
             <div><dt>Cobre</dt><dd ref={bind} className={styles.refList}>{listOf(state.covers ?? '').map((id) => <button key={id} type="button" className="ref" data-ref={id} aria-haspopup="dialog">{id}</button>)}{listOf(state.covers ?? '').length === 0 ? '—' : null}</dd></div>
             {state.profile ? <div><dt>Perfil</dt><dd>{state.profile}</dd></div> : null}
@@ -145,10 +165,46 @@ function stripTitle(markdown: string): string {
   return markdown.replace(/^##+ .*\n/, '').replace(/^### /gm, '#### ');
 }
 
-function Evidence({ files, reviews }: { files: FileRef[]; reviews: Map<string, EvidenceReview> }) {
+interface EvidenceNotes {
+  title?: string;
+  proof?: string;
+  expect?: string;
+  excerpt?: string;
+  failure?: string;
+}
+
+const NOTE_FIELDS: Record<string, keyof EvidenceNotes> = { Título: 'title', Prova: 'proof', Espera: 'expect', Trecho: 'excerpt', Falha: 'failure' };
+
+/** Lê os subitens de cada evidência na seção `### Evidências` da verificação; o painel só mostra o que a tarefa escreveu. */
+function evidenceNotes(verification: string): Map<string, EvidenceNotes> {
+  const notes = new Map<string, EvidenceNotes>();
+  let inSection = false;
+  let current: EvidenceNotes | null = null;
+  for (const line of verification.split('\n')) {
+    if (line.startsWith('#')) {
+      inSection = /^###\s+Evidências\s*$/.test(line);
+      current = null;
+      continue;
+    }
+    if (!inSection) continue;
+    const opened = line.match(/^- `([^`]+)`/);
+    if (opened) {
+      current = {};
+      notes.set(opened[1], current);
+      continue;
+    }
+    const field = line.match(/^\s{2,}- (Título|Prova|Espera|Trecho|Falha):\s*(.*)$/);
+    if (field && current) current[NOTE_FIELDS[field[1]]] = field[2];
+  }
+  return notes;
+}
+
+type Notes = Map<string, EvidenceNotes>;
+
+function Evidence({ files, reviews, notes }: { files: FileRef[]; reviews: Map<string, EvidenceReview>; notes: Notes }) {
   return (
     <ul className={styles.evidenceList}>
-      {files.map((file) => <EvidenceItem key={file.path} file={file} reviews={reviews} />)}
+      {files.map((file) => <EvidenceItem key={file.path} file={file} reviews={reviews} notes={notes} />)}
     </ul>
   );
 }
@@ -156,10 +212,11 @@ function Evidence({ files, reviews }: { files: FileRef[]; reviews: Map<string, E
 interface ManualEvidenceItemProps {
   item: ManualEvidence;
   reviews: Map<string, EvidenceReview>;
+  notes: Notes;
 }
 
 /** Evidência manual pedida pelo harness, com o que ela deve provar e o selo de anexada; o painel só mostra. */
-function ManualEvidenceItem({ item, reviews }: ManualEvidenceItemProps) {
+function ManualEvidenceItem({ item, reviews, notes }: ManualEvidenceItemProps) {
   return (
     <li className={styles.manualItem}>
       <div className={styles.manualHead}>
@@ -171,29 +228,53 @@ function ManualEvidenceItem({ item, reviews }: ManualEvidenceItemProps) {
       </div>
       {item.attached ? (
         <ul className={styles.evidenceList}>
-          <EvidenceItem file={item} reviews={reviews} />
+          <EvidenceItem file={item} reviews={reviews} notes={notes} />
         </ul>
       ) : null}
     </li>
   );
 }
 
-function EvidenceItem({ file, reviews }: { file: FileRef; reviews: Map<string, EvidenceReview> }) {
+function EvidenceHead({ file, note }: { file: FileRef; note: EvidenceNotes }) {
+  return (
+    <>
+      <h3 className={styles.evidenceTitle}>{note.title ?? <span className={styles.evidenceName}>{file.name}</span>}</h3>
+      {([['Prova', note.proof], ['Espera', note.expect], ['Trecho', note.excerpt], ['Falha', note.failure]] as const).map(([label, value]) =>
+        value ? (
+          <div key={label} className={styles.evidenceField}>
+            <span className={styles.evidenceLabel}>{label}</span>
+            <Markdown source={value} prefix={`ev-${file.name}-${label}-`} />
+          </div>
+        ) : null)}
+    </>
+  );
+}
+
+function EvidenceFoot({ file, note }: { file: FileRef; note: EvidenceNotes }) {
+  return (
+    <p className={styles.evidenceFile}>
+      {note.title ? <span className={styles.evidenceName}>{file.name}</span> : null}
+      <span>{formatSize(file.size)}</span>
+    </p>
+  );
+}
+
+function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<string, EvidenceReview>; notes: Notes }) {
   const mediaUrl = fileUrl(file.path);
   const media = IMAGE.test(file.name) || VIDEO.test(file.name);
   const [open, setOpen] = useState(media);
   const [text, setText] = useState<string | null>(null);
   const [total, setTotal] = useState<number | null>(null);
+  const note = notes.get(file.name) ?? {};
+  const review = reviews.get(file.name);
 
   if (!media && !TEXT.test(file.name)) {
     return (
       <li className={styles.evidenceItem}>
-        <div className={styles.evidenceDownload}>
-          <span className={styles.evidenceName}>{file.name}</span>
-          <span className={styles.evidenceSize}>{formatSize(file.size)}</span>
-          <a className={styles.downloadLink} href={fileUrl(file.path)} download={file.name} aria-label={`Baixar ${file.name}`}>Baixar</a>
-        </div>
-        {reviews.get(file.name) ? <ReviewRow review={reviews.get(file.name)!} /> : null}
+        <EvidenceHead file={file} note={note} />
+        {review ? <ReviewRow review={review} /> : null}
+        <a className={styles.downloadLink} href={fileUrl(file.path)} download={file.name} aria-label={`Baixar ${file.name}`}>Baixar</a>
+        <EvidenceFoot file={file} note={note} />
       </li>
     );
   }
@@ -216,10 +297,11 @@ function EvidenceItem({ file, reviews }: { file: FileRef; reviews: Map<string, E
 
   return (
     <li className={styles.evidenceItem}>
-      <button type="button" className={styles.evidenceButton} aria-expanded={open} onClick={toggle}>
-        <span className={styles.evidenceName}>{file.name}</span>
-        <span className={styles.evidenceSize}>{formatSize(file.size)}</span>
-      </button>
+      <EvidenceHead file={file} note={note} />
+      {review ? <ReviewRow review={review} /> : null}
+      {media ? null : (
+        <button type="button" className={styles.evidenceButton} aria-expanded={open} aria-label={`Ver ${file.name}`} onClick={toggle}>Ver conteúdo</button>
+      )}
       {open ? (
         IMAGE.test(file.name) ? (
           <img className={styles.evidenceMedia} src={mediaUrl} alt={`Evidência ${file.name}`} />
@@ -236,7 +318,7 @@ function EvidenceItem({ file, reviews }: { file: FileRef; reviews: Map<string, E
           </>
         )
       ) : null}
-      {reviews.get(file.name) ? <ReviewRow review={reviews.get(file.name)!} /> : null}
+      <EvidenceFoot file={file} note={note} />
     </li>
   );
 }

@@ -192,9 +192,14 @@ mod tests {
         };
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
-            let _ = super::super::server::serve(painel, 0, |url| {
-                sender.send(url).unwrap();
-            });
+            let _ = super::super::server::serve(
+                painel,
+                0,
+                super::super::server::PortOrigin::Argument,
+                |url| {
+                    sender.send(url).unwrap();
+                },
+            );
         });
         let url = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
         let address = url.trim_start_matches("http://").trim_end_matches('/');

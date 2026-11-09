@@ -49,6 +49,37 @@ fn start(folder: &Path) -> Running {
     running(child)
 }
 
+fn project_with_port(value: &str) -> TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("vostok/config");
+    fs::create_dir_all(&config).unwrap();
+    fs::write(
+        config.join("main.yml"),
+        format!("paths:\n  work: ./work\npanel_port: {value}\n"),
+    )
+    .unwrap();
+    dir
+}
+
+fn free_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+fn start_from_config(folder: &Path) -> Running {
+    let child = vostok()
+        .args(["painel", "--sem-navegador", "--pasta"])
+        .arg(folder)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    running(child)
+}
+
 fn running(mut child: Child) -> Running {
     let mut line = String::new();
     let mut output = BufReader::new(child.stdout.take().unwrap());
@@ -178,6 +209,55 @@ fn cb01_busy_port_fails_citing_the_port() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stderr.contains(&port) && stderr.contains("ocupada"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn panel_port_ct01_uses_the_configured_port() {
+    let port = free_port();
+    let project = project_with_port(&port.to_string());
+    let painel = start_from_config(project.path());
+    assert_eq!(painel.address.ip().to_string(), "127.0.0.1");
+    assert_eq!(painel.address.port(), port);
+}
+
+#[test]
+fn panel_port_ct02_missing_zero_or_invalid_uses_a_free_port() {
+    let mut projects = vec![project()];
+    for value in ["0", "abc", "70000"] {
+        projects.push(project_with_port(value));
+    }
+    for project in &projects {
+        let painel = start_from_config(project.path());
+        assert_eq!(painel.address.ip().to_string(), "127.0.0.1");
+        assert_ne!(painel.address.port(), 0);
+    }
+}
+
+#[test]
+fn panel_port_ct03_explicit_port_wins_even_with_zero() {
+    let busy = TcpListener::bind("127.0.0.1:0").unwrap();
+    let busy_port = busy.local_addr().unwrap().port();
+    let project = project_with_port(&busy_port.to_string());
+    let painel = start(project.path());
+    assert_ne!(painel.address.port(), busy_port);
+}
+
+#[test]
+fn panel_port_cb01_busy_configured_port_cites_the_key() {
+    let busy = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = busy.local_addr().unwrap().port().to_string();
+    let project = project_with_port(&port);
+    let output = run_painel(&[
+        "--pasta",
+        project.path().to_str().unwrap(),
+        "--sem-navegador",
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains(&port) && stderr.contains("ocupada") && stderr.contains("panel_port"),
         "{stderr}"
     );
 }

@@ -7,9 +7,9 @@ use clap::Args;
 
 #[derive(Debug, Args)]
 pub struct PainelArgs {
-    /// Porta de escuta em 127.0.0.1; 0 escolhe uma livre.
-    #[arg(long, default_value_t = 0)]
-    pub porta: u16,
+    /// Porta de escuta em 127.0.0.1; 0 escolhe uma livre. Sem ela, vale panel_port de config/main.yml.
+    #[arg(long)]
+    pub porta: Option<u16>,
     /// Pasta do projeto; o padrão é a pasta atual.
     #[arg(long)]
     pub pasta: Option<PathBuf>,
@@ -47,17 +47,30 @@ pub fn run(args: PainelArgs) -> Result<()> {
             start.display()
         )
     })?;
+    let (port, origin) = match args.porta {
+        Some(port) => (port, server::PortOrigin::Argument),
+        None => (configured_port(&harness), server::PortOrigin::Config),
+    };
     let painel = Painel::new(&harness)?;
     if !server::HAS_BUNDLE {
         eprintln!("{}", server::BUNDLE_MISSING);
     }
     let project = painel.project.clone();
-    server::serve(painel, args.porta, |url| {
+    server::serve(painel, port, origin, |url| {
         println!("Painel de {} em {url}", project.display());
         if !args.sem_navegador {
             open_browser(&url);
         }
     })
+}
+
+/// Porta de `panel_port`; 0 (uma livre) quando a chave falta ou não é um `u16`.
+#[cfg(feature = "painel")]
+fn configured_port(harness: &crate::harness::Harness) -> u16 {
+    crate::support::config_get(&harness.config_file("main.yml"), "panel_port")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(0)
 }
 
 #[cfg(feature = "painel")]

@@ -24,11 +24,23 @@ const LIVE_PATH: &str = "/api/ao-vivo";
 static DIST: include_dir::Dir<'static> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/../painel/dist");
 
+/// De onde veio a porta, para a mensagem de porta ocupada apontar o que mudar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortOrigin {
+    Argument,
+    Config,
+}
+
 /// Escuta em `127.0.0.1:<port>` (0 escolhe uma porta livre), anuncia a URL e atende cada
 /// requisição numa thread: as leituras são curtas e o painel é usado por uma pessoa.
-pub fn serve(painel: Painel, port: u16, announce: impl FnOnce(String)) -> Result<()> {
-    let server =
-        tiny_http::Server::http(("127.0.0.1", port)).map_err(|error| listen_error(port, error))?;
+pub fn serve(
+    painel: Painel,
+    port: u16,
+    origin: PortOrigin,
+    announce: impl FnOnce(String),
+) -> Result<()> {
+    let server = tiny_http::Server::http(("127.0.0.1", port))
+        .map_err(|error| listen_error(port, origin, error))?;
     let address = server
         .server_addr()
         .to_ip()
@@ -42,11 +54,20 @@ pub fn serve(painel: Painel, port: u16, announce: impl FnOnce(String)) -> Result
     Ok(())
 }
 
-fn listen_error(port: u16, error: Box<dyn std::error::Error + Send + Sync>) -> anyhow::Error {
+fn listen_error(
+    port: u16,
+    origin: PortOrigin,
+    error: Box<dyn std::error::Error + Send + Sync>,
+) -> anyhow::Error {
     match error.downcast_ref::<io::Error>() {
-        Some(io_error) if io_error.kind() == io::ErrorKind::AddrInUse => anyhow!(
-            "a porta {port} está ocupada; escolha outra com --porta ou use --porta 0 para uma livre"
-        ),
+        Some(io_error) if io_error.kind() == io::ErrorKind::AddrInUse => match origin {
+            PortOrigin::Argument => anyhow!(
+                "a porta {port} está ocupada; escolha outra com --porta ou use --porta 0 para uma livre"
+            ),
+            PortOrigin::Config => anyhow!(
+                "a porta {port} de panel_port (config/main.yml) está ocupada; mude panel_port ou use --porta 0 para uma livre"
+            ),
+        },
         _ => anyhow!("não foi possível escutar em 127.0.0.1:{port}: {error}"),
     }
 }
@@ -101,6 +122,12 @@ fn header(name: &str, value: &str) -> tiny_http::Header {
     tiny_http::Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("cabeçalho válido")
 }
 
+fn unreadable_reply() -> Reply {
+    let mut reply = text(500, "arquivo ilegível");
+    reply.headers = vec![("X-Content-Type-Options", "nosniff".to_string())];
+    reply
+}
+
 /// Entrega um arquivo por partes, sem lê-lo na memória: sem `Range` o corpo inteiro (200), com
 /// `Range` válido o trecho (206) e com `Range` inválido ou além do fim o 416 com o tamanho.
 fn respond_file(request: tiny_http::Request, found: Result<read::FileDelivery, Reply>) {
@@ -149,7 +176,7 @@ fn respond_file(request: tiny_http::Request, found: Result<read::FileDelivery, R
         },
     };
     if file.seek(SeekFrom::Start(start)).is_err() {
-        let _ = request.respond(to_response(text(500, "arquivo ilegível")));
+        let _ = request.respond(to_response(unreadable_reply()));
         return;
     }
     let response = tiny_http::Response::new(
@@ -264,6 +291,15 @@ mod tests {
             root: PathBuf::from("/projeto-inexistente/vostok"),
             work: PathBuf::from("/projeto-inexistente/vostok/work"),
         }
+    }
+
+    #[test]
+    fn ct04_falha_de_seek_responde_500_com_nosniff() {
+        let reply = unreadable_reply();
+        assert_eq!(reply.status, 500);
+        assert!(reply
+            .headers
+            .contains(&("X-Content-Type-Options", "nosniff".to_string())));
     }
 
     #[test]

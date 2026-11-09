@@ -506,3 +506,252 @@ fn components_cited_paths_with_spaces_templates_or_in_code_blocks_do_not_count()
     let stderr = validate_stderr(&project);
     assert!(!stderr.contains("contém caminhos citados"), "{stderr}");
 }
+
+fn planned_spec(project: &Project) -> std::path::PathBuf {
+    let file = refined_spec(project);
+    run_spec(project, &["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    fs::write(
+        &file,
+        content.replacen("\nstatus: approved\n", "\nstatus: planned\n", 1),
+    )
+    .unwrap();
+    file
+}
+
+fn adjust_with_ids(project: &Project, ids: &str) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command
+        .args(["spec", "adjust", "record", "SPEC-001", "Ajuste de teste"])
+        .args(["--ids", ids]);
+    command
+}
+
+#[test]
+fn ids_adjust_valid_id_is_recorded() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    adjust_with_ids(&project, "RF-01").assert().success();
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nadjustments: 2\n"), "{content}");
+    assert!(!content.contains("changed_ids:"), "{content}");
+}
+
+#[test]
+fn ids_adjust_unknown_id_is_refused_without_recording() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    let before = fs::read_to_string(&file).unwrap();
+    let stderr = failure_stderr(&mut adjust_with_ids(&project, "RF-01,RF-99"));
+    assert!(
+        stderr.contains("IDs inexistentes na spec SPEC-001: RF-99; nenhum ajuste registrado"),
+        "{stderr}"
+    );
+    assert_eq!(fs::read_to_string(&file).unwrap(), before);
+}
+
+#[test]
+fn ids_adjust_planned_spec_records_changed_ids_and_returns_to_refined() {
+    let project = Project::new();
+    let file = planned_spec(&project);
+    let output = adjust_with_ids(&project, "RF-02")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).unwrap();
+    assert!(
+        stdout.contains("IDs mudados gravados em changed_ids: RF-02"),
+        "{stdout}"
+    );
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nchanged_ids: [RF-02]\n"), "{content}");
+    assert!(content.contains("\nstatus: refined\n"), "{content}");
+    assert!(content.contains("\napproved_hash: null\n"), "{content}");
+    assert!(status_history(&file).ends_with(" refined"));
+}
+
+#[test]
+fn ids_adjust_planned_spec_without_ids_is_refused() {
+    let project = Project::new();
+    let file = planned_spec(&project);
+    let before = fs::read_to_string(&file).unwrap();
+    let mut command = project.vostok();
+    command.args(["spec", "adjust", "record", "SPEC-001", "Ajuste"]);
+    let stderr = failure_stderr(&mut command);
+    assert!(
+        stderr.contains("informe os IDs mudados pelo ajuste em --ids"),
+        "{stderr}"
+    );
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: planned\n"), "{content}");
+    assert_eq!(content, before);
+}
+
+#[test]
+fn ids_adjust_approved_spec_does_not_record_changed_ids() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    adjust_with_ids(&project, "RF-01").assert().success();
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: refined\n"), "{content}");
+    assert!(!content.contains("changed_ids:"), "{content}");
+}
+
+#[test]
+fn ids_adjust_second_adjust_merges_changed_ids() {
+    let project = Project::new();
+    let file = planned_spec(&project);
+    adjust_with_ids(&project, "RF-02").assert().success();
+    adjust_with_ids(&project, "RF-01,RF-02").assert().success();
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(
+        content.contains("\nchanged_ids: [RF-02, RF-01]\n"),
+        "{content}"
+    );
+}
+
+#[test]
+fn ids_adjust_empty_list_is_refused() {
+    let project = Project::new();
+    refined_spec(&project);
+    let stderr = failure_stderr(&mut adjust_with_ids(&project, " , "));
+    assert!(
+        stderr.contains("informe ao menos um ID em --ids"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn ids_adjust_planned_spec_validate_is_still_refused() {
+    let project = Project::new();
+    planned_spec(&project);
+    let mut command = project.vostok();
+    command.args(["spec", "adjust", "validate", "SPEC-001"]);
+    let stderr = failure_stderr(&mut command);
+    assert!(stderr.contains("as tarefas já foram criadas"), "{stderr}");
+}
+
+fn spec_task(project: &Project, id: &str, status: &str, covers: &str) {
+    let dir = project.harness().join("work/tasks/SPEC-001");
+    fs::create_dir_all(&dir).unwrap();
+    let content = format!(
+        "---\nid: {id}\nspec: SPEC-001\ntitle: \"Tarefa\"\ndepends_on: []\ncovers: [{covers}]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: 2026-01-01T00:00:00Z\napproved_hash: abc\nattempts: 1\ntests_result: passed\nregression_result: null\nevidence_result: null\n---\n\n# {id}: Tarefa\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n"
+    );
+    fs::write(dir.join(format!("{id}.md")), content).unwrap();
+}
+
+fn changed_spec(project: &Project) -> std::path::PathBuf {
+    let file = planned_spec(project);
+    adjust_with_ids(project, "RF-02").assert().success();
+    file
+}
+
+fn spec_task_text(project: &Project, id: &str) -> String {
+    fs::read_to_string(
+        project
+            .harness()
+            .join(format!("work/tasks/SPEC-001/{id}.md")),
+    )
+    .unwrap()
+}
+
+fn approve_stdout(project: &Project) -> String {
+    let mut command = project.vostok();
+    command.args(["spec", "approve", "approve", "SPEC-001"]);
+    String::from_utf8(command.assert().success().get_output().stdout.clone()).unwrap()
+}
+
+#[test]
+fn reapproval_treats_the_tasks_by_status() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-01", "approved", "RF-02");
+    spec_task(&project, "TASK-02", "in_progress", "RF-02, CT-01");
+    spec_task(&project, "TASK-03", "done", "RF-02");
+    spec_task(&project, "TASK-04", "approved", "RF-01");
+    spec_task(&project, "TASK-05", "pending", "RF-02");
+    let done = spec_task_text(&project, "TASK-03");
+    let other = spec_task_text(&project, "TASK-04");
+    let stdout = approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: planned\n"), "{content}");
+    assert!(content.contains("\nchanged_ids: []\n"), "{content}");
+    assert!(!content.contains("\napproved_hash: null\n"), "{content}");
+    assert!(status_history(&file).ends_with(" planned"));
+    assert!(!project.harness().join("work/plans/SPEC-001.md").exists());
+    let first = spec_task_text(&project, "TASK-01");
+    assert!(first.contains("\nstatus: pending\n"), "{first}");
+    assert!(first.contains("\napproved_hash: null\n"), "{first}");
+    let second = spec_task_text(&project, "TASK-02");
+    assert!(second.contains("\nstatus: in_progress\n"), "{second}");
+    assert!(second.contains("\nadjustments: 1\n"), "{second}");
+    assert!(second.contains("spec SPEC-001 ajustada: RF-02"), "{second}");
+    assert!(second.contains("| ajuste | in_progress |"), "{second}");
+    assert_eq!(spec_task_text(&project, "TASK-03"), done);
+    assert_eq!(spec_task_text(&project, "TASK-04"), other);
+    for line in [
+        "A detalhar de novo (voltaram a 'pending'; skill adjust-task): TASK-01, TASK-05",
+        "Ajuste registrado nas tarefas em execução: TASK-02",
+        "Concluídas que cobrem os IDs, sem mudança (sugira uma tarefa nova num novo plano): TASK-03",
+    ] {
+        assert!(stdout.contains(line), "{stdout}");
+    }
+}
+
+#[test]
+fn reapproval_running_tasks_validating_and_blocked_get_the_adjustment() {
+    let project = Project::new();
+    changed_spec(&project);
+    spec_task(&project, "TASK-01", "validating", "RF-02");
+    spec_task(&project, "TASK-02", "blocked", "RF-02");
+    approve_stdout(&project);
+    for id in ["TASK-01", "TASK-02"] {
+        let text = spec_task_text(&project, id);
+        assert!(text.contains("\nadjustments: 1\n"), "{text}");
+        assert!(text.contains("| ajuste |"), "{text}");
+    }
+}
+
+#[test]
+fn reapproval_without_covering_tasks_changes_none() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-01", "approved", "RF-01");
+    let before = spec_task_text(&project, "TASK-01");
+    let stdout = approve_stdout(&project);
+    assert!(fs::read_to_string(&file)
+        .unwrap()
+        .contains("\nstatus: planned\n"));
+    assert_eq!(spec_task_text(&project, "TASK-01"), before);
+    assert!(
+        stdout.contains("Nenhuma tarefa cobre os IDs mudados (RF-02); nenhuma é refeita."),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reapproval_without_tasks_folder_returns_to_planned() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    let stdout = approve_stdout(&project);
+    assert!(fs::read_to_string(&file)
+        .unwrap()
+        .contains("\nstatus: planned\n"));
+    assert!(
+        stdout.contains("Nenhuma tarefa cobre os IDs mudados (RF-02); nenhuma é refeita."),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reapproval_spec_without_changed_ids_goes_to_approved() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: approved\n"), "{content}");
+    assert!(!content.contains("changed_ids:"), "{content}");
+}

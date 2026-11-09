@@ -19,12 +19,12 @@ Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de
 $ vostok task finish SPEC-001 TASK-01
 exit: 1
 --- stderr
-Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado:
-- tests_result: 'null' (precisa ser 'passed')
-- regression_result: 'null' (precisa ser 'passed')
-- evidence_result: 'null' (precisa ser 'passed')
-- a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:
-- [ ] Pronto (RF-01).
+Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado. Resolva nesta ordem:
+1. testes: tests_result 'null' -> vostok task tests SPEC-001 TASK-01
+2. regressão: regression_result 'null' -> vostok task regression SPEC-001 TASK-01
+3. evidências: evidence_result 'null' -> vostok task evidence SPEC-001 TASK-01
+4. critérios: a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x] -> vostok task check-done SPEC-001 TASK-01
+   - [ ] Pronto (RF-01).
 
 
 $ vostok task tests SPEC-001 TASK-01
@@ -45,9 +45,9 @@ Evidências de TASK-01: Não se aplica. Resultado: passed.
 $ vostok task finish SPEC-001 TASK-01
 exit: 1
 --- stderr
-Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado:
-- a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:
-- [ ] Pronto (RF-01).
+Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado. Resolva nesta ordem:
+1. critérios: a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x] -> vostok task check-done SPEC-001 TASK-01
+   - [ ] Pronto (RF-01).
 
 
 $ vostok task finish SPEC-001 TASK-01

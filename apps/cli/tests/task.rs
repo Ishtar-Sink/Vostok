@@ -1449,6 +1449,131 @@ fn start_baseline_second_baseline_is_refused() {
     assert!(stderr.contains("já foi coletado"), "{stderr}");
 }
 
+const PREVIOUS_DIR: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/baseline-anterior";
+
+const RECOLLECT_REASON: &str = "decisão do usuário";
+
+fn recollect(project: &Project) -> assert_cmd::Command {
+    task(
+        project,
+        &["baseline", "--recoletar", "--motivo", RECOLLECT_REASON],
+    )
+}
+
+#[test]
+fn recollect_blocked_task_returns_to_validating_and_keeps_the_old_baseline() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    write(&project, "valor.txt", "b\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    assert_eq!(status(&project), "blocked");
+    success_stdout(&mut recollect(&project));
+    assert_eq!(status(&project), "validating");
+    assert!(read(&project, &format!("{PREVIOUS_DIR}-1/01.out")).contains('a'));
+    assert!(read(&project, &format!("{BASELINE_DIR}/01.out")).contains('b'));
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nregression_result: null\n"), "{content}");
+    assert!(content.contains("\nattempts: 0\n"), "{content}");
+    assert!(
+        content.lines().any(|line| line.contains(
+            "| recoleta | validating | baseline anterior em baseline-anterior-1: decisão do usuário;"
+        )),
+        "{content}"
+    );
+    assert!(!exists(&project, &format!("{REGRESSION_DIR}/01.diff")));
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+}
+
+#[test]
+fn recollect_in_progress_task_keeps_the_status() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    success_stdout(&mut recollect(&project));
+    assert_eq!(status(&project), "in_progress");
+    assert!(read(&project, TASK_PATH).contains("| recoleta | in_progress |"));
+}
+
+#[test]
+fn recollect_second_time_goes_to_the_second_previous_folder() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    success_stdout(&mut recollect(&project));
+    success_stdout(&mut recollect(&project));
+    assert!(exists(&project, &format!("{PREVIOUS_DIR}-1/01.out")));
+    assert!(exists(&project, &format!("{PREVIOUS_DIR}-2/01.out")));
+    let content = read(&project, TASK_PATH);
+    let last = content
+        .lines()
+        .rfind(|line| line.contains("| recoleta |"))
+        .unwrap_or_default();
+    assert!(last.contains("baseline-anterior-2"), "{content}");
+}
+
+#[test]
+fn recollect_refused_for_approved_and_done_tasks() {
+    let expected =
+        "só tarefas com status 'in_progress', 'validating' ou 'blocked' têm o baseline recoletado";
+    let approved = approved_task("- `true`");
+    let stderr = failure_stderr(&mut recollect(&approved));
+    assert!(stderr.contains(expected), "{stderr}");
+    assert!(!exists(&approved, &format!("{PREVIOUS_DIR}-1")));
+    let done = task_with_evidence("done", "Não se aplica.");
+    let stderr = failure_stderr(&mut recollect(&done));
+    assert!(stderr.contains(expected), "{stderr}");
+    assert!(!exists(&done, &format!("{PREVIOUS_DIR}-1")));
+}
+
+#[test]
+fn recollect_without_reason_is_refused() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let before = read(&project, &format!("{BASELINE_DIR}/01.out"));
+    for args in [
+        vec!["baseline", "--recoletar"],
+        vec!["baseline", "--recoletar", "--motivo", "   "],
+    ] {
+        let stderr = failure_stderr(&mut task(&project, &args));
+        assert!(
+            stderr.contains("informe o motivo da recoleta em --motivo"),
+            "{stderr}"
+        );
+    }
+    assert!(!exists(&project, &format!("{PREVIOUS_DIR}-1")));
+    assert_eq!(read(&project, &format!("{BASELINE_DIR}/01.out")), before);
+}
+
+#[test]
+fn recollect_of_a_task_without_baseline_is_refused() {
+    let project = in_progress_without_baseline();
+    let stderr = failure_stderr(&mut recollect(&project));
+    assert!(
+        stderr.contains(
+            "o baseline de TASK-01 não foi coletado; execute: vostok task baseline SPEC-001 TASK-01"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn recollect_of_a_task_waiting_on_a_dependency_is_refused() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let content = read(&project, TASK_PATH).replace(
+        "status: in_progress",
+        "status: blocked\nwaiting_on: [TASK-02]",
+    );
+    write(&project, TASK_PATH, &content);
+    let stderr = failure_stderr(&mut recollect(&project));
+    assert!(stderr.contains("espera TASK-02"), "{stderr}");
+    assert_eq!(status(&project), "blocked");
+}
+
+#[test]
+fn recollect_reason_without_the_flag_is_refused() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    task(&project, &["baseline", "--motivo", "x"])
+        .assert()
+        .failure();
+    assert!(!exists(&project, &format!("{PREVIOUS_DIR}-1")));
+}
+
 // --- Status das tarefas (SPEC-014) ---
 
 fn status_task(project: &Project, id: &str, lines: &[&str]) {
@@ -1557,6 +1682,135 @@ fn status_prints_the_tasks_and_waves_tables() {
 Subagentes ao mesmo tempo: 3
 ";
     assert_eq!(output, expected);
+}
+
+#[test]
+fn status_waits_show_the_closing_and_the_dependency_waits() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "wave: 1", "status: in_progress"],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &[
+            "title: \"B\"",
+            "wave: 1",
+            "status: validating",
+            "closes_after: [TASK-01]",
+        ],
+    );
+    status_task(
+        &project,
+        "TASK-03",
+        &["title: \"C\"", "wave: 1", "status: in_progress"],
+    );
+    status_task(
+        &project,
+        "TASK-04",
+        &[
+            "title: \"D\"",
+            "wave: 2",
+            "status: blocked",
+            "depends_on: [TASK-03]",
+            "waiting_on: [TASK-03]",
+            "waiting_reason: \"espera o comando novo\"",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    let expected = "\n### Esperas da SPEC-001\n\n| Tarefa | Espera | Tarefas | Motivo |\n|---|---|---|---|\n| TASK-02 | fechamento | TASK-01 (in_progress) | - |\n| TASK-04 | dependência | TASK-03 | espera o comando novo |\n\nSubagentes ao mesmo tempo: 3\n";
+    assert!(output.contains(expected), "{output}");
+}
+
+#[test]
+fn status_waits_closing_on_done_tasks_is_not_shown() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "wave: 1", "status: done"],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &[
+            "title: \"B\"",
+            "wave: 1",
+            "status: in_progress",
+            "closes_after: [TASK-01]",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    assert!(!output.contains("### Esperas"), "{output}");
+}
+
+#[test]
+fn status_waits_closing_on_a_missing_task_names_it() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &[
+            "title: \"A\"",
+            "wave: 1",
+            "status: in_progress",
+            "closes_after: [TASK-09]",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    assert!(
+        output.contains("| TASK-01 | fechamento | TASK-09 (não existe) | - |\n"),
+        "{output}"
+    );
+}
+
+#[test]
+fn status_waits_done_task_shows_no_wait() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "wave: 1", "status: in_progress"],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &[
+            "title: \"B\"",
+            "wave: 1",
+            "status: done",
+            "closes_after: [TASK-01]",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    assert!(!output.contains("### Esperas"), "{output}");
+}
+
+#[test]
+fn status_waits_without_reason_show_a_dash() {
+    let project = Project::new();
+    status_task(
+        &project,
+        "TASK-01",
+        &["title: \"A\"", "wave: 1", "status: in_progress"],
+    );
+    status_task(
+        &project,
+        "TASK-02",
+        &[
+            "title: \"B\"",
+            "wave: 1",
+            "status: blocked",
+            "waiting_on: [TASK-01]",
+        ],
+    );
+    let output = success_stdout(&mut status_run(&project));
+    assert!(
+        output.contains("| TASK-02 | dependência | TASK-01 | - |\n"),
+        "{output}"
+    );
 }
 
 #[test]
@@ -4610,6 +4864,475 @@ fn finish_records_implemented_in_the_status_history() {
     assert!(history.ends_with(" implemented"), "{history}");
 }
 
+// --- Recusa ordenada do finish (SPEC-044) ---
+
+/// Troca a linha `key: ...` do front-matter ou a acrescenta antes do `---` de fechamento.
+fn set_field(project: &Project, relative: &str, key: &str, value: &str) {
+    let content = read(project, relative);
+    let prefix = format!("{key}: ");
+    let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
+    let line = format!("{prefix}{value}");
+    match lines.iter().position(|l| l.starts_with(&prefix)) {
+        Some(index) => lines[index] = line,
+        None => {
+            let closing = lines
+                .iter()
+                .skip(1)
+                .position(|l| l == "---")
+                .map(|index| index + 1)
+                .unwrap();
+            lines.insert(closing, line);
+        }
+    }
+    write(project, relative, &format!("{}\n", lines.join("\n")));
+}
+
+const TASK_02_PATH: &str = "vostok/work/tasks/SPEC-001/TASK-02.md";
+
+#[test]
+fn finish_order_lists_the_problems_in_order_with_the_next_command() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    set_field(&project, TASK_PATH, "tests_result", "failed");
+    set_field(&project, TASK_PATH, "regression_result", "passed");
+    set_field(&project, TASK_PATH, "evidence_result", "pending");
+    set_field(&project, TASK_PATH, "closes_after", "[TASK-02]");
+    let output = task(&project, &["finish"]).output().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stderr).unwrap(),
+        "Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado. Resolva nesta ordem:\n1. testes: tests_result 'failed' -> vostok task tests SPEC-001 TASK-01\n2. evidências: evidence_result 'pending' -> vostok task evidence SPEC-001 TASK-01 --reviewed <arquivo>\n3. espera de fechamento: TASK-02 não está done -> conclua TASK-02 antes\n\n"
+    );
+    assert_eq!(status(&project), "in_progress");
+}
+
+#[test]
+fn finish_order_names_the_command_of_each_kind() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    for key in ["tests_result", "regression_result", "evidence_result"] {
+        set_field(&project, TASK_PATH, key, "null");
+    }
+    let content = read(&project, TASK_PATH).replace("- [x] Pronto.", "- [ ] Pronto.");
+    write(&project, TASK_PATH, &content);
+    let stderr = String::from_utf8(task(&project, &["finish"]).output().unwrap().stderr).unwrap();
+    let expected = [
+        "1. testes: tests_result 'null' -> vostok task tests SPEC-001 TASK-01",
+        "2. regressão: regression_result 'null' -> vostok task regression SPEC-001 TASK-01",
+        "3. evidências: evidence_result 'null' -> vostok task evidence SPEC-001 TASK-01",
+        "4. critérios: ",
+        " -> vostok task check-done SPEC-001 TASK-01\n",
+        "   - [ ] Pronto.",
+    ];
+    let mut from = 0;
+    for part in expected {
+        let found = stderr[from..]
+            .find(part)
+            .unwrap_or_else(|| panic!("falta '{part}' em ordem: {stderr}"));
+        from += found + part.len();
+    }
+}
+
+#[test]
+fn finish_order_waits_for_the_closing_task() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    let before = status(&project);
+    set_field(&project, TASK_PATH, "closes_after", "[TASK-02]");
+    set_field(&project, TASK_02_PATH, "status", "in_progress");
+    let stderr = String::from_utf8(task(&project, &["finish"]).output().unwrap().stderr).unwrap();
+    assert!(
+        stderr.contains("1. espera de fechamento: TASK-02 não está done -> conclua TASK-02 antes"),
+        "{stderr}"
+    );
+    assert_eq!(status(&project), before);
+    set_field(&project, TASK_02_PATH, "status", "done");
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\nstatus: planned\nupdated_at: x\n---\n",
+    );
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+}
+
+#[test]
+fn finish_order_without_closes_after_finishes_as_before() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    for step in ["tests", "regression", "evidence", "finish"] {
+        task(&project, &[step]).assert().success();
+    }
+    assert_eq!(status(&project), "done");
+}
+
+#[test]
+fn finish_order_missing_closing_task_is_reported() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    set_field(&project, TASK_PATH, "closes_after", "[TASK-09]");
+    let stderr = String::from_utf8(task(&project, &["finish"]).output().unwrap().stderr).unwrap();
+    assert!(
+        stderr.contains("1. espera de fechamento: TASK-09 não existe em SPEC-001 -> corrija closes_after de TASK-01"),
+        "{stderr}"
+    );
+}
+
+// --- Comando closes-after (SPEC-044) ---
+
+/// `vostok task closes-after <action> SPEC-001 TASK-01 <target> [--motivo <reason>]`.
+fn closes_after(
+    project: &Project,
+    action: &str,
+    target: &str,
+    reason: Option<&str>,
+) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args([
+        "task",
+        "closes-after",
+        action,
+        "SPEC-001",
+        "TASK-01",
+        target,
+    ]);
+    if let Some(reason) = reason {
+        command.args(["--motivo", reason]);
+    }
+    command
+}
+
+fn stderr_of(command: &mut assert_cmd::Command) -> String {
+    String::from_utf8(command.output().unwrap().stderr).unwrap()
+}
+
+#[test]
+fn closes_after_command_add_and_remove_change_the_list() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    closes_after(&project, "add", "TASK-02", Some("espera a tela"))
+        .assert()
+        .success();
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("closes_after: [TASK-02]"), "{content}");
+    assert!(
+        content.contains(
+            "| ajuste | in_progress | fecha depois de TASK-02 acrescentada: espera a tela |"
+        ),
+        "{content}"
+    );
+    closes_after(&project, "remove", "TASK-02", Some("não espera mais"))
+        .assert()
+        .success();
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("closes_after: []"), "{content}");
+    assert!(
+        content.contains(
+            "| ajuste | in_progress | fecha depois de TASK-02 retirada: não espera mais |"
+        ),
+        "{content}"
+    );
+}
+
+#[test]
+fn closes_after_command_blocks_the_finish_until_done() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    closes_after(&project, "add", "TASK-02", Some("m"))
+        .assert()
+        .success();
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    let stderr = stderr_of(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("espera de fechamento: TASK-02 não está done"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn closes_after_command_remove_of_a_task_not_in_the_list_is_refused() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut closes_after(&project, "remove", "TASK-02", Some("m")));
+    assert!(
+        stderr.contains("a tarefa TASK-01 não fecha depois de TASK-02; nada foi gravado"),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn closes_after_command_refuses_without_writing() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    let before = read(&project, TASK_PATH);
+    let cases: [(&str, &str, Option<&str>, &str); 5] = [
+        (
+            "add",
+            "TASK-02",
+            None,
+            "Erro: Uso: vostok task closes-after",
+        ),
+        (
+            "add",
+            "TASK-02",
+            Some("   "),
+            "o resumo do ajuste está vazio",
+        ),
+        (
+            "add",
+            "TASK-01",
+            Some("m"),
+            "a tarefa TASK-01 não pode fechar depois dela mesma; nada foi gravado",
+        ),
+        (
+            "add",
+            "TASK-09",
+            Some("m"),
+            "a tarefa TASK-09 não existe em SPEC-001; nada foi gravado",
+        ),
+        ("remove", "TASK-01", Some("m"), "nada foi gravado"),
+    ];
+    for (action, target, reason, expected) in cases {
+        let stderr = stderr_of(&mut closes_after(&project, action, target, reason));
+        assert!(stderr.contains(expected), "{expected}: {stderr}");
+        assert_eq!(read(&project, TASK_PATH), before);
+    }
+    closes_after(&project, "add", "TASK-02", Some("m"))
+        .assert()
+        .success();
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut closes_after(&project, "add", "TASK-02", Some("m")));
+    assert!(
+        stderr.contains("a tarefa TASK-01 já fecha depois de TASK-02; nada foi gravado"),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+    set_field(&project, TASK_PATH, "status", "done");
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut closes_after(&project, "remove", "TASK-02", Some("m")));
+    assert!(
+        stderr.contains(
+            "a tarefa TASK-01 está com status 'done'; closes_after não muda em tarefa concluída"
+        ),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn closes_after_command_add_resets_the_evidence_result() {
+    let project = running_task(&[("valor.txt", "a\n")]);
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    closes_after(&project, "add", "TASK-02", Some("m"))
+        .assert()
+        .success();
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("evidence_result: null"), "{content}");
+    assert!(content.contains("tests_result: passed"), "{content}");
+    assert!(content.contains("regression_result: passed"), "{content}");
+}
+
+// --- Comando depends (SPEC-044) ---
+
+const SPEC_FOLDER: &str = "vostok/work/tasks/SPEC-001";
+
+/// Spec com uma pasta por tarefa; só a TASK-01 passa por `record-manual`, `approve` e `start`.
+fn folder_spec(tasks: &[(&str, &str)]) -> Project {
+    let project = folder_task("pending");
+    for (id, status) in tasks.iter().filter(|(id, _)| *id != "TASK-01") {
+        for name in [
+            "estado.yml",
+            "execucao.md",
+            "verificacao.md",
+            "criterios.md",
+            "executivo.md",
+            "tecnico.md",
+            "registro.md",
+        ] {
+            let content = read(&project, &format!("{FOLDER}/{name}"));
+            let content = match name {
+                "estado.yml" => content
+                    .replace("TASK-01", id)
+                    .replace("status: pending", &format!("status: {status}")),
+                "execucao.md" => {
+                    content.replace("novo.txt", &format!("novo-{}.txt", id.to_lowercase()))
+                }
+                _ => content,
+            };
+            write(&project, &format!("{SPEC_FOLDER}/{id}/{name}"), &content);
+        }
+    }
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    project
+}
+
+/// `vostok task depends <action> SPEC-001 TASK-01 <dependency> [--motivo <reason>]`.
+fn depends(
+    project: &Project,
+    action: &str,
+    dependency: &str,
+    reason: Option<&str>,
+) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "depends", action, "SPEC-001", "TASK-01", dependency]);
+    if let Some(reason) = reason {
+        command.args(["--motivo", reason]);
+    }
+    command
+}
+
+fn record_of(project: &Project) -> String {
+    read(project, &format!("{FOLDER}/registro.md"))
+}
+
+#[test]
+fn depends_command_add_blocks_the_running_task() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    depends(&project, "add", "TASK-03", Some("espera o comando novo"))
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "depends_on"), "[TASK-03]");
+    assert_eq!(state_line(&project, "status"), "blocked");
+    assert_eq!(state_line(&project, "waiting_on"), "[TASK-03]");
+    assert_eq!(
+        state_line(&project, "waiting_reason"),
+        "\"espera o comando novo\""
+    );
+    let record = record_of(&project);
+    for row in [
+        "| ajuste | blocked | dependência TASK-03 acrescentada: espera o comando novo |",
+        "| bloqueio | blocked | espera TASK-03: espera o comando novo |",
+        "| agente | dependência TASK-03 acrescentada: espera o comando novo |",
+    ] {
+        assert!(record.contains(row), "{row}\n{record}");
+    }
+}
+
+#[test]
+fn depends_command_add_of_a_done_task_keeps_running() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-02", "done")]);
+    depends(&project, "add", "TASK-02", Some("m"))
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "status"), "in_progress");
+    let waiting = state_line(&project, "waiting_on");
+    assert!(waiting.is_empty() || waiting == "[]", "{waiting}");
+    let record = record_of(&project);
+    assert!(
+        record.contains("| ajuste | in_progress | dependência TASK-02 acrescentada: m |"),
+        "{record}"
+    );
+}
+
+#[test]
+fn depends_command_remove_of_a_running_task() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-02", "done")]);
+    depends(&project, "add", "TASK-02", Some("m"))
+        .assert()
+        .success();
+    depends(&project, "remove", "TASK-02", Some("não depende"))
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "depends_on"), "[]");
+    assert_eq!(state_line(&project, "status"), "in_progress");
+    let record = record_of(&project);
+    assert!(
+        record.contains("dependência TASK-02 retirada: não depende"),
+        "{record}"
+    );
+}
+
+#[test]
+fn depends_command_refuses_without_writing() {
+    let refuse = |project: &Project, command: &mut assert_cmd::Command, expected: &str| {
+        let state = read(project, &format!("{FOLDER}/estado.yml"));
+        let record = record_of(project);
+        let stderr = stderr_of(command);
+        assert!(stderr.contains(expected), "{expected}\n{stderr}");
+        assert_eq!(read(project, &format!("{FOLDER}/estado.yml")), state);
+        assert_eq!(record_of(project), record);
+    };
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "pending")]);
+
+    refuse(
+        &project,
+        &mut depends(&project, "add", "TASK-01", Some("m")),
+        "ciclo: TASK-01 não pode depender dela mesma; nada foi gravado",
+    );
+    refuse(
+        &project,
+        &mut depends(&project, "add", "TASK-03", None),
+        "Erro: Uso: vostok task depends",
+    );
+
+    let cycle = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "pending")]);
+    let path = format!("{SPEC_FOLDER}/TASK-03/estado.yml");
+    let state = read(&cycle, &path).replace("depends_on: []", "depends_on: [TASK-01]");
+    write(&cycle, &path, &state);
+    refuse(
+        &cycle,
+        &mut depends(&cycle, "add", "TASK-03", Some("m")),
+        "ciclo: TASK-03 já depende de TASK-01, direta ou indiretamente; nada foi gravado",
+    );
+
+    write(&project, "vostok/work/tasks/SPEC-002/TASK-09.md", "x\n");
+    refuse(
+        &project,
+        &mut depends(&project, "add", "TASK-09", Some("m")),
+        "a dependência TASK-09 não existe em SPEC-001: só vale dependência entre tarefas da mesma spec; nada foi gravado",
+    );
+
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    refuse(
+        &project,
+        &mut depends(&project, "add", "TASK-03", Some("m")),
+        "a tarefa TASK-01 já depende de TASK-03; nada foi gravado",
+    );
+
+    let failed = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "pending")]);
+    let path = format!("{FOLDER}/estado.yml");
+    let state = read(&failed, &path).replace("status: in_progress", "status: blocked");
+    write(&failed, &path, &state);
+    refuse(
+        &failed,
+        &mut depends(&failed, "add", "TASK-03", Some("m")),
+        "a tarefa TASK-01 está bloqueada por falha; decida o bloqueio antes (vostok task resume)",
+    );
+}
+
+#[test]
+fn depends_command_refuses_a_task_that_is_not_running() {
+    let project = folder_task("pending");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    let stderr = stderr_of(&mut depends(&project, "add", "TASK-03", Some("m")));
+    assert!(
+        stderr.contains("a dependência só muda aqui em tarefa em execução, em validação ou bloqueada por dependência"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn depends_command_remove_of_a_missing_dependency_is_refused() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "pending")]);
+    let stderr = stderr_of(&mut depends(&project, "remove", "TASK-03", Some("m")));
+    assert!(
+        stderr.contains("a tarefa TASK-01 não depende de TASK-03; nada foi gravado"),
+        "{stderr}"
+    );
+}
+
 // --- Evidências antecipadas (SPEC-043) ---
 
 const STATE_KEYS: [&str; 5] = [
@@ -4619,6 +5342,134 @@ const STATE_KEYS: [&str; 5] = [
     "evidence_result:",
     "attempts:",
 ];
+
+// --- Liberação e recomeço (SPEC-044) ---
+
+/// Deixa a tarefa pronta para o `finish`: resultados `passed` e critérios marcados.
+fn ready_to_finish(project: &Project, id: &str) {
+    let dir = format!("{SPEC_FOLDER}/{id}");
+    let state = read(project, &format!("{dir}/estado.yml"));
+    let state = ["tests_result", "regression_result", "evidence_result"]
+        .iter()
+        .fold(state, |text, key| {
+            text.replace(&format!("{key}: null"), &format!("{key}: passed"))
+        });
+    write(project, &format!("{dir}/estado.yml"), &state);
+    let criteria = read(project, &format!("{dir}/criterios.md")).replace("- [ ]", "- [x]");
+    write(project, &format!("{dir}/criterios.md"), &criteria);
+}
+
+fn finish_of(project: &Project, id: &str) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "finish", "SPEC-001", id]);
+    command
+}
+
+#[test]
+fn release_restart_finish_releases_and_start_restarts() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    ready_to_finish(&project, "TASK-03");
+    let output = stdout(&mut finish_of(&project, "TASK-03"));
+    assert!(
+        output.contains("Tarefa TASK-01 desbloqueada: status 'approved'."),
+        "{output}"
+    );
+    assert_eq!(state_line(&project, "status"), "approved");
+    assert_eq!(state_line(&project, "waiting_on"), "[]");
+    let record = record_of(&project);
+    assert!(
+        record.contains("| desbloqueio | approved | TASK-03 concluída |"),
+        "{record}"
+    );
+    let output = stdout(&mut task(&project, &["start"]));
+    assert!(
+        output.contains("Tarefa TASK-01 recomeçada: status 'in_progress', com o baseline mantido."),
+        "{output}"
+    );
+    let record = record_of(&project);
+    assert!(
+        record.contains("| recomeço | in_progress | baseline mantido |"),
+        "{record}"
+    );
+    assert_eq!(
+        record.matches("| baseline | coletado |").count(),
+        1,
+        "{record}"
+    );
+}
+
+#[test]
+fn release_restart_keeps_waiting_for_the_other_task() {
+    let project = folder_spec(&[
+        ("TASK-01", "pending"),
+        ("TASK-03", "in_progress"),
+        ("TASK-04", "in_progress"),
+    ]);
+    for dependency in ["TASK-03", "TASK-04"] {
+        depends(&project, "add", dependency, Some("m"))
+            .assert()
+            .success();
+    }
+    ready_to_finish(&project, "TASK-03");
+    let output = stdout(&mut finish_of(&project, "TASK-03"));
+    assert!(
+        output.contains("Tarefa TASK-01 continua bloqueada: espera TASK-04."),
+        "{output}"
+    );
+    assert_eq!(state_line(&project, "status"), "blocked");
+    assert_eq!(state_line(&project, "waiting_on"), "[TASK-04]");
+}
+
+#[test]
+fn release_restart_remove_of_the_last_wait_releases() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    depends(&project, "remove", "TASK-03", Some("não espera mais"))
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "status"), "approved");
+    assert_eq!(state_line(&project, "waiting_on"), "[]");
+    let record = record_of(&project);
+    assert!(
+        record.contains("| desbloqueio | approved | sem dependência pendente depois do ajuste |"),
+        "{record}"
+    );
+    task(&project, &["start"]).assert().success();
+    assert!(record_of(&project).contains("| recomeço |"));
+}
+
+#[test]
+fn release_restart_refuses_a_task_changed_during_the_wait() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    append(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "\n2. Mais um passo.\n",
+    );
+    ready_to_finish(&project, "TASK-03");
+    finish_of(&project, "TASK-03").assert().success();
+    let stderr = stderr_of(&mut task(&project, &["start"]));
+    assert!(
+        stderr.contains("a tarefa TASK-01 mudou depois do último ajuste registrado; registre o ajuste (vostok task adjust record-manual) antes de recomeçar"),
+        "{stderr}"
+    );
+    let output = stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(
+        output.contains("continua 'approved', com a aprovação mantida"),
+        "{output}"
+    );
+    assert_eq!(state_line(&project, "status"), "approved");
+    task(&project, &["start"]).assert().success();
+    assert!(record_of(&project).contains("| recomeço |"));
+}
 
 /// Linhas do estado da tarefa que o `--antecipada` nunca pode mudar.
 fn state_lines(project: &Project) -> Vec<String> {

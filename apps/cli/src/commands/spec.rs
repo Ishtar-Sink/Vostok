@@ -22,7 +22,7 @@ use crate::support::{
 const REFINE_USAGE: &str =
     "Uso: vostok spec refine <SPEC_ID> <tipo> | vostok spec validate <SPEC_ID> | vostok spec mark-refined <SPEC_ID>";
 const ADJUST_USAGE: &str =
-    "Uso: vostok spec adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> \"resumo\"";
+    "Uso: vostok spec adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> \"resumo\" [--ids ID,ID...]";
 const COMPONENT_ACTIONS: &str = "criar alterar remover";
 
 #[derive(Debug, Subcommand)]
@@ -59,6 +59,9 @@ pub enum AdjustCommand {
     Record {
         spec_id: String,
         summary: Option<String>,
+        /// IDs da spec mudados pelo ajuste, separados por vírgula.
+        #[arg(long, value_name = "ID[,ID...]", allow_hyphen_values = true)]
+        ids: Option<String>,
     },
 }
 
@@ -86,8 +89,12 @@ pub fn run(command: SpecCommand) -> Result<()> {
         SpecCommand::Adjust(AdjustCommand::Validate { spec_id }) => {
             validate_adjustable(&specs, &spec_id)
         }
-        SpecCommand::Adjust(AdjustCommand::Record { spec_id, summary }) => match summary {
-            Some(summary) => record(&specs, &spec_id, &summary),
+        SpecCommand::Adjust(AdjustCommand::Record {
+            spec_id,
+            summary,
+            ids,
+        }) => match summary {
+            Some(summary) => record(&specs, &spec_id, &summary, ids.as_deref()),
             None => bail!("{ADJUST_USAGE}"),
         },
         SpecCommand::Approve(ApproveCommand::Validate { spec_id }) => {
@@ -780,6 +787,60 @@ fn folder_with_cited_paths_error(folder: &str, inner: &[String]) -> String {
     )
 }
 
+fn parse_ids(value: &str) -> Result<Vec<String>> {
+    let mut ids: Vec<String> = Vec::new();
+    for id in value.split(',').map(str::trim).filter(|id| !id.is_empty()) {
+        if !ids.iter().any(|known| known == id) {
+            ids.push(id.to_string());
+        }
+    }
+    if ids.is_empty() {
+        bail!("informe ao menos um ID em --ids");
+    }
+    Ok(ids)
+}
+
+/// IDs da primeira coluna das tabelas da spec, fora dos blocos de código.
+fn spec_item_ids(content: &str) -> BTreeSet<String> {
+    let mut in_code = false;
+    let mut tables = String::new();
+    for line in front_matter_body(content).lines() {
+        if is_code_fence(line) {
+            in_code = !in_code;
+        } else if !in_code && line.starts_with('|') {
+            tables.push_str(line);
+            tables.push('\n');
+        } else if !in_code {
+            tables.push('\n');
+        }
+    }
+    markdown_table_rows(&tables)
+        .iter()
+        .map(|row| markdown_cell(row, 1))
+        .filter(|cell| has_id_shape(cell))
+        .collect()
+}
+
+fn has_id_shape(value: &str) -> bool {
+    let Some((letters, digits)) = value.split_once('-') else {
+        return false;
+    };
+    !letters.is_empty()
+        && letters.bytes().all(|b| b.is_ascii_uppercase())
+        && !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+fn changed_ids_of(file: &Path) -> Vec<String> {
+    frontmatter_get(file, "changed_ids")
+        .unwrap_or_default()
+        .trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace())
+        .split(',')
+        .map(|id| id.trim().trim_matches(['"', '\'']).to_string())
+        .filter(|id| !id.is_empty() && id != "null")
+        .collect()
+}
+
 fn is_requirement_id(value: &str) -> bool {
     value
         .strip_prefix("RF-")
@@ -841,6 +902,10 @@ fn front_matter_body(content: &str) -> String {
 // --- adjust ---
 
 fn find_adjustable(specs: &Specs, spec_id: &str) -> Result<PathBuf> {
+    find_adjustable_with(specs, spec_id, false)
+}
+
+fn find_adjustable_with(specs: &Specs, spec_id: &str, accept_planned: bool) -> Result<PathBuf> {
     let refined_dir = specs.refined_dir()?;
     let Some(refined) = find_by_id(&refined_dir, spec_id) else {
         if find_by_id(&specs.draft_dir()?, spec_id).is_some() {
@@ -854,6 +919,9 @@ fn find_adjustable(specs: &Specs, spec_id: &str) -> Result<PathBuf> {
     let status = frontmatter_get(&refined, "status").unwrap_or_default();
     let refined_status = specs.status("refined")?;
     let approved_status = specs.status("approved")?;
+    if status == specs.status("planned")? && accept_planned {
+        return Ok(refined);
+    }
     if status == specs.status("planned")? {
         bail!("a spec {spec_id} está com status '{status}': as tarefas já foram criadas, e mudá-la exige um novo ciclo");
     }
@@ -898,9 +966,15 @@ fn validate_adjustable(specs: &Specs, spec_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn record(specs: &Specs, spec_id: &str, summary: &str) -> Result<()> {
+fn record(specs: &Specs, spec_id: &str, summary: &str, ids: Option<&str>) -> Result<()> {
     let summary = clean_summary(summary)?;
-    let refined = find_adjustable(specs, spec_id)?;
+    let ids = ids.map(parse_ids).transpose()?;
+    let refined = find_adjustable_with(specs, spec_id, true)?;
+    let status = frontmatter_get(&refined, "status").unwrap_or_default();
+    let planned = status == specs.status("planned")?;
+    if planned && ids.is_none() {
+        bail!("a spec {spec_id} está com status '{status}'; informe os IDs mudados pelo ajuste em --ids (vostok spec adjust record {spec_id} \"resumo\" --ids RF-01,CT-02); nenhum ajuste registrado");
+    }
     let errors = refined_errors(specs, &refined)?;
     if !errors.is_empty() {
         bail!(
@@ -908,12 +982,43 @@ fn record(specs: &Specs, spec_id: &str, summary: &str) -> Result<()> {
             errors.join("\n")
         );
     }
+    let mut changed = changed_ids_of(&refined);
+    if let Some(ids) = &ids {
+        let known = spec_item_ids(&fs::read_to_string(&refined)?);
+        let unknown: Vec<&str> = ids
+            .iter()
+            .filter(|id| !known.contains(*id))
+            .map(String::as_str)
+            .collect();
+        if !unknown.is_empty() {
+            bail!(
+                "IDs inexistentes na spec {spec_id}: {}; nenhum ajuste registrado",
+                unknown.join(", ")
+            );
+        }
+    }
     let origin = specs.setting("adjustment_origins.agent")?;
     let count = record_adjustment(specs, &refined, &origin, &summary)?;
     println!(
         "Ajuste {count} registrado em {spec_id}: {}",
         refined.display()
     );
+    if let Some(ids) = ids.filter(|_| planned || !changed.is_empty()) {
+        for id in ids {
+            if !changed.contains(&id) {
+                changed.push(id);
+            }
+        }
+        frontmatter_put(
+            &refined,
+            "changed_ids",
+            &format!("[{}]", changed.join(", ")),
+        )?;
+        println!(
+            "IDs mudados gravados em changed_ids: {}; a reaprovação trata as tarefas que os cobrem.",
+            changed.join(", ")
+        );
+    }
     drop_approval(specs, &refined, spec_id)
 }
 
@@ -938,7 +1043,7 @@ fn clean_summary(summary: &str) -> Result<String> {
 /// Derruba a aprovação de uma spec aprovada e avisa. Não faz nada numa spec só refinada.
 fn drop_approval(specs: &Specs, file: &Path, spec_id: &str) -> Result<()> {
     let status = frontmatter_get(file, "status").unwrap_or_default();
-    if status != specs.status("approved")? {
+    if status != specs.status("approved")? && status != specs.status("planned")? {
         return Ok(());
     }
     let refined_status = specs.status("refined")?;
@@ -1223,6 +1328,11 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
         );
     }
 
+    let changed = changed_ids_of(&refined);
+    if !changed.is_empty() {
+        return reapprove(specs, spec_id, &refined, &changed);
+    }
+
     let now = utc_now();
     let hash = frontmatter_get(&refined, &specs.setting("content_hash_field")?)?;
     frontmatter_set(&refined, "status", &specs.status("approved")?)?;
@@ -1248,6 +1358,48 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
             "Rascunho de {spec_id} não encontrado em {}; nada a remover.",
             draft_dir.display()
         ),
+    }
+    Ok(())
+}
+
+/// Reaprovação de uma spec com IDs mudados: volta a `planned` sem plano novo e trata as tarefas.
+fn reapprove(specs: &Specs, spec_id: &str, refined: &Path, changed: &[String]) -> Result<()> {
+    let now = utc_now();
+    let planned = specs.status("planned")?;
+    let hash = frontmatter_get(refined, &specs.setting("content_hash_field")?)?;
+    frontmatter_set(refined, "status", &planned)?;
+    frontmatter_put(refined, &specs.setting("approved_at_field")?, &now)?;
+    frontmatter_put(refined, &specs.setting("approved_hash_field")?, &hash)?;
+    frontmatter_put(refined, "updated_at", &now)?;
+    record_status(refined, &planned)?;
+    let result = crate::commands::task::apply_changed_ids(&specs.harness, spec_id, changed)?;
+    frontmatter_put(refined, "changed_ids", "[]")?;
+    println!(
+        "Spec {spec_id} aprovada de novo: status '{planned}', sem plano novo; IDs mudados: {}.",
+        changed.join(", ")
+    );
+    let lists = [
+        (
+            "A detalhar de novo (voltaram a 'pending'; skill adjust-task)",
+            &result.redo,
+        ),
+        (
+            "Ajuste registrado nas tarefas em execução",
+            &result.adjusted,
+        ),
+        (
+            "Concluídas que cobrem os IDs, sem mudança (sugira uma tarefa nova num novo plano)",
+            &result.done,
+        ),
+    ];
+    for (label, ids) in lists.iter().filter(|(_, ids)| !ids.is_empty()) {
+        println!("{label}: {}", ids.join(", "));
+    }
+    if lists.iter().all(|(_, ids)| ids.is_empty()) {
+        println!(
+            "Nenhuma tarefa cobre os IDs mudados ({}); nenhuma é refeita.",
+            changed.join(", ")
+        );
     }
     Ok(())
 }

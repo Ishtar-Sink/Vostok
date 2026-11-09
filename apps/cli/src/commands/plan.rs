@@ -84,6 +84,7 @@ const ID_COLUMN: &str = "ID";
 const TITLE_COLUMN: &str = "Título";
 const TYPE_COLUMN: &str = "Tipo";
 const DEPENDS_COLUMN: &str = "Dependências";
+const CLOSES_COLUMN: &str = "Fecha depois de";
 const COVERS_COLUMN: &str = "Cobre";
 const DESCRIPTION_COLUMN: &str = "Descrição";
 const LEGACY_COLUMNS: [&str; 7] = [
@@ -1043,6 +1044,7 @@ impl Workspace {
                     plan_waves.get(&task.id).copied().unwrap_or(1).to_string(),
                 ),
                 ("TASK_DEPENDS", depends),
+                ("TASK_CLOSES_AFTER", as_list(&task.closes)),
                 ("TASK_COVERS", as_list(&task.covers)),
                 ("TASK_TYPE", task.kind.clone()),
                 ("TASK_STATUS", pending.clone()),
@@ -1875,6 +1877,7 @@ struct Analyzer {
     stored: HashMap<String, String>,
     stored_waves: HashMap<String, String>,
     depends: HashMap<String, Vec<String>>,
+    closes: HashMap<String, Vec<String>>,
     covered: HashMap<String, i64>,
     facts: Vec<String>,
     task_facts: HashMap<String, Facts>,
@@ -1892,6 +1895,7 @@ impl Analyzer {
             stored: HashMap::new(),
             stored_waves: HashMap::new(),
             depends: HashMap::new(),
+            closes: HashMap::new(),
             covered: HashMap::new(),
             facts: Vec::new(),
             task_facts: HashMap::new(),
@@ -1937,6 +1941,7 @@ impl Analyzer {
         let kind = cell(self.columns.index(TYPE_COLUMN));
         let stored = cell(self.columns.level_index());
         let depends = cell(self.columns.index(DEPENDS_COLUMN));
+        let closes = cell(self.columns.index(CLOSES_COLUMN));
         let covers = cell(self.columns.index(COVERS_COLUMN));
         let persona = self
             .columns
@@ -1962,6 +1967,7 @@ impl Analyzer {
             .insert(id.clone(), cell(self.columns.index(WAVE_COLUMN)));
         self.stored.insert(id.clone(), stored);
         self.depends.insert(id.clone(), id_list(&depends));
+        self.closes.insert(id.clone(), id_list(&closes));
         let covered = id_list(&covers).len() as i64;
         self.covered.insert(id, covered);
     }
@@ -2028,6 +2034,7 @@ impl Analyzer {
         let mut graph_ok = true;
         for id in self.order.clone() {
             graph_ok &= self.check_dependencies(&id);
+            graph_ok &= self.check_closes(&id);
             if !self.facts.contains(&id) {
                 self.problem(format!("{id}: sem fatos de esforço"));
                 continue;
@@ -2050,6 +2057,9 @@ impl Analyzer {
             }
         }
         graph_ok &= self.check_cycles();
+        if graph_ok {
+            graph_ok &= self.check_closing_cycles();
+        }
         if graph_ok && self.columns.index(WAVE_COLUMN).is_some() {
             let tasks: Vec<(String, Vec<String>)> = self
                 .order
@@ -2080,6 +2090,55 @@ impl Analyzer {
             }
         }
         ok
+    }
+
+    /// `false` quando a tarefa fecha depois de uma tarefa inválida.
+    fn check_closes(&mut self, id: &str) -> bool {
+        let mut ok = true;
+        for other in self.closes[id].clone() {
+            if other == id {
+                self.problem(format!("{id}: fecha depois de si mesma"));
+                ok = false;
+            } else if !self.tasks.contains(&other) {
+                self.problem(format!(
+                    "{id}: \"Fecha depois de\" cita tarefa inexistente {other}"
+                ));
+                ok = false;
+            }
+        }
+        ok
+    }
+
+    /// Ciclo no grafo que une "Dependências" e "Fecha depois de".
+    fn check_closing_cycles(&mut self) -> bool {
+        let mut visits = Visits::default();
+        for id in self.order.clone() {
+            if !visits.state.contains_key(&id) {
+                self.visit_closing(&id, &mut visits);
+            }
+        }
+        visits.cycled.is_empty()
+    }
+
+    fn visit_closing(&mut self, id: &str, visits: &mut Visits) {
+        visits.state.insert(id.to_string(), Visit::Running);
+        let mut edges = self.depends.get(id).cloned().unwrap_or_default();
+        edges.extend(self.closes.get(id).cloned().unwrap_or_default());
+        for other in edges {
+            if !self.tasks.contains(&other) {
+                continue;
+            }
+            match visits.state.get(&other) {
+                Some(Visit::Running) => {
+                    if visits.cycled.insert(other.clone()) {
+                        self.problem(format!("\"Fecha depois de\" em ciclo envolvendo {other}"));
+                    }
+                }
+                Some(Visit::Done) => {}
+                None => self.visit_closing(&other, visits),
+            }
+        }
+        visits.state.insert(id.to_string(), Visit::Done);
     }
 
     /// Busca em profundidade: um vértice em andamento revisitado fecha um ciclo.
@@ -2180,6 +2239,7 @@ struct PlanTask {
     effort: String,
     profile: String,
     depends: String,
+    closes: String,
     covers: String,
 }
 
@@ -2215,6 +2275,7 @@ fn plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTask> {
                     effort: profile.clone(),
                     profile,
                     depends: cell(DEPENDS_COLUMN),
+                    closes: cell(CLOSES_COLUMN),
                     covers: cell(COVERS_COLUMN),
                 })
             })
@@ -2255,6 +2316,7 @@ fn legacy_plan_tasks(plan: &str, legacy: &HashMap<String, String>) -> Vec<PlanTa
                     .unwrap_or_else(|| effort.clone()),
                 effort,
                 depends: next(),
+                closes: String::new(),
                 covers: next(),
             })
         })

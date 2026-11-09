@@ -479,7 +479,7 @@ fn profile_plan_create_uses_the_profile_columns() {
     let plan = plan_text(&project);
     assert!(
         plan.contains(
-            "| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Onda | Cobre |\n|---|---|---|---|---|---|---|---|---|"
+            "| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Fecha depois de | Onda | Cobre |\n|---|---|---|---|---|---|---|---|---|---|"
         ),
         "{plan}"
     );
@@ -1168,6 +1168,140 @@ fn waves_public_function_computes_the_waves() {
     assert_eq!(waves["TASK-01"], 1);
     assert_eq!(waves["TASK-02"], 2);
     assert_eq!(waves["TASK-03"], 1);
+}
+
+// --- Fecha depois de (SPEC-044) ---
+
+fn closes_plan(rows: &str, count: usize) -> String {
+    let components = if count == 2 {
+        "| TASK-01 | `src/a.rs`, `src/b.rs` |\n| TASK-02 | `src/c.rs`, `docs/d.md` |".to_string()
+    } else {
+        dash_components(count)
+    };
+    format!("\n# Plano\n\n## Visão geral\n\nUm plano.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Persona | Perfil | Dependências | Fecha depois de | Onda | Cobre |\n|---|---|---|---|---|---|---|---|---|---|\n{rows}\n\n## Componentes por tarefa\n\n| ID | Componentes |\n|---|---|\n{components}\n\n## Fatos de esforço\n\n{FACTS_HEADER}\n{}\n\n{SHARED_HEADER}\n| - | - | - |\n", dash_facts(count))
+}
+
+fn closes_row(id: &str, depends: &str, closes: &str, wave: &str, covers: &str) -> String {
+    format!("| {id} | Tarefa {id} | Faz. | tarefa | desenvolvedor | - | {depends} | {closes} | {wave} | {covers} |")
+}
+
+fn closes_project(rows: &[String]) -> Project {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &closes_plan(&rows.join("\n"), rows.len()),
+    );
+    project
+}
+
+fn closes_pair() -> Project {
+    closes_project(&[
+        closes_row("TASK-01", "-", "-", "-", "RF-01, CT-01"),
+        closes_row("TASK-02", "-", "TASK-01", "-", "RF-02"),
+    ])
+}
+
+fn task_state(project: &Project, id: &str) -> String {
+    std::fs::read_to_string(
+        project
+            .root()
+            .join(format!("vostok/work/tasks/SPEC-001/{id}/estado.yml")),
+    )
+    .unwrap()
+}
+
+#[test]
+fn closes_after_plan_is_valid_and_keeps_the_waves() {
+    let project = closes_pair();
+    score(&project);
+    let plan = plan_text(&project);
+    for id in ["TASK-01", "TASK-02"] {
+        let row = plan
+            .lines()
+            .find(|line| line.starts_with(&format!("| {id} |")))
+            .unwrap();
+        assert_eq!(row.split('|').nth(9).unwrap().trim(), "1", "{plan}");
+    }
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn closes_after_plan_create_tasks_writes_the_field() {
+    let project = closes_pair();
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let second = task_state(&project, "TASK-02");
+    assert!(second.contains("\ncloses_after: [TASK-01]\n"), "{second}");
+    let first = task_state(&project, "TASK-01");
+    assert!(first.contains("\ncloses_after: []\n"), "{first}");
+    assert!(first.contains("\nwaiting_on: []\n"), "{first}");
+    assert!(first.contains("\nwaiting_reason: null\n"), "{first}");
+}
+
+#[test]
+fn closes_after_plan_without_the_column_writes_empty_lists() {
+    let project = Project::new();
+    let rows = format!(
+        "{}\n{}",
+        wave_row("TASK-01", "-", "-", "RF-01, CT-01"),
+        wave_row("TASK-02", "TASK-01", "-", "RF-02")
+    );
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &wave_plan(
+            &rows,
+            &dash_facts(2),
+            "| TASK-01 | `src/a.rs`, `src/b.rs` |\n| TASK-02 | `src/c.rs`, `docs/d.md` |",
+        ),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    let first = task_state(&project, "TASK-01");
+    assert!(first.contains("\ncloses_after: []\n"), "{first}");
+}
+
+#[test]
+fn closes_after_plan_refuses_unknown_self_and_cycle() {
+    let unknown = closes_project(&[closes_row("TASK-01", "-", "TASK-09", "-", "-")]);
+    assert!(validate_stderr(&unknown)
+        .contains("TASK-01: \"Fecha depois de\" cita tarefa inexistente TASK-09"));
+    let itself = closes_project(&[closes_row("TASK-01", "-", "TASK-01", "-", "-")]);
+    assert!(validate_stderr(&itself).contains("TASK-01: fecha depois de si mesma"));
+    let cycle = closes_project(&[
+        closes_row("TASK-01", "-", "TASK-02", "-", "-"),
+        closes_row("TASK-02", "-", "TASK-01", "-", "-"),
+    ]);
+    assert!(validate_stderr(&cycle).contains("\"Fecha depois de\" em ciclo envolvendo"));
+}
+
+#[test]
+fn closes_after_plan_accepts_a_task_also_in_the_dependencies() {
+    let project = closes_project(&[
+        closes_row("TASK-01", "-", "-", "-", "RF-01, CT-01"),
+        closes_row("TASK-02", "TASK-01", "TASK-01", "-", "RF-02"),
+    ]);
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
 }
 
 // --- Baseline sem a entrega (SPEC-017) ---

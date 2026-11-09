@@ -24,11 +24,11 @@ TASK-01
 
 @stdout 0
 
-@stderr 258
-Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado:
-- evidence_result: 'null' (precisa ser 'passed')
-- a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:
-- [ ] O script existe (RF-01).
+@stderr 368
+Erro: a tarefa TASK-01 não pode ser concluída; nada foi alterado. Resolva nesta ordem:
+1. evidências: evidence_result 'null' -> vostok task evidence SPEC-008 TASK-01
+2. critérios: a tarefa TASK-01 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x] -> vostok task check-done SPEC-008 TASK-01
+   - [ ] O script existe (RF-01).
 
 
 @exit 1

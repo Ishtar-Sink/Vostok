@@ -43,6 +43,12 @@ pub enum TaskCommand {
     /// Ajustes de uma tarefa.
     #[command(subcommand)]
     Adjust(AdjustCommand),
+    /// Muda as tarefas que precisam estar concluídas antes de esta fechar.
+    #[command(subcommand, name = "closes-after")]
+    ClosesAfter(ClosesAfterCommand),
+    /// Muda as dependências de uma tarefa em execução, a pedido do usuário.
+    #[command(subcommand)]
+    Depends(DependsCommand),
     /// Inicia a execução.
     Start {
         spec_id: Option<String>,
@@ -55,6 +61,17 @@ pub enum TaskCommand {
     Baseline {
         spec_id: Option<String>,
         task_id: Option<String>,
+        /// Recoleta o baseline de uma tarefa em execução, com a decisão do usuário em --motivo.
+        #[arg(long)]
+        recoletar: bool,
+        /// Motivo da recoleta, nas palavras do usuário.
+        #[arg(
+            long,
+            value_name = "MOTIVO",
+            allow_hyphen_values = true,
+            requires = "recoletar"
+        )]
+        motivo: Option<String>,
     },
     /// Imprime o briefing do subagente.
     Brief {
@@ -156,6 +173,46 @@ pub enum AdjustCommand {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum ClosesAfterCommand {
+    /// Acrescenta uma tarefa que precisa estar concluída antes.
+    Add {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        target: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+    /// Tira uma tarefa da espera.
+    Remove {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        target: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum DependsCommand {
+    /// Acrescenta uma dependência.
+    Add {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        dependency: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+    /// Tira uma dependência.
+    Remove {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        dependency: Option<String>,
+        #[arg(long = "motivo", allow_hyphen_values = true)]
+        reason: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum ApproveCommand {
     /// Lista as tarefas que podem ser aprovadas.
     Validate {
@@ -181,6 +238,13 @@ const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>"
 const APPROVE_USAGE: &str =
     "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
+const BLOCKED_BY_PREFIX: &str = "- **Bloqueada por:** ";
+const WAITING_ON_FIELD: &str = "waiting_on";
+const WAITING_REASON_FIELD: &str = "waiting_reason";
+const DEPENDS_USAGE: &str =
+    "Uso: vostok task depends add|remove <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo \"texto\"";
+const CLOSES_AFTER_USAGE: &str =
+    "Uso: vostok task closes-after add|remove <SPEC_ID> <TASK_ID> <TAREFA> --motivo \"texto\"";
 const STATUS_USAGE: &str = "Uso: vostok task status <SPEC_ID>";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
 const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task evidence <SPEC_ID> <TASK_ID> [--reviewed <ARQUIVO>]... [--rejected <ARQUIVO> --motivo \"motivo\"] | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
@@ -249,6 +313,8 @@ const BRIEF_RULES: [&str; 3] = [
 pub fn run(command: TaskCommand) -> Result<()> {
     let tasks = Tasks::new(Harness::from_current_dir()?)?;
     match command {
+        TaskCommand::ClosesAfter(command) => tasks.run_closes_after(command),
+        TaskCommand::Depends(command) => tasks.run_depends(command),
         TaskCommand::Load {
             spec_id,
             task_id,
@@ -282,9 +348,18 @@ pub fn run(command: TaskCommand) -> Result<()> {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
             tasks.start(&spec, &task, model.as_deref())
         }
-        TaskCommand::Baseline { spec_id, task_id } => {
+        TaskCommand::Baseline {
+            spec_id,
+            task_id,
+            recoletar,
+            motivo,
+        } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
-            tasks.baseline(&spec, &task)
+            if recoletar {
+                tasks.recollect_baseline(&spec, &task, motivo.as_deref())
+            } else {
+                tasks.baseline(&spec, &task)
+            }
         }
         TaskCommand::Brief { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
@@ -984,11 +1059,58 @@ impl Tasks {
                 wave_status(&statuses, &self.status)
             ));
         }
+        text.push_str(&self.waits_table(spec, &files));
         text.push_str(&format!(
             "\nSubagentes ao mesmo tempo: {}\n",
             self.max_subagents()
         ));
         Ok(text)
+    }
+
+    fn waits_table(&self, spec: &str, files: &[PathBuf]) -> String {
+        let mut rows = String::new();
+        for file in files {
+            let id = task_id_of(file);
+            if status_of(file) != self.status.done {
+                let pending: Vec<String> = closes_after_of(file)
+                    .into_iter()
+                    .filter_map(|closing| {
+                        let closing_file = self.task_file(spec, &closing);
+                        if !closing_file.exists() {
+                            return Some(format!("{closing} (não existe)"));
+                        }
+                        let status = status_of(&closing_file);
+                        (status != self.status.done).then(|| format!("{closing} ({status})"))
+                    })
+                    .collect();
+                if !pending.is_empty() {
+                    rows.push_str(&format!(
+                        "| {id} | fechamento | {} | - |\n",
+                        pending.join(", ")
+                    ));
+                }
+            }
+            let waiting = waiting_of(file);
+            if !waiting.is_empty() {
+                let reason = TaskDoc::at(file)
+                    .get(WAITING_REASON_FIELD)
+                    .unwrap_or_default();
+                let reason = match reason.as_str() {
+                    "" | "-" | "null" => "-".to_string(),
+                    reason => escape_pipes(reason),
+                };
+                rows.push_str(&format!(
+                    "| {id} | dependência | {} | {reason} |\n",
+                    waiting.join(", ")
+                ));
+            }
+        }
+        if rows.is_empty() {
+            return rows;
+        }
+        format!(
+            "\n### Esperas da {spec}\n\n| Tarefa | Espera | Tarefas | Motivo |\n|---|---|---|---|\n{rows}"
+        )
     }
 
     fn check_done(&self, spec: &str, task: &str) -> Result<String> {
@@ -1296,6 +1418,13 @@ impl Tasks {
         if status_of(file) != self.status.approved {
             return Ok(());
         }
+        if self.has_baseline(file)? {
+            println!(
+                "Ajuste em tarefa já iniciada: {task} continua '{}', com a aprovação mantida.",
+                self.status.approved
+            );
+            return Ok(());
+        }
         TaskDoc::at(file).set("status", &self.status.pending)?;
         TaskDoc::at(file).put(&self.spec_cfg("approved_at_field")?, "null")?;
         TaskDoc::at(file).put(&self.spec_cfg("approved_hash_field")?, "null")?;
@@ -1334,6 +1463,10 @@ impl Tasks {
 
     // --- start e baseline ---
 
+    fn has_baseline(&self, file: &Path) -> Result<bool> {
+        Ok(self.evidence_dir(file)?.join("baseline").is_dir())
+    }
+
     fn start(&self, spec: &str, task: &str, model: Option<&str>) -> Result<()> {
         let model = match model.map(str::trim) {
             Some(value) if value.is_empty() || value.contains(['\n', '\r']) => {
@@ -1342,8 +1475,10 @@ impl Tasks {
             other => other,
         };
         let file = self.find_task(spec, task)?;
-        let mut blockers = self.start_blockers(spec, task, &file)?;
-        if blockers.is_empty() {
+        // Tarefa aprovada que já tem baseline saiu de uma espera: recomeça de onde parou.
+        let restart = status_of(&file) == self.status.approved && self.has_baseline(&file)?;
+        let mut blockers = self.start_blockers(spec, task, &file, restart)?;
+        if blockers.is_empty() && !restart {
             blockers = self.created_conflicts(&file)?;
         }
         if !blockers.is_empty() {
@@ -1351,6 +1486,9 @@ impl Tasks {
                 "a tarefa {task} não pode ser iniciada; nada foi alterado:\n{}",
                 blockers.join("\n")
             );
+        }
+        if restart {
+            return self.restart_task(&file, task, model);
         }
         // A tarefa aparece em execução antes da coleta, que pode demorar; se a coleta falhar, ela
         // continua em execução sem baseline, e o `vostok task baseline` coleta de novo.
@@ -1376,7 +1514,27 @@ impl Tasks {
         Ok(())
     }
 
-    fn start_blockers(&self, spec: &str, task: &str, file: &Path) -> Result<Vec<String>> {
+    /// Recomeça a tarefa desbloqueada: mantém o baseline, os hashes dos documentos e a aprovação.
+    fn restart_task(&self, file: &Path, task: &str, model: Option<&str>) -> Result<()> {
+        let in_progress = &self.status.in_progress;
+        TaskDoc::at(file).set("status", in_progress)?;
+        let mut detail = String::from("baseline mantido");
+        if let Some(model) = model {
+            TaskDoc::at(file).put("model", model)?;
+            detail.push_str(&format!("; modelo: {model}"));
+        }
+        self.record_step(file, "recomeço", in_progress, &detail)?;
+        println!("Tarefa {task} recomeçada: status '{in_progress}', com o baseline mantido.");
+        Ok(())
+    }
+
+    fn start_blockers(
+        &self,
+        spec: &str,
+        task: &str,
+        file: &Path,
+        restart: bool,
+    ) -> Result<Vec<String>> {
         let status = status_of(file);
         let approved = &self.status.approved;
         if status != *approved {
@@ -1388,7 +1546,13 @@ impl Tasks {
         let approved_hash = TaskDoc::at(file)
             .get(&self.spec_cfg("approved_hash_field")?)
             .unwrap_or_default();
-        if approved_hash != self.task_hash(file)? {
+        if restart {
+            if !self.hash_is_current(file)? {
+                blockers.push(format!(
+                    "a tarefa {task} mudou depois do último ajuste registrado; registre o ajuste (vostok task adjust record-manual) antes de recomeçar"
+                ));
+            }
+        } else if approved_hash != self.task_hash(file)? {
             blockers.push(format!(
                 "a tarefa {task} mudou depois da aprovação; registre o ajuste (skill adjust-task) e peça a aprovação de novo"
             ));
@@ -1434,6 +1598,70 @@ impl Tasks {
         let (dir, detail) = self.collect_baseline(&file, task)?;
         self.record_step(&file, "baseline", "coletado", &detail)?;
         println!("Baseline de {task} coletado em {}: {detail}", dir.display());
+        Ok(())
+    }
+
+    /// Recoleta o baseline em execução; o anterior fica em `baseline-anterior-N`.
+    fn recollect_baseline(&self, spec: &str, task: &str, reason: Option<&str>) -> Result<()> {
+        let reason = normalized_reason(reason.unwrap_or_default());
+        if reason.is_empty() {
+            bail!("informe o motivo da recoleta em --motivo, com a decisão do usuário; nada foi alterado");
+        }
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        if !self.is_running(&status) {
+            bail!(
+                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}' ou '{}' têm o baseline recoletado; nada foi alterado",
+                self.status.in_progress,
+                self.status.validating,
+                self.status.blocked
+            );
+        }
+        let waiting = waiting_of(&file);
+        if !waiting.is_empty() {
+            bail!(
+                "a tarefa {task} espera {}; o baseline é recoletado depois do recomeço (vostok task start); nada foi alterado",
+                waiting.join(", ")
+            );
+        }
+        let evidence = self.evidence_dir(&file)?;
+        let current = evidence.join("baseline");
+        if !current.is_dir() {
+            bail!("o baseline de {task} não foi coletado; execute: vostok task baseline {spec} {task}");
+        }
+        let number = (1..)
+            .find(|n| !evidence.join(format!("baseline-anterior-{n}")).exists())
+            .unwrap_or(1);
+        let previous = evidence.join(format!("baseline-anterior-{number}"));
+        fs::rename(&current, &previous)?;
+        let (dir, detail) = match self.collect_baseline(&file, task) {
+            Ok(collected) => collected,
+            Err(error) => {
+                fs::rename(&previous, &current)?;
+                return Err(error);
+            }
+        };
+        let new_status = if status == self.status.blocked {
+            self.status.validating.clone()
+        } else {
+            status
+        };
+        let doc = TaskDoc::at(&file);
+        doc.set("status", &new_status)?;
+        doc.set("regression_result", "null")?;
+        doc.set("attempts", "0")?;
+        clear_regression_outputs(&evidence.join("validation/regression"))?;
+        self.record_step(
+            &file,
+            "recoleta",
+            &new_status,
+            &format!("baseline anterior em baseline-anterior-{number}: {reason}; {detail}"),
+        )?;
+        println!(
+            "Baseline de {task} recoletado em {}: {detail}. Anterior guardado em {}. Status: '{new_status}'.",
+            dir.display(),
+            previous.display()
+        );
         Ok(())
     }
 
@@ -2384,36 +2612,388 @@ impl Tasks {
 
     // --- finish e resume ---
 
-    fn finish(&self, spec: &str, task: &str) -> Result<()> {
-        let file = self.find_task(spec, task)?;
-        self.require_running(&file, task)?;
-        let mut problems = String::new();
-        for key in ["tests_result", "regression_result", "evidence_result"] {
-            let value = TaskDoc::at(&file).get(key).unwrap_or_default();
-            if value != "passed" {
-                problems.push_str(&format!("- {key}: '{value}' (precisa ser 'passed')\n"));
+    /// Impedimentos do `finish` na ordem fixa: nome, detalhe e próximo comando.
+    fn finish_problems(
+        &self,
+        spec: &str,
+        task: &str,
+        file: &Path,
+    ) -> Result<Vec<(&'static str, String, String)>> {
+        let mut problems: Vec<(&'static str, String, String)> = Vec::new();
+        let results = [
+            ("testes", "tests_result", "tests"),
+            ("regressão", "regression_result", "regression"),
+            ("evidências", "evidence_result", "evidence"),
+        ];
+        for (name, key, command) in results {
+            let value = TaskDoc::at(file).get(key).unwrap_or_default();
+            if value == "passed" {
+                continue;
             }
+            let mut next = format!("vostok task {command} {spec} {task}");
+            if key == "evidence_result" && value == "pending" {
+                next.push_str(" --reviewed <arquivo>");
+            }
+            problems.push((name, format!("{key} '{value}'"), next));
         }
         if let Err(error) = self.check_done(spec, task) {
-            problems.push_str(&format!("- {error}\n"));
+            let text = error.to_string();
+            let (first, rest) = text.split_once('\n').unwrap_or((&text, ""));
+            let mut detail = first.trim_end_matches(':').to_string();
+            for line in rest.lines() {
+                detail.push_str(&format!("\n   {line}"));
+            }
+            problems.push((
+                "critérios",
+                detail,
+                format!("vostok task check-done {spec} {task}"),
+            ));
         }
-        for problem in self.persist_problems(spec, task, &file)? {
-            problems.push_str(&format!("- {problem}\n"));
+        let persist = format!("vostok task persist {spec} {task}");
+        for problem in self.persist_problems(spec, task, file)? {
+            problems.push(("persistência", problem, persist.clone()));
         }
-        let doc = TaskDoc::at(&file);
+        let doc = TaskDoc::at(file);
         if doc.folder() {
+            let describe = format!("vostok task describe {spec} {task}");
             for (key, name) in layout().document_files() {
                 let text = read(&doc.part(name))?;
                 if !template_leftovers(&text).is_empty() {
-                    problems.push_str(&format!("- o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe\n"));
+                    problems.push(("documentos", format!("o documento {name} de {task} ainda está no template; escreva-o a partir de vostok task describe"), describe.clone()));
                 } else if doc.get(key).ok().as_deref() == Some(sha256_hex(text.as_bytes()).as_str())
                 {
-                    problems.push_str(&format!("- o documento {name} de {task} não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe\n"));
+                    problems.push(("documentos", format!("o documento {name} de {task} não foi enriquecido desde o início; enriqueça-o a partir de vostok task describe"), describe.clone()));
                 }
             }
         }
+        let done = &self.status.done;
+        for id in closes_after_of(file) {
+            if !self.task_file(spec, &id).exists() {
+                problems.push((
+                    "espera de fechamento",
+                    format!("{id} não existe em {spec}"),
+                    format!("corrija closes_after de {task}"),
+                ));
+            } else if status_of(&self.task_file(spec, &id)) != *done {
+                problems.push((
+                    "espera de fechamento",
+                    format!("{id} não está {done}"),
+                    format!("conclua {id} antes"),
+                ));
+            }
+        }
+        Ok(problems)
+    }
+
+    fn run_closes_after(&self, command: ClosesAfterCommand) -> Result<()> {
+        let (add, spec_id, task_id, target, reason) = match command {
+            ClosesAfterCommand::Add {
+                spec_id,
+                task_id,
+                target,
+                reason,
+            } => (true, spec_id, task_id, target, reason),
+            ClosesAfterCommand::Remove {
+                spec_id,
+                task_id,
+                target,
+                reason,
+            } => (false, spec_id, task_id, target, reason),
+        };
+        let (spec, task) = filled(spec_id, task_id, CLOSES_AFTER_USAGE)?;
+        let target = target
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| usage(CLOSES_AFTER_USAGE))?;
+        let reason = clean_summary(&reason.ok_or_else(|| usage(CLOSES_AFTER_USAGE))?)?;
+        self.change_closes_after(&spec, &task, &target, &reason, add)
+    }
+
+    fn change_closes_after(
+        &self,
+        spec: &str,
+        task: &str,
+        target: &str,
+        reason: &str,
+        add: bool,
+    ) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        self.check_task_id(target)?;
+        let status = status_of(&file);
+        if status == self.status.done {
+            bail!("a tarefa {task} está com status '{status}'; closes_after não muda em tarefa concluída");
+        }
+        if target == task {
+            bail!("a tarefa {task} não pode fechar depois dela mesma; nada foi gravado");
+        }
+        if !self.task_file(spec, target).exists() {
+            bail!("a tarefa {target} não existe em {spec}; nada foi gravado");
+        }
+        let mut list = closes_after_of(&file);
+        let listed = list.iter().any(|id| id == target);
+        if add && listed {
+            bail!("a tarefa {task} já fecha depois de {target}; nada foi gravado");
+        }
+        if !add && !listed {
+            bail!("a tarefa {task} não fecha depois de {target}; nada foi gravado");
+        }
+        if add {
+            list.push(target.to_string());
+        } else {
+            list.retain(|id| id != target);
+        }
+        let doc = TaskDoc::at(&file);
+        doc.put("closes_after", &format!("[{}]", list.join(", ")))?;
+        let action = if add { "acrescentada" } else { "retirada" };
+        self.record_step(
+            &file,
+            "ajuste",
+            &status,
+            &format!("fecha depois de {target} {action}: {reason}"),
+        )?;
+        if self.is_running(&status) {
+            doc.set("evidence_result", "null")?;
+        }
+        println!("Tarefa {task}: fecha depois de {target} {action}.");
+        Ok(())
+    }
+
+    // --- depends ---
+
+    fn run_depends(&self, command: DependsCommand) -> Result<()> {
+        let (add, spec_id, task_id, dependency, reason) = match command {
+            DependsCommand::Add {
+                spec_id,
+                task_id,
+                dependency,
+                reason,
+            } => (true, spec_id, task_id, dependency, reason),
+            DependsCommand::Remove {
+                spec_id,
+                task_id,
+                dependency,
+                reason,
+            } => (false, spec_id, task_id, dependency, reason),
+        };
+        let (spec, task) = filled(spec_id, task_id, DEPENDS_USAGE)?;
+        let dependency = dependency
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| usage(DEPENDS_USAGE))?;
+        let reason = clean_summary(&reason.ok_or_else(|| usage(DEPENDS_USAGE))?)?;
+        self.change_dependency(&spec, &task, &dependency, &reason, add)
+    }
+
+    fn change_dependency(
+        &self,
+        spec: &str,
+        task: &str,
+        dependency: &str,
+        reason: &str,
+        add: bool,
+    ) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        self.check_task_id(dependency)?;
+        self.require_dependency_status(&file, task)?;
+        if !self.hash_is_current(&file)? {
+            bail!(
+                "a tarefa {task} tem edição sem registro; registre-a antes (vostok task adjust record-manual {spec} {task})"
+            );
+        }
+        let mut dependencies = dependencies_of(&file);
+        if add {
+            self.check_new_dependency(spec, task, dependency, &dependencies)?;
+            dependencies.push(dependency.to_string());
+        } else {
+            let before = dependencies.len();
+            dependencies.retain(|id| id != dependency);
+            if dependencies.len() == before {
+                bail!("a tarefa {task} não depende de {dependency}; nada foi gravado");
+            }
+        }
+        let saved = self.stored_state(&file)?;
+        write_dependencies(&file, &dependencies)?;
+        let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
+        if !errors.is_empty() {
+            self.restore_state(&file, &saved)?;
+            bail!(
+                "a tarefa {task} ficaria com problemas; nada foi gravado:\n{}",
+                errors.join("\n")
+            );
+        }
+        let summary = if add {
+            format!("dependência {dependency} acrescentada: {reason}")
+        } else {
+            format!("dependência {dependency} retirada: {reason}")
+        };
+        let origin = self.spec_cfg("adjustment_origins.agent")?;
+        let count = self.record_adjustment(&file, &origin, &summary)?;
+        println!("Ajuste {count} registrado em {task}: {summary}");
+        self.settle_adjustment(spec, &file, task, &summary, add.then_some(reason))
+    }
+
+    /// A dependência só muda em tarefa em execução, em validação ou bloqueada por dependência.
+    fn require_dependency_status(&self, file: &Path, task: &str) -> Result<()> {
+        let status = status_of(file);
+        let blocked = status == self.status.blocked;
+        if status == self.status.in_progress || status == self.status.validating {
+            return Ok(());
+        }
+        if blocked && !waiting_of(file).is_empty() {
+            return Ok(());
+        }
+        if blocked {
+            bail!("a tarefa {task} está bloqueada por falha; decida o bloqueio antes (vostok task resume), para os dois motivos não se misturarem");
+        }
+        bail!("a tarefa {task} está com status '{status}'; a dependência só muda aqui em tarefa em execução, em validação ou bloqueada por dependência; nos demais casos, faça um novo plano");
+    }
+
+    fn check_new_dependency(
+        &self,
+        spec: &str,
+        task: &str,
+        dependency: &str,
+        dependencies: &[String],
+    ) -> Result<()> {
+        if dependency == task {
+            bail!("ciclo: {task} não pode depender dela mesma; nada foi gravado");
+        }
+        let dependency_file = self.task_file(spec, dependency);
+        if !dependency_file.exists() {
+            bail!("a dependência {dependency} não existe em {spec}: só vale dependência entre tarefas da mesma spec; nada foi gravado");
+        }
+        if dependencies.iter().any(|id| id == dependency) {
+            bail!("a tarefa {task} já depende de {dependency}; nada foi gravado");
+        }
+        let mut seen = HashSet::new();
+        let mut pending = vec![dependency.to_string()];
+        while let Some(id) = pending.pop() {
+            if id == task {
+                bail!("ciclo: {dependency} já depende de {task}, direta ou indiretamente; nada foi gravado");
+            }
+            if seen.insert(id.clone()) {
+                pending.extend(dependencies_of(&self.task_file(spec, &id)));
+            }
+        }
+        Ok(())
+    }
+
+    /// Texto do estado (`estado.yml` da pasta ou o arquivo único) para desfazer uma gravação.
+    fn stored_state(&self, file: &Path) -> Result<String> {
+        let doc = TaskDoc::at(file);
+        if doc.folder() {
+            read(&doc.part(&layout().state))
+        } else {
+            read(file)
+        }
+    }
+
+    fn restore_state(&self, file: &Path, saved: &str) -> Result<()> {
+        let doc = TaskDoc::at(file);
+        if doc.folder() {
+            write(&doc.part(&layout().state), saved)?;
+            return doc.write_readme();
+        }
+        write(file, saved)
+    }
+
+    /// Dependências da tarefa que ainda não foram concluídas.
+    fn pending_dependencies(&self, spec: &str, file: &Path) -> Vec<String> {
+        dependencies_of(file)
+            .into_iter()
+            .filter(|id| {
+                let dependency = self.task_file(spec, id);
+                !dependency.exists() || status_of(&dependency) != self.status.done
+            })
+            .collect()
+    }
+
+    /// Devolve a tarefa em espera a approved, mantendo a aprovação. Não grava o hash, para uma edição
+    /// sem registro feita durante a espera continuar aparecendo.
+    fn release_waiting(&self, file: &Path, task: &str, detail: &str) -> Result<()> {
+        let approved = &self.status.approved;
+        TaskDoc::at(file).set("status", approved)?;
+        write_waiting(file, &[], "")?;
+        self.append_record_row(file, "desbloqueio", approved, detail)?;
+        println!("Tarefa {task} desbloqueada: status '{approved}'.");
+        Ok(())
+    }
+
+    /// Libera as tarefas em espera da `finished` e mantém bloqueadas as que ainda esperam outra.
+    fn release_dependents(&self, file: &Path, finished: &str) -> Result<()> {
+        for other in task_entries(file.parent().unwrap_or(Path::new("")))? {
+            let waiting = waiting_of(&other);
+            if !waiting.iter().any(|id| id == finished) {
+                continue;
+            }
+            let id = task_id_of(&other);
+            let rest: Vec<String> = waiting.into_iter().filter(|dep| dep != finished).collect();
+            if rest.is_empty() {
+                self.release_waiting(&other, &id, &format!("{finished} concluída"))?;
+                continue;
+            }
+            let reason = TaskDoc::at(&other)
+                .get(WAITING_REASON_FIELD)
+                .unwrap_or_default();
+            write_waiting(&other, &rest, &reason)?;
+            println!(
+                "Tarefa {id} continua bloqueada: espera {}.",
+                rest.join(", ")
+            );
+        }
+        Ok(())
+    }
+
+    /// Depois de um ajuste de dependência: bloqueia a tarefa que ficou com dependência pendente ou
+    /// reinicia a execução.
+    fn settle_adjustment(
+        &self,
+        spec: &str,
+        file: &Path,
+        task: &str,
+        summary: &str,
+        reason: Option<&str>,
+    ) -> Result<()> {
+        if !self.is_running(&status_of(file)) {
+            return Ok(());
+        }
+        let waiting = waiting_of(file);
+        let pending = self.pending_dependencies(spec, file);
+        if pending.is_empty() && waiting.is_empty() {
+            return self.restart_execution(file, task, summary);
+        }
+        reset_results(file)?;
+        if pending.is_empty() {
+            self.record_step(file, "ajuste", &self.status.approved, summary)?;
+            return self.release_waiting(file, task, "sem dependência pendente depois do ajuste");
+        }
+        let blocked = &self.status.blocked;
+        TaskDoc::at(file).set("status", blocked)?;
+        self.record_step(file, "ajuste", blocked, summary)?;
+        let current = TaskDoc::at(file)
+            .get(WAITING_REASON_FIELD)
+            .unwrap_or_default();
+        let reason = reason
+            .map(str::to_string)
+            .or_else(|| Some(current).filter(|text| !text.is_empty()))
+            .unwrap_or_else(|| summary.to_string());
+        write_waiting(file, &pending, &reason)?;
+        if pending != waiting {
+            self.record_step(
+                file,
+                "bloqueio",
+                blocked,
+                &format!("espera {}: {reason}", pending.join(", ")),
+            )?;
+        }
+        println!("Tarefa {task} bloqueada: espera {}.", pending.join(", "));
+        Ok(())
+    }
+
+    fn finish(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        self.require_running(&file, task)?;
+        let problems = self.finish_problems(spec, task, &file)?;
         if !problems.is_empty() {
-            bail!("a tarefa {task} não pode ser concluída; nada foi alterado:\n{problems}");
+            bail!("{}", refusal_message(task, &problems));
         }
 
         let done = &self.status.done;
@@ -2425,6 +3005,7 @@ impl Tasks {
             "testes, regressão e evidências passed; critérios de conclusão marcados",
         )?;
         println!("Tarefa {task} concluída: status '{done}'.");
+        self.release_dependents(&file, task)?;
 
         let unfinished: Vec<String> = task_entries(file.parent().unwrap_or(Path::new("")))?
             .iter()
@@ -3098,6 +3679,13 @@ impl Tasks {
 
     /// Acrescenta uma linha ao "Registro de execução" e grava o hash do conteúdo.
     fn record_step(&self, file: &Path, step: &str, result: &str, detail: &str) -> Result<()> {
+        self.append_record_row(file, step, result, detail)?;
+        self.store_hash(file)
+    }
+
+    /// Acrescenta uma linha ao "Registro de execução" sem gravar o hash, para uma edição feita durante
+    /// a espera continuar aparecendo.
+    fn append_record_row(&self, file: &Path, step: &str, result: &str, detail: &str) -> Result<()> {
         let section = self.cfg("record_section")?;
         let content = TaskDoc::at(file).text()?;
         let count = markdown_section(&content, &section)
@@ -3113,8 +3701,7 @@ impl Tasks {
         );
         let updated = insert_table_row(&content, &format!("## {section}"), &row, false)
             .ok_or_else(|| anyhow!("seção '## {section}' sem a tabela; nada registrado"))?;
-        TaskDoc::at(file).write_text(&updated)?;
-        self.store_hash(file)
+        TaskDoc::at(file).write_text(&updated)
     }
 
     /// Registra um ajuste: linha no histórico, contagem, datas e, por último, o hash. Devolve o número.
@@ -4064,6 +4651,60 @@ pub(crate) fn before_section(content: &str, title: &str) -> String {
     )
 }
 
+/// Tarefas de uma spec afetadas por uma reaprovação, por tratamento.
+#[derive(Default)]
+pub(crate) struct ChangedTasks {
+    pub(crate) redo: Vec<String>,
+    pub(crate) adjusted: Vec<String>,
+    pub(crate) done: Vec<String>,
+}
+
+/// Trata as tarefas que cobrem os IDs mudados: `pending` e `approved` voltam a detalhar, as em
+/// execução ganham um ajuste e as `done` só são listadas.
+pub(crate) fn apply_changed_ids(
+    harness: &Harness,
+    spec: &str,
+    changed: &[String],
+) -> Result<ChangedTasks> {
+    let tasks = Tasks::new(harness.clone())?;
+    let dir = tasks.tasks_root.join(spec);
+    let mut result = ChangedTasks::default();
+    if !dir.is_dir() {
+        return Ok(result);
+    }
+    let prefix = format!("{}-", tasks.cfg("id.prefix")?);
+    for file in task_entries(&dir)? {
+        let id = task_id_of(&file);
+        if !id.starts_with(&prefix) {
+            continue;
+        }
+        let covered: Vec<String> =
+            inline_list(&TaskDoc::at(&file).get("covers").unwrap_or_default())
+                .into_iter()
+                .filter(|covered_id| changed.contains(covered_id))
+                .collect();
+        if covered.is_empty() {
+            continue;
+        }
+        let status = status_of(&file);
+        if status == tasks.status.done {
+            result.done.push(id);
+        } else if status == tasks.status.pending {
+            result.redo.push(id);
+        } else if status == tasks.status.approved {
+            tasks.drop_approval(&file, &id)?;
+            result.redo.push(id);
+        } else if tasks.is_running(&status) {
+            let origin = tasks.spec_cfg("adjustment_origins.agent")?;
+            let summary = format!("spec {spec} ajustada: {}", covered.join(", "));
+            tasks.record_adjustment(&file, &origin, &summary)?;
+            tasks.restart_execution(&file, &id, &summary)?;
+            result.adjusted.push(id);
+        }
+    }
+    Ok(result)
+}
+
 /// Tarefas de uma pasta de spec, em ordem alfabética: arquivos `TASK-NN.md` ou pastas `TASK-NN/`.
 /// Recusa a spec com os dois formatos.
 pub(crate) fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
@@ -4088,10 +4729,10 @@ fn status_of(file: &Path) -> String {
     TaskDoc::at(file).get("status").unwrap_or_default()
 }
 
-/// Dependências do front-matter (`depends_on: [TASK-01, TASK-02]`).
-fn dependencies_of(file: &Path) -> Vec<String> {
+/// Lista de IDs de um campo do estado (`chave: [TASK-01, TASK-02]`).
+fn id_list(file: &Path, key: &str) -> Vec<String> {
     TaskDoc::at(file)
-        .get("depends_on")
+        .get(key)
         .unwrap_or_default()
         .replace(['[', ']'], "")
         .split(',')
@@ -4099,6 +4740,68 @@ fn dependencies_of(file: &Path) -> Vec<String> {
         .filter(|id| !id.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+/// Dependências do front-matter (`depends_on: [TASK-01, TASK-02]`).
+fn dependencies_of(file: &Path) -> Vec<String> {
+    id_list(file, "depends_on")
+}
+
+/// Tarefas que precisam estar concluídas antes desta (`closes_after: [TASK-02]`).
+fn closes_after_of(file: &Path) -> Vec<String> {
+    id_list(file, "closes_after")
+}
+
+/// Dependências de que a tarefa bloqueada espera.
+fn waiting_of(file: &Path) -> Vec<String> {
+    id_list(file, WAITING_ON_FIELD)
+}
+
+fn write_dependencies(file: &Path, dependencies: &[String]) -> Result<()> {
+    let doc = TaskDoc::at(file);
+    doc.put("depends_on", &format!("[{}]", dependencies.join(", ")))?;
+    if doc.folder() {
+        return Ok(());
+    }
+    let blocked_by = if dependencies.is_empty() {
+        "-".to_string()
+    } else {
+        dependencies.join(", ")
+    };
+    let content = read(file)?;
+    let updated: Vec<String> = content
+        .split('\n')
+        .map(|line| match line.starts_with(BLOCKED_BY_PREFIX) {
+            true => format!("{BLOCKED_BY_PREFIX}{blocked_by}"),
+            false => line.to_string(),
+        })
+        .collect();
+    write(file, &updated.join("\n"))
+}
+
+fn write_waiting(file: &Path, waiting: &[String], reason: &str) -> Result<()> {
+    TaskDoc::at(file).put(WAITING_ON_FIELD, &format!("[{}]", waiting.join(", ")))?;
+    TaskDoc::at(file).put(
+        WAITING_REASON_FIELD,
+        &format!("\"{}\"", yaml_escape(reason)),
+    )
+}
+
+fn refusal_message(task: &str, problems: &[(&str, String, String)]) -> String {
+    let mut message = format!(
+        "a tarefa {task} não pode ser concluída; nada foi alterado. Resolva nesta ordem:\n"
+    );
+    for (index, (name, detail, next)) in problems.iter().enumerate() {
+        let (first, extra) = match detail.split_once('\n') {
+            Some((first, extra)) => (first, format!("{extra}\n")),
+            None => (detail.as_str(), String::new()),
+        };
+        message.push_str(&format!(
+            "{}. {name}: {first} -> {next}\n{extra}",
+            index + 1
+        ));
+    }
+    message
 }
 
 fn reset_results(file: &Path) -> Result<()> {

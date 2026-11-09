@@ -24,12 +24,12 @@ TASK-02
 
 @stdout 0
 
-@stderr 309
-Erro: a tarefa TASK-02 não pode ser concluída; nada foi alterado:
-- regression_result: 'null' (precisa ser 'passed')
-- evidence_result: 'null' (precisa ser 'passed')
-- a tarefa TASK-02 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x]:
-- [ ] O script existe (RF-01).
+@stderr 451
+Erro: a tarefa TASK-02 não pode ser concluída; nada foi alterado. Resolva nesta ordem:
+1. regressão: regression_result 'null' -> vostok task regression SPEC-008 TASK-02
+2. evidências: evidence_result 'null' -> vostok task evidence SPEC-008 TASK-02
+3. critérios: a tarefa TASK-02 tem critérios de conclusão sem marcar; confira a comprovação de cada um e marque [x] -> vostok task check-done SPEC-008 TASK-02
+   - [ ] O script existe (RF-01).
 
 
 @exit 1

@@ -48,6 +48,7 @@ skills:
     - rules/project/naming-convention.md
     - rules/project/development-methodology.md
     - rules/project/testing.md
+    - rules/project/release-local.md
   finalize-spec:
     - config/specs.yml
     - config/documents.yml

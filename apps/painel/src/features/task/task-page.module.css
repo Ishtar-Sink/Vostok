@@ -40,6 +40,13 @@
   gap: 8px;
 }
 
+.reviewReason {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
 .reviewMessage {
   margin: 0;
   color: var(--text-muted);

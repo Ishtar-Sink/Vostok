@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fileUrl, formatDate, listOf, readTextPreview, useResource, type FileRef, type ManualEvidence, type SpecDetail, type TaskDetail } from '../../shared/api';
+import { fileUrl, formatDate, listOf, readTextPreview, useResource, type EvidenceReview, type FileRef, type ManualEvidence, type ReviewStatus, type SpecDetail, type TaskDetail } from '../../shared/api';
 import { BackLink } from '../../shared/back-link';
 import { buildReferences } from '../../shared/references';
 import { useReferencePopover } from '../../shared/ref-popover';
@@ -7,7 +7,7 @@ import { Markdown, slug, type Heading } from '../../shared/markdown';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Toc } from '../../shared/toc';
-import { Badge } from '../../ui/badge/badge';
+import { Badge, type BadgeTone } from '../../ui/badge/badge';
 import { Card } from '../../ui/card/card';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
@@ -61,11 +61,7 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
   const manual = manualList ?? [];
   const manualNames = new Set(manual.map((item) => item.name));
   const otherEvidence = evidence.filter((file) => !manualNames.has(file.name));
-  const review: PrintReview = {
-    prints: printNames(files.verificacao ?? ''),
-    registro: files.registro ?? '',
-    spec,
-  };
+  const reviews = new Map((detail.data.reviews ?? []).map((item) => [item.name, item] as const));
   const results: [string, string][] = [
     ['Testes', state.tests_result],
     ['Regressão', state.regression_result],
@@ -96,11 +92,11 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
             {manual.length > 0 ? (
               <ul aria-label="Evidências que o harness pede" className={styles.manualList}>
                 {manual.map((item) => (
-                  <ManualEvidenceItem key={item.name} item={item} review={review} />
+                  <ManualEvidenceItem key={item.name} item={item} reviews={reviews} />
                 ))}
               </ul>
             ) : null}
-            {otherEvidence.length > 0 ? <Evidence files={otherEvidence} review={review} /> : null}
+            {otherEvidence.length > 0 ? <Evidence files={otherEvidence} reviews={reviews} /> : null}
           </Card>
           <div className={styles.agentDivider} id="para-o-agente">
             <h2>Para o agente</h2>
@@ -149,48 +145,21 @@ function stripTitle(markdown: string): string {
   return markdown.replace(/^##+ .*\n/, '').replace(/^### /gm, '#### ');
 }
 
-/** Contexto da conferência dos prints da tarefa (RF-06). */
-interface PrintReview {
-  prints: string[];
-  registro: string;
-  spec: string;
-}
-
-/** Os nomes dos itens `(print)` da seção Evidências. */
-function printNames(verificacao: string): string[] {
-  return [...verificacao.matchAll(/^- `([^`]+)` \(print\):/gm)].map((match) => match[1]);
-}
-
-/** O hash da última conferência do print no registro, ou `null` sem conferência. */
-function reviewedHash(registro: string, name: string): string | null {
-  const marker = `print ${name} conferido pelo usuário (sha256 `;
-  const lines = registro.split('\n').filter((line) => line.includes(marker));
-  const last = lines.at(-1);
-  if (!last) return null;
-  return last.slice(last.indexOf(marker) + marker.length).split(')')[0];
-}
-
-async function shortHash(url: string): Promise<string> {
-  const bytes = await (await fetch(url)).arrayBuffer();
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 8);
-}
-
-function Evidence({ files, review }: { files: FileRef[]; review: PrintReview }) {
+function Evidence({ files, reviews }: { files: FileRef[]; reviews: Map<string, EvidenceReview> }) {
   return (
     <ul className={styles.evidenceList}>
-      {files.map((file) => <EvidenceItem key={file.path} file={file} review={review} />)}
+      {files.map((file) => <EvidenceItem key={file.path} file={file} reviews={reviews} />)}
     </ul>
   );
 }
 
 interface ManualEvidenceItemProps {
   item: ManualEvidence;
-  review: PrintReview;
+  reviews: Map<string, EvidenceReview>;
 }
 
 /** Evidência manual pedida pelo harness, com o que ela deve provar e o selo de anexada; o painel só mostra. */
-function ManualEvidenceItem({ item, review }: ManualEvidenceItemProps) {
+function ManualEvidenceItem({ item, reviews }: ManualEvidenceItemProps) {
   return (
     <li className={styles.manualItem}>
       <div className={styles.manualHead}>
@@ -202,14 +171,14 @@ function ManualEvidenceItem({ item, review }: ManualEvidenceItemProps) {
       </div>
       {item.attached ? (
         <ul className={styles.evidenceList}>
-          <EvidenceItem file={item} review={review} />
+          <EvidenceItem file={item} reviews={reviews} />
         </ul>
       ) : null}
     </li>
   );
 }
 
-function EvidenceItem({ file, review }: { file: FileRef; review: PrintReview }) {
+function EvidenceItem({ file, reviews }: { file: FileRef; reviews: Map<string, EvidenceReview> }) {
   const mediaUrl = fileUrl(file.path);
   const media = IMAGE.test(file.name) || VIDEO.test(file.name);
   const [open, setOpen] = useState(media);
@@ -224,7 +193,7 @@ function EvidenceItem({ file, review }: { file: FileRef; review: PrintReview }) 
           <span className={styles.evidenceSize}>{formatSize(file.size)}</span>
           <a className={styles.downloadLink} href={fileUrl(file.path)} download={file.name} aria-label={`Baixar ${file.name}`}>Baixar</a>
         </div>
-        {review.prints.includes(file.name) ? <PrintReviewRow file={file} review={review} /> : null}
+        {reviews.get(file.name) ? <ReviewRow review={reviews.get(file.name)!} /> : null}
       </li>
     );
   }
@@ -267,22 +236,26 @@ function EvidenceItem({ file, review }: { file: FileRef; review: PrintReview }) 
           </>
         )
       ) : null}
-      {review.prints.includes(file.name) ? <PrintReviewRow file={file} review={review} /> : null}
+      {reviews.get(file.name) ? <ReviewRow review={reviews.get(file.name)!} /> : null}
     </li>
   );
 }
 
-/** Selo de conferência do print: o painel só mostra o resultado; quem confere é o usuário, pelo chat. */
-function PrintReviewRow({ file, review }: { file: FileRef; review: PrintReview }) {
-  const [hash, setHash] = useState<string | null>(null);
-  useEffect(() => {
-    shortHash(fileUrl(file.path)).then(setHash).catch(() => setHash(''));
-  }, [file.path]);
-  if (hash === null) return null;
-  const reviewed = hash !== '' && reviewedHash(review.registro, file.name) === hash;
+const REVIEW_TONE: Record<ReviewStatus, BadgeTone> = {
+  conferida: 'success',
+  rejeitada: 'danger',
+  'a conferir': 'warning',
+  'sem aval': 'neutral',
+};
+
+/** Estado da conferência da evidência: o painel só mostra o que a CLI calculou; quem confere é o usuário, pelo chat. */
+function ReviewRow({ review }: { review: EvidenceReview }) {
+  const tone = REVIEW_TONE[review.status];
+  if (!tone) return null;
   return (
     <div className={styles.review}>
-      <Badge tone={reviewed ? 'success' : 'warning'}>{reviewed ? 'conferido' : 'a conferir'}</Badge>
+      <Badge tone={tone}>{review.status}</Badge>
+      {review.status === 'rejeitada' && review.reason ? <p className={styles.reviewReason}>Motivo: {review.reason}</p> : null}
     </div>
   );
 }

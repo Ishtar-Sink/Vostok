@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fileUrl } from '../../shared/api';
 import { TaskPage } from './task-page';
@@ -80,35 +80,56 @@ describe('TaskPage', () => {
     render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
     expect(await screen.findByText('Não foi possível abrir TASK-02')).toBeTruthy();
   });
-  describe('conferência de prints', () => {
-    const printDetail = (over: object = {}, registro = '## R\nLinhas.') => {
-      const base = taskDetail(over, [{ name: 'tela.png', path: 'x/tela.png', size: 3 }]);
-      return { ...base, files: { ...base.files, verificacao: '## V\n- `tela.png` (print): `cmd`\n', registro } };
-    };
-    function mockPrint(detail: unknown) {
-      const fn = vi.fn((url: string) =>
-        Promise.resolve(
-          url.startsWith('/api/tarefas') ? json(detail) : url.startsWith('/arquivos/') ? new Response('img') : json(specDetail),
-        ),
-      );
-      vi.stubGlobal('fetch', fn);
-      return fn;
-    }
+  describe('estado da conferência', () => {
+    const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
+    const reviews = [
+      { name: 'saida.txt', kind: 'automática', status: 'conferida', reason: '' },
+      { name: 'nota.diff', kind: 'diff', status: 'rejeitada', reason: 'falta o total' },
+      { name: 'tela.png', kind: 'print', status: 'a conferir', reason: '' },
+      { name: 'extra.txt', kind: 'automática', status: 'sem aval', reason: '' },
+    ];
+    const reviewsDetail = () => ({ ...taskDetail({}, ['saida.txt', 'nota.diff', 'tela.png', 'extra.txt'].map(entry)), reviews });
+    const itemOf = (name: string) => within(screen.getByText(name).closest('li') as HTMLElement);
 
-    it('mostra o print a conferir sem Aceitar nem Rejeitar', async () => {
-      mockPrint(printDetail());
+    it('mostra os quatro estados da conferência', async () => {
+      mockFetch(reviewsDetail());
       render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
-      expect(await screen.findByText('a conferir')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: /Aceitar|Rejeitar/ })).toBeNull();
+      await screen.findByText('saida.txt');
+      expect(itemOf('saida.txt').getByText('conferida')).toBeTruthy();
+      expect(itemOf('nota.diff').getByText('rejeitada')).toBeTruthy();
+      expect(itemOf('tela.png').getByText('a conferir')).toBeTruthy();
+      expect(itemOf('extra.txt').getByText('sem aval')).toBeTruthy();
+      for (const text of ['conferida', 'rejeitada', 'a conferir', 'sem aval']) expect(screen.getAllByText(text)).toHaveLength(1);
     });
 
-    it('mostra o print já conferido sem os botões', async () => {
-      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('img')));
-      const hash = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 8);
-      mockPrint(printDetail({}, `## R\n| 5 | 2026-11-03T10:00:00Z | conferência | usuário | print tela.png conferido pelo usuário (sha256 ${hash}) |`));
+    it('mostra o motivo da rejeição', async () => {
+      mockFetch(reviewsDetail());
       render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
-      expect(await screen.findByText('conferido')).toBeTruthy();
-      expect(screen.queryByRole('button', { name: 'Aceitar tela.png' })).toBeNull();
+      await screen.findByText('nota.diff');
+      expect(itemOf('nota.diff').getByText('Motivo: falta o total')).toBeTruthy();
+      expect(screen.getAllByText(/Motivo:/)).toHaveLength(1);
+    });
+
+    it('não mostra botão de conferir nem de rejeitar', async () => {
+      mockFetch(reviewsDetail());
+      render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+      await screen.findByText('saida.txt');
+      expect(screen.queryByRole('button', { name: /Aceitar|Rejeitar|Conferir/ })).toBeNull();
+    });
+
+    it('sem reviews não mostra selo de conferência', async () => {
+      mockFetch(taskDetail({}, ['saida.txt', 'tela.png'].map(entry)));
+      render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+      await screen.findByText('saida.txt');
+      for (const text of ['conferida', 'rejeitada', 'a conferir', 'sem aval']) expect(screen.queryByText(text)).toBeNull();
+    });
+
+    it('mostra o selo da evidência manual anexada', async () => {
+      const manualItem = { name: 'tela.png', path: 'x/tela.png', size: 3, description: 'Print final.', extension: 'png', attached: true };
+      mockFetch({ ...taskDetail({}, [entry('tela.png')]), manual_evidence: [manualItem], reviews: [reviews[2]] });
+      render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+      const list = await screen.findByRole('list', { name: 'Evidências que o harness pede' });
+      expect(within(list).getByText('a conferir')).toBeTruthy();
     });
   });
 
@@ -175,7 +196,7 @@ describe('Evidências por tipo', () => {
   });
 
   it('mantém a conferência no print declarado como svg', async () => {
-    mockEvidence(withEvidence([entry('tela.svg')], '## V\n- `tela.svg` (print): `cmd`\n'));
+    mockEvidence({ ...withEvidence([entry('tela.svg')], '## V\n- `tela.svg` (print): `cmd`\n'), reviews: [{ name: 'tela.svg', kind: 'print', status: 'a conferir', reason: '' }] });
     const { container } = render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
     await screen.findByRole('link', { name: 'Baixar tela.svg' });
     expect(container.querySelector('img')).toBeNull();

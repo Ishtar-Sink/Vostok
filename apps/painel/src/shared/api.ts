@@ -74,12 +74,23 @@ export interface ManualEvidence extends FileRef {
   attached: boolean;
 }
 
+/** Estado da conferência de uma evidência, calculado pela CLI (campo `reviews`). */
+export type ReviewStatus = 'conferida' | 'rejeitada' | 'a conferir' | 'sem aval';
+
+export interface EvidenceReview {
+  name: string;
+  kind: string;
+  status: ReviewStatus;
+  reason: string;
+}
+
 export interface TaskDetail {
   spec: string;
   state: Record<string, string>;
   files: Record<string, string>;
   evidence: FileRef[];
   manual_evidence?: ManualEvidence[];
+  reviews?: EvidenceReview[];
 }
 
 export interface DocumentGroup {

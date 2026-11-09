@@ -300,3 +300,16 @@ Prioridade: **alta** bloqueia um fluxo real; **média** deixa um comportamento s
 **Impacto.** É só aparência, mas o quadro não mostra todas as colunas de uma vez numa tela comum, e os títulos com aspas ficam com barras.
 
 **Proposta.** Fazer as colunas caberem em 1440 px (largura mínima menor ou quebra em duas linhas), ler o título do `estado.yml` desfazendo o escape do YAML e dar uma cor à coluna "Em validação", junto com a TASK-04 ou numa melhoria do painel.
+
+## DT-018: Plano não enxerga dependência de evidência entre tarefas
+
+- **Área:** planejamento (skills `plan-tasks` e `approve-plan`, `vostok plan score`)
+- **Encontrado em:** 2026-11-09, execução da onda 1 da SPEC-043
+- **Prioridade:** média
+- **Status:** aberto
+
+**Descrição.** A TASK-03 da SPEC-043 mostra na tela da tarefa o estado da conferência, que vem do campo `reviews` da API. Esse campo só existe depois da TASK-07, mas o plano pôs a TASK-03 na onda 1, sem dependência. O planejador e o `vostok plan score` calculam dependências e ondas só pelos arquivos de cada tarefa. Não enxergam que a evidência de uma tarefa (aqui, o print da tela com os selos) depende do dado que outra tarefa entrega.
+
+**Impacto.** A tarefa é implementada, mas não pode ser finalizada. O print sairia sem o que precisa provar, e a tarefa fica `in_progress` até a outra terminar. A onda também aparece `in_progress` no status, embora as outras tarefas dela estejam concluídas.
+
+**Proposta.** No planejamento, conferir se a evidência de cada tarefa depende de um contrato (campo, rota, comando) entregue por outra. Quando depender, declarar a dependência, ou usar a coluna "Fecha depois de" da SPEC-044, que deixa executar em paralelo e só impede concluir antes da outra. A `approve-plan` deve recusar uma evidência que dependa de uma tarefa que não é dependência nem "fecha depois de".

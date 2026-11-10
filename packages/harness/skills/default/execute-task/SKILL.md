@@ -155,7 +155,7 @@ O comando gera as evidências de tarefa `in_progress` sem mudar `status`, `tests
 
 Faça uma única pergunta agrupada, com o template `question`, para a tarefa ou para a onda inteira (CB-16), com cada evidência a conferir e o caminho dela; o usuário a vê na pasta ou no painel e responde no chat. Evidência manual sem arquivo: peça o anexo na mesma pergunta.
 
-Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição bloqueia a tarefa até o `vostok task resume` com a decisão do usuário.
+Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição bloqueia a tarefa até o `vostok task resume` com a decisão do usuário. O `--reviewed` e o `--rejected` só registram a decisão sobre o arquivo que o `--antecipada` gerou: não rodam comando, não apagam evidências e não mudam os resultados da tarefa.
 
 Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Evidência automática com erro no `--antecipada`: não corrija nem repita; cite a falha em Pendências (FA-04).
 

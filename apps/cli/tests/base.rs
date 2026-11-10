@@ -17,7 +17,7 @@ fn ct01_version_is_0_1_0() {
         .arg("--version")
         .assert()
         .success()
-        .stdout("vostok 0.5.2\n");
+        .stdout("vostok 0.5.3\n");
 }
 
 #[test]

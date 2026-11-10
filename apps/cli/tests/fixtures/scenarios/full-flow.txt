@@ -47,7 +47,7 @@ Evidências sem conferência humana; mostre cada uma ao usuário e, com a respos
 $ vostok task evidence SPEC-001 TASK-01 --reviewed saida.txt
 exit: 0
 --- stdout
-Evidências de TASK-01 gravadas em <EVIDENCIAS>: 1 item(ns). Resultado: passed.
+Conferência registrada. Resultado: passed.
 
 $ vostok task finish SPEC-001 TASK-01
 exit: 0

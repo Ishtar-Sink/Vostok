@@ -2128,6 +2128,17 @@ impl Tasks {
         for name in reviewed {
             approvals.push((name, self.reviewable(&content, &dir, name)?));
         }
+        if !approvals.is_empty() {
+            for (name, bytes) in &approvals {
+                self.record_step(
+                    &file,
+                    "conferência",
+                    "usuário",
+                    &evidence_review(name, bytes),
+                )?;
+            }
+            return self.review_outcome(&file, spec, task, &dir);
+        }
         let text = self.subsection(&content, "evidence_subsection")?;
         let items: Vec<&str> = text
             .lines()
@@ -2152,14 +2163,6 @@ impl Tasks {
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
             bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
-        }
-        for (name, bytes) in &approvals {
-            self.record_step(
-                &file,
-                "conferência",
-                "usuário",
-                &evidence_review(name, bytes),
-            )?;
         }
         if !kept.is_empty() {
             println!("Conferidas mantidas sem gerar de novo: {}", kept.join(", "));
@@ -2226,6 +2229,62 @@ impl Tasks {
             items.len()
         );
         print_same_as_baseline(&same);
+        Ok(())
+    }
+
+    /// Depois de gravar conferências, recalcula o resultado sem gerar nem apagar evidências: só
+    /// muda `evidence_result` quando ele está `pending`, que é o estado da finalização.
+    fn review_outcome(&self, file: &Path, spec: &str, task: &str, dir: &Path) -> Result<()> {
+        let record = TaskDoc::at(file).text()?;
+        let rows = self.record_rows(&record)?;
+        let review_kinds = self.review_kinds();
+        let manual = self.cfg("evidence_manual")?;
+        let mut unreviewed: Vec<PathBuf> = Vec::new();
+        let mut missing = String::new();
+        let mut total = 0;
+        for entry in self.evidence_entries(&record)? {
+            total += 1;
+            let path = dir.join(&entry.name);
+            if entry.kind == manual && !fs::metadata(&path).is_ok_and(|meta| meta.len() > 0) {
+                missing.push_str(&format!("- {}: {}\n", path.display(), entry.rest));
+            }
+            if review_kinds.contains(&entry.kind)
+                && path.is_file()
+                && !review_is_valid(&rows, &entry.name, &review_hash(&fs::read(&path)?))
+            {
+                unreviewed.push(path);
+            }
+        }
+        let pending = TaskDoc::at(file).get("evidence_result")? == "pending";
+        if pending && unreviewed.is_empty() && missing.is_empty() {
+            TaskDoc::at(file).set("evidence_result", "passed")?;
+            let folder = dir
+                .strip_prefix(file.parent().unwrap_or(Path::new("")))
+                .unwrap_or(dir)
+                .to_string_lossy();
+            self.record_step(
+                file,
+                "evidências",
+                "passed",
+                &format!("{total} evidência(s) em {folder}/"),
+            )?;
+            println!("Conferência registrada. Resultado: passed.");
+            return Ok(());
+        }
+        if pending {
+            TaskDoc::at(file).set("evidence_result", "pending")?;
+        } else {
+            println!("Conferência registrada; resultados sem mudança.");
+        }
+        if !unreviewed.is_empty() {
+            println!("Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <arquivo>:");
+            for path in unreviewed {
+                println!("- {}", path.display());
+            }
+        }
+        if !missing.is_empty() {
+            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
+        }
         Ok(())
     }
 

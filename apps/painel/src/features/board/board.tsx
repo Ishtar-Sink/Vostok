@@ -6,7 +6,7 @@ import { Badge } from '../../ui/badge/badge';
 import styles from './board.module.css';
 
 /** Cor de status das colunas do fluxo; as de entrada (para aprovar e aprovadas) ficam sem cor. */
-const COLUMN_TONE: Record<string, 'info' | 'accent' | 'warning' | 'success'> = { ready: 'success', running: 'info', validating: 'accent', blocked: 'warning', done: 'success' };
+const COLUMN_TONE: Record<string, 'info' | 'accent' | 'warning' | 'success'> = { ready: 'success', running: 'info', executed: 'success', validating: 'accent', blocked: 'warning', done: 'success' };
 
 export interface BoardTask extends TaskSummary {
   spec: string;
@@ -69,7 +69,7 @@ function waveGroups(cards: BoardTask[]): WaveGroup[] {
 export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numero' }: { tasks: BoardTask[]; showSpec?: boolean; group?: BoardGroup; order?: BoardOrder }) {
   const done = new Set(tasks.filter((task) => task.status === 'done').map((task) => `${task.spec}/${task.id}`));
   const isReady = (task: BoardTask) => task.status === 'approved' && listOf(task.depends_on).every((dep) => done.has(`${task.spec}/${dep}`));
-  const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && (task.status === 'in_progress' || task.status === 'validating'));
+  const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && (task.status === 'in_progress' || task.status === 'executed' || task.status === 'validating'));
   const inSection = (task: BoardTask, id: string) => (id === 'ready' ? isReady(task) : id === 'approved' ? !isReady(task) : true);
   const [doneOpen, setDoneOpen] = useState(false);
 

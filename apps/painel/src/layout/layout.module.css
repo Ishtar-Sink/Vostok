@@ -27,7 +27,7 @@ img.mark { background: none; }
 .subLink[aria-current='page'] { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); flex: none; }
 .dot[data-status='approved'] { background: var(--primary); }
-.dot[data-status='in_progress'], .dot[data-status='validating'] { background: var(--info); }
+.dot[data-status='in_progress'], .dot[data-status='executed'], .dot[data-status='validating'] { background: var(--info); }
 .dot[data-status='blocked'] { background: var(--warning); }
 .dot[data-status='done'] { background: var(--success); }
 .visuallyHidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

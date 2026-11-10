@@ -10,7 +10,7 @@ import { EmptyState } from '../../ui/empty-state/empty-state';
 import page from '../../shared/page.module.css';
 import styles from './dashboard-page.module.css';
 
-const STATUS_ORDER = ['pending', 'approved', 'in_progress', 'validating', 'blocked', 'done'];
+const STATUS_ORDER = ['pending', 'approved', 'in_progress', 'executed', 'validating', 'blocked', 'done'];
 
 export function DashboardPage({ version, name }: { version: number; name: string }) {
   const overview = useResource<Overview>('/api/visao', version);
@@ -19,7 +19,7 @@ export function DashboardPage({ version, name }: { version: number; name: string
 
   const { specs, archived } = overview.data;
   const tasks = specs.flatMap((spec) => spec.tasks);
-  const running = tasks.filter((task) => task.status === 'in_progress' || task.status === 'validating').length;
+  const running = tasks.filter((task) => task.status === 'in_progress' || task.status === 'executed' || task.status === 'validating').length;
   const blocked = tasks.filter((task) => task.status === 'blocked').length;
   const remaining = remainingTasks(specs);
   const active = specs.filter((spec) => spec.tasks.length > 0 || spec.plan);

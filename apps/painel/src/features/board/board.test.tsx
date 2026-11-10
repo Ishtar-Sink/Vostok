@@ -23,7 +23,7 @@ describe('Board', () => {
   it('mostra a cor de status nas colunas do fluxo', () => {
     const { container } = render(<Board tasks={[]} />);
     const tone = (column: string) => container.querySelector(`section[data-column="${column}"] header [data-tone]`);
-    const expected: Record<string, string> = { ready: 'success', running: 'info', validating: 'accent', blocked: 'warning', done: 'success' };
+    const expected: Record<string, string> = { ready: 'success', running: 'info', executed: 'success', validating: 'accent', blocked: 'warning', done: 'success' };
     for (const [column, value] of Object.entries(expected)) {
       expect(tone(column)?.getAttribute('data-tone')).toBe(value);
       expect(tone(column)?.getAttribute('aria-hidden')).toBe('true');
@@ -57,9 +57,9 @@ describe('Board', () => {
     ];
     const { container } = render(<Board tasks={tasks} />);
     const columns = Array.from(container.querySelectorAll('section[data-column]'));
-    expect(columns.map((column) => column.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Em validação', 'Bloqueadas', 'Concluídas']);
+    expect(columns.map((column) => column.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
     expect(within(columns[3] as HTMLElement).getByText('Título TASK-04')).toBeTruthy();
-    expect(within(columns[4] as HTMLElement).getByText('Título TASK-05')).toBeTruthy();
+    expect(within(columns[5] as HTMLElement).getByText('Título TASK-05')).toBeTruthy();
   });
 });
 
@@ -118,11 +118,11 @@ describe('Board em listas', () => {
   const t = (id: string, status: string, over: object = {}) => ({ ...task(id, status, over), spec: 'SPEC-001' });
   const section = (name: string) => within(screen.getByRole('region', { name }));
 
-  it('mostra sete seções sem raia lado a lado, com Nenhuma nas vazias', () => {
+  it('mostra oito seções sem raia lado a lado, com Nenhuma nas vazias', () => {
     const { container } = render(<Board tasks={[]} />);
     const sections = Array.from(container.querySelectorAll('section[data-column]'));
-    expect(sections.map((s) => s.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Em validação', 'Bloqueadas', 'Concluídas']);
-    expect(screen.getAllByText('Nenhuma')).toHaveLength(7);
+    expect(sections.map((s) => s.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
+    expect(screen.getAllByText('Nenhuma')).toHaveLength(8);
   });
 
   it('separa Prontas de Aprovadas', () => {
@@ -349,5 +349,25 @@ describe('Esperas no cartão', () => {
     render(<Board tasks={[t('TASK-05', 'approved')]} />);
     expect(card('TASK-05').getByText('Título TASK-05')).toBeTruthy();
     expect(card('TASK-05').queryByText(/^Espera|Fecha depois de|Depende de/)).toBeNull();
+  });
+});
+
+describe('Prontas para finalizar', () => {
+  const t = (id: string, status: string, over: object = {}) => ({ ...task(id, status, over), spec: 'SPEC-001' });
+
+  it('põe a tarefa executed na coluna Prontas para finalizar', () => {
+    const { container } = render(<Board tasks={[t('TASK-04', 'in_progress'), t('TASK-06', 'executed')]} />);
+    expect(within(container.querySelector('section[data-column="executed"]') as HTMLElement).getByText('Título TASK-06')).toBeTruthy();
+    expect(within(container.querySelector('section[data-column="running"]') as HTMLElement).getByText('Título TASK-04')).toBeTruthy();
+  });
+
+  it('mostra o badge pronta para finalizar', () => {
+    render(<Board tasks={[t('TASK-06', 'executed')]} group="spec" />);
+    expect(screen.getByText('pronta para finalizar')).toBeTruthy();
+  });
+
+  it('mostra a onda só com tarefas executed como em execução', () => {
+    render(<Board tasks={[t('TASK-01', 'executed'), t('TASK-02', 'approved')]} />);
+    expect(within(screen.getByRole('group', { name: 'Onda 1' })).getByText('em execução')).toBeTruthy();
   });
 });

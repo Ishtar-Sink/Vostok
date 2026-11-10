@@ -658,3 +658,29 @@ fn remove_empty_dir(dir: &Path) -> Result<bool> {
     fs::remove_dir(dir).with_context(|| format!("não foi possível apagar {}", dir.display()))?;
     Ok(true)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_keys_adds_the_executed_status() {
+        let installed = "status:\n  pending: pending\n  in_progress: in_progress\n  done: done\n\nmax_attempts: 5\n";
+        let shipped = "status:\n  pending: pending\n  in_progress: in_progress\n  executed: executed\n  done: done\n\nmax_attempts: 2\n";
+        let (merged, added) = merge_keys(installed, shipped);
+        let status_block: Vec<&str> = merged
+            .lines()
+            .skip_while(|line| *line != "status:")
+            .skip(1)
+            .take_while(|line| line.starts_with("  "))
+            .collect();
+        assert!(status_block.contains(&"  executed: executed"), "{merged}");
+        assert!(
+            status_block.contains(&"  in_progress: in_progress"),
+            "{merged}"
+        );
+        assert!(merged.contains("\nmax_attempts: 5\n"), "{merged}");
+        assert!(!merged.contains("max_attempts: 2"), "{merged}");
+        assert_eq!(added, vec!["status.executed".to_string()]);
+    }
+}

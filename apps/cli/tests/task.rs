@@ -1511,7 +1511,7 @@ fn recollect_second_time_goes_to_the_second_previous_folder() {
 #[test]
 fn recollect_refused_for_approved_and_done_tasks() {
     let expected =
-        "só tarefas com status 'in_progress', 'validating' ou 'blocked' têm o baseline recoletado";
+        "só tarefas com status 'in_progress', 'executed', 'validating' ou 'blocked' têm o baseline recoletado";
     let approved = approved_task("- `true`");
     let stderr = failure_stderr(&mut recollect(&approved));
     assert!(stderr.contains(expected), "{stderr}");
@@ -4408,7 +4408,7 @@ fn describe_refuses_a_task_that_is_not_running() {
     let project = folder_task("pending");
     let stderr = failure_stderr(&mut task(&project, &["describe"]));
     assert!(
-        stderr.contains("a descrição só sai para tarefa 'in_progress' ou 'validating'"),
+        stderr.contains("a descrição só sai para tarefa 'in_progress', 'executed' ou 'validating'"),
         "{stderr}"
     );
 }
@@ -5336,8 +5336,7 @@ fn depends_command_remove_of_a_missing_dependency_is_refused() {
 
 // --- Evidências antecipadas (SPEC-043) ---
 
-const STATE_KEYS: [&str; 5] = [
-    "status:",
+const STATE_KEYS: [&str; 4] = [
     "tests_result:",
     "regression_result:",
     "evidence_result:",
@@ -5472,7 +5471,7 @@ fn release_restart_refuses_a_task_changed_during_the_wait() {
     assert!(record_of(&project).contains("| recomeço |"));
 }
 
-/// Linhas do estado da tarefa que o `--antecipada` nunca pode mudar.
+/// Resultados da tarefa que o `--antecipada` nunca pode mudar; o status é conferido à parte.
 fn state_lines(project: &Project) -> Vec<String> {
     read(project, TASK_PATH)
         .lines()
@@ -5500,6 +5499,7 @@ fn antecipada_generates_without_changing_results() {
     let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
     assert!(output.contains("ola"), "{output}");
     assert_eq!(state_lines(&project), before);
+    assert_eq!(status(&project), "executed");
 }
 
 #[test]
@@ -5513,6 +5513,7 @@ fn antecipada_runs_only_the_labeled_command() {
     let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
     assert!(output.contains("dois"), "{output}");
     assert_eq!(state_lines(&project), before);
+    assert_eq!(status(&project), "executed");
     assert!(!exists(&project, "contador.txt"));
 }
 
@@ -5564,6 +5565,7 @@ fn antecipada_failed_automatic_changes_nothing() {
     let stderr = failure_stderr(&mut ahead(&project));
     assert!(stderr.contains("saida.txt"), "{stderr}");
     assert_eq!(state_lines(&project), before);
+    assert_eq!(status(&project), "in_progress");
 }
 
 #[test]
@@ -5578,7 +5580,9 @@ fn antecipada_refused_outside_in_progress() {
         write(&project, TASK_PATH, &record);
         let stderr = failure_stderr(&mut ahead(&project));
         assert!(
-            stderr.contains("só roda com a tarefa em execução (in_progress); nada foi gerado"),
+            stderr.contains(
+                "só roda com a tarefa em execução (in_progress ou executed); nada foi gerado"
+            ),
             "{status}: {stderr}"
         );
         assert!(
@@ -5707,7 +5711,7 @@ fn review_only_rejected_keeps_every_file() {
         &project,
         &["evidence", "--rejected", "tela.png", "--motivo", "texto"],
     ));
-    assert_eq!(status(&project), "blocked");
+    assert_eq!(status(&project), "in_progress");
     assert_eq!(evidence_file(&project, "saida.txt"), log);
     assert_eq!(evidence_file(&project, "tela.png"), screen);
 }
@@ -5730,4 +5734,197 @@ fn review_only_generation_only_by_evidence_and_antecipada() {
         &["evidence", "--rejected", "saida.txt", "--motivo", "texto"],
     ));
     assert_eq!(counter_lines(&project), start + 2);
+}
+
+// --- Status pronta para finalizar (SPEC-047) ---
+
+/// Apaga a chave `status.executed` do `config/tasks.yml` do projeto, como num harness antigo.
+fn without_executed_key(project: &Project) {
+    let path = "vostok/config/tasks.yml";
+    let content: String = read(project, path)
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("executed:"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(project, path, &content);
+}
+
+/// Tarefa com `a.txt` no baseline, a evidência dada e o `--antecipada` já executado.
+fn executed_task(evidence: &str) -> Project {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], evidence);
+    success_stdout(&mut ahead(&project));
+    assert_eq!(status(&project), "executed");
+    project
+}
+
+#[test]
+fn executed_status_defaults_when_the_key_is_missing() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", None),
+    );
+    without_executed_key(&project);
+    assert!(!read(&project, "vostok/config/tasks.yml").contains("executed:"));
+    success_stdout(&mut ahead(&project));
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn executed_after_antecipada() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "echo ola", None),
+    );
+    let before = state_lines(&project);
+    success_stdout(&mut ahead(&project));
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("\nstatus: executed\n"), "{content}");
+    assert!(content.contains("| execução | executed |"), "{content}");
+    assert!(
+        content.contains("| evidências antecipadas | geradas |"),
+        "{content}"
+    );
+    let generated = content.find("| evidências antecipadas |").unwrap();
+    let executed = content.find("| execução | executed |").unwrap();
+    assert!(generated < executed, "{content}");
+    assert_eq!(state_lines(&project), before);
+}
+
+#[test]
+fn executed_with_pending_reviews_and_manual() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("saida.txt", "echo ola", None),
+        manual_item("notas.md", "anexar a nota.")
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    let stdout = success_stdout(&mut ahead(&project));
+    assert!(
+        stdout.contains(&format!("{EVIDENCE_DIR}/saida.txt")),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("{EVIDENCE_DIR}/notas.md")),
+        "{stdout}"
+    );
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn executed_without_evidence() {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], "Não se aplica.");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(status(&project), "executed");
+    assert!(read(&project, TASK_PATH).contains("| execução | executed |"));
+}
+
+#[test]
+fn executed_antecipada_again_keeps_the_status() {
+    let project = executed_task(&automatic(
+        "saida.txt",
+        "echo x >> contador.txt && echo x",
+        None,
+    ));
+    let start = counter_lines(&project);
+    success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), start + 1);
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn executed_failed_generation_stays_in_progress() {
+    let project = running_task_with_evidence(
+        &[("a.txt", "um\n")],
+        &automatic("saida.txt", "exit 1", None),
+    );
+    failure_stderr(&mut ahead(&project));
+    assert_eq!(status(&project), "in_progress");
+    assert!(!read(&project, TASK_PATH).contains("| execução |"));
+}
+
+#[test]
+fn executed_finalization_reaches_done() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("saida.txt", "echo ola", None),
+        print_item("tela.png", &variable_shot("tela.png"))
+    );
+    let project = executed_task(&evidence);
+    reviewed(&project, "tela.png").assert().success();
+    assert_eq!(status(&project), "executed");
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(status(&project), "validating");
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    assert!(read(&project, TASK_PATH).contains("evidence_result: passed"));
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(status(&project), "done");
+}
+
+#[test]
+fn executed_rejected_returns_to_in_progress() {
+    let project = executed_task(&print_item("tela.png", &variable_shot("tela.png")));
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--rejected", "tela.png", "--motivo", "x"],
+    ));
+    assert!(stderr.contains("tela.png"), "{stderr}");
+    assert_eq!(status(&project), "in_progress");
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content.contains("| rejeição | in_progress | evidência tela.png rejeitada pelo usuário"),
+        "{content}"
+    );
+}
+
+#[test]
+fn executed_counts_as_running_in_adjustments() {
+    let evidence = automatic("saida.txt", "echo ola", None);
+
+    let project = folder_started();
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "executed");
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Passos detalhados");
+    let output = success_stdout(&mut record);
+    assert!(output.contains("voltou para 'in_progress'"), "{output}");
+    assert_eq!(state_line(&project, "status"), "in_progress");
+
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "executed");
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "waiting_on"), "[TASK-03]");
+
+    let project = executed_task(&evidence);
+    success_stdout(&mut recollect(&project));
+    assert!(read(&project, TASK_PATH).contains("| recoleta | executed |"));
+
+    let project = executed_task(&evidence);
+    let output = success_stdout(&mut task(&project, &["describe"]));
+    assert!(output.contains("# TASK-01: Tarefa\n"), "{output}");
+}
+
+#[test]
+fn executed_refuses_outside_running() {
+    for status in ["validating", "approved", "blocked", "done"] {
+        let project = running_task_with_evidence(
+            &[("a.txt", "um\n")],
+            &automatic("saida.txt", "echo ola", None),
+        );
+        let record =
+            read(&project, TASK_PATH).replace("status: in_progress", &format!("status: {status}"));
+        write(&project, TASK_PATH, &record);
+        let stderr = failure_stderr(&mut ahead(&project));
+        assert!(
+            stderr.contains(
+                "só roda com a tarefa em execução (in_progress ou executed); nada foi gerado"
+            ),
+            "{status}: {stderr}"
+        );
+        assert!(read(&project, TASK_PATH).contains(&format!("status: {status}")));
+    }
 }

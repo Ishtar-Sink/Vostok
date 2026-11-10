@@ -448,7 +448,11 @@ fn wave_status(statuses: &[String], status: &Statuses) -> String {
         status.done.clone()
     } else if any(&status.blocked) {
         status.blocked.clone()
-    } else if any(&status.in_progress) || any(&status.validating) || any(&status.done) {
+    } else if any(&status.in_progress)
+        || any(&status.executed)
+        || any(&status.validating)
+        || any(&status.done)
+    {
         status.in_progress.clone()
     } else if statuses.iter().all(|s| *s == status.approved) {
         status.approved.clone()
@@ -494,6 +498,7 @@ struct Statuses {
     pending: String,
     approved: String,
     in_progress: String,
+    executed: String,
     validating: String,
     blocked: String,
     done: String,
@@ -515,6 +520,8 @@ impl Tasks {
             pending: status("pending")?,
             approved: status("approved")?,
             in_progress: status("in_progress")?,
+            // Harness instalado antes do status `executed` não tem a chave (SPEC-047).
+            executed: status("executed").unwrap_or_else(|_| "executed".to_string()),
             validating: status("validating")?,
             blocked: status("blocked")?,
             done: status("done")?,
@@ -908,10 +915,16 @@ impl Tasks {
     fn describe(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
-        if status != self.status.in_progress && status != self.status.validating {
+        let described = [
+            &self.status.in_progress,
+            &self.status.executed,
+            &self.status.validating,
+        ];
+        if !described.contains(&&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; a descrição só sai para tarefa '{}' ou '{}'",
+                "a tarefa {task} está com status '{status}'; a descrição só sai para tarefa '{}', '{}' ou '{}'",
                 self.status.in_progress,
+                self.status.executed,
                 self.status.validating
             );
         }
@@ -1342,6 +1355,7 @@ impl Tasks {
             &self.status.pending,
             &self.status.approved,
             &self.status.in_progress,
+            &self.status.executed,
             &self.status.validating,
             &self.status.blocked,
         ];
@@ -1451,10 +1465,11 @@ impl Tasks {
         Ok(())
     }
 
-    /// Status de execução: in_progress, validating e blocked.
+    /// Status de execução: in_progress, executed, validating e blocked.
     fn is_running(&self, status: &str) -> bool {
         [
             &self.status.in_progress,
+            &self.status.executed,
             &self.status.validating,
             &self.status.blocked,
         ]
@@ -1611,8 +1626,9 @@ impl Tasks {
         let status = status_of(&file);
         if !self.is_running(&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}' ou '{}' têm o baseline recoletado; nada foi alterado",
+                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}', '{}' ou '{}' têm o baseline recoletado; nada foi alterado",
                 self.status.in_progress,
+                self.status.executed,
                 self.status.validating,
                 self.status.blocked
             );
@@ -1779,13 +1795,18 @@ impl Tasks {
 
     // --- tests, regression e evidence ---
 
-    /// Recusa tarefa fora de in_progress e validating; a bloqueada só volta pelo resume.
+    /// Recusa tarefa fora de in_progress, executed e validating; a bloqueada só volta pelo resume.
     fn require_running(&self, file: &Path, task: &str) -> Result<()> {
         let status = status_of(file);
         if status == self.status.blocked {
             bail!("a tarefa {task} está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume");
         }
-        if status != self.status.in_progress && status != self.status.validating {
+        let validated = [
+            &self.status.in_progress,
+            &self.status.executed,
+            &self.status.validating,
+        ];
+        if !validated.contains(&&status) {
             bail!(
                 "a tarefa {task} está com status '{status}'; só tarefas com status '{}' ou '{}' são validadas",
                 self.status.in_progress,
@@ -2288,15 +2309,16 @@ impl Tasks {
         Ok(())
     }
 
-    /// Gera as evidências com a tarefa em execução, sem mudar status nem resultados, e lista o que
-    /// falta o usuário conferir.
+    /// Gera as evidências com a tarefa em execução, sem mudar os resultados, lista o que falta o
+    /// usuário conferir e marca a tarefa como pronta para finalizar (executed).
     fn evidence_ahead(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
-        if status != self.status.in_progress {
+        if status != self.status.in_progress && status != self.status.executed {
             bail!(
-                "a tarefa {task} está com status '{status}'; vostok task evidence --antecipada só roda com a tarefa em execução ({}); nada foi gerado",
-                self.status.in_progress
+                "a tarefa {task} está com status '{status}'; vostok task evidence --antecipada só roda com a tarefa em execução ({} ou {}); nada foi gerado",
+                self.status.in_progress,
+                self.status.executed
             );
         }
         let dir = self.evidence_dir(&file)?;
@@ -2311,7 +2333,7 @@ impl Tasks {
                 "0 evidências; a conferir: -",
             )?;
             println!("Evidências antecipadas de {task}: {none}");
-            return Ok(());
+            return self.mark_executed(&file, task, "sem evidências a gerar");
         }
         let generated = self.generate_evidences(&file, &content, &dir, &[], true)?;
         if !generated.failed.is_empty() {
@@ -2357,7 +2379,17 @@ impl Tasks {
             "evidências antecipadas",
             "geradas",
             &format!("{} evidências; a conferir: {listed}", entries.len()),
-        )
+        )?;
+        self.mark_executed(&file, task, "evidências antecipadas geradas sem erro")
+    }
+
+    /// Grava a tarefa como pronta para finalizar; só o `--antecipada` sem erro chega aqui.
+    fn mark_executed(&self, file: &Path, task: &str, detail: &str) -> Result<()> {
+        let executed = &self.status.executed;
+        TaskDoc::at(file).set("status", executed)?;
+        self.record_step(file, "execução", executed, detail)?;
+        println!("Tarefa {task} pronta para finalizar: status '{executed}'.");
+        Ok(())
     }
 
     /// Roda só o comando rotulado de uma evidência da verificação e grava a saída como log.
@@ -2614,6 +2646,17 @@ impl Tasks {
         let bytes = self.reviewable(&content, &dir, name)?;
         let doc = TaskDoc::at(file);
         doc.set("evidence_result", "failed")?;
+        if status_of(file) == self.status.executed {
+            let in_progress = &self.status.in_progress;
+            doc.set("status", in_progress)?;
+            self.record_step(
+                file,
+                "rejeição",
+                in_progress,
+                &evidence_rejection(name, &bytes, reason),
+            )?;
+            bail!("a tarefa {task} voltou para '{in_progress}': o usuário rejeitou a evidência {name}: {reason}. Corrija o que o motivo aponta e gere as evidências de novo com vostok task evidence --antecipada");
+        }
         doc.set("status", &self.status.blocked)?;
         self.record_step(
             file,
@@ -2893,7 +2936,13 @@ impl Tasks {
     fn require_dependency_status(&self, file: &Path, task: &str) -> Result<()> {
         let status = status_of(file);
         let blocked = status == self.status.blocked;
-        if status == self.status.in_progress || status == self.status.validating {
+        if [
+            &self.status.in_progress,
+            &self.status.executed,
+            &self.status.validating,
+        ]
+        .contains(&&status)
+        {
             return Ok(());
         }
         if blocked && !waiting_of(file).is_empty() {
@@ -7053,6 +7102,7 @@ mod tests {
             pending: "pending".into(),
             approved: "approved".into(),
             in_progress: "in_progress".into(),
+            executed: "executed".into(),
             validating: "validating".into(),
             blocked: "blocked".into(),
             done: "done".into(),
@@ -7065,6 +7115,7 @@ mod tests {
         assert_eq!(of(&["done", "blocked", "pending"]), "blocked");
         assert_eq!(of(&["approved", "in_progress"]), "in_progress");
         assert_eq!(of(&["approved", "validating"]), "in_progress");
+        assert_eq!(of(&["approved", "executed"]), "in_progress");
         assert_eq!(of(&["done", "pending"]), "in_progress");
         assert_eq!(of(&["approved", "approved"]), "approved");
         assert_eq!(of(&["approved", "pending"]), "pending");

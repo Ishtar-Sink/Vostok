@@ -6,11 +6,13 @@ id:
   digits: 2
 
 # Status da tarefa, na ordem do ciclo: criada (pending), aprovada pelo usuário (approved), em execução
-# (in_progress), em validação (validating), bloqueada à espera do usuário (blocked) e concluída (done).
+# (in_progress), pronta para finalizar (executed), em validação (validating), bloqueada à espera do
+# usuário (blocked) e concluída (done).
 status:
   pending: pending
   approved: approved
   in_progress: in_progress
+  executed: executed
   validating: validating
   blocked: blocked
   done: done

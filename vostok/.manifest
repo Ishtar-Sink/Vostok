@@ -1,4 +1,4 @@
-version: 0.5.1
+version: 0.5.2
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   personas/arquiteto.md: 8ae32cd5f2a089c00825a674744ac4404746097d7a6645f651068a2cdebf6d19
@@ -26,9 +26,9 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/customize-documents/SKILL.md: fc4be6a890d245e758e2ecb5dec2888cdbfd39e5091877aec57c1684ddf95c0e
-  skills/default/execute-task/SKILL.md: 2d5ffa972d753ee7e1365b5917b2f992d204ec13acd06b87dec6c18aa082968c
+  skills/default/execute-task/SKILL.md: 664b2f62e99d8fef322dae219e5b57c9e8d6f3e6776569ed21b98fdc3cfc2fef
   skills/default/finalize-spec/SKILL.md: 3bdc392832f98361b16c757f95d3e27d0718d81cd6b0f87690781528d03a3184
-  skills/default/finish-task/SKILL.md: 968c13b422b91f1552510b4398c807214e94dce617be664e5efd2053cadd9e8b
+  skills/default/finish-task/SKILL.md: fcba445438514c552abdee30c3007baadcf5906c3ca882abaa72eba1c6381cd0
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: e21c812010b8ad7cd4bc92042f2b240b8a8d502e1d34d7f996c9fda5ad29fd73
   skills/default/refine-spec/SKILL.md: e540c92e04e9c3901c85a9acda2e61cceb3a3c9eb81d6c2924a0a01b57d88cbc

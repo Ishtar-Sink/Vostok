@@ -19,7 +19,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 
 ## Termos
 
-- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `validating` ou `blocked`.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `executed`, `validating` ou `blocked`.
 - **Tentativa:** uma execução de `vostok task tests` com falha. Ao atingir `max_attempts` (`config/tasks.yml`), a tarefa fica `blocked`.
 - **Regressão:** um comando de "Baseline" com código de saída ou saída diferente do baseline coletado no início.
 - **Bloqueada:** tarefa com status `blocked`. Bloqueada por falha (testes, regressão ou evidência rejeitada) só volta com `vostok task resume` ou com a recoleta do baseline, depois de uma decisão do usuário; bloqueada por dependência (`waiting_on`) volta a `approved` quando a dependência é concluída.
@@ -69,7 +69,7 @@ vostok context load --skill finish-task --persona qa
 
 ### 2. Identificar a tarefa
 
-Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
+Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `executed`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
 
 Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele definiu (correção, ajuste ou aceite da diferença) e execute:
 

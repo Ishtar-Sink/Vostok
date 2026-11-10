@@ -186,7 +186,7 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho da refinada, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Se o comando avisou que a aprovação foi derrubada, informe que a spec voltou para `refined` e precisa ser aprovada de novo.
-- Numa spec `planned`, a [tabela de tarefas afetadas](#tabela-de-tarefas-afetadas), com as tarefas que cobrem os IDs mudados, montada com o `vostok task status <SPEC_ID>` e o `covers` de cada tarefa: `pending` e `approved` serão refeitas (voltam a `pending` e são detalhadas de novo pela skill `adjust-task`); `in_progress`, `validating` e `blocked` serão ajustadas (ganham a linha `ajuste` e seguem sem nova aprovação); `done` só são avisadas, sem mudar, com a sugestão de uma tarefa nova num novo plano. As que não cobrem os IDs não mudam. Informe que nada muda nas tarefas até a reaprovação da spec (skill `approve-spec`).
+- Numa spec `planned`, a [tabela de tarefas afetadas](#tabela-de-tarefas-afetadas), com as tarefas que cobrem os IDs mudados, montada com o `vostok task status <SPEC_ID>` e o `covers` de cada tarefa: `pending` e `approved` serão refeitas (voltam a `pending` e são detalhadas de novo pela skill `adjust-task`); `in_progress`, `executed`, `validating` e `blocked` serão ajustadas (ganham a linha `ajuste` e seguem sem nova aprovação); `done` só são avisadas, sem mudar, com a sugestão de uma tarefa nova num novo plano. As que não cobrem os IDs não mudam. Informe que nada muda nas tarefas até a reaprovação da spec (skill `approve-spec`).
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
 

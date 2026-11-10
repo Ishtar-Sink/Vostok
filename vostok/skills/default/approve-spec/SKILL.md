@@ -92,7 +92,7 @@ Execute:
 vostok spec approve approve <SPEC_ID>
 ```
 
-O comando confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Numa spec com `changed_ids`, o comando a devolve a `planned`, sem plano novo, volta a `pending` as tarefas `pending` ou `approved` que cobrem os IDs, registra um ajuste (linha `ajuste`) nas `in_progress`, `validating` ou `blocked` que os cobrem, lista as `done` que os cobrem sem mudá-las, mantém as demais e limpa `changed_ids`. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
+O comando confere os impedimentos de novo, muda o status para `approved`, grava `approved_at` e `approved_hash` e remove o rascunho. Numa spec com `changed_ids`, o comando a devolve a `planned`, sem plano novo, volta a `pending` as tarefas `pending` ou `approved` que cobrem os IDs, registra um ajuste (linha `ajuste`) nas `in_progress`, `executed`, `validating` ou `blocked` que os cobrem, lista as `done` que os cobrem sem mudá-las, mantém as demais e limpa `changed_ids`. Se ele falhar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
 
 ### 5. Responder ao usuário
 

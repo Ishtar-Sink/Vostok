@@ -14,6 +14,7 @@ status:
   validating: validating
   blocked: blocked
   done: done
+  executed: executed
 
 # Máximo de falhas nos testes antes de a tarefa ficar bloqueada ([agent/anti-loop-02]).
 max_attempts: 2

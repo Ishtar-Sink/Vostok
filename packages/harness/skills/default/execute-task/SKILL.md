@@ -11,7 +11,7 @@ metadata:
 
 # Executar tarefa
 
-Leva uma tarefa aprovada, ou as tarefas de uma onda, de `approved` a `in_progress`, coleta o estado anterior (baseline) e implementa cada tarefa, deixando-as em execução e prontas para serem finalizadas pela skill `finish-task`. O Coordenador faz o máximo possível: executa na própria sessão a onda de uma tarefa e as tarefas que mudam os mesmos arquivos, e só dispara subagentes, com a persona e o modelo do perfil de cada tarefa, para as tarefas que rodam em paralelo.
+Leva uma tarefa aprovada, ou as tarefas de uma onda, de `approved` a `in_progress`, coleta o estado anterior (baseline) e implementa cada tarefa, deixando-as `executed`, prontas para serem finalizadas pela skill `finish-task`. O Coordenador faz o máximo possível: executa na própria sessão a onda de uma tarefa e as tarefas que mudam os mesmos arquivos, e só dispara subagentes, com a persona e o modelo do perfil de cada tarefa, para as tarefas que rodam em paralelo.
 
 ## Persona
 
@@ -36,7 +36,7 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 [execute-task-04]: Siga "Mudar" e "Passos" da tarefa. Não amplie o escopo: o que for necessário e não estiver na tarefa vira pergunta ao usuário.
 [execute-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [execute-task-06]: Nunca edite o front-matter, o "Registro de execução" nem o "Histórico de ajustes" da tarefa. Só os comandos os alteram.
-[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A única exceção é do Coordenador: com todas as tarefas da onda terminadas, ele roda `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que gera as evidências sem mudar status nem resultados; o subagente nunca roda `vostok task evidence`. A finalização é um pedido separado do usuário.
+[execute-task-07]: Esta skill não valida nem conclui a tarefa e não chama a `finish-task` (RN-03). A única exceção é do Coordenador: com todas as tarefas da onda terminadas, ele roda `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que gera as evidências, sem mudar os resultados, e deixa a tarefa `executed`; o subagente nunca roda `vostok task evidence`. A finalização é um pedido separado do usuário.
 [execute-task-08]: O chat segue como Coordenador: ele escolhe o modelo, executa as tarefas que ficam na própria sessão, dispara os subagentes das paralelas e consolida a resposta. Cada tarefa segue a persona do `vostok task brief` (persona Coordenador, RF-25).
 [execute-task-09]: O modelo vem do perfil da tarefa, nunca do usuário (RN-03): o Coordenador escolhe, entre os modelos que a ferramenta oferece, o que atende à descrição do perfil; se a ferramenta não deixa listar ou escolher, usa o apelido de reserva; com "modelo da sessão", segue com o modelo da sessão. O modelo usado vai no `vostok task start --model`.
 [execute-task-10]: Tarefas da onda com arquivos em comum rodam em sequência, na ordem dos IDs, na própria sessão, e o usuário é avisado (RF-16, FA-02). As demais, quando são 2 ou mais, rodam em paralelo em subagentes, com no máximo o valor de `max_subagents` (linha `Subagentes ao mesmo tempo` do `vostok task status`) ao mesmo tempo; as excedentes esperam uma vaga.
@@ -151,11 +151,11 @@ Depois que todas as tarefas da onda voltaram (inclusive as de subagentes), execu
 vostok task evidence <SPEC_ID> <TASK_ID> --antecipada
 ```
 
-O comando gera as evidências de tarefa `in_progress` sem mudar `status`, `tests_result`, `regression_result`, `evidence_result` nem `attempts`, e lista com o caminho as que exigem aval e ainda não têm conferência válida e as manuais sem arquivo.
+O comando gera as evidências de tarefa `in_progress` ou `executed` sem mudar `tests_result`, `regression_result`, `evidence_result` nem `attempts` e, sem erro, deixa a tarefa `executed` (Pronta para finalizar), mesmo com evidências a conferir. Lista com o caminho as que exigem aval e ainda não têm conferência válida e as manuais sem arquivo.
 
 Faça uma única pergunta agrupada, com o template `question`, para a tarefa ou para a onda inteira (CB-16), com cada evidência a conferir e o caminho dela; o usuário a vê na pasta ou no painel e responde no chat. Evidência manual sem arquivo: peça o anexo na mesma pergunta.
 
-Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição bloqueia a tarefa até o `vostok task resume` com a decisão do usuário. O `--reviewed` e o `--rejected` só registram a decisão sobre o arquivo que o `--antecipada` gerou: não rodam comando, não apagam evidências e não mudam os resultados da tarefa.
+Com a resposta, execute `vostok task evidence <SPEC_ID> <TASK_ID> --reviewed <arquivo>` em cada aceita e `vostok task evidence <SPEC_ID> <TASK_ID> --rejected <arquivo> --motivo "<motivo do usuário>"` em cada rejeitada; a rejeição devolve a tarefa `executed` para `in_progress`, para corrigir o que o motivo aponta e gerar as evidências de novo com o `--antecipada`. O `--reviewed` e o `--rejected` só registram a decisão sobre o arquivo que o `--antecipada` gerou: não rodam comando, não apagam evidências e não mudam os resultados da tarefa.
 
 Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Evidência automática com erro no `--antecipada`: não corrija nem repita; cite a falha em Pendências (FA-04).
 
@@ -163,7 +163,7 @@ Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Ev
 
 Execute `vostok commit check` e responda com o template `completion`:
 
-- **Resumo:** as tarefas foram implementadas e seguem `in_progress`.
+- **Resumo:** as tarefas foram implementadas e ficaram `executed`.
 - **O que foi feito:** uma linha por tarefa (ID, persona, modelo, resultado), os avisos de sequência do passo 4 e as tarefas da onda que ficaram fora.
 - **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: as evidências geradas pelo `--antecipada`, as conferidas e as rejeitadas; os testes, a regressão e a validação ficam para a `finish-task`.
 - **Status das tarefas:** a saída de `vostok task status <SPEC_ID>`.

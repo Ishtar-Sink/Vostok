@@ -4,6 +4,7 @@
 mod common;
 
 use std::fs;
+use std::path::PathBuf;
 
 use common::golden::assert_group;
 use common::{failure_stderr, Project};
@@ -222,6 +223,126 @@ fn evidence_before_after_shows_only_the_final_output_without_baseline() {
     assert!(!html.contains("Antes da tarefa"), "{html}");
     assert!(!html.contains("Depois da tarefa"), "{html}");
     assert!(html.contains("saida depois &lt;ok&gt;"), "{html}");
+}
+
+/// Projeto com a SPEC-001 implementada, a TASK-01 com duas evidências (`saida.txt`, automática, e
+/// `tela.txt`, manual) gravadas e o conteúdo criado por `finalize create`.
+fn two_evidence_project() -> Project {
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    let tasks = project.harness().join("work/tasks/SPEC-001");
+    fs::create_dir_all(&tasks).unwrap();
+    fs::write(
+        tasks.join("TASK-01.md"),
+        "---\nid: TASK-01\ntitle: Tarefa\nstatus: done\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Evidências\n\n- `saida.txt` (automática): `echo depois`\n- `tela.txt` (manual): anotação\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-10-14 | conclusão | done | ok |\n",
+    )
+    .unwrap();
+    let evidence = tasks.join("evidence/TASK-01");
+    fs::create_dir_all(&evidence).unwrap();
+    fs::write(evidence.join("saida.txt"), "depois\n").unwrap();
+    fs::write(evidence.join("tela.txt"), "anotação\n").unwrap();
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    project
+}
+
+fn finalize_content_path(project: &Project) -> PathBuf {
+    project.harness().join("work/finalize/SPEC-001/content.md")
+}
+
+fn fill_two_evidences(content: &str) -> String {
+    let content = content
+        .replace("#{EVIDENCE_01_PROOF}", "a saída de CT-01.")
+        .replace("#{EVIDENCE_01_HOW}", "rodar o comando.")
+        .replace("#{EVIDENCE_01_READ}", "ler a saída.")
+        .replace("#{EVIDENCE_02_PROOF}", "a anotação de CT-02.")
+        .replace("#{EVIDENCE_02_HOW}", "abrir a tela.")
+        .replace("#{EVIDENCE_02_READ}", "ler a anotação.");
+    fill_variables(&content)
+}
+
+fn build_html(project: &Project) -> String {
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    fs::read_to_string(finalize_content_path(project).with_file_name("evidencias.html")).unwrap()
+}
+
+fn remove_block(content: &str, heading: &str) -> String {
+    let mut inside = false;
+    let mut out = String::new();
+    for line in content.lines() {
+        if line.starts_with("# ") || line.starts_with("## ") {
+            inside = line == heading;
+        }
+        if !inside {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    out
+}
+
+#[test]
+fn evidence_id_blocks_cite_the_id() {
+    let project = two_evidence_project();
+    let path = finalize_content_path(&project);
+    let content = fs::read_to_string(&path).unwrap();
+    assert!(
+        content
+            .lines()
+            .any(|line| line == "## TASK-01 / EV-01 / saida.txt"),
+        "{content}"
+    );
+    assert!(
+        content
+            .lines()
+            .any(|line| line == "## TASK-01 / EV-02 / tela.txt"),
+        "{content}"
+    );
+    fs::write(&path, fill_two_evidences(&content)).unwrap();
+    let html = build_html(&project);
+    assert!(html.contains("EV-01 saida.txt"), "{html}");
+    assert!(html.contains("EV-02 tela.txt"), "{html}");
+}
+
+#[test]
+fn evidence_id_legacy_block_still_validates() {
+    let project = two_evidence_project();
+    let path = finalize_content_path(&project);
+    let content = fill_two_evidences(&fs::read_to_string(&path).unwrap())
+        .replace("## TASK-01 / EV-01 / saida.txt", "## TASK-01 / saida.txt");
+    fs::write(&path, content).unwrap();
+    let html = build_html(&project);
+    assert!(html.contains("rodar o comando."), "{html}");
+}
+
+#[test]
+fn evidence_id_missing_block_names_the_new_heading() {
+    let project = two_evidence_project();
+    let path = finalize_content_path(&project);
+    let content = fill_two_evidences(&fs::read_to_string(&path).unwrap());
+    fs::write(
+        &path,
+        remove_block(&content, "## TASK-01 / EV-02 / tela.txt"),
+    )
+    .unwrap();
+    let stderr = failure_stderr(project.vostok().args(["finalize", "validate", "SPEC-001"]));
+    assert!(
+        stderr.contains("evidência sem bloco: ## TASK-01 / EV-02 / tela.txt"),
+        "{stderr}"
+    );
 }
 
 /// Troca cada variável `#{...}` por um texto válido para o tipo da seção.

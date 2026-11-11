@@ -20,9 +20,9 @@ SPEC-008
 
 @stdout 0
 
-@stderr 94
+@stderr 102
 Erro: o conteúdo de SPEC-008 tem problemas:
-  - evidência sem bloco: ## TASK-01 / saida.txt
+  - evidência sem bloco: ## TASK-01 / EV-01 / saida.txt
 
 @exit 1
 1

@@ -884,9 +884,12 @@ impl Finalization {
         let study = self.study_model();
         for task in &self.tasks {
             let task_id = task.id();
-            for (name, _) in self.evidence_items(task)? {
+            for (index, (name, _)) in self.evidence_items(task)?.into_iter().enumerate() {
                 blocks += 1;
-                content.push_str(&format!("\n## {task_id} / {name}\n\n"));
+                content.push_str(&format!(
+                    "\n{}\n\n",
+                    evidence_heading(&task_id, index, &name)
+                ));
                 if study {
                     content.push_str(&format!(
                         "- **{EVIDENCE_PROOF}:** #{{EVIDENCE_{blocks:02}_PROOF}}\n"
@@ -1005,13 +1008,13 @@ impl Finalization {
         for task in &self.tasks {
             let task_id = task.id();
             let evidence_dir = self.task_evidence_dir(task)?;
-            for (name, _) in self.evidence_items(task)? {
+            for (index, (name, _)) in self.evidence_items(task)?.into_iter().enumerate() {
                 let path = evidence_dir.join(&name);
                 if !path.is_file() {
                     errors.push(format!("{task_id}: evidência ausente: {}", self.rel(&path)));
                 }
-                let block = format!("## {task_id} / {name}");
-                if !content.lines().any(|line| line == block) {
+                if evidence_heading_in(&content, &task_id, index, &name).is_none() {
+                    let block = evidence_heading(&task_id, index, &name);
                     errors.push(format!("evidência sem bloco: {block}"));
                 }
             }
@@ -1184,6 +1187,28 @@ fn study_errors(content: &str, requirements: &[String]) -> Vec<String> {
         }
     }
     errors
+}
+
+/// Título `## <TASK>-<número> / EV-<número> / <arquivo>` do bloco de uma evidência, pela posição dela na
+/// tarefa.
+fn evidence_heading(task_id: &str, index: usize, name: &str) -> String {
+    format!("## {task_id} / EV-{:02} / {name}", index + 1)
+}
+
+/// Título `## <TASK>-<número> / <arquivo>`, do formato anterior ao ID da evidência.
+fn legacy_evidence_heading(task_id: &str, name: &str) -> String {
+    format!("## {task_id} / {name}")
+}
+
+/// Título do bloco da evidência no conteúdo: o com ID, se existe, ou o antigo, aceito para conteúdos
+/// criados antes do ID.
+fn evidence_heading_in(content: &str, task_id: &str, index: usize, name: &str) -> Option<String> {
+    [
+        evidence_heading(task_id, index, name),
+        legacy_evidence_heading(task_id, name),
+    ]
+    .into_iter()
+    .find(|heading| content.lines().any(|line| line == heading))
 }
 
 /// Título `## <TASK>-<número> / ` de um bloco de evidência.
@@ -2757,7 +2782,7 @@ impl Finalization {
                 html_escape(&task_title)
             ).into_bytes());
             let evidences = self.evidence_items(task)?;
-            for (name, kind) in &evidences {
+            for (index, (name, kind)) in evidences.iter().enumerate() {
                 total += 1;
                 let media = self.media_html(
                     &evidence_dir.join(name),
@@ -2767,11 +2792,13 @@ impl Finalization {
                     counts,
                     errors,
                 )?;
-                let heading = format!("## {task_id} / {name}");
+                let heading = evidence_heading_in(&content, &task_id, index, name)
+                    .unwrap_or_else(|| legacy_evidence_heading(&task_id, name));
+                let label = html_escape(&format!("EV-{:02} {name}", index + 1));
                 let values: HashMap<&str, String> = HashMap::from([
                     ("TASK_ID", html_escape(&task_id)),
                     ("TASK_TITLE", html_escape(&task_title)),
-                    ("NAME", html_escape(name)),
+                    ("NAME", label),
                     ("KIND", html_escape(kind)),
                     (
                         "KIND_CLASS",

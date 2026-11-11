@@ -59,7 +59,7 @@ struct Changes {
     removed_dirs: Vec<PathBuf>,
     routing: Vec<PathBuf>,
     agents: Vec<PathBuf>,
-    hooks: Vec<PathBuf>,
+    hooks: Vec<(&'static str, PathBuf)>,
     conflicts: Vec<String>,
     manifest: bool,
 }
@@ -94,13 +94,14 @@ pub fn run() -> Result<()> {
     merge_configs(&harness, &mut changes)?;
     ensure_required_context(&harness, &mut changes)?;
     ensure_required_list_items(&harness, &mut changes)?;
-    match write_claude_hooks(&harness)? {
-        ClaudeHooks::Written(path) => changes.hooks.push(path),
-        ClaudeHooks::Invalid(path) => changes.conflicts.push(invalid_settings_warning(
+    match write_tool_hooks(&harness)? {
+        ToolHooks::Written(label, path) => changes.hooks.push((label, path)),
+        ToolHooks::Invalid(path) => changes.conflicts.push(invalid_settings_warning(
             &routing::project_root(&harness)?,
             &path,
         )),
-        ClaudeHooks::Skipped | ClaudeHooks::Unchanged => {}
+        ToolHooks::Gap(label) => changes.conflicts.push(gap_warning(label)),
+        ToolHooks::Skipped | ToolHooks::Unchanged => {}
     }
     let routing = routing::generate(&harness)?;
     for path in routing.changed {
@@ -682,15 +683,24 @@ fn print(root: &Path, changes: &Changes) {
     for path in &changes.agents {
         println!("Subagente regenerado: {}", shown(path));
     }
-    for path in &changes.hooks {
-        println!("Hooks do Claude Code atualizados: {}", shown(path));
+    for (label, path) in &changes.hooks {
+        println!("Hooks de {label} atualizados: {}", shown(path));
     }
     println!("Harness atualizado para a versão {}.", manifest::VERSION);
 }
 
-const CLAUDE_SETTINGS: &str = ".claude/settings.json";
+/// Garantia do contexto por ferramenta de `harness.tool`: rótulo e arquivo de hooks. Sem arquivo,
+/// a ferramenta espera um formato que os hooks do harness ainda não falam (lacuna avisada).
+const TOOL_HOOKS: &[(&str, &str, Option<&str>)] = &[
+    ("claude-code", "Claude Code", Some(".claude/settings.json")),
+    ("codex", "Codex", Some(".codex/hooks.json")),
+    ("cursor", "Cursor", None),
+    ("gemini-cli", "Gemini CLI", None),
+    ("copilot", "GitHub Copilot", None),
+];
 
-/// Hooks que o harness mantém no Claude Code: evento, matcher e comando (SPEC-050).
+/// Hooks que o harness mantém no formato do Claude Code, que o Codex também usa: evento, matcher
+/// e comando (SPEC-050).
 const CLAUDE_HOOKS: &[(&str, &str, &str)] = &[
     (
         "SessionStart",
@@ -700,20 +710,27 @@ const CLAUDE_HOOKS: &[(&str, &str, &str)] = &[
     ("PreToolUse", "Bash", "vostok hook pre-bash"),
 ];
 
-pub(crate) enum ClaudeHooks {
+pub(crate) enum ToolHooks {
     Skipped,
     Unchanged,
-    Written(PathBuf),
+    Written(&'static str, PathBuf),
     Invalid(PathBuf),
+    Gap(&'static str),
 }
 
-/// Mescla os hooks do harness no `.claude/settings.json` quando a ferramenta é o Claude Code,
-/// sem tocar nas chaves e nos hooks do usuário e sem duplicar os do harness.
-pub(crate) fn write_claude_hooks(harness: &Harness) -> Result<ClaudeHooks> {
-    if crate::models::harness_tool(harness).as_deref() != Some("claude-code") {
-        return Ok(ClaudeHooks::Skipped);
-    }
-    let path = routing::project_root(harness)?.join(CLAUDE_SETTINGS);
+/// Mescla os hooks do harness no arquivo da ferramenta de `harness.tool`, sem tocar nas chaves e
+/// nos hooks do usuário e sem duplicar os do harness.
+pub(crate) fn write_tool_hooks(harness: &Harness) -> Result<ToolHooks> {
+    let Some(tool) = crate::models::harness_tool(harness) else {
+        return Ok(ToolHooks::Skipped);
+    };
+    let Some(&(_, label, file)) = TOOL_HOOKS.iter().find(|(name, ..)| *name == tool) else {
+        return Ok(ToolHooks::Skipped);
+    };
+    let Some(file) = file else {
+        return Ok(ToolHooks::Gap(label));
+    };
+    let path = routing::project_root(harness)?.join(file);
     let content = match fs::read_to_string(&path) {
         Ok(content) => content,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => "{}".to_string(),
@@ -722,15 +739,15 @@ pub(crate) fn write_claude_hooks(harness: &Harness) -> Result<ClaudeHooks> {
         }
     };
     let Ok(serde_json::Value::Object(mut settings)) = serde_json::from_str(&content) else {
-        return Ok(ClaudeHooks::Invalid(path));
+        return Ok(ToolHooks::Invalid(path));
     };
     if !add_claude_hooks(&mut settings) {
-        return Ok(ClaudeHooks::Unchanged);
+        return Ok(ToolHooks::Unchanged);
     }
     let mut text = serde_json::to_string_pretty(&serde_json::Value::Object(settings))?;
     text.push('\n');
     write(&path, text.as_bytes())?;
-    Ok(ClaudeHooks::Written(path))
+    Ok(ToolHooks::Written(label, path))
 }
 
 /// Acrescenta os hooks do harness que faltam e diz se acrescentou algum. `hooks` ou uma lista de
@@ -765,6 +782,12 @@ fn has_command(entry: &serde_json::Value, command: &str) -> bool {
     entry["hooks"]
         .as_array()
         .is_some_and(|hooks| hooks.iter().any(|hook| hook["command"] == command))
+}
+
+pub(crate) fn gap_warning(label: &str) -> String {
+    format!(
+        "Aviso: {label} não tem como receber o contexto obrigatório automaticamente; o agente depende do AGENTS.md (docs/estudos/contexto-por-ferramenta.md)."
+    )
 }
 
 pub(crate) fn invalid_settings_warning(root: &Path, path: &Path) -> String {

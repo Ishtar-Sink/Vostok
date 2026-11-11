@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use clap::Args;
 
-use crate::commands::update::{self, ClaudeHooks};
+use crate::commands::update::{self, ToolHooks};
 use crate::embedded;
 use crate::harness::Harness;
 use crate::manifest::{self, Manifest};
@@ -172,7 +172,7 @@ fn install(harness: &Harness, choices: &Choices) -> Result<()> {
     config_set(&main, "paths.spec_docs", &choices.spec_docs)?;
     routing::save_tools(harness, &choices.tools)?;
     let routing = routing::generate(harness)?;
-    let hooks = update::write_claude_hooks(harness)?;
+    let hooks = update::write_tool_hooks(harness)?;
     Manifest::current(harness)?.write(harness)?;
 
     let root = routing::project_root(harness)?;
@@ -185,11 +185,12 @@ fn install(harness: &Harness, choices: &Choices) -> Result<()> {
     print_routing(&root, &routing.changed, &choices.tools);
     print_agents(&root, &routing.agents, &choices.tools);
     match hooks {
-        ClaudeHooks::Written(path) => println!("Hooks do Claude Code: {}", relative(&root, &path)),
-        ClaudeHooks::Invalid(path) => {
-            println!("{}", update::invalid_settings_warning(&root, &path))
+        ToolHooks::Written(label, path) => {
+            println!("Hooks de {label}: {}", relative(&root, &path))
         }
-        ClaudeHooks::Skipped | ClaudeHooks::Unchanged => {}
+        ToolHooks::Invalid(path) => println!("{}", update::invalid_settings_warning(&root, &path)),
+        ToolHooks::Gap(label) => println!("{}", update::gap_warning(label)),
+        ToolHooks::Skipped | ToolHooks::Unchanged => {}
     }
     println!("Manifesto: {INSTALL_DIR}/{}", manifest::FILE_NAME);
     Ok(())

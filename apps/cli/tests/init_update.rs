@@ -1281,7 +1281,7 @@ fn claude_hooks_init_writes_both_hooks() {
     assert_eq!(bash["matcher"], "Bash");
     assert_eq!(bash["hooks"][0]["type"], "command");
     assert!(
-        output.contains("Hooks do Claude Code: .claude/settings.json"),
+        output.contains("Hooks de Claude Code: .claude/settings.json"),
         "{output}"
     );
 }
@@ -1349,7 +1349,7 @@ fn claude_hooks_update_restores_a_removed_hook() {
         ["vostok hook pre-bash"]
     );
     assert!(
-        output.contains("Hooks do Claude Code atualizados: .claude/settings.json"),
+        output.contains("Hooks de Claude Code atualizados: .claude/settings.json"),
         "{output}"
     );
 }
@@ -1383,4 +1383,131 @@ fn claude_hooks_invalid_settings_are_left_alone() {
         "{output}"
     );
     assert_eq!(workspace.read(SETTINGS), "{ inválido");
+}
+
+// --- garantia nas outras ferramentas (SPEC-050) ---
+
+const CODEX_HOOKS: &str = ".codex/hooks.json";
+
+fn gap_warning(label: &str) -> String {
+    format!(
+        "Aviso: {label} não tem como receber o contexto obrigatório automaticamente; o agente depende do AGENTS.md (docs/estudos/contexto-por-ferramenta.md)."
+    )
+}
+
+fn use_tool(workspace: &Workspace, tool: &str) {
+    let main = workspace.read("vostok/config/main.yml");
+    assert!(main.contains("tool: claude-code"));
+    workspace.write(
+        "vostok/config/main.yml",
+        &main.replacen("tool: claude-code", &format!("tool: {tool}"), 1),
+    );
+}
+
+fn installed_with_tool(tool: &str) -> (Workspace, String) {
+    let workspace = Workspace::new();
+    workspace.init(&["--yes"]);
+    fs::remove_file(workspace.path(SETTINGS)).unwrap();
+    use_tool(&workspace, tool);
+    let output = workspace.update();
+    (workspace, output)
+}
+
+fn json(workspace: &Workspace, relative: &str) -> serde_json::Value {
+    serde_json::from_str(&workspace.read(relative)).expect("JSON válido")
+}
+
+fn assert_gap(tool: &str, label: &str) {
+    let (workspace, output) = installed_with_tool(tool);
+    assert!(output.contains(&gap_warning(label)), "{output}");
+    for path in [
+        ".cursor/hooks.json",
+        ".gemini/settings.json",
+        ".github/hooks",
+        SETTINGS,
+        CODEX_HOOKS,
+    ] {
+        assert!(!workspace.exists(path), "{path} não deveria existir");
+    }
+}
+
+#[test]
+fn tool_hooks_codex_writes_the_guarantee() {
+    let (workspace, output) = installed_with_tool("codex");
+    let value = json(&workspace, CODEX_HOOKS);
+
+    let start = entry_with(&value, "SessionStart", "vostok hook session-start");
+    assert_eq!(start["matcher"], "startup|resume|clear|compact");
+    assert_eq!(
+        entry_with(&value, "PreToolUse", "vostok hook pre-bash")["matcher"],
+        "Bash"
+    );
+    assert!(
+        output.contains("Hooks de Codex atualizados: .codex/hooks.json"),
+        "{output}"
+    );
+    assert!(!workspace.exists(SETTINGS));
+
+    let before = workspace.read(CODEX_HOOKS);
+    workspace.update();
+    assert_eq!(workspace.read(CODEX_HOOKS), before);
+}
+
+#[test]
+fn tool_hooks_codex_keeps_the_user_settings() {
+    let workspace = Workspace::new();
+    workspace.init(&["--yes"]);
+    use_tool(&workspace, "codex");
+    workspace.write(
+        CODEX_HOOKS,
+        r#"{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "meu-aviso"}]}]}}"#,
+    );
+
+    workspace.update();
+    let value = json(&workspace, CODEX_HOOKS);
+    assert_eq!(harness_commands(&value, "Stop"), ["meu-aviso"]);
+    assert_eq!(
+        harness_commands(&value, "SessionStart"),
+        ["vostok hook session-start"]
+    );
+    assert_eq!(
+        harness_commands(&value, "PreToolUse"),
+        ["vostok hook pre-bash"]
+    );
+}
+
+#[test]
+fn tool_hooks_cursor_warns_the_gap() {
+    assert_gap("cursor", "Cursor");
+}
+
+#[test]
+fn tool_hooks_gemini_cli_warns_the_gap() {
+    assert_gap("gemini-cli", "Gemini CLI");
+}
+
+#[test]
+fn tool_hooks_copilot_warns_the_gap() {
+    assert_gap("copilot", "GitHub Copilot");
+}
+
+#[test]
+fn tool_hooks_claude_code_is_unchanged() {
+    let workspace = Workspace::new();
+    let output = workspace.init(&["--yes"]);
+    let value = settings(&workspace);
+
+    assert_eq!(
+        harness_commands(&value, "SessionStart"),
+        ["vostok hook session-start"]
+    );
+    assert_eq!(
+        harness_commands(&value, "PreToolUse"),
+        ["vostok hook pre-bash"]
+    );
+    assert!(
+        output.contains("Hooks de Claude Code: .claude/settings.json"),
+        "{output}"
+    );
+    assert!(!workspace.exists(CODEX_HOOKS));
 }

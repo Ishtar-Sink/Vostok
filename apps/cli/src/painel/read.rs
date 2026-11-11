@@ -9,7 +9,7 @@ use super::{
     Reply,
 };
 use crate::commands::plan::{plan_outdated, waves};
-use crate::commands::task::evidence_review_states;
+use crate::commands::task::{evidence_review_states, ReviewState};
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
@@ -397,15 +397,8 @@ impl Layout<'_> {
             .collect();
         let reviews: Vec<String> = evidence_review_states(&self.painel.root, &dir)
             .iter()
-            .map(|review| {
-                format!(
-                    "{{\"name\":{},\"kind\":{},\"status\":{},\"reason\":{}}}",
-                    json_string(&review.name),
-                    json_string(&review.kind),
-                    json_string(review.status),
-                    json_string(&review.reason)
-                )
-            })
+            .enumerate()
+            .map(|(index, review)| review_json(index, review))
             .collect();
         Ok(json(format!(
             "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"files\":{{{}}},\"evidence\":[{}],\"reviews\":[{}]}}",
@@ -954,6 +947,18 @@ fn base64(bytes: &[u8]) -> String {
     out
 }
 
+/// Conferência de uma evidência com o ID `EV-NN` pela posição do item em "Evidências".
+fn review_json(index: usize, review: &ReviewState) -> String {
+    format!(
+        "{{\"id\":{},\"name\":{},\"kind\":{},\"status\":{},\"reason\":{}}}",
+        json_string(&format!("EV-{:02}", index + 1)),
+        json_string(&review.name),
+        json_string(&review.kind),
+        json_string(review.status),
+        json_string(&review.reason)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1378,5 +1383,19 @@ wave: 1
     fn strip_html_comments_handles_unclosed_comment() {
         assert_eq!(strip_html_comments("a<!-- b --> c"), "a c");
         assert_eq!(strip_html_comments("a<!-- b"), "a");
+    }
+
+    #[test]
+    fn revisao_traz_o_id_pela_posicao() {
+        use crate::commands::task::ReviewState;
+        let review = ReviewState {
+            name: "tela.png".into(),
+            kind: "print".into(),
+            status: "a conferir",
+            reason: String::new(),
+        };
+        let first = review_json(0, &review);
+        assert!(first.contains("\"id\":\"EV-01\"") && first.contains("\"name\":\"tela.png\""));
+        assert!(review_json(9, &review).contains("\"id\":\"EV-10\""));
     }
 }

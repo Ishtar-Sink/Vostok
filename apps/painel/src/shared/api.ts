@@ -81,6 +81,8 @@ export interface ManualEvidence extends FileRef {
 export type ReviewStatus = 'conferida' | 'rejeitada' | 'a conferir' | 'sem aval';
 
 export interface EvidenceReview {
+  /** `EV-NN` pela ordem dos itens de "Evidências"; ausente numa CLI anterior à 0.6.0. */
+  id?: string;
   name: string;
   kind: string;
   status: ReviewStatus;

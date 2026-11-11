@@ -74,8 +74,8 @@ true
 - `log.txt` (automática): `true`
   - Título: Log de exemplo
   - Prova: o log traz o cabeçalho de quatro linhas e a saída do comando.
-  - Trecho: as linhas de cabeçalho e a saída.
-  - Falha: log sem cabeçalho.
+  - Trecho: a linha com `0 passed`, e não a de `10 passed`, e a linha `✓ ... esconde a raia`.
+  - Falha: a palavra `FAILED` no log.
 - `demo.mp4` (manual): vídeo de exemplo anexado.
   - Título: Vídeo de exemplo
   - Prova: o vídeo toca no player do painel.
@@ -85,6 +85,6 @@ VERIFICACAO
 
 cp "$MEDIA/demo.png" "$TASK/evidencias/tela.png"
 cp "$MEDIA/demo.mp4" "$TASK/evidencias/demo.mp4"
-printf '$ pnpm exec vitest run\n# data: 2026-11-11T12:00:00Z\n# commit: 5a43c5a\n# código de saída: 0\n\n Test Files  3 passed (3)\n      Tests  21 passed (21)\n' > "$TASK/evidencias/log.txt"
+printf '$ pnpm exec vitest run\n# data: 2026-11-11T12:00:00Z\n# commit: 5a43c5a\n# código de saída: 0\n\n Test Files  3 passed (3)\n      Tests  10 passed (10)\n  Snapshots  0 passed (0)\n✓ src/board.test.tsx > Board > esconde a raia desmarcada\n' > "$TASK/evidencias/log.txt"
 
 echo "$TARGET"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { fileUrl, formatDate, listOf, readTextPreview, useResource, type EvidenceReview, type FileRef, type ManualEvidence, type ReviewStatus, type SpecDetail, type TaskDetail } from '../../shared/api';
 import { BackLink } from '../../shared/back-link';
 import { buildReferences } from '../../shared/references';
@@ -44,6 +44,47 @@ const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 const VIDEO = /\.(mp4|webm|mov)$/i;
 const TEXT = /\.(md|txt|yml|log|out|diff|csv|json|css|js)$/i;
 
+type EvidenceFilter = 'todas' | 'a conferir' | 'conferidas';
+const EVIDENCE_FILTERS: { value: EvidenceFilter; label: string }[] = [
+  { value: 'todas', label: 'Todas' },
+  { value: 'a conferir', label: 'A conferir' },
+  { value: 'conferidas', label: 'Conferidas' },
+];
+
+function inFilter(name: string, filter: EvidenceFilter, reviews: Map<string, EvidenceReview>): boolean {
+  if (filter === 'todas') return true;
+  const status = reviews.get(name)?.status;
+  return filter === 'a conferir' ? status === 'a conferir' : status === 'conferida';
+}
+
+/** As quatro primeiras linhas de um log gravado pelo harness: comando, data, commit e código de saída. */
+const LOG_HEADER = [/^\$ /, /^# data:/, /^# commit:/, /^# código de saída:/];
+const normalize = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+const ELLIPSIS = /\.{3}|…/;
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Índices das linhas da saída do log que o trecho aponta: as iguais a ele e, sem nenhuma, as que o contêm como palavra inteira (`0 passed` não casa com `10 passed`). `...` e `…` valem como qualquer trecho da mesma linha, e as partes entre eles aparecem em ordem. */
+export function findLines(log: string, snippet: string): number[] {
+  const parts = snippet.split(new RegExp(ELLIPSIS, 'g')).map(normalize);
+  const wanted = parts.filter(Boolean);
+  if (wanted.length === 0) return [];
+  const lines = log.split('\n');
+  let start = 0;
+  while (start < LOG_HEADER.length && start < lines.length && LOG_HEADER[start].test(lines[start])) start += 1;
+  const body = lines.map((line, index) => ({ text: normalize(line), index })).slice(start);
+  const hasEllipsis = parts.length > 1;
+  const before = parts[0] ? '(?<![\\p{L}\\p{N}])' : '';
+  const after = parts[parts.length - 1] ? '(?![\\p{L}\\p{N}])' : '';
+  const whole = new RegExp(`${before}${wanted.map(escapeRegExp).join('.*')}${after}`, 'u');
+  const equal = hasEllipsis ? [] : body.filter((line) => line.text === wanted[0]);
+  return (equal.length > 0 ? equal : body.filter((line) => whole.test(line.text))).map((line) => line.index);
+}
+
+function snippetsOf(value: string): string[] {
+  return [...value.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+}
+
 export function TaskPage({ spec, task, version }: { spec: string; task: string; version: number }) {
   const detail = useResource<TaskDetail>(`/api/tarefas/${encodeURIComponent(spec)}/${encodeURIComponent(task)}`, version);
   const specDetail = useResource<SpecDetail>(`/api/specs/${encodeURIComponent(spec)}`, version);
@@ -51,6 +92,7 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
   const { bind, popover } = useReferencePopover(references);
   const notes = useMemo(() => evidenceNotes(detail.kind === 'ready' ? detail.data.files.verificacao ?? '' : ''), [detail]);
   const [tab, setTab] = useState(() => tabFromHash(window.location.hash));
+  const [filter, setFilter] = useState<EvidenceFilter>('todas');
   function select(id: string) {
     setTab(id);
     history.replaceState(history.state, '', '#' + id);
@@ -64,6 +106,9 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
   const manualNames = new Set(manual.map((item) => item.name));
   const otherEvidence = evidence.filter((file) => !manualNames.has(file.name));
   const reviews = new Map((detail.data.reviews ?? []).map((item) => [item.name, item] as const));
+  const shownManual = manual.filter((item) => inFilter(item.name, filter, reviews));
+  const shownOther = otherEvidence.filter((file) => inFilter(file.name, filter, reviews));
+  const total = manual.length + otherEvidence.length;
   const results: [string, string][] = [
     ['Testes', state.tests_result],
     ['Regressão', state.regression_result],
@@ -102,15 +147,25 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
                 panel: (
                   <section aria-labelledby="evidencias" className={styles.part}>
                     <h2 id="evidencias" className={styles.partTitle}>Evidências</h2>
-                    {manual.length === 0 && otherEvidence.length === 0 ? <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p> : null}
-                    {manual.length > 0 ? (
+                    {total === 0 ? <p className={styles.muted}>Elas aparecem aqui quando a tarefa é finalizada.</p> : null}
+                    {total > 0 ? (
+                      <div role="group" aria-label="Filtrar evidências" className={styles.evidenceFilter}>
+                        {EVIDENCE_FILTERS.map(({ value, label }) => (
+                          <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>
+                            {label} <span>{[...manual, ...otherEvidence].filter((item) => inFilter(item.name, value, reviews)).length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {total > 0 && shownManual.length === 0 && shownOther.length === 0 ? <p className={styles.muted}>Nenhuma evidência neste filtro.</p> : null}
+                    {shownManual.length > 0 ? (
                       <ul aria-label="Evidências que o harness pede" className={styles.manualList}>
-                        {manual.map((item) => (
+                        {shownManual.map((item) => (
                           <ManualEvidenceItem key={item.name} item={item} reviews={reviews} notes={notes} />
                         ))}
                       </ul>
                     ) : null}
-                    {otherEvidence.length > 0 ? <Evidence files={otherEvidence} reviews={reviews} notes={notes} /> : null}
+                    {shownOther.length > 0 ? <Evidence files={shownOther} reviews={reviews} notes={notes} /> : null}
                   </section>
                 ),
               },
@@ -238,17 +293,90 @@ function ManualEvidenceItem({ item, reviews, notes }: ManualEvidenceItemProps) {
   );
 }
 
-function EvidenceHead({ file, note }: { file: FileRef; note: EvidenceNotes }) {
+interface Snippets {
+  log: string | null;
+  onActivate: (snippet: string) => void;
+  onDeactivate: () => void;
+}
+
+const SNIPPET_COPY_MS = 1500;
+const COPIED_MESSAGE = 'Copiado';
+const COPY_FAILED_MESSAGE = 'Não foi possível copiar';
+
+/** Texto do Trecho ou da Falha: cada parte em crases vira um botão que destaca a linha no log (e a copia ao clicar), com a contagem quando o log já carregou. */
+function SnippetField({ label, value, kind, snippets }: { label: string; value: string; kind: 'excerpt' | 'failure'; snippets: Snippets }) {
+  const found = new Set(snippetsOf(value));
+  const [copy, setCopy] = useState<{ snippet: string; ok: boolean } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  function announce(snippet: string, ok: boolean) {
+    setCopy({ snippet, ok });
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopy(null), SNIPPET_COPY_MS);
+  }
+
+  function activate(snippet: string) {
+    snippets.onActivate(snippet);
+    const written = navigator.clipboard?.writeText(snippet);
+    if (!written) {
+      announce(snippet, false);
+      return;
+    }
+    written.then(() => announce(snippet, true), () => announce(snippet, false));
+  }
+
+  return (
+    <div className={styles.evidenceField}>
+      <span className={styles.evidenceLabel}>{label}</span>
+      <p className={styles.snippetText}>
+        {value.split(/(`[^`]+`)/).map((part, index) => {
+          if (!part.startsWith('`') || !found.has(part.slice(1, -1))) return part;
+          const snippet = part.slice(1, -1);
+          const count = snippets.log === null ? null : findLines(snippets.log, snippet).length;
+          return (
+            <span key={index}>
+              <button type="button" className={styles.snippet} aria-label={`Destacar ${snippet} no log`} onMouseEnter={() => snippets.onActivate(snippet)} onFocus={() => snippets.onActivate(snippet)} onClick={() => activate(snippet)} onMouseLeave={snippets.onDeactivate} onBlur={snippets.onDeactivate}>
+                <code>{snippet}</code>
+              </button>
+              {count === null ? null : count > 0 ? <span className={styles.snippetCount}>{count === 1 ? '1 linha' : `${count} linhas`}</span> : <Badge tone={kind === 'excerpt' ? 'warning' : 'success'}>não encontrado</Badge>}
+              {copy?.snippet === snippet ? (
+                <span className={styles.snippetCopy} data-ok={copy.ok}>
+                  {copy.ok ? (
+                    <svg aria-hidden="true" data-icon="check" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 8.5l3.5 3.5L13 4.5" />
+                    </svg>
+                  ) : null}
+                  {copy.ok ? COPIED_MESSAGE : COPY_FAILED_MESSAGE}
+                </span>
+              ) : null}
+            </span>
+          );
+        })}
+      </p>
+      <span role="status" className={styles.srOnly}>{copy ? (copy.ok ? COPIED_MESSAGE : COPY_FAILED_MESSAGE) : ''}</span>
+    </div>
+  );
+}
+
+function EvidenceHead({ file, note, id, snippets }: { file: FileRef; note: EvidenceNotes; id?: string; snippets?: Snippets }) {
   return (
     <>
-      <h3 className={styles.evidenceTitle}>{note.title ?? <span className={styles.evidenceName}>{file.name}</span>}</h3>
-      {([['Prova', note.proof], ['Espera', note.expect], ['Trecho', note.excerpt], ['Falha', note.failure]] as const).map(([label, value]) =>
-        value ? (
+      <h3 className={styles.evidenceTitle}>
+        {id ? <span className={styles.evidenceId}>[{id}]</span> : null}
+        {id ? ' ' : null}
+        {note.title ?? <span className={styles.evidenceName}>{file.name}</span>}
+      </h3>
+      {([['Prova', note.proof], ['Espera', note.expect], ['Trecho', note.excerpt], ['Falha', note.failure]] as const).map(([label, value]) => {
+        if (!value) return null;
+        if (snippets && (label === 'Trecho' || label === 'Falha')) return <SnippetField key={label} label={label} value={value} kind={label === 'Trecho' ? 'excerpt' : 'failure'} snippets={snippets} />;
+        return (
           <div key={label} className={styles.evidenceField}>
             <span className={styles.evidenceLabel}>{label}</span>
             <Markdown source={value} prefix={`ev-${file.name}-${label}-`} />
           </div>
-        ) : null)}
+        );
+      })}
     </>
   );
 }
@@ -268,13 +396,23 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
   const [open, setOpen] = useState(media);
   const [text, setText] = useState<string | null>(null);
   const [total, setTotal] = useState<number | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const preRef = useRef<HTMLPreElement>(null);
   const note = notes.get(file.name) ?? {};
   const review = reviews.get(file.name);
+  const id = review?.id;
+  const hits = useMemo(() => (active !== null && text !== null ? new Set(findLines(text, active)) : new Set<number>()), [active, text]);
+  const first = hits.size > 0 ? Math.min(...hits) : null;
+
+  useEffect(() => {
+    if (first === null) return;
+    preRef.current?.querySelector(`[data-line="${first}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [active, text]);
 
   if (!media && !TEXT.test(file.name)) {
     return (
       <li className={styles.evidenceItem}>
-        <EvidenceHead file={file} note={note} />
+        <EvidenceHead file={file} note={note} id={id} />
         {review ? <ReviewRow review={review} /> : null}
         <a className={styles.downloadLink} href={fileUrl(file.path)} download={file.name} aria-label={`Baixar ${file.name}`}>Baixar</a>
         <EvidenceFoot file={file} note={note} />
@@ -282,10 +420,8 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
     );
   }
 
-  function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (!next || media || text !== null) return;
+  function load() {
+    if (media || text !== null) return;
     if (file.size === 0) {
       setText('');
       return;
@@ -298,9 +434,23 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
       .catch(() => setText('Não foi possível ler o arquivo.'));
   }
 
+  function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) load();
+  }
+
+  function activate(snippet: string) {
+    setActive(snippet);
+    setOpen(true);
+    load();
+  }
+
+  const snippets = media ? undefined : { log: text, onActivate: activate, onDeactivate: () => setActive(null) };
+
   return (
     <li className={styles.evidenceItem}>
-      <EvidenceHead file={file} note={note} />
+      <EvidenceHead file={file} note={note} id={id} snippets={snippets} />
       {review ? <ReviewRow review={review} /> : null}
       {media ? null : (
         <button type="button" className={styles.evidenceButton} aria-expanded={open} aria-label={`Ver ${file.name}`} onClick={toggle}>Ver conteúdo</button>
@@ -314,7 +464,16 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
           <>
             <div className={styles.evidenceBlock}>
               {text !== null ? <CopyButton className={styles.copy} text={text} label={`Copiar ${file.name}`} /> : null}
-              <pre className={styles.evidenceText}>{text ?? 'Carregando…'}</pre>
+              <pre ref={preRef} className={styles.evidenceText}>
+                {text !== null && active !== null
+                  ? text.split('\n').map((line, index, lines) => (
+                      <Fragment key={index}>
+                        <span data-line={index} className={hits.has(index) ? styles.hit : undefined}>{line}</span>
+                        {index < lines.length - 1 ? '\n' : ''}
+                      </Fragment>
+                    ))
+                  : text ?? 'Carregando…'}
+              </pre>
             </div>
             {total !== null ? (
               <p className={styles.reviewMessage} role="status">

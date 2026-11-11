@@ -640,10 +640,11 @@ fn reviews_ct22_returns_the_four_states() {
     assert!(response.status().contains(" 200 "), "{}", response.head);
     let body = String::from_utf8(response.body).unwrap();
     for expected in [
-        r#"{"name":"conferida.txt","kind":"automática","status":"conferida","reason":""}"#,
+        r#"{"id":"EV-01","name":"conferida.txt","kind":"automática","status":"conferida","reason":""}"#,
         r#""status":"rejeitada","reason":"falta o total""#,
         r#""name":"pendente.txt","kind":"automática","status":"a conferir""#,
         r#""name":"tela.png","kind":"print","status":"sem aval""#,
+        r#""id":"EV-04","name":"tela.png""#,
     ] {
         assert!(body.contains(expected), "faltou {expected} em {body}");
     }

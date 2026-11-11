@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { fileUrl } from '../../shared/api';
 import cardStyles from '../../ui/card/card.module.css';
-import { TaskPage } from './task-page';
+import { findLines, TaskPage } from './task-page';
 import taskStyles from './task-page.module.css';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -510,5 +510,270 @@ describe('Componentes de mídia na evidência', () => {
     await openEvidence();
     await screen.findByRole('button', { name: 'Ver nota.txt' });
     expect(screen.queryByRole('button', { name: 'Copiar nota.txt' })).toBeNull();
+  });
+});
+
+describe('ID das evidências', () => {
+  const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
+  const verification = (name: string, title: boolean) => ['### Evidências', '', `- \`${name}\` (automática, da verificação)`, ...(title ? ['  - Título: Testes do quadro passam'] : []), '', '### Outra', ''].join('\n');
+  async function open(name: string, title: boolean, review: object) {
+    const base = taskDetail({}, [entry(name)]);
+    mockFetch({ ...base, files: { ...base.files, verificacao: verification(name, title) }, reviews: [{ name, kind: 'automática', status: 'a conferir', reason: '', ...review }] });
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+  }
+
+  it('mostra o título com o ID como prefixo', async () => {
+    await open('saida.txt', true, { id: 'EV-01' });
+    expect(await screen.findByRole('heading', { level: 3, name: '[EV-01] Testes do quadro passam' })).toBeTruthy();
+  });
+
+  it('mostra o ID com o nome do arquivo sem Título', async () => {
+    await open('tela.png', false, { id: 'EV-02' });
+    expect(await screen.findByRole('heading', { level: 3, name: '[EV-02] tela.png' })).toBeTruthy();
+  });
+
+  it('mostra o título sem prefixo quando a resposta não traz o ID', async () => {
+    await open('saida.txt', true, {});
+    expect(await screen.findByRole('heading', { level: 3, name: 'Testes do quadro passam' })).toBeTruthy();
+  });
+});
+
+describe('Filtro de evidências', () => {
+  const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
+  const names = ['saida.txt', 'nota.diff', 'tela.png', 'extra.txt'];
+  const statuses = ['conferida', 'rejeitada', 'a conferir', 'sem aval'];
+  const reviews = (list: string[]) => names.map((name, index) => ({ name, kind: 'automática', status: list[index], reason: '' }));
+  async function open(task: unknown) {
+    mockFetch(task);
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+  }
+  const group = () => screen.getByRole('group', { name: 'Filtrar evidências' });
+
+  it('filtra por todas, a conferir e conferidas com a contagem', async () => {
+    await open({ ...taskDetail({}, names.map(entry)), reviews: reviews(statuses) });
+    await screen.findByText('saida.txt');
+    const all = within(group()).getByRole('button', { name: 'Todas 4' });
+    expect(all.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(within(group()).getByRole('button', { name: 'A conferir 1' }));
+    expect(screen.queryByText('saida.txt')).toBeNull();
+    expect(screen.getByText('tela.png')).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1);
+    fireEvent.click(within(group()).getByRole('button', { name: 'Conferidas 1' }));
+    expect(screen.getByText('saida.txt')).toBeTruthy();
+    expect(screen.queryByText('tela.png')).toBeNull();
+    fireEvent.click(within(group()).getByRole('button', { name: 'Todas 4' }));
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(4);
+  });
+
+  it('avisa quando nenhuma evidência está no filtro', async () => {
+    await open({ ...taskDetail({}, names.map(entry)), reviews: reviews(['rejeitada', 'rejeitada', 'a conferir', 'sem aval']) });
+    await screen.findByText('saida.txt');
+    fireEvent.click(within(group()).getByRole('button', { name: 'Conferidas 0' }));
+    expect(screen.getByText('Nenhuma evidência neste filtro.')).toBeTruthy();
+  });
+
+  it('não mostra o filtro sem evidências', async () => {
+    await open(taskDetail());
+    await screen.findByText('Elas aparecem aqui quando a tarefa é finalizada.');
+    expect(screen.queryByRole('group', { name: 'Filtrar evidências' })).toBeNull();
+  });
+});
+
+describe('Destaque do Trecho', () => {
+  const LOG = '$ pnpm test\n# data: 2026-11-11T10:00:00Z\n# commit: abc1234\n# código de saída: 0\n✓ a > um\n✓ a > dois\ntest result: ok. 3 passed\ntest result: ok\nTest Files  1 passed (1)\npnpm fim';
+
+  it('prefere a linha igual à linha que contém o texto', () => {
+    expect(findLines(LOG, 'test result: ok')).toEqual([7]);
+  });
+  it('usa a linha que contém o texto quando nenhuma é igual', () => {
+    expect(findLines(LOG, 'passed')).toEqual([6, 8]);
+  });
+  it('normaliza os espaços na busca', () => {
+    expect(findLines(LOG, 'Test Files 1 passed')).toEqual([8]);
+  });
+  it('destaca todas as linhas do trecho genérico', () => {
+    expect(findLines(LOG, '✓')).toEqual([4, 5]);
+  });
+  it('ignora as quatro linhas de cabeçalho do log', () => {
+    expect(findLines(LOG, 'pnpm')).toEqual([9]);
+    expect(findLines(LOG, '# commit')).toEqual([]);
+  });
+  it('devolve vazio para o trecho que não aparece', () => {
+    expect(findLines(LOG, 'FAILED')).toEqual([]);
+  });
+
+  describe('reticências no trecho', () => {
+    const LOG_RETICENCIAS = '$ pnpm test\n# data: d\n# commit: c\n# código de saída: 0\n✓ src/features/board/board.test.tsx > Board > Filtro de status, ordem e faixa > esconde a raia desmarcada e lembra a seleção ao recarregar\n✓ src/features/board/board.test.tsx > Board > Filtro de status, ordem e faixa > mostra as raias da última etapa para a primeira por padrão\nTests  10 passed (10)\nTests  0 passed (0)';
+
+    it('casa os textos da TASK-08 com reticências no meio', () => {
+      expect(findLines(LOG_RETICENCIAS, '✓ ... Filtro de status, ordem e faixa > esconde a raia desmarcada e lembra a seleção ao recarregar')).toEqual([4]);
+      expect(findLines(LOG_RETICENCIAS, '... > mostra as raias da última etapa para a primeira por padrão')).toEqual([5]);
+    });
+    it('casa os textos da EV-02 da TASK-08 com o tempo no fim da linha', () => {
+      const log = '$ pnpm test\n# data: d\n# commit: c\n# código de saída: 0\n✓ src/shared/router.test.ts > Quadro único > troca o endereço sem criar entrada no histórico 3ms\n✓ src/features/spec/spec-page.test.tsx > SpecPage > aponta o quadro para o menu Tarefas, sem a visão Quadro 54ms\n✓ src/layout/topbar.test.tsx > Topbar > leva a migalha da tarefa ao quadro filtrado pela spec 8ms\n✓ src/features/dashboard/dashboard-page.test.tsx > DashboardPage > leva o quadro de cada spec ao menu Tarefas filtrado 12ms';
+      expect(findLines(log, '✓ ... Quadro único > troca o endereço sem criar entrada no histórico')).toEqual([4]);
+      expect(findLines(log, '✓ ... SpecPage > aponta o quadro para o menu Tarefas, sem a visão Quadro')).toEqual([5]);
+      expect(findLines(log, '✓ ... Topbar > leva a migalha da tarefa ao quadro filtrado pela spec')).toEqual([6]);
+      expect(findLines(log, '✓ ... leva o quadro de cada spec ao menu Tarefas filtrado')).toEqual([7]);
+    });
+    it('aceita as reticências em caractere único', () => {
+      expect(findLines(LOG_RETICENCIAS, '✓ … Board … esconde')).toEqual([4]);
+    });
+    it('casa as reticências no início do texto', () => {
+      expect(findLines(LOG_RETICENCIAS, '... passed')).toEqual([6, 7]);
+    });
+    it('mantém o limite de palavra só nas pontas sem reticências', () => {
+      expect(findLines(LOG_RETICENCIAS, '... passe')).toEqual([]);
+      expect(findLines(LOG_RETICENCIAS, 'Tests ... 0 passed')).toEqual([6, 7]);
+      expect(findLines(LOG_RETICENCIAS, '0 passed')).toEqual([7]);
+    });
+    it('não casa quando as partes aparecem fora de ordem', () => {
+      expect(findLines(LOG_RETICENCIAS, 'esconde ... Filtro de status')).toEqual([]);
+    });
+    it('não casa um texto só de reticências', () => {
+      expect(findLines(LOG_RETICENCIAS, '...')).toEqual([]);
+      expect(findLines(LOG_RETICENCIAS, '…')).toEqual([]);
+      expect(findLines(LOG_RETICENCIAS, ' ... … ')).toEqual([]);
+    });
+  });
+
+  describe('limite de palavra', () => {
+    const LOG_LIMITE = '$ pnpm test\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed\nSnapshots  0 passed (0)\nação concluída\nTests  2 failed';
+
+    it('não casa o texto no meio de um número', () => {
+      expect(findLines(LOG_LIMITE, '0 passed')).toEqual([5, 6]);
+    });
+    it('casa o texto no fim de uma linha com outras palavras', () => {
+      expect(findLines('Tests 0 passed', '0 passed')).toEqual([0]);
+      expect(findLines(LOG_LIMITE, 'Tests 0 passed')).toEqual([5]);
+    });
+    it('não casa dentro de uma palavra', () => {
+      expect(findLines(LOG_LIMITE, 'ção')).toEqual([]);
+      expect(findLines(LOG_LIMITE, 'ação')).toEqual([7]);
+    });
+    it('respeita acentos como letras', () => {
+      expect(findLines('não\nnão é', 'ão')).toEqual([]);
+    });
+  });
+
+  const verification = (lines: string[]) => ['### Evidências', '', '- `saida.txt` (automática, da verificação)', ...lines, '', '### Outra', ''].join('\n');
+  async function open(lines: string[]) {
+    const base = taskDetail({}, [{ name: 'saida.txt', path: 'x/saida.txt', size: LOG.length }]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.startsWith('/api/tarefas')) return Promise.resolve(json({ ...base, files: { ...base.files, verificacao: verification(lines) } }));
+        if (url.startsWith('/arquivos/')) return Promise.resolve(new Response(LOG));
+        return Promise.resolve(json(specDetail));
+      }),
+    );
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+  }
+  const trecho = () => screen.findByRole('button', { name: 'Destacar test result: ok no log' });
+  const hits = (container: HTMLElement) => container.querySelectorAll('.' + taskStyles.hit);
+
+  describe('cópia do trecho', () => {
+    const lines = ['  - Trecho: a linha `test result: ok`', '  - Falha: `FAILED`'];
+    const stubClipboard = (value: unknown) => Object.defineProperty(navigator, 'clipboard', { value, configurable: true });
+    const click = async (name: string) => fireEvent.click(await screen.findByRole('button', { name }));
+
+    it('copia o texto do trecho sem as crases ao clicar e confirma por cerca de 1,5 s', async () => {
+      Element.prototype.scrollIntoView = vi.fn();
+      const writeText = vi.fn(() => Promise.resolve());
+      stubClipboard({ writeText });
+      await open(lines);
+      await click('Destacar test result: ok no log');
+      expect(writeText).toHaveBeenCalledWith('test result: ok');
+      await waitFor(() => expect(screen.getAllByText('Copiado').length).toBeGreaterThan(0));
+      expect(screen.getAllByRole('status').some((node) => node.textContent === 'Copiado')).toBe(true);
+      await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+      await waitFor(() => expect(screen.queryByText('Copiado')).toBeNull(), { timeout: 3000 });
+    });
+
+    it('copia também o texto da Falha', async () => {
+      stubClipboard({ writeText: vi.fn(() => Promise.resolve()) });
+      await open(lines);
+      await click('Destacar FAILED no log');
+      expect((navigator.clipboard.writeText as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('FAILED');
+    });
+
+    it('não copia ao passar o mouse nem ao focar', async () => {
+      Element.prototype.scrollIntoView = vi.fn();
+      const writeText = vi.fn(() => Promise.resolve());
+      stubClipboard({ writeText });
+      await open(lines);
+      const button = await trecho();
+      fireEvent.mouseEnter(button);
+      fireEvent.focusIn(button);
+      await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+      expect(writeText).not.toHaveBeenCalled();
+    });
+
+    it('avisa Não foi possível copiar e mantém o destaque quando a cópia é recusada', async () => {
+      Element.prototype.scrollIntoView = vi.fn();
+      stubClipboard({ writeText: vi.fn(() => Promise.reject(new Error('negado'))) });
+      await open(lines);
+      await click('Destacar test result: ok no log');
+      await waitFor(() => expect(screen.getAllByText('Não foi possível copiar').length).toBeGreaterThan(0));
+      expect(screen.getAllByRole('status').some((node) => node.textContent === 'Não foi possível copiar')).toBe(true);
+      await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+    });
+
+    it('avisa Não foi possível copiar quando não há área de transferência', async () => {
+      Element.prototype.scrollIntoView = vi.fn();
+      stubClipboard(undefined);
+      await open(lines);
+      await click('Destacar test result: ok no log');
+      await waitFor(() => expect(screen.getAllByText('Não foi possível copiar').length).toBeGreaterThan(0));
+      await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+    });
+  });
+
+  it('abre o log, destaca as linhas e rola até a primeira ao passar o mouse', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    await open(['  - Trecho: a linha `test result: ok`']);
+    fireEvent.mouseEnter(await trecho());
+    const toggle = await screen.findByRole('button', { name: 'Ver saida.txt' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+    const hit = hits(document.body)[0] as HTMLElement;
+    expect(hit.textContent).toBe('test result: ok');
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    expect(scroll.mock.contexts[0]).toBe(hit);
+    expect(screen.getByText('1 linha')).toBeTruthy();
+  });
+
+  it('destaca também pelo foco do teclado', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    await open(['  - Trecho: a linha `test result: ok`']);
+    const button = await trecho();
+    fireEvent.focusIn(button);
+    await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+    fireEvent.focusOut(button);
+    expect(hits(document.body)).toHaveLength(0);
+  });
+
+  it('tira o destaque ao sair do trecho', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    await open(['  - Trecho: a linha `test result: ok`']);
+    const button = await trecho();
+    fireEvent.mouseEnter(button);
+    await waitFor(() => expect(hits(document.body)).toHaveLength(1));
+    fireEvent.mouseLeave(button);
+    expect(hits(document.body)).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Ver saida.txt' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('marca o trecho não encontrado como alerta e a falha não encontrada como bom', async () => {
+    await open(['  - Trecho: `nada aqui`', '  - Falha: `FAILED`']);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver saida.txt' }));
+    const badges = await screen.findAllByText('não encontrado');
+    expect(badges).toHaveLength(2);
+    expect(badges[0].className).toMatch(/warning/);
+    expect(badges[1].className).toMatch(/success/);
   });
 });

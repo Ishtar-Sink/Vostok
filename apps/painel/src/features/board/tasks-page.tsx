@@ -6,10 +6,13 @@ import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
 import { EmptyState } from '../../ui/empty-state/empty-state';
-import { Board, type BoardGroup, type BoardOrder } from './board';
+import { ViewSwitcher, type ViewOption } from '../../ui/view-switcher/view-switcher';
+import { BlocksIcon, ListIcon } from '../../ui/view-switcher/view-icons';
+import { Board, type BoardGroup, type BoardOrder, type BoardView } from './board';
 import styles from './board.module.css';
 
 const GROUPS: { value: BoardGroup; label: string }[] = [{ value: 'etapa', label: 'Etapa' }, { value: 'spec', label: 'Spec' }, { value: 'onda', label: 'Onda' }];
+const VIEWS: ViewOption[] = [{ value: 'lista', label: 'Lista', icon: <ListIcon /> }, { value: 'blocos', label: 'Blocos', icon: <BlocksIcon /> }];
 const ORDERS: { value: BoardOrder; label: string }[] = [{ value: 'numero', label: 'Número' }, { value: 'spec', label: 'Spec' }, { value: 'onda', label: 'Onda' }];
 
 function readChoice(key: string, allowed: string[] | null, fallback: string): string {
@@ -57,6 +60,7 @@ export function TasksPage({ version }: { version: number }) {
   const [specParam, setSpecParam] = useSearchParam('spec');
   const spec = specParam ?? 'todas';
   const setSpec = (value: string) => setSpecParam(value === 'todas' ? null : value);
+  const [visualizacao, setVisualizacao] = useState(() => readChoice('visualizacao', VIEWS.map((item) => item.value), 'lista'));
   const [agrupamento, setAgrupamento] = useState(() => readChoice('agrupamento', GROUPS.map((item) => item.value), 'etapa'));
   const [ordem, setOrdem] = useState(() => readChoice('ordem', ORDERS.map((item) => item.value), 'numero'));
   const [onda, setOnda] = useState(() => readChoice('onda', null, 'todas'));
@@ -110,7 +114,11 @@ export function TasksPage({ version }: { version: number }) {
       {header}
       {specFilters}
       <div className={styles.controls} role="group" aria-label="Organizar o quadro">
-        <Select label="Agrupar por" value={agrupamento} options={GROUPS} onChange={choose('agrupamento', setAgrupamento)} />
+        <div className={`${styles.control} ${styles.viewControl}`}>
+          <span aria-hidden="true">Visualização</span>
+          <ViewSwitcher label="Visualização" options={VIEWS} value={visualizacao} onChange={choose('visualizacao', setVisualizacao)} />
+        </div>
+        {visualizacao === 'lista' ? <Select label="Agrupar por" value={agrupamento} options={GROUPS} onChange={choose('agrupamento', setAgrupamento)} /> : null}
         <Select label="Ordenar por" value={ordem} options={ORDERS} onChange={choose('ordem', setOrdem)} />
         <Select label="Onda" value={onda} options={[{ value: 'todas', label: 'Todas' }, ...waves.map((wave) => ({ value: wave, label: `Onda ${wave}` }))]} onChange={choose('onda', setOnda)} />
         <Select label="Persona" value={persona} options={[{ value: 'todas', label: 'Todas' }, ...personas.map((item) => ({ value: item, label: item }))]} onChange={choose('persona', setPersona)} />
@@ -118,7 +126,7 @@ export function TasksPage({ version }: { version: number }) {
       {tasks.length === 0 ? (
         <EmptyState title="Nenhuma tarefa com esses filtros" description="Troque a spec, a onda ou a persona para ver outras tarefas." />
       ) : (
-        <Board tasks={tasks} showSpec={spec === 'todas'} group={agrupamento as BoardGroup} order={ordem as BoardOrder} />
+        <Board tasks={tasks} showSpec={spec === 'todas'} view={visualizacao as BoardView} group={visualizacao === 'blocos' ? 'etapa' : (agrupamento as BoardGroup)} order={ordem as BoardOrder} />
       )}
     </>
   );

@@ -535,3 +535,94 @@ describe('Filtro de status, ordem e faixa', () => {
     expect(screen.queryByRole('button', { name: 'Ordem do fluxo' })).toBeNull();
   });
 });
+
+describe('Visualização em blocos', () => {
+  beforeEach(() => localStorage.clear());
+  const t = (id: string, status: string, over: object = {}) => ({ ...task(id, status, over), spec: 'SPEC-001' });
+  const every = [t('TASK-01', 'pending'), t('TASK-02', 'approved'), t('TASK-03', 'in_progress'), t('TASK-04', 'in_progress'), t('TASK-05', 'executed'), t('TASK-06', 'validating'), t('TASK-07', 'blocked'), t('TASK-08', 'done')];
+  const ids = (root: Element | Document, selector: string) => Array.from(root.querySelectorAll(selector)).map((item) => item.getAttribute('data-column'));
+  const allColumns = BOARD_SECTIONS.map((section) => section.id);
+
+  it('agrupa as raias em Agora, A seguir e Concluídas na ordem do fluxo', () => {
+    localStorage.setItem('vostok.quadro.raias', JSON.stringify(allColumns));
+    const { container } = render(<Board tasks={every} view="blocos" />);
+    expect(ids(container, 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked', 'pending', 'approved', 'ready', 'done']);
+    const titles = Array.from(container.querySelectorAll('section[data-block] > header h2')).map((title) => title.textContent);
+    expect(titles).toEqual(['Agora', 'A seguir']);
+    expect(ids(screen.getByRole('region', { name: 'Agora' }), 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked']);
+    expect(ids(screen.getByRole('region', { name: 'A seguir' }), 'section[data-column]')).toEqual(['pending', 'approved', 'ready']);
+  });
+
+  it('mostra a contagem de cada bloco e a faixa na ordem dos blocos', () => {
+    localStorage.setItem('vostok.quadro.raias', JSON.stringify(allColumns));
+    render(<Board tasks={every} view="blocos" />);
+    expect(screen.getByRole('region', { name: /^Agora/ }).querySelector('header')?.textContent).toBe('Agora5');
+    expect(screen.getByRole('region', { name: /^A seguir/ }).querySelector('header')?.textContent).toBe('A seguir2');
+    const strip = within(screen.getByRole('navigation', { name: 'Contagem do quadro' })).getAllByRole('button').map((button) => button.textContent);
+    expect(strip).toEqual(['Em execução2', 'Prontas para finalizar1', 'Em validação1', 'Bloqueadas1', 'Para aprovar1', 'Aprovadas0', 'Prontas para execução1', 'Concluídas1']);
+  });
+
+  it('aplica o filtro de etapas e esconde o bloco sem raia visível', () => {
+    const { container } = render(<Board tasks={every} view="blocos" />);
+    expect(screen.getByRole('region', { name: /^Agora/ })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /^A seguir/ })).toBeNull();
+    expect(container.querySelector('section[data-column="done"]')).toBeNull();
+    expect(ids(container, 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked']);
+    expect(screen.queryByRole('button', { name: 'Ordem do fluxo' })).toBeNull();
+  });
+
+  it('mostra o quadro vazio sem nenhuma raia', () => {
+    localStorage.setItem('vostok.quadro.raias', '[]');
+    const { container } = render(<Board tasks={every} view="blocos" />);
+    expect(screen.getByText('Nenhuma raia selecionada')).toBeTruthy();
+    expect(container.querySelector('section[data-block]')).toBeNull();
+  });
+});
+
+describe('TasksPage com o seletor de visualização', () => {
+  const overview = { project: 'p', archived: [], specs: [
+    { meta: meta('SPEC-001'), plan: false, plan_outdated: false, tasks: [task('TASK-01', 'pending', { wave: '1', persona: 'dev' }), task('TASK-02', 'pending', { wave: '2', persona: 'dev' }), task('TASK-03', 'pending', { wave: '2', persona: 'qa' })] },
+  ] };
+  const open = async () => { mockFetch(() => json(overview)); render(<TasksPage version={0} />); await screen.findByRole('group', { name: 'Visualização' }); };
+  const switcher = () => within(screen.getByRole('group', { name: 'Visualização' }));
+  const pressed = (name: string) => switcher().getByRole('button', { name }).getAttribute('aria-pressed');
+
+  it('troca para blocos, esconde o Agrupar por e lembra a escolha ao recarregar', async () => {
+    await open();
+    expect(pressed('Lista')).toBe('true');
+    fireEvent.click(switcher().getByRole('button', { name: 'Blocos' }));
+    expect(pressed('Blocos')).toBe('true');
+    expect(localStorage.getItem('vostok.quadro.visualizacao')).toBe('blocos');
+    expect(screen.getByRole('region', { name: /^A seguir/ })).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Agrupar por' })).toBeNull();
+    cleanup();
+    await open();
+    expect(pressed('Blocos')).toBe('true');
+    expect(screen.getByRole('region', { name: /^A seguir/ })).toBeTruthy();
+  });
+
+  it('volta à lista com uma visualização salva que não existe', async () => {
+    localStorage.setItem('vostok.quadro.visualizacao', 'quadro');
+    await open();
+    expect(pressed('Lista')).toBe('true');
+    expect(screen.getByRole('combobox', { name: 'Agrupar por' })).toBeTruthy();
+    expect(document.querySelector('section[data-block]')).toBeNull();
+  });
+
+  it('abre na lista quando o localStorage falha', async () => {
+    const blocked = () => { throw new Error('bloqueado'); };
+    vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked, clear: () => undefined });
+    await open();
+    expect(pressed('Lista')).toBe('true');
+    expect(() => fireEvent.click(switcher().getByRole('button', { name: 'Blocos' }))).not.toThrow();
+    expect(screen.getByRole('region', { name: /^Agora/ })).toBeTruthy();
+  });
+
+  it('mantém os filtros de spec, onda e persona nos blocos', async () => {
+    await open();
+    fireEvent.click(switcher().getByRole('button', { name: 'Blocos' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Persona' }), { target: { value: 'qa' } });
+    expect(screen.getByText('Título TASK-03')).toBeTruthy();
+    expect(screen.queryByText('Título TASK-01')).toBeNull();
+  });
+});

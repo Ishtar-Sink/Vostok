@@ -15,6 +15,7 @@ export interface BoardTask extends TaskSummary {
   spec: string;
 }
 
+export type BoardView = 'lista' | 'blocos';
 export type BoardGroup = 'etapa' | 'spec' | 'onda';
 export type BoardOrder = 'numero' | 'spec' | 'onda';
 
@@ -32,6 +33,11 @@ function sortCards(cards: BoardTask[], order: BoardOrder): BoardTask[] {
 }
 
 const ACTIVE_SECTIONS = ['running', 'executed', 'validating', 'blocked'];
+const BOARD_BLOCKS: { id: string; label: string; sections: string[] }[] = [
+  { id: 'agora', label: 'Agora', sections: ['running', 'executed', 'validating', 'blocked'] },
+  { id: 'a-seguir', label: 'A seguir', sections: ['pending', 'approved', 'ready'] },
+  { id: 'concluidas', label: 'Concluídas', sections: ['done'] },
+];
 const SECTIONS_KEY = 'vostok.quadro.raias';
 const DIRECTION_KEY = 'vostok.quadro.sentido';
 
@@ -131,7 +137,7 @@ function waveGroups(cards: BoardTask[]): WaveGroup[] {
 }
 
 /** Quadro kanban só de leitura: uma seção por etapa do fluxo da tarefa; as aprovadas ficam agrupadas por onda. */
-export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numero' }: { tasks: BoardTask[]; showSpec?: boolean; group?: BoardGroup; order?: BoardOrder }) {
+export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numero', view = 'lista' }: { tasks: BoardTask[]; showSpec?: boolean; group?: BoardGroup; order?: BoardOrder; view?: BoardView }) {
   const done = new Set(tasks.filter((task) => task.status === 'done').map((task) => `${task.spec}/${task.id}`));
   const isReady = (task: BoardTask) => task.status === 'approved' && listOf(task.depends_on).every((dep) => done.has(`${task.spec}/${dep}`));
   const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && (task.status === 'in_progress' || task.status === 'executed' || task.status === 'validating'));
@@ -196,6 +202,80 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
   const sectionCards = (column: (typeof BOARD_SECTIONS)[number]) => sortCards(tasks.filter((task) => column.statuses.includes(task.status) && inSection(task, column.id)), order);
   const shown = (direction === 'invertido' ? [...BOARD_SECTIONS].reverse() : BOARD_SECTIONS).filter((column) => visible.includes(column.id));
 
+  const renderSection = (column: (typeof BOARD_SECTIONS)[number]) => {
+    const cards = sectionCards(column);
+    return (
+      <section key={column.id} className={styles.column} data-column={column.id} aria-labelledby={`col-${column.id}`}>
+        <header className={styles.columnHeader}>
+          <h3 id={`col-${column.id}`}>
+            {column.id === 'done' && cards.length > 0 ? (
+              <button type="button" className={styles.sectionToggle} aria-expanded={doneOpen} onClick={() => setDoneOpen((open) => !open)}>
+                {COLUMN_TONE[column.id] ? <span className={styles.dot} data-tone={COLUMN_TONE[column.id]} aria-hidden="true" /> : null}
+                {column.label}
+              </button>
+            ) : (
+              <>
+                {COLUMN_TONE[column.id] ? <span className={styles.dot} data-tone={COLUMN_TONE[column.id]} aria-hidden="true" /> : null}
+                {column.label}
+              </>
+            )}
+          </h3>
+          <span className={styles.count}>{cards.length}</span>
+        </header>
+        {column.id === 'done' && cards.length > 0 && !doneOpen ? null : (
+          <ul className={styles.cards}>
+            {column.id === 'approved' || column.id === 'ready'
+              ? waveGroups(cards).map((group) => {
+                  const name = `${showSpec ? `${group.spec} · ` : ''}${group.wave ? `Onda ${group.wave}` : 'Sem onda'}`;
+                  return (
+                    <li key={`${group.spec}/${group.wave}`}>
+                      <div role="group" aria-label={name} className={styles.waveGroup}>
+                        <div className={styles.waveHeader}>
+                          <span className={styles.waveTitle}>{name}</span>
+                          {group.wave && running(group) ? <Badge tone="info">em execução</Badge> : null}
+                        </div>
+                        <ul className={styles.cards}>{group.cards.map(renderCard)}</ul>
+                      </div>
+                    </li>
+                  );
+                })
+              : cards.map(renderCard)}
+            {cards.length === 0 ? <li className={styles.empty}>Nenhuma</li> : null}
+          </ul>
+        )}
+      </section>
+    );
+  };
+
+  if (view === 'blocos') {
+    const blocks = BOARD_BLOCKS.map((block) => ({ ...block, columns: BOARD_SECTIONS.filter((column) => block.sections.includes(column.id) && visible.includes(column.id)) })).filter((block) => block.columns.length > 0);
+    return (
+      <div className={styles.board}>
+        <div className={styles.boardControls}>
+          <MultiSelect label="Etapas" options={SECTION_OPTIONS} selected={visible} onChange={chooseSections} summary={summarySections(visible)} shortcuts={SECTION_SHORTCUTS} className={styles.stageFilter} />
+        </div>
+        {blocks.length === 0 ? (
+          <EmptyState title="Nenhuma raia selecionada" description="Escolha ao menos um status para ver as tarefas." action={<Button variant="secondary" onClick={() => chooseSections(ACTIVE_SECTIONS)}>Voltar às raias ativas</Button>} />
+        ) : (
+          <CountStrip items={blocks.flatMap((block) => block.columns).map((column) => ({ key: column.id, label: column.label, count: sectionCards(column).length, selector: `section[data-column="${column.id}"]` }))} />
+        )}
+        {blocks.map((block) =>
+          block.id === 'concluidas' ? (
+            renderSection(block.columns[0])
+          ) : (
+            <section key={block.id} className={styles.block} data-block={block.id} aria-labelledby={`blk-${block.id}`}>
+              <header className={styles.blockHeader}>
+                <h2 id={`blk-${block.id}`}>{block.label}</h2>
+                <span className={styles.count}>{block.columns.reduce((sum, column) => sum + sectionCards(column).length, 0)}</span>
+              </header>
+              {block.columns.map(renderSection)}
+            </section>
+          ),
+        )}
+      </div>
+    );
+  }
+
   return (
       <div className={styles.board}>
         <div className={styles.boardControls}>
@@ -207,50 +287,7 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
         ) : (
           <CountStrip items={shown.map((column) => ({ key: column.id, label: column.label, count: sectionCards(column).length, selector: `section[data-column="${column.id}"]` }))} />
         )}
-        {shown.map((column) => {
-          const cards = sectionCards(column);
-          return (
-            <section key={column.id} className={styles.column} data-column={column.id} aria-labelledby={`col-${column.id}`}>
-              <header className={styles.columnHeader}>
-                <h3 id={`col-${column.id}`}>
-                  {column.id === 'done' && cards.length > 0 ? (
-                    <button type="button" className={styles.sectionToggle} aria-expanded={doneOpen} onClick={() => setDoneOpen((open) => !open)}>
-                      {COLUMN_TONE[column.id] ? <span className={styles.dot} data-tone={COLUMN_TONE[column.id]} aria-hidden="true" /> : null}
-                      {column.label}
-                    </button>
-                  ) : (
-                    <>
-                      {COLUMN_TONE[column.id] ? <span className={styles.dot} data-tone={COLUMN_TONE[column.id]} aria-hidden="true" /> : null}
-                      {column.label}
-                    </>
-                  )}
-                </h3>
-                <span className={styles.count}>{cards.length}</span>
-              </header>
-              {column.id === 'done' && cards.length > 0 && !doneOpen ? null : (
-                <ul className={styles.cards}>
-                  {column.id === 'approved' || column.id === 'ready'
-                    ? waveGroups(cards).map((group) => {
-                        const name = `${showSpec ? `${group.spec} · ` : ''}${group.wave ? `Onda ${group.wave}` : 'Sem onda'}`;
-                        return (
-                          <li key={`${group.spec}/${group.wave}`}>
-                            <div role="group" aria-label={name} className={styles.waveGroup}>
-                              <div className={styles.waveHeader}>
-                                <span className={styles.waveTitle}>{name}</span>
-                                {group.wave && running(group) ? <Badge tone="info">em execução</Badge> : null}
-                              </div>
-                              <ul className={styles.cards}>{group.cards.map(renderCard)}</ul>
-                            </div>
-                          </li>
-                        );
-                      })
-                    : cards.map(renderCard)}
-                  {cards.length === 0 ? <li className={styles.empty}>Nenhuma</li> : null}
-                </ul>
-              )}
-            </section>
-          );
-        })}
+        {shown.map(renderSection)}
       </div>
   );
 }

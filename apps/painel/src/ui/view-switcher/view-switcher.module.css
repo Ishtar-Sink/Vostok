@@ -1,0 +1,45 @@
+.root {
+  /* O seletor ocupa só a largura das opções, mesmo numa barra flexível. */
+  flex: none;
+  width: fit-content;
+  display: inline-flex;
+  overflow: hidden;
+  border: calc(var(--space) / 4) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.option {
+  display: inline-grid;
+  place-items: center;
+  min-width: calc(var(--space) * 11);
+  min-height: calc(var(--space) * 10);
+  padding: calc(var(--space) * 2) calc(var(--space) * 3);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease-standard);
+}
+
+.option svg {
+  /* Sem a linha de base do texto em linha, o ícone fica no centro do botão. */
+  display: block;
+}
+
+.option:hover {
+  background: var(--surface-hover);
+}
+
+.option[aria-pressed='true'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.option:focus-visible {
+  outline: calc(var(--space) / 2) solid var(--primary);
+  outline-offset: calc(var(--space) / -2);
+}

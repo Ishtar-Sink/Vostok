@@ -2,6 +2,25 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.0] - 2026-11-11
+
+### Recursos
+
+- O `vostok init` e o `vostok update` gravam no Claude Code (`.claude/settings.json`) e no Codex (`.codex/hooks.json`) um hook de início de sessão. Ele entrega ao agente as regras de limites e de segurança e a ordem de rodar `vostok context load`, no início, na retomada, na limpeza e depois de cada compactação da conversa. Os hooks e as chaves do usuário são mantidos, sem duplicar. No Cursor, no Gemini CLI e no Copilot, o harness avisa que a garantia automática ainda não existe e que o agente depende do `AGENTS.md`. (SPEC-050, issue #13)
+- Um hook antes de cada comando de shell recusa o `vostok context load` com a saída redirecionada, num pipe ou capturada numa variável, e explica como carregar o contexto. (SPEC-050, issue #13)
+- `vostok task evidence --undo <EV-NN|arquivo> --motivo "..."` retira a conferência ou a recusa de uma evidência dada por engano, sem mexer nas outras. O `--reviewed` aceita `--motivo` com as palavras do usuário. (SPEC-050, issue #14)
+- A aba Evidências do painel mostra a data de cada conferência e, quando houver, o aval do usuário. (SPEC-050, issue #14)
+- O quadro de tarefas ganhou o seletor de visualização, com a lista e a visualização em blocos: Agora, A seguir e Concluídas. (SPEC-050)
+- As evidências do painel ganharam visualizador de imagem com zoom, player de vídeo e botão de copiar. As evidências de interação podem ser vídeos gravados com o Playwright. (SPEC-049)
+
+### Melhorias
+
+- As evidências são numeradas como `EV-NN`, e a conferência e a recusa aceitam o ID. Os documentos finais citam o ID de cada evidência. (SPEC-049)
+- Na retomada ou num ajuste, a conferência de uma evidência com o mesmo conteúdo é mantida, e recusar uma evidência não bloqueia mais a tarefa: ela volta para execução. (SPEC-049, issue #12)
+- A aba Evidências ganhou filtro por estado e destaque no log do trecho e da falha esperados; clicar no trecho o copia. (SPEC-049)
+- O menu Tarefas tem um quadro único com filtro de etapas, ordem do fluxo invertível e faixa de contagem. A página da tarefa ganhou a navegação pelas tarefas da onda e "Próxima a conferir". (SPEC-049)
+- As skills de execução e de finalização perguntam a conferência das evidências por tarefa, citando os IDs, e confirmam com o usuário um aval que não cita a tarefa antes de registrar. (SPEC-049, SPEC-050, issue #14)
+
 ## [0.5.4] - 2026-11-11
 
 ### Correções

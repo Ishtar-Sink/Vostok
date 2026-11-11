@@ -22,9 +22,9 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 230
-Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-008 TASK-01 --reviewed <arquivo>:
-- <ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt
+@stdout 254
+Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-008 TASK-01 --reviewed <EV-NN|arquivo>:
+- EV-01 saida.txt (<ROOT>/packages/harness/work/tasks/SPEC-008/evidence/TASK-01/saida.txt)
 
 @stderr 0
 

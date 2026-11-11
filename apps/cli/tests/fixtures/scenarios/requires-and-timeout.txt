@@ -31,9 +31,9 @@ Sem regressão em TASK-01: 1 comando(s) iguais ao baseline.
 $ vostok task evidence SPEC-001 TASK-01
 exit: 0
 --- stdout
-Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-001 TASK-01 --reviewed <arquivo>:
-- <EVIDENCIAS>/esperada.txt
-- <EVIDENCIAS>/lenta.txt
+Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence SPEC-001 TASK-01 --reviewed <EV-NN|arquivo>:
+- EV-01 esperada.txt (<EVIDENCIAS>/esperada.txt)
+- EV-02 lenta.txt (<EVIDENCIAS>/lenta.txt)
 
 $ vostok task evidence SPEC-001 TASK-01 --reviewed esperada.txt --reviewed lenta.txt
 exit: 0
@@ -60,8 +60,8 @@ approved_hash preenchido: true
 | 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
 | 4 | <DATA> | regressão | passed | 1 comando(s) iguais ao baseline |
 | 5 | <DATA> | evidências | pending | evidência sem conferência humana |
-| 6 | <DATA> | conferência | usuário | evidência esperada.txt conferida pelo usuário (sha256 <HASH>) |
-| 7 | <DATA> | conferência | usuário | evidência lenta.txt conferida pelo usuário (sha256 <HASH>) |
+| 6 | <DATA> | conferência | usuário | EV-01 esperada.txt conferida pelo usuário (sha256 <HASH>) |
+| 7 | <DATA> | conferência | usuário | EV-02 lenta.txt conferida pelo usuário (sha256 <HASH>) |
 | 8 | <DATA> | evidências | passed | 2 evidência(s) em evidence/TASK-01/ |
 | 9 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
 

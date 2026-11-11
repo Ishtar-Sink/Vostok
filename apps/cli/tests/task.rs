@@ -2863,7 +2863,7 @@ fn evidence_print_reviewed_by_the_user_passes() {
     assert!(stdout.contains("Resultado: passed."), "{stdout}");
     let content = read(&project, TASK_PATH);
     assert!(
-        content.contains("evidência tela.png conferida pelo usuário (sha256 "),
+        content.contains("EV-01 tela.png conferida pelo usuário (sha256 "),
         "{content}"
     );
     assert!(content.contains("evidence_result: passed"));
@@ -3271,7 +3271,7 @@ fn review_user_reviewed_automatic_records_the_hash() {
     assert_eq!(evidence_file(&project, "saida.txt"), kept);
     let content = read(&project, TASK_PATH);
     let line = format!(
-        "| conferência | usuário | evidência saida.txt conferida pelo usuário (sha256 {}) |",
+        "| conferência | usuário | EV-01 saida.txt conferida pelo usuário (sha256 {}) |",
         short_hash(kept.as_bytes())
     );
     assert!(content.contains(&line), "{content}");
@@ -3314,7 +3314,7 @@ fn review_user_reviewed_with_a_failing_evidence_records_the_review() {
     task(&project, &["evidence", "--reviewed", "ok.txt"])
         .assert()
         .success();
-    assert!(read(&project, TASK_PATH).contains("evidência ok.txt conferida pelo usuário"));
+    assert!(read(&project, TASK_PATH).contains("EV-01 ok.txt conferida pelo usuário"));
 }
 
 #[test]
@@ -3337,7 +3337,7 @@ fn review_user_rejected_blocks_with_the_reason() {
     let content = read(&project, TASK_PATH);
     assert!(
         content
-            .contains("| rejeição | blocked | evidência saida.txt rejeitada pelo usuário (sha256 "),
+            .contains("| rejeição | blocked | EV-01 saida.txt rejeitada pelo usuário (sha256 "),
         "{content}"
     );
     assert!(content.contains("): falta o total |"), "{content}");
@@ -3466,7 +3466,7 @@ fn review_user_legacy_print_line_still_counts() {
         .assert()
         .success();
     let content = read(&project, TASK_PATH).replace(
-        "evidência tela.png conferida pelo usuário",
+        "EV-01 tela.png conferida pelo usuário",
         "print tela.png conferido pelo usuário",
     );
     write(&project, TASK_PATH, &content);
@@ -5552,7 +5552,7 @@ fn antecipada_records_the_register_line() {
     let record = read(&project, TASK_PATH);
     assert!(
         record
-            .contains("| evidências antecipadas | geradas | 1 evidências; a conferir: saida.txt |"),
+            .contains("| evidências antecipadas | geradas | 1 evidências; a conferir: EV-01 saida.txt |"),
         "{record}"
     );
 }
@@ -5630,7 +5630,7 @@ fn review_only_after_antecipada_keeps_every_file() {
     assert!(!stdout.contains("execute vostok task tests"), "{stdout}");
     assert_eq!(evidence_file(&project, "saida.txt"), log);
     assert_eq!(evidence_file(&project, "tela.png"), screen);
-    assert!(read(&project, TASK_PATH).contains("evidência tela.png conferida pelo usuário"));
+    assert!(read(&project, TASK_PATH).contains("EV-02 tela.png conferida pelo usuário"));
 }
 
 #[test]
@@ -5873,7 +5873,7 @@ fn executed_rejected_returns_to_in_progress() {
     assert_eq!(status(&project), "in_progress");
     let content = read(&project, TASK_PATH);
     assert!(
-        content.contains("| rejeição | in_progress | evidência tela.png rejeitada pelo usuário"),
+        content.contains("| rejeição | in_progress | EV-01 tela.png rejeitada pelo usuário"),
         "{content}"
     );
 }
@@ -6074,4 +6074,117 @@ fn recusa_cites_executed() {
         ),
         "{stderr}"
     );
+}
+
+// --- ID das evidências (SPEC-049) ---
+
+fn three_evidences() -> Project {
+    let evidence = format!(
+        "{}\n{}\n{}",
+        automatic("a.txt", "echo a", None),
+        automatic("b.txt", "echo b", None),
+        automatic("c.txt", "echo c", None)
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    project
+}
+
+#[test]
+fn evidence_id_numbers_in_item_order() {
+    let project = three_evidences();
+    let stdout = success_stdout(&mut ahead(&project));
+    let first = stdout.find("- EV-01 a.txt (").expect(&stdout);
+    let second = stdout.find("- EV-02 b.txt (").expect(&stdout);
+    let third = stdout.find("- EV-03 c.txt (").expect(&stdout);
+    assert!(first < second && second < third, "{stdout}");
+}
+
+#[test]
+fn evidence_id_listed_by_evidence_and_antecipada() {
+    let project = three_evidences();
+    let listed = format!(
+        "- EV-01 a.txt ({}",
+        project.root().join(EVIDENCE_DIR).join("a.txt").display()
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("--reviewed <EV-NN|arquivo>:"), "{stdout}");
+    assert!(stdout.contains(&format!("{listed})")), "{stdout}");
+    let stdout = success_stdout(&mut ahead(&project));
+    assert!(stdout.contains(&format!("{listed})")), "{stdout}");
+    assert!(
+        read(&project, TASK_PATH).contains("a conferir: EV-01 a.txt, EV-02 b.txt, EV-03 c.txt |")
+    );
+}
+
+#[test]
+fn evidence_id_reviewed_by_id_records_id_and_file() {
+    let project = three_evidences();
+    success_stdout(&mut ahead(&project));
+    success_stdout(&mut reviewed(&project, "EV-02"));
+    assert!(read(&project, TASK_PATH)
+        .contains("| conferência | usuário | EV-02 b.txt conferida pelo usuário (sha256 "));
+}
+
+#[test]
+fn evidence_id_reviewed_by_file_records_id_and_file() {
+    let project = three_evidences();
+    success_stdout(&mut ahead(&project));
+    success_stdout(&mut reviewed(&project, "c.txt"));
+    assert!(read(&project, TASK_PATH).contains("EV-03 c.txt conferida pelo usuário (sha256 "));
+}
+
+#[test]
+fn evidence_id_rejected_by_id_records_id_and_file() {
+    let project = three_evidences();
+    success_stdout(&mut ahead(&project));
+    task(
+        &project,
+        &[
+            "evidence",
+            "--rejected",
+            "EV-01",
+            "--motivo",
+            "falta o total",
+        ],
+    )
+    .output()
+    .unwrap();
+    let record = read(&project, TASK_PATH);
+    assert!(
+        record.contains("EV-01 a.txt rejeitada pelo usuário (sha256 "),
+        "{record}"
+    );
+    assert!(record.contains("): falta o total |"), "{record}");
+}
+
+#[test]
+fn evidence_id_unknown_is_refused_with_the_valid_ids() {
+    let project = three_evidences();
+    success_stdout(&mut ahead(&project));
+    let expected = "'EV-09' não é um ID de evidência de TASK-01; IDs válidos: EV-01 a.txt, EV-02 b.txt, EV-03 c.txt; nada foi registrado";
+    let stderr = failure_stderr(&mut reviewed(&project, "EV-09"));
+    assert!(stderr.contains(expected), "{stderr}");
+    let stderr = failure_stderr(&mut task(
+        &project,
+        &["evidence", "--reviewed", "EV-01", "--reviewed", "EV-09"],
+    ));
+    assert!(stderr.contains(expected), "{stderr}");
+    assert!(!read(&project, TASK_PATH).contains("conferida pelo usuário"));
+}
+
+#[test]
+fn evidence_id_follows_the_new_order_and_keeps_the_review() {
+    let project = three_evidences();
+    success_stdout(&mut ahead(&project));
+    success_stdout(&mut reviewed(&project, "EV-02"));
+    let (a, b) = (
+        automatic("a.txt", "echo a", None),
+        automatic("b.txt", "echo b", None),
+    );
+    let content = read(&project, TASK_PATH).replace(&format!("{a}\n{b}"), &format!("{b}\n{a}"));
+    write(&project, TASK_PATH, &content);
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("- EV-02 a.txt ("), "{stdout}");
+    assert!(!stdout.contains("- EV-01 b.txt ("), "{stdout}");
 }

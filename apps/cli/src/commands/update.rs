@@ -59,6 +59,7 @@ struct Changes {
     removed_dirs: Vec<PathBuf>,
     routing: Vec<PathBuf>,
     agents: Vec<PathBuf>,
+    hooks: Vec<PathBuf>,
     conflicts: Vec<String>,
     manifest: bool,
 }
@@ -74,6 +75,7 @@ impl Changes {
             && self.removed_dirs.is_empty()
             && self.routing.is_empty()
             && self.agents.is_empty()
+            && self.hooks.is_empty()
             && !self.manifest
     }
 }
@@ -92,6 +94,14 @@ pub fn run() -> Result<()> {
     merge_configs(&harness, &mut changes)?;
     ensure_required_context(&harness, &mut changes)?;
     ensure_required_list_items(&harness, &mut changes)?;
+    match write_claude_hooks(&harness)? {
+        ClaudeHooks::Written(path) => changes.hooks.push(path),
+        ClaudeHooks::Invalid(path) => changes.conflicts.push(invalid_settings_warning(
+            &routing::project_root(&harness)?,
+            &path,
+        )),
+        ClaudeHooks::Skipped | ClaudeHooks::Unchanged => {}
+    }
     let routing = routing::generate(&harness)?;
     for path in routing.changed {
         if !changes.routing.contains(&path) {
@@ -672,7 +682,96 @@ fn print(root: &Path, changes: &Changes) {
     for path in &changes.agents {
         println!("Subagente regenerado: {}", shown(path));
     }
+    for path in &changes.hooks {
+        println!("Hooks do Claude Code atualizados: {}", shown(path));
+    }
     println!("Harness atualizado para a versão {}.", manifest::VERSION);
+}
+
+const CLAUDE_SETTINGS: &str = ".claude/settings.json";
+
+/// Hooks que o harness mantém no Claude Code: evento, matcher e comando (SPEC-050).
+const CLAUDE_HOOKS: &[(&str, &str, &str)] = &[
+    (
+        "SessionStart",
+        "startup|resume|clear|compact",
+        "vostok hook session-start",
+    ),
+    ("PreToolUse", "Bash", "vostok hook pre-bash"),
+];
+
+pub(crate) enum ClaudeHooks {
+    Skipped,
+    Unchanged,
+    Written(PathBuf),
+    Invalid(PathBuf),
+}
+
+/// Mescla os hooks do harness no `.claude/settings.json` quando a ferramenta é o Claude Code,
+/// sem tocar nas chaves e nos hooks do usuário e sem duplicar os do harness.
+pub(crate) fn write_claude_hooks(harness: &Harness) -> Result<ClaudeHooks> {
+    if crate::models::harness_tool(harness).as_deref() != Some("claude-code") {
+        return Ok(ClaudeHooks::Skipped);
+    }
+    let path = routing::project_root(harness)?.join(CLAUDE_SETTINGS);
+    let content = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => "{}".to_string(),
+        Err(error) => {
+            return Err(error).with_context(|| format!("não foi possível ler {}", path.display()))
+        }
+    };
+    let Ok(serde_json::Value::Object(mut settings)) = serde_json::from_str(&content) else {
+        return Ok(ClaudeHooks::Invalid(path));
+    };
+    if !add_claude_hooks(&mut settings) {
+        return Ok(ClaudeHooks::Unchanged);
+    }
+    let mut text = serde_json::to_string_pretty(&serde_json::Value::Object(settings))?;
+    text.push('\n');
+    write(&path, text.as_bytes())?;
+    Ok(ClaudeHooks::Written(path))
+}
+
+/// Acrescenta os hooks do harness que faltam e diz se acrescentou algum. `hooks` ou uma lista de
+/// evento que não seja do tipo esperado é trocada, porque o Claude Code não a leria.
+fn add_claude_hooks(settings: &mut serde_json::Map<String, serde_json::Value>) -> bool {
+    let hooks = settings
+        .entry("hooks")
+        .or_insert_with(|| serde_json::json!({}));
+    if !hooks.is_object() {
+        *hooks = serde_json::json!({});
+    }
+    let hooks = hooks.as_object_mut().expect("hooks é objeto");
+    let mut added = false;
+    for (event, matcher, command) in CLAUDE_HOOKS {
+        let entries = hooks.entry(*event).or_insert_with(|| serde_json::json!([]));
+        if !entries.is_array() {
+            *entries = serde_json::json!([]);
+        }
+        let entries = entries.as_array_mut().expect("lista de hooks");
+        if !entries.iter().any(|entry| has_command(entry, command)) {
+            entries.push(serde_json::json!({
+                "matcher": matcher,
+                "hooks": [{ "type": "command", "command": command }],
+            }));
+            added = true;
+        }
+    }
+    added
+}
+
+fn has_command(entry: &serde_json::Value, command: &str) -> bool {
+    entry["hooks"]
+        .as_array()
+        .is_some_and(|hooks| hooks.iter().any(|hook| hook["command"] == command))
+}
+
+pub(crate) fn invalid_settings_warning(root: &Path, path: &Path) -> String {
+    format!(
+        "Aviso: {} não é um JSON válido; os hooks do harness não foram gravados.",
+        path.strip_prefix(root).unwrap_or(path).display()
+    )
 }
 
 fn write(path: &Path, content: &[u8]) -> Result<()> {

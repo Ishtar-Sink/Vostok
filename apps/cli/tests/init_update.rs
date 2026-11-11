@@ -1232,3 +1232,155 @@ fn ct10_update_adds_required_list_items() {
     assert_eq!(fields.iter().filter(|item| *item == "Título").count(), 1);
     assert_eq!(optional.iter().filter(|item| *item == "Espera").count(), 1);
 }
+
+// --- hooks do Claude Code (SPEC-050) ---
+
+const SETTINGS: &str = ".claude/settings.json";
+
+fn settings(workspace: &Workspace) -> serde_json::Value {
+    serde_json::from_str(&workspace.read(SETTINGS)).expect("settings.json válido")
+}
+
+fn harness_commands(value: &serde_json::Value, event: &str) -> Vec<String> {
+    value["hooks"][event]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|entry| entry["hooks"].as_array().into_iter().flatten())
+        .filter_map(|hook| hook["command"].as_str().map(str::to_string))
+        .collect()
+}
+
+fn entry_with<'a>(
+    value: &'a serde_json::Value,
+    event: &str,
+    command: &str,
+) -> &'a serde_json::Value {
+    value["hooks"][event]
+        .as_array()
+        .and_then(|entries| {
+            entries.iter().find(|entry| {
+                entry["hooks"]
+                    .as_array()
+                    .is_some_and(|hooks| hooks.iter().any(|hook| hook["command"] == command))
+            })
+        })
+        .unwrap_or_else(|| panic!("falta {command} em hooks.{event}: {value}"))
+}
+
+#[test]
+fn claude_hooks_init_writes_both_hooks() {
+    let workspace = Workspace::new();
+    let output = workspace.init(&["--yes"]);
+    let value = settings(&workspace);
+
+    let start = entry_with(&value, "SessionStart", "vostok hook session-start");
+    assert_eq!(start["matcher"], "startup|resume|clear|compact");
+    assert_eq!(start["hooks"][0]["type"], "command");
+    let bash = entry_with(&value, "PreToolUse", "vostok hook pre-bash");
+    assert_eq!(bash["matcher"], "Bash");
+    assert_eq!(bash["hooks"][0]["type"], "command");
+    assert!(
+        output.contains("Hooks do Claude Code: .claude/settings.json"),
+        "{output}"
+    );
+}
+
+#[test]
+fn claude_hooks_init_keeps_the_user_settings() {
+    let workspace = Workspace::new();
+    workspace.write(
+        SETTINGS,
+        r#"{"permissions": {"allow": ["Bash(ls)"]}, "hooks": {"PreToolUse": [{"matcher": "Edit", "hooks": [{"type": "command", "command": "meu-lint"}]}]}}"#,
+    );
+    workspace.init(&["--yes"]);
+    let value = settings(&workspace);
+
+    assert_eq!(
+        value["permissions"]["allow"],
+        serde_json::json!(["Bash(ls)"])
+    );
+    let keys: Vec<&String> = value.as_object().unwrap().keys().collect();
+    assert_eq!(keys, ["permissions", "hooks"]);
+    assert_eq!(
+        harness_commands(&value, "PreToolUse"),
+        ["meu-lint", "vostok hook pre-bash"]
+    );
+    assert_eq!(value["hooks"]["PreToolUse"][0]["matcher"], "Edit");
+}
+
+#[test]
+fn claude_hooks_update_keeps_the_user_hook_without_duplicating() {
+    let workspace = installed("claude-code");
+    let mut value = settings(&workspace);
+    value["hooks"]["SessionStart"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({"matcher": "startup", "hooks": [{"type": "command", "command": "echo oi"}]}));
+    workspace.write(SETTINGS, &serde_json::to_string_pretty(&value).unwrap());
+
+    workspace.update();
+    let value = settings(&workspace);
+    let commands = harness_commands(&value, "SessionStart");
+    assert!(commands.contains(&"echo oi".to_string()), "{commands:?}");
+    assert_eq!(
+        commands
+            .iter()
+            .filter(|command| *command == "vostok hook session-start")
+            .count(),
+        1
+    );
+
+    let before = workspace.read(SETTINGS);
+    workspace.update();
+    assert_eq!(workspace.read(SETTINGS), before);
+}
+
+#[test]
+fn claude_hooks_update_restores_a_removed_hook() {
+    let workspace = installed("claude-code");
+    let mut value = settings(&workspace);
+    value["hooks"].as_object_mut().unwrap().remove("PreToolUse");
+    workspace.write(SETTINGS, &serde_json::to_string_pretty(&value).unwrap());
+
+    let output = workspace.update();
+    assert_eq!(
+        harness_commands(&settings(&workspace), "PreToolUse"),
+        ["vostok hook pre-bash"]
+    );
+    assert!(
+        output.contains("Hooks do Claude Code atualizados: .claude/settings.json"),
+        "{output}"
+    );
+}
+
+#[test]
+fn claude_hooks_only_when_the_tool_is_claude_code() {
+    let workspace = Workspace::new();
+    workspace.init(&["--yes"]);
+    let main = workspace.read("vostok/config/main.yml");
+    assert!(main.contains("tool: claude-code"));
+    workspace.write(
+        "vostok/config/main.yml",
+        &main.replacen("tool: claude-code", "tool: codex", 1),
+    );
+    fs::remove_file(workspace.path(SETTINGS)).unwrap();
+
+    workspace.update();
+    assert!(!workspace.exists(SETTINGS));
+}
+
+#[test]
+fn claude_hooks_invalid_settings_are_left_alone() {
+    let workspace = installed("claude-code");
+    workspace.write(SETTINGS, "{ inválido");
+
+    let output = workspace.update();
+    assert!(
+        output.contains(
+            "Aviso: .claude/settings.json não é um JSON válido; os hooks do harness não foram gravados."
+        ),
+        "{output}"
+    );
+    assert_eq!(workspace.read(SETTINGS), "{ inválido");
+}

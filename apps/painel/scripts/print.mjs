@@ -1,6 +1,8 @@
 // Tira o print de uma URL do painel com o Playwright: aceita âncora, rolagem e localStorage.
 // Uso: node scripts/print.mjs <url> <arquivo.png> <largura,altura>
 // PAINEL_ROLAR: pixels a rolar antes do print, ou "fim" para o fim da página.
+// PAINEL_CLICAR: seletores do Playwright separados por ";;", clicados em ordem (com 300 ms de espera) depois da rolagem
+// e antes do print, para fotografar o visualizador aberto, o texto com o botão de copiar ou o player; seletor ausente falha o print.
 // PAINEL_STORAGE: JSON com as chaves do localStorage gravadas antes de abrir a página.
 import { chromium } from 'playwright';
 
@@ -35,6 +37,16 @@ try {
       window.scrollTo(0, top);
       window.dispatchEvent(new Event('scroll'));
     }, scroll);
+  }
+  const clicks = (process.env.PAINEL_CLICAR ?? '').split(';;').filter(Boolean);
+  for (const selector of clicks) {
+    const target = page.locator(selector).first();
+    if ((await target.count()) === 0) {
+      console.error(`seletor não encontrado: ${selector}`);
+      process.exit(1);
+    }
+    await target.click();
+    await page.waitForTimeout(300);
   }
   await page.waitForTimeout(500);
   await page.screenshot({ path: output });

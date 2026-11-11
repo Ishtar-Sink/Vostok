@@ -3,6 +3,9 @@
 # e o vite do frontend, e fotografa com o Playwright (scripts/print.mjs).
 # Uso: [PAINEL_PASTA=<pasta do projeto>] PAINEL_BIN=<caminho do vostok> bash apps/painel/scripts/print.sh <rota> <arquivo.png> [largura,altura]
 # A rota aceita âncora (#evidencias). PAINEL_ROLAR (pixels ou "fim") rola antes do print;
+# PAINEL_CLICAR (seletores do Playwright separados por ;;) clica em cada um antes do print, e falha se algum não existir;
+# PAINEL_ACOES grava, no lugar do print, um vídeo quando o arquivo termina em .webm (scripts/video.mjs): ações separadas
+# por ;; entre `clicar <seletor>`, `arrastar <seletor> <dx> <dy>`, `tecla <tecla>` e `esperar <ms>`, com uma pausa curta entre elas;
 # PAINEL_STORAGE (JSON) grava o localStorage antes de abrir a página.
 
 set -euo pipefail
@@ -49,7 +52,9 @@ PIDS+=("$!")
 wait_for "http://127.0.0.1:$WEB_PORT/"
 
 mkdir -p "$(dirname "$OUTPUT")"
-(cd "$PAINEL_DIR" && node scripts/print.mjs "http://127.0.0.1:$WEB_PORT$ROUTE" "$OUTPUT" "$SIZE") >"$WORK/print.log" 2>&1 \
+CAPTURE=print.mjs
+case "$OUTPUT" in *.webm) CAPTURE=video.mjs ;; esac
+(cd "$PAINEL_DIR" && node "scripts/$CAPTURE" "http://127.0.0.1:$WEB_PORT$ROUTE" "$OUTPUT" "$SIZE") >"$WORK/print.log" 2>&1 \
   || { cat "$WORK/print.log" >&2; exit 1; }
 
 [ -s "$OUTPUT" ] || { cat "$WORK/print.log" >&2; exit 1; }

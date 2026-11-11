@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    bug, commit, context, documents, finalize, init, memory, painel, plan, rules, skill, spec,
-    suggest, task, update,
+    bug, commit, context, documents, finalize, hook, init, memory, painel, plan, rules, skill,
+    spec, suggest, task, update,
 };
 
 #[derive(Debug, Parser)]
@@ -24,6 +24,9 @@ pub enum Command {
     /// Carregamento de contexto para o agente.
     #[command(subcommand)]
     Context(context::ContextCommand),
+    /// Hooks das ferramentas de agente.
+    #[command(subcommand)]
+    Hook(hook::HookCommand),
     /// Memória do projeto.
     #[command(subcommand)]
     Memory(memory::MemoryCommand),
@@ -68,6 +71,7 @@ pub enum Command {
 pub fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Context(command) => context::run(command),
+        Command::Hook(command) => hook::run(command),
         Command::Memory(command) => memory::run(command),
         Command::Rules(command) => rules::run(command),
         Command::Spec(command) => spec::run(command),

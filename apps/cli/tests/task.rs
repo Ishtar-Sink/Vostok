@@ -5928,3 +5928,150 @@ fn executed_refuses_outside_running() {
         assert!(read(&project, TASK_PATH).contains(&format!("status: {status}")));
     }
 }
+
+// --- diff desde o commit do baseline (SPEC-048) ---
+
+/// Projeto git com `a.txt` commitado antes do baseline, que grava o commit do baseline.
+fn git_task_with_baseline_commit(evidence: &str) -> Project {
+    let project = task_before_baseline(&[("a.txt", "um\n")], evidence);
+    git(project.root(), &["init", "-q"]);
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", "inicial"]);
+    task(&project, &["baseline"]).assert().success();
+    project
+}
+
+fn head_sha(project: &Project) -> String {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(project.root())
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn commit_all(project: &Project, message: &str) {
+    git(project.root(), &["add", "-A"]);
+    git(project.root(), &["commit", "-qm", message]);
+}
+
+#[test]
+fn baseline_commit_diff_after_commit() {
+    let project = git_task_with_baseline_commit(&diff_item("a.diff", "a.txt"));
+    let baseline = head_sha(&project);
+    assert_eq!(field(&project, "baseline_commit"), baseline);
+    write(&project, "a.txt", "dois\n");
+    commit_all(&project, "mudança");
+    ahead(&project).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/a.diff"));
+    assert!(log.contains("-um\n+dois"), "{log}");
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn baseline_commit_diff_sums_committed_and_local() {
+    let project = git_task_with_baseline_commit(&diff_item("a.diff", "a.txt"));
+    write(&project, "a.txt", "dois\n");
+    commit_all(&project, "mudança");
+    write(&project, "a.txt", "dois\ntres\n");
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/a.diff"));
+    assert!(log.contains("+dois") && log.contains("+tres"), "{log}");
+}
+
+#[test]
+fn baseline_commit_new_file_committed() {
+    let project = git_task_with_baseline_commit(&diff_item("novo.diff", "novo.txt"));
+    write(&project, "novo.txt", "linha nova\n");
+    commit_all(&project, "novo");
+    task(&project, &["evidence"]).assert().success();
+    let log = read(&project, &format!("{EVIDENCE_DIR}/novo.diff"));
+    assert!(log.contains("+linha nova"), "{log}");
+}
+
+#[test]
+fn baseline_commit_recollect_updates_the_commit() {
+    let project = git_task_with_baseline_commit(&diff_item("a.diff", "a.txt"));
+    write(&project, "b.txt", "b\n");
+    commit_all(&project, "outro");
+    success_stdout(&mut recollect(&project));
+    assert_eq!(field(&project, "baseline_commit"), head_sha(&project));
+}
+
+#[test]
+fn baseline_commit_missing_falls_back_to_head() {
+    let project = git_task_with_baseline_commit(&diff_item("a.diff", "a.txt"));
+    let record = read(&project, TASK_PATH);
+    let sha = field(&project, "baseline_commit");
+    write(
+        &project,
+        TASK_PATH,
+        &record.replace(&sha, "0000000000000000000000000000000000000001"),
+    );
+    write(&project, "a.txt", "dois\n");
+    let output = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        output.contains("commit do baseline não encontrado"),
+        "{output}"
+    );
+    let log = read(&project, &format!("{EVIDENCE_DIR}/a.diff"));
+    assert!(log.contains("-um\n+dois"), "{log}");
+}
+
+#[test]
+fn baseline_commit_describe_uses_the_commit() {
+    let project = folder_started();
+    write(&project, "novo.txt", "um\n");
+    git(project.root(), &["init", "-q"]);
+    commit_all(&project, "inicial");
+    let task_dir = project.root().join("vostok/work/tasks/SPEC-001/TASK-01");
+    let state = task_dir.join("estado.yml");
+    let content = std::fs::read_to_string(&state).unwrap();
+    std::fs::write(
+        &state,
+        format!("{content}baseline_commit: {}\n", head_sha(&project)),
+    )
+    .unwrap();
+    write(&project, "novo.txt", "um\ndois\n");
+    commit_all(&project, "mudança");
+    let output = stdout(&mut task(&project, &["describe"]));
+    assert!(
+        output.contains("- `novo.txt` (criar): 1 file changed, 1 insertion(+)\n"),
+        "{output}"
+    );
+}
+
+#[test]
+fn baseline_commit_old_task_explains() {
+    let project = git_task(&diff_item("a.diff", "a.txt"));
+    write(&project, "a.txt", "dois\n");
+    commit_all(&project, "mudança");
+    let stderr = failure_stderr(&mut task(&project, &["evidence"]));
+    assert!(
+        stderr.contains("pode ter sido commitado depois do baseline"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("git diff <commit-anterior> -- a.txt"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn baseline_commit_absent_outside_git() {
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &diff_item("a.diff", "a.txt"));
+    assert!(!read(&project, TASK_PATH).contains("baseline_commit"));
+}
+
+#[test]
+fn recusa_cites_executed() {
+    let project = approved_task("- `true`\n");
+    let stderr = failure_stderr(&mut task(&project, &["tests"]));
+    assert!(
+        stderr.contains(
+            "só tarefas com status 'in_progress', 'executed' ou 'validating' são validadas"
+        ),
+        "{stderr}"
+    );
+}

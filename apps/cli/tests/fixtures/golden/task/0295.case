@@ -24,8 +24,8 @@ TASK-01
 
 @stdout 0
 
-@stderr 120
-Erro: a tarefa TASK-01 está com status 'approved'; só tarefas com status 'in_progress' ou 'validating' são validadas
+@stderr 132
+Erro: a tarefa TASK-01 está com status 'approved'; só tarefas com status 'in_progress', 'executed' ou 'validating' são validadas
 
 @exit 1
 1

@@ -961,11 +961,12 @@ impl Tasks {
             trim_newlines(&part_text(&doc, &layout.execution)?.unwrap_or_default())
         );
         let root = self.project_root()?;
+        let diff_base = DiffBase::of(file_baseline_commit(&file), &root);
         text.push_str("\n## Arquivos de Mudar\n\n");
         for (action, path) in change_items(&self.subsection(&content, "change_subsection")?) {
             text.push_str(&format!(
                 "- `{path}` ({action}): {}\n",
-                path_stat(&path, &root)
+                path_stat(&path, &root, &diff_base.rev)
             ));
         }
         text.push_str(&format!(
@@ -1763,6 +1764,9 @@ impl Tasks {
             .map(|(code, _)| code.to_string())
             .collect::<Vec<_>>()
             .join(", ");
+        if let Some(sha) = git_text(&root, &["rev-parse", "--verify", "HEAD"]) {
+            TaskDoc::at(file).put(BASELINE_COMMIT_KEY, &sha)?;
+        }
         let mut detail = format!("{} comando(s); códigos de saída: {codes}", commands.len());
         if !evidences.is_empty() {
             detail.push_str(&format!(
@@ -1808,8 +1812,9 @@ impl Tasks {
         ];
         if !validated.contains(&&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; só tarefas com status '{}' ou '{}' são validadas",
+                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}' ou '{}' são validadas",
                 self.status.in_progress,
+                self.status.executed,
                 self.status.validating
             );
         }
@@ -2544,7 +2549,11 @@ impl Tasks {
                     .and_then(|rest| rest.strip_suffix('`'))
                     .filter(|path| !path.is_empty())
                     .ok_or_else(|| anyhow!("evidência diff sem caminho: {item}"))?;
-                match path_diff(path, &root)? {
+                let base = DiffBase::of(file_baseline_commit(file), &root);
+                if let Some(note) = &base.note {
+                    println!("Aviso: {note}");
+                }
+                match path_diff(path, &root, &base)? {
                     Ok((command, output)) => {
                         let mut log = log_header(&command, 0, &root);
                         log.extend_from_slice(&output);
@@ -6098,9 +6107,58 @@ fn git_text(root: &Path, args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-/// Resumo do diff de `path` contra o `HEAD` (a última linha do `git diff --stat`), ou por que
+/// Chave do estado com o commit em que o baseline foi coletado.
+const BASELINE_COMMIT_KEY: &str = "baseline_commit";
+
+/// Commit do baseline gravado na tarefa, se houver.
+fn file_baseline_commit(file: &Path) -> Option<String> {
+    TaskDoc::at(file)
+        .get(BASELINE_COMMIT_KEY)
+        .ok()
+        .filter(|sha| !sha.is_empty() && sha != "null" && sha != "-")
+}
+
+/// Base do diff de uma evidência: o commit do baseline quando ele existe; senão, o `HEAD`.
+struct DiffBase {
+    rev: String,
+    /// Aviso quando o commit gravado não existe mais.
+    note: Option<String>,
+    /// A tarefa tem o commit do baseline gravado.
+    recorded: bool,
+}
+
+impl DiffBase {
+    fn of(recorded: Option<String>, root: &Path) -> Self {
+        match recorded {
+            Some(sha)
+                if git_text(root, &["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_some() =>
+            {
+                Self {
+                    rev: sha,
+                    note: None,
+                    recorded: true,
+                }
+            }
+            Some(sha) => Self {
+                rev: "HEAD".to_string(),
+                note: Some(format!(
+                    "commit do baseline não encontrado ({}); diff contra o HEAD",
+                    &sha[..sha.len().min(7)]
+                )),
+                recorded: true,
+            },
+            None => Self {
+                rev: "HEAD".to_string(),
+                note: None,
+                recorded: false,
+            },
+        }
+    }
+}
+
+/// Resumo do diff de `path` contra a base (o commit do baseline ou o `HEAD`) (a última linha do `git diff --stat`), ou por que
 /// não há resumo.
-fn path_stat(path: &str, root: &Path) -> String {
+fn path_stat(path: &str, root: &Path, rev: &str) -> String {
     if git_text(root, &["rev-parse", "--is-inside-work-tree"]).is_none() {
         return "fora de um repositório git".to_string();
     }
@@ -6111,7 +6169,7 @@ fn path_stat(path: &str, root: &Path) -> String {
             "não existe".to_string()
         };
     }
-    match git_text(root, &["diff", "--stat", "HEAD", "--", path]) {
+    match git_text(root, &["diff", "--stat", rev, "--", path]) {
         Some(stat) if !stat.is_empty() => {
             stat.lines().last().unwrap_or_default().trim().to_string()
         }
@@ -6132,7 +6190,11 @@ fn part_text(doc: &TaskDoc, name: &str) -> Result<Option<String>> {
 
 /// Diff de `path` contra o `HEAD`, ou do conteúdo inteiro quando o arquivo não é rastreado: o
 /// comando usado e a saída, ou o problema que impede o diff.
-fn path_diff(path: &str, root: &Path) -> Result<std::result::Result<(String, Vec<u8>), String>> {
+fn path_diff(
+    path: &str,
+    root: &Path,
+    base: &DiffBase,
+) -> Result<std::result::Result<(String, Vec<u8>), String>> {
     if git_text(root, &["rev-parse", "--is-inside-work-tree"]).is_none() {
         return Ok(Err(format!(
             "fora de um repositório git; sem diff de {path}"
@@ -6140,7 +6202,7 @@ fn path_diff(path: &str, root: &Path) -> Result<std::result::Result<(String, Vec
     }
     let tracked = git_text(root, &["ls-files", "--error-unmatch", "--", path]).is_some();
     let command = if tracked {
-        format!("git diff HEAD -- {}", shell_quoted(path))
+        format!("git diff {} -- {}", base.rev, shell_quoted(path))
     } else {
         format!("git diff --no-index -- /dev/null {}", shell_quoted(path))
     };
@@ -6152,6 +6214,11 @@ fn path_diff(path: &str, root: &Path) -> Result<std::result::Result<(String, Vec
         )));
     }
     if output.is_empty() {
+        if !base.recorded {
+            return Ok(Err(format!(
+                "sem diferença em {path} contra o HEAD; o arquivo pode ter sido commitado depois do baseline, e esta tarefa começou antes de o vostok gravar o commit do baseline: ajuste a evidência para uma automática com git diff <commit-anterior> -- {path}"
+            )));
+        }
         return Ok(Err(format!("sem diferença em {path}")));
     }
     Ok(Ok((command, output)))

@@ -532,9 +532,13 @@ pub fn normalize(text: &str, root: &Path) -> String {
         .replace(root.to_str().unwrap(), "<ROOT>")
         .replace(GOLDEN_ROOT, "<ROOT>");
     let text = replace_volatile(&replace_tmp(&text));
-    // Os scripts bash nunca gravaram o histórico de status, que só a CLI grava.
+    // Os scripts bash nunca gravaram o histórico de status nem o commit do baseline, que só a CLI
+    // grava.
     text.split_inclusive('\n')
-        .filter(|line| !line.trim_end_matches('\n').starts_with("status_history:"))
+        .filter(|line| {
+            let line = line.trim_end_matches('\n');
+            !line.starts_with("status_history:") && !line.starts_with("baseline_commit:")
+        })
         .collect()
 }
 

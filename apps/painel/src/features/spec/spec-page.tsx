@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { BackLink } from '../../shared/back-link';
 import { buildReferences, type ReferenceIndex } from '../../shared/references';
 import { useReferencePopover } from '../../shared/ref-popover';
@@ -14,11 +14,10 @@ import { LoadingState } from '../../ui/loading-state/loading-state';
 import { Card } from '../../ui/card/card';
 import { PageHeader } from '../../ui/page-header/page-header';
 import { Tabs } from '../../ui/tabs/tabs';
-import { Board } from '../board/board';
 import page from '../../shared/page.module.css';
 import styles from './spec-page.module.css';
 
-type View = 'documento' | 'quadro' | 'plano';
+type View = 'documento' | 'plano';
 
 const SPEC_TABS = [
   { id: 'visao-geral', label: 'Visão geral', titles: ['Objetivo', 'Estado atual', 'Defeito', 'Escopo', 'Premissas e dependências', 'Riscos'] },
@@ -71,7 +70,6 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
   const done = tasks.filter((task) => task.status === 'done').length;
   const views: { id: View; label: string; show: boolean }[] = [
     { id: 'documento', label: 'Documento', show: true },
-    { id: 'quadro', label: `Quadro (${tasks.length})`, show: tasks.length > 0 },
     { id: 'plano', label: 'Plano', show: plan },
   ];
 
@@ -86,8 +84,8 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
             <div className={styles.headerActions}>
               <Badge tone={statusTone(meta.status)}>{statusLabel(meta.status)}</Badge>
               {outdated ? <Badge tone="warning">Plano desatualizado</Badge> : null}
-              {tasks.length > 0 && view !== 'quadro' ? (
-                <Button variant="secondary" onClick={() => navigate(`/specs/${meta.id}/quadro`)}>Ver o quadro</Button>
+              {tasks.length > 0 ? (
+                <Button variant="secondary" onClick={() => navigate(`/tarefas?spec=${meta.id}`)}>Ver o quadro</Button>
               ) : null}
             </div>
           }
@@ -96,15 +94,16 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
           {views
             .filter((item) => item.show)
             .map((item) => (
-              <a key={item.id} href={`/specs/${meta.id}${item.id === 'documento' ? '' : `/${item.id}`}`} onClick={onLinkClick} aria-current={view === item.id ? 'page' : undefined}>
-                {item.label}
-              </a>
+              <Fragment key={item.id}>
+                <a href={`/specs/${meta.id}${item.id === 'documento' ? '' : `/${item.id}`}`} onClick={onLinkClick} aria-current={view === item.id ? 'page' : undefined}>
+                  {item.label}
+                </a>
+                {item.id === 'documento' && tasks.length > 0 ? <a href={`/tarefas?spec=${meta.id}`} onClick={onLinkClick}>{`Quadro (${tasks.length})`}</a> : null}
+              </Fragment>
             ))}
         </nav>
       </div>
-      {view === 'quadro' ? (
-        <Board tasks={tasks.map((task) => ({ ...task, spec: meta.id }))} />
-      ) : view === 'plano' ? (
+      {view === 'plano' ? (
         <PlanView id={meta.id} version={version} references={references} outdated={outdated} status={meta.status} />
       ) : (
         <SpecDocument markdown={spec.data.markdown} path={spec.data.path} references={references}>
@@ -122,7 +121,7 @@ export function SpecPage({ id, view, version }: { id: string; view: View; versio
             <section>
               <div className={styles.asideHeader}>
                 <p className={page.asideTitle}>Tarefas</p>
-                <a href={`/specs/${meta.id}/quadro`} onClick={onLinkClick} className={page.link}>Quadro</a>
+                <a href={`/tarefas?spec=${meta.id}`} onClick={onLinkClick} className={page.link}>Quadro</a>
               </div>
               <ul className={styles.taskList}>
                 {tasks.map((task) => (

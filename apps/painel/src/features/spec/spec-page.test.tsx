@@ -43,12 +43,15 @@ describe('SpecPage', () => {
     expect(screen.queryByRole('button', { name: /Editar/ })).toBeNull();
   });
 
-  it('shows the board view grouped by status', async () => {
+  it('aponta o quadro para o menu Tarefas, sem a visão Quadro', async () => {
     mockFetch(route('/api/specs/', detail('vostok/work/specs/approved/SPEC-001.md')));
-    render(<SpecPage id="SPEC-001" view="quadro" version={0} />);
-    expect(await screen.findByText('Título TASK-02')).toBeTruthy();
-    expect(screen.queryByRole('tablist')).toBeNull();
-    expect(screen.queryByRole('navigation', { name: 'Nesta página' })).toBeNull();
+    const { container } = render(<SpecPage id="SPEC-001" view="documento" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver o quadro' }));
+    expect(location.pathname + location.search).toBe('/tarefas?spec=SPEC-001');
+    const link = within(screen.getByRole('navigation', { name: 'Visões da spec' })).getByRole('link', { name: 'Quadro (2)' });
+    expect(link.getAttribute('href')).toBe('/tarefas?spec=SPEC-001');
+    expect(link.getAttribute('aria-current')).toBeNull();
+    expect(container.querySelector('section[data-column]')).toBeNull();
   });
 
   it('shows the plan view and its empty state when there is no plan', async () => {

@@ -3,6 +3,9 @@ import { listOf, type TaskSummary } from '../../shared/api';
 import { onLinkClick } from '../../shared/router';
 import { BOARD_SECTIONS, statusLabel, statusTone } from '../../shared/status';
 import { Badge } from '../../ui/badge/badge';
+import { Button } from '../../ui/button/button';
+import { EmptyState } from '../../ui/empty-state/empty-state';
+import { MultiSelect } from '../../ui/multi-select/multi-select';
 import styles from './board.module.css';
 
 /** Cor de status das colunas do fluxo; as de entrada (para aprovar e aprovadas) ficam sem cor. */
@@ -26,6 +29,68 @@ function sortCards(cards: BoardTask[], order: BoardOrder): BoardTask[] {
   const byWave = (a: BoardTask, b: BoardTask) => compareNumbers(waveNumber(a.wave), waveNumber(b.wave));
   const criteria = { numero: [byNumber, bySpec], spec: [bySpec, byNumber], onda: [byWave, bySpec, byNumber] }[order];
   return [...cards].sort((a, b) => criteria.reduce((result, compare) => result || compare(a, b), 0));
+}
+
+const ACTIVE_SECTIONS = ['running', 'executed', 'validating', 'blocked'];
+const SECTIONS_KEY = 'vostok.quadro.raias';
+const DIRECTION_KEY = 'vostok.quadro.sentido';
+
+const SECTION_OPTIONS = BOARD_SECTIONS.map((section) => ({ value: section.id, label: section.label }));
+const SECTION_SHORTCUTS = [{ label: 'Ativas', values: ACTIVE_SECTIONS }, { label: 'Todas', values: BOARD_SECTIONS.map((section) => section.id) }];
+
+function summarySections(visible: string[]): string {
+  if (visible.length === 0) return 'Nenhuma';
+  if (visible.length === BOARD_SECTIONS.length) return 'Todas';
+  const active = visible.length === ACTIVE_SECTIONS.length && ACTIVE_SECTIONS.every((id) => visible.includes(id));
+  return active ? 'Ativas' : `${visible.length} de ${BOARD_SECTIONS.length}`;
+}
+
+type Direction = 'invertido' | 'fluxo';
+
+function readSections(): string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? 'null');
+    return Array.isArray(stored) ? BOARD_SECTIONS.map((section) => section.id).filter((id) => stored.includes(id)) : ACTIVE_SECTIONS;
+  } catch {
+    return ACTIVE_SECTIONS;
+  }
+}
+
+function readDirection(): Direction {
+  try {
+    return localStorage.getItem(DIRECTION_KEY) === 'fluxo' ? 'fluxo' : 'invertido';
+  } catch {
+    return 'invertido';
+  }
+}
+
+function saveChoice(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // sem armazenamento disponível, a escolha vale só até recarregar
+  }
+}
+
+interface StripItem {
+  key: string;
+  label: string;
+  count: number;
+  selector: string;
+}
+
+/** Faixa fixa com a contagem de cada raia ou grupo; o clique rola até ele. */
+function CountStrip({ items }: { items: StripItem[] }) {
+  return (
+    <nav aria-label="Contagem do quadro" className={styles.strip}>
+      {items.map((item) => (
+        <button key={item.key} type="button" onClick={() => document.querySelector(item.selector)?.scrollIntoView({ block: 'start', behavior: 'smooth' })}>
+          {item.label}
+          <span className={styles.count}>{item.count}</span>
+        </button>
+      ))}
+    </nav>
+  );
 }
 
 interface CardGroup {
@@ -72,6 +137,17 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
   const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && (task.status === 'in_progress' || task.status === 'executed' || task.status === 'validating'));
   const inSection = (task: BoardTask, id: string) => (id === 'ready' ? isReady(task) : id === 'approved' ? !isReady(task) : true);
   const [doneOpen, setDoneOpen] = useState(false);
+  const [visible, setVisible] = useState(readSections);
+  const [direction, setDirection] = useState(readDirection);
+  const chooseSections = (ids: string[]) => {
+    setVisible(ids);
+    saveChoice(SECTIONS_KEY, JSON.stringify(ids));
+  };
+  const toggleDirection = () => {
+    const next = direction === 'invertido' ? 'fluxo' : 'invertido';
+    setDirection(next);
+    saveChoice(DIRECTION_KEY, next);
+  };
 
   const showStatus = group !== 'etapa';
   const renderCard = (task: BoardTask) => {
@@ -99,9 +175,11 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
   };
 
   if (group !== 'etapa') {
+    const groups = groupCards(tasks, group);
     return (
       <div className={styles.board}>
-        {groupCards(tasks, group).map((entry) => (
+        <CountStrip items={groups.map((entry) => ({ key: entry.key, label: entry.name, count: entry.cards.length, selector: `section[data-group="${entry.key}"]` }))} />
+        {groups.map((entry) => (
           <section key={entry.key} className={styles.column} data-group={entry.key} aria-labelledby={`grp-${entry.key}`}>
             <header className={styles.columnHeader}>
               <h3 id={`grp-${entry.key}`}>{entry.name}</h3>
@@ -115,10 +193,22 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
     );
   }
 
+  const sectionCards = (column: (typeof BOARD_SECTIONS)[number]) => sortCards(tasks.filter((task) => column.statuses.includes(task.status) && inSection(task, column.id)), order);
+  const shown = (direction === 'invertido' ? [...BOARD_SECTIONS].reverse() : BOARD_SECTIONS).filter((column) => visible.includes(column.id));
+
   return (
       <div className={styles.board}>
-        {BOARD_SECTIONS.map((column) => {
-          const cards = sortCards(tasks.filter((task) => column.statuses.includes(task.status) && inSection(task, column.id)), order);
+        <div className={styles.boardControls}>
+          <MultiSelect label="Etapas" options={SECTION_OPTIONS} selected={visible} onChange={chooseSections} summary={summarySections(visible)} shortcuts={SECTION_SHORTCUTS} className={styles.stageFilter} />
+          <button type="button" className={styles.orderToggle} aria-pressed={direction === 'fluxo'} onClick={toggleDirection}>Ordem do fluxo</button>
+        </div>
+        {shown.length === 0 ? (
+          <EmptyState title="Nenhuma raia selecionada" description="Escolha ao menos um status para ver as tarefas." action={<Button variant="secondary" onClick={() => chooseSections(ACTIVE_SECTIONS)}>Voltar às raias ativas</Button>} />
+        ) : (
+          <CountStrip items={shown.map((column) => ({ key: column.id, label: column.label, count: sectionCards(column).length, selector: `section[data-column="${column.id}"]` }))} />
+        )}
+        {shown.map((column) => {
+          const cards = sectionCards(column);
           return (
             <section key={column.id} className={styles.column} data-column={column.id} aria-labelledby={`col-${column.id}`}>
               <header className={styles.columnHeader}>

@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react';
 export type Route =
   | { page: 'dashboard' }
   | { page: 'specs' }
-  | { page: 'spec'; id: string; view: 'documento' | 'quadro' | 'plano' }
+  | { page: 'spec'; id: string; view: 'documento' | 'plano' }
   | { page: 'tasks' }
   | { page: 'task'; spec: string; task: string }
   | { page: 'documents' }
   | { page: 'missing' };
 
-const SPEC_VIEWS = ['documento', 'quadro', 'plano'] as const;
+const SPEC_VIEWS = ['documento', 'plano'] as const;
 
 export function parseRoute(pathname: string): Route {
   const parts = pathname.split('/').filter(Boolean).map(decodeURIComponent);
@@ -17,6 +17,7 @@ export function parseRoute(pathname: string): Route {
   if (parts.length === 0) return { page: 'dashboard' };
   if (first === 'documentos' && parts.length === 1) return { page: 'documents' };
   if (first === 'specs' && parts.length === 1) return { page: 'specs' };
+  if (first === 'specs' && third === 'quadro' && parts.length === 3) return { page: 'tasks' };
   if (first === 'specs' && parts.length <= 3) {
     const view = (SPEC_VIEWS as readonly string[]).includes(third ?? '') ? (third as (typeof SPEC_VIEWS)[number]) : 'documento';
     return { page: 'spec', id: second, view };
@@ -28,6 +29,44 @@ export function parseRoute(pathname: string): Route {
   return { page: 'missing' };
 }
 
+/** Endereço do quadro único para o endereço antigo do quadro de uma spec; os demais não mudam. */
+export function redirectOf(pathname: string): string | null {
+  const [first, id, third, ...rest] = pathname.split('/').filter(Boolean).map(decodeURIComponent);
+  return first === 'specs' && third === 'quadro' && id && rest.length === 0 ? `/tarefas?spec=${encodeURIComponent(id)}` : null;
+}
+
+/** Troca o endereço antigo pelo novo sem criar entrada no histórico, para o Voltar não prender. */
+export function applyRedirect() {
+  const target = redirectOf(window.location.pathname);
+  if (target) window.history.replaceState(window.history.state, '', target);
+}
+
+export function readSearchParam(name: string): string | null {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+export function writeSearchParam(name: string, value: string | null) {
+  const params = new URLSearchParams(window.location.search);
+  if (value === null) params.delete(name);
+  else params.set(name, value);
+  const search = params.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`);
+}
+
+export function useSearchParam(name: string): [string | null, (value: string | null) => void] {
+  const [value, setValue] = useState(() => readSearchParam(name));
+  useEffect(() => {
+    const update = () => setValue(readSearchParam(name));
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
+  }, [name]);
+  const set = (next: string | null) => {
+    writeSearchParam(name, next);
+    setValue(next);
+  };
+  return [value, set];
+}
+
 export function navigate(href: string) {
   window.history.pushState(null, '', href);
   window.dispatchEvent(new PopStateEvent('popstate'));
@@ -35,9 +74,15 @@ export function navigate(href: string) {
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
+  const [route, setRoute] = useState(() => {
+    applyRedirect();
+    return parseRoute(window.location.pathname);
+  });
   useEffect(() => {
-    const update = () => setRoute(parseRoute(window.location.pathname));
+    const update = () => {
+      applyRedirect();
+      setRoute(parseRoute(window.location.pathname));
+    };
     window.addEventListener('popstate', update);
     return () => window.removeEventListener('popstate', update);
   }, []);

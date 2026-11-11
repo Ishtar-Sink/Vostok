@@ -1,0 +1,16 @@
+.root { position: relative; display: inline-flex; min-width: 0; }
+.trigger { display: inline-flex; align-items: center; gap: calc(var(--space) * 2); width: 100%; min-height: calc(var(--space) * 10); padding: calc(var(--space) * 2) calc(var(--space) * 3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-sm); color: var(--text); font: inherit; font-size: var(--font-size-md); cursor: pointer; }
+.trigger:hover { background: var(--surface-hover); }
+.trigger:focus-visible, .shortcut:focus-visible, .checkbox:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.label { color: var(--text-muted); }
+.summary { font-weight: 600; white-space: nowrap; }
+.chevron { display: inline-flex; margin-left: auto; padding-left: var(--space); color: var(--text-muted); transition: transform var(--motion-fast) var(--motion-ease-standard); }
+.chevron[data-open='true'] { transform: rotate(180deg); }
+.menu { position: absolute; top: calc(100% + var(--space)); left: 0; z-index: 20; box-sizing: border-box; min-width: 100%; width: max-content; max-width: calc(100vw - 32px); max-height: calc(var(--space) * 90); overflow-y: auto; padding: var(--space); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
+.shortcuts { display: flex; gap: var(--space); padding: var(--space) var(--space) calc(var(--space) * 2); border-bottom: 1px solid var(--border); margin-bottom: var(--space); }
+.shortcut { padding: var(--space) calc(var(--space) * 3); border: 0; border-radius: var(--radius-sm); background: var(--surface-muted); color: var(--text); font: inherit; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; }
+.shortcut:hover { background: var(--surface-hover); }
+.options { list-style: none; margin: 0; padding: 0; }
+.option { display: flex; align-items: center; gap: calc(var(--space) * 2); min-height: calc(var(--space) * 9); padding: 0 calc(var(--space) * 3); border-radius: var(--radius-sm); color: var(--text); font-size: var(--font-size-md); cursor: pointer; }
+.option:hover { background: var(--surface-hover); }
+.checkbox { width: calc(var(--space) * 4); height: calc(var(--space) * 4); margin: 0; accent-color: var(--primary); cursor: pointer; }

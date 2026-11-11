@@ -6,7 +6,7 @@ interface Crumb {
   href?: string;
 }
 
-const VIEW_LABELS = { documento: 'Documento', quadro: 'Quadro', plano: 'Plano' };
+const VIEW_LABELS = { documento: 'Documento', plano: 'Plano' };
 
 function crumbs(route: Route): Crumb[] {
   switch (route.page) {
@@ -19,7 +19,7 @@ function crumbs(route: Route): Crumb[] {
     case 'tasks':
       return [{ label: 'Tarefas' }];
     case 'task':
-      return [{ label: 'Tarefas', href: '/tarefas' }, { label: route.spec, href: `/specs/${route.spec}/quadro` }, { label: route.task }];
+      return [{ label: 'Tarefas', href: '/tarefas' }, { label: route.spec, href: `/tarefas?spec=${route.spec}` }, { label: route.task }];
     case 'documents':
       return [{ label: 'Documentos' }];
     default:

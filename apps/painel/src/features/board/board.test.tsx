@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/preact';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Board } from './board';
-import { statusLabel } from '../../shared/status';
+import { BOARD_SECTIONS, statusLabel } from '../../shared/status';
 import { TasksPage } from './tasks-page';
 
 const task = (id: string, status: string, over: object = {}) => ({ id, title: `Título ${id}`, status, wave: '1', profile: 'padrao', persona: 'dev', model: '', depends_on: '', covers: '', type: 'tarefa', description: '', last_outcome: null, ...over });
@@ -17,7 +17,11 @@ beforeAll(() => {
   HTMLDialogElement.prototype.close = function close() { this.removeAttribute('open'); };
   globalThis.IntersectionObserver = class { observe() {} disconnect() {} unobserve() {} takeRecords() { return []; } } as never;
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); history.replaceState(null, '', '/'); });
+beforeEach(() => {
+  localStorage.setItem('vostok.quadro.raias', JSON.stringify(BOARD_SECTIONS.map((section) => section.id)));
+  localStorage.setItem('vostok.quadro.sentido', 'fluxo');
+});
 
 describe('Board', () => {
   it('mostra a cor de status nas colunas do fluxo', () => {
@@ -76,6 +80,53 @@ describe('TasksPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /SPEC-001/ }));
     expect(screen.queryByText('Título TASK-07')).toBeNull();
     expect(screen.getByText('Título TASK-01')).toBeTruthy();
+  });
+
+  it('lê a spec do endereço e mostra no título', async () => {
+    history.replaceState(null, '', '/tarefas?spec=SPEC-002');
+    mockFetch(() => json(overview));
+    render(<TasksPage version={0} />);
+    expect(await screen.findByText('Título TASK-07')).toBeTruthy();
+    expect(screen.queryByText('Título TASK-01')).toBeNull();
+    expect(screen.getByRole('button', { name: /SPEC-002/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('SPEC-002');
+  });
+
+  it('grava a spec escolhida no endereço sem criar entrada no histórico', async () => {
+    mockFetch(() => json(overview));
+    render(<TasksPage version={0} />);
+    await screen.findByText('Título TASK-07');
+    const before = history.length;
+    fireEvent.click(screen.getByRole('button', { name: /SPEC-001/ }));
+    expect(location.search).toBe('?spec=SPEC-001');
+    expect(history.length).toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: /^Todas/ }));
+    expect(location.search).toBe('');
+  });
+
+  it('avisa quando a spec do endereço não existe', async () => {
+    history.replaceState(null, '', '/tarefas?spec=SPEC-999');
+    mockFetch(() => json(overview));
+    render(<TasksPage version={0} />);
+    expect(await screen.findByText('Spec não encontrada')).toBeTruthy();
+    expect(screen.getByText(/SPEC-999/, { selector: 'p' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver todas as specs' }));
+    expect(location.search).toBe('');
+    expect(await screen.findByText('Título TASK-01')).toBeTruthy();
+    expect(screen.getByText('Título TASK-07')).toBeTruthy();
+  });
+
+  it('conta na faixa só o que o filtro de spec deixa, agrupado por onda', async () => {
+    history.replaceState(null, '', '/tarefas?spec=SPEC-001');
+    localStorage.setItem('vostok.quadro.agrupamento', 'onda');
+    const waved = { ...overview, specs: [
+      { ...overview.specs[0], tasks: [task('TASK-01', 'pending', { wave: '1' }), task('TASK-02', 'pending', { wave: '1' })] },
+      { ...overview.specs[1], tasks: [task('TASK-07', 'pending', { wave: '2' })] },
+    ] };
+    mockFetch(() => json(waved));
+    render(<TasksPage version={0} />);
+    const strip = await screen.findByRole('navigation', { name: 'Contagem do quadro' });
+    expect(within(strip).getAllByRole('button').map((button) => button.textContent)).toEqual(['Onda 12']);
   });
 
   it('shows the error state', async () => {
@@ -266,7 +317,7 @@ describe('TasksPage com seletores', () => {
   ] };
   const pick = (name: string, value: string) => fireEvent.change(screen.getByRole('combobox', { name }), { target: { value } });
   const value = (name: string) => (screen.getByRole('combobox', { name }) as HTMLSelectElement).value;
-  const open = async () => { mockFetch(() => json(overview)); render(<TasksPage version={0} />); await screen.findByText('Título TASK-07'); };
+  const open = async () => { mockFetch(() => json(overview)); render(<TasksPage version={0} />); await screen.findByRole('combobox', { name: 'Agrupar por' }); };
 
   it('soma os filtros de spec, onda e persona', async () => {
     await open();
@@ -369,5 +420,118 @@ describe('Prontas para finalizar', () => {
   it('mostra a onda só com tarefas executed como em execução', () => {
     render(<Board tasks={[t('TASK-01', 'executed'), t('TASK-02', 'approved')]} />);
     expect(within(screen.getByRole('group', { name: 'Onda 1' })).getByText('em execução')).toBeTruthy();
+  });
+});
+
+describe('Filtro de status, ordem e faixa', () => {
+  beforeEach(() => localStorage.clear());
+  const t = (id: string, status: string, over: object = {}) => ({ ...task(id, status, over), spec: 'SPEC-001' });
+  const every = [t('TASK-01', 'pending'), t('TASK-02', 'approved'), t('TASK-03', 'in_progress'), t('TASK-04', 'in_progress'), t('TASK-05', 'executed'), t('TASK-06', 'validating'), t('TASK-07', 'blocked'), t('TASK-08', 'done')];
+  const columns = (container: Element) => Array.from(container.querySelectorAll('section[data-column]')).map((column) => column.getAttribute('data-column'));
+  const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /^Etapas:/ }));
+  const menu = () => within(screen.getByRole('group', { name: 'Etapas' }));
+  const checked = (name: string) => (menu().getByRole('checkbox', { name }) as HTMLInputElement).checked;
+
+  it('abre só com as raias ativas', () => {
+    const { container } = render(<Board tasks={every} />);
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    const trigger = screen.getByRole('button', { name: 'Etapas: Ativas' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(trigger);
+    for (const name of ['Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas']) expect(checked(name)).toBe(true);
+    for (const name of ['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Concluídas']) expect(checked(name)).toBe(false);
+  });
+
+  it('esconde a raia desmarcada e lembra a seleção ao recarregar', () => {
+    render(<Board tasks={every} />);
+    openMenu();
+    fireEvent.click(menu().getByRole('checkbox', { name: 'Bloqueadas' }));
+    expect(screen.queryByRole('region', { name: 'Bloqueadas' })).toBeNull();
+    expect(localStorage.getItem('vostok.quadro.raias')).toBe(JSON.stringify(['running', 'executed', 'validating']));
+    expect(screen.getByRole('button', { name: 'Etapas: 3 de 8' })).toBeTruthy();
+    cleanup();
+    render(<Board tasks={every} />);
+    expect(screen.queryByRole('region', { name: 'Bloqueadas' })).toBeNull();
+  });
+
+  it('mostra o quadro vazio com o atalho para as ativas sem nenhuma raia', () => {
+    localStorage.setItem('vostok.quadro.raias', '[]');
+    const { container } = render(<Board tasks={every} />);
+    expect(screen.getByRole('button', { name: 'Etapas: Nenhuma' })).toBeTruthy();
+    expect(screen.getByText('Nenhuma raia selecionada')).toBeTruthy();
+    expect(container.querySelector('section[data-column]')).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Contagem do quadro' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar às raias ativas' }));
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+  });
+
+  it('troca a seleção pelos atalhos Ativas e Todas', () => {
+    const { container } = render(<Board tasks={every} />);
+    openMenu();
+    fireEvent.click(menu().getByRole('button', { name: 'Todas' }));
+    expect(columns(container)).toHaveLength(8);
+    expect(screen.getByRole('button', { name: 'Etapas: Todas' })).toBeTruthy();
+    fireEvent.click(menu().getByRole('button', { name: 'Ativas' }));
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    expect(screen.getByRole('button', { name: 'Etapas: Ativas' })).toBeTruthy();
+  });
+
+  it('abre com as raias ativas quando o localStorage falha ou guarda valor inválido', () => {
+    localStorage.setItem('vostok.quadro.raias', 'x');
+    const first = render(<Board tasks={every} />);
+    expect(columns(first.container)).toHaveLength(4);
+    cleanup();
+    const blocked = () => { throw new Error('bloqueado'); };
+    vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked, clear: () => undefined });
+    const second = render(<Board tasks={every} />);
+    expect(columns(second.container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    openMenu();
+    expect(() => fireEvent.click(menu().getByRole('checkbox', { name: 'Aprovadas' }))).not.toThrow();
+  });
+
+  it('mostra as raias da última etapa para a primeira por padrão', () => {
+    localStorage.setItem('vostok.quadro.raias', JSON.stringify(BOARD_SECTIONS.map((section) => section.id)));
+    const { container } = render(<Board tasks={every} />);
+    expect(Array.from(container.querySelectorAll('section[data-column] h3')).map((heading) => heading.textContent)).toEqual(['Concluídas', 'Bloqueadas', 'Em validação', 'Prontas para finalizar', 'Em execução', 'Prontas para execução', 'Aprovadas', 'Para aprovar']);
+  });
+
+  it('volta à ordem do fluxo pelo controle e lembra a escolha', () => {
+    render(<Board tasks={every} />);
+    const toggle = screen.getByRole('button', { name: 'Ordem do fluxo' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(localStorage.getItem('vostok.quadro.sentido')).toBe('fluxo');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(localStorage.getItem('vostok.quadro.sentido')).toBe('invertido');
+  });
+
+  it('mostra a contagem de cada raia visível na faixa', () => {
+    render(<Board tasks={every} />);
+    const strip = screen.getByRole('navigation', { name: 'Contagem do quadro' });
+    expect(within(strip).getAllByRole('button').map((button) => button.textContent)).toEqual(['Bloqueadas1', 'Em validação1', 'Prontas para finalizar1', 'Em execução2']);
+  });
+
+  it('rola até a raia ao clicar na contagem', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const { container } = render(<Board tasks={every} />);
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Contagem do quadro' })).getByRole('button', { name: 'Em execução2' }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+    expect(scrollIntoView.mock.contexts[0]).toBe(container.querySelector('section[data-column="running"]'));
+  });
+
+  it('conta e rola por grupo no agrupamento por onda', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const waved = [t('TASK-01', 'pending', { wave: '1' }), t('TASK-02', 'pending', { wave: '1' }), t('TASK-03', 'pending', { wave: '2' })];
+    const { container } = render(<Board tasks={waved} group="onda" />);
+    const strip = within(screen.getByRole('navigation', { name: 'Contagem do quadro' }));
+    expect(strip.getAllByRole('button').map((button) => button.textContent)).toEqual(['Onda 12', 'Onda 21']);
+    fireEvent.click(strip.getByRole('button', { name: 'Onda 21' }));
+    expect(scrollIntoView.mock.contexts[0]).toBe(container.querySelector('section[data-group="2"]'));
+    expect(screen.queryByRole('button', { name: /^Etapas:/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ordem do fluxo' })).toBeNull();
   });
 });

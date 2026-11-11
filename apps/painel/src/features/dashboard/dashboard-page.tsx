@@ -85,7 +85,7 @@ export function DashboardPage({ version, name }: { version: number; name: string
                         })}
                       </ol>
                     ) : null}
-                    <a href={`/specs/${spec.meta.id}/quadro`} onClick={onLinkClick} className={page.link}>Abrir o quadro</a>
+                    <a href={`/tarefas?spec=${spec.meta.id}`} onClick={onLinkClick} className={page.link}>Abrir o quadro</a>
                   </article>
                 );
               })}
@@ -121,7 +121,7 @@ function RemainingList({ specs, remaining }: { specs: Overview['specs']; remaini
         .map((spec) => (
           <div key={spec.meta.id} className={page.stack}>
             <h3 className={styles.remainingSpec}>
-              <a href={`/specs/${spec.meta.id}/quadro`} onClick={onLinkClick}>{spec.meta.id} · {spec.meta.title}</a>
+              <a href={`/tarefas?spec=${spec.meta.id}`} onClick={onLinkClick}>{spec.meta.id} · {spec.meta.title}</a>
             </h3>
             <ul className={styles.remainingList}>
               {remaining

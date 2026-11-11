@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useSearchParam } from '../../shared/router';
+import { Button } from '../../ui/button/button';
 import { useResource, type Overview } from '../../shared/api';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
@@ -36,18 +38,25 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className={styles.control}>
       {label}
-      <select value={value} onChange={(event) => onChange((event.target as HTMLSelectElement).value)}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
+      <span className={styles.selectWrap}>
+        <select value={value} onChange={(event) => onChange((event.target as HTMLSelectElement).value)}>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <svg className={styles.chevron} viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
     </label>
   );
 }
 
 export function TasksPage({ version }: { version: number }) {
   const overview = useResource<Overview>('/api/visao', version);
-  const [spec, setSpec] = useState('todas');
+  const [specParam, setSpecParam] = useSearchParam('spec');
+  const spec = specParam ?? 'todas';
+  const setSpec = (value: string) => setSpecParam(value === 'todas' ? null : value);
   const [agrupamento, setAgrupamento] = useState(() => readChoice('agrupamento', GROUPS.map((item) => item.value), 'etapa'));
   const [ordem, setOrdem] = useState(() => readChoice('ordem', ORDERS.map((item) => item.value), 'numero'));
   const [onda, setOnda] = useState(() => readChoice('onda', null, 'todas'));
@@ -57,6 +66,7 @@ export function TasksPage({ version }: { version: number }) {
   if (overview.kind === 'error') return <ErrorState title="Não foi possível ler o harness" description={overview.message} retryLabel="Tentar de novo" onRetry={overview.retry} />;
 
   const specs = overview.data.specs.filter((item) => item.tasks.length > 0);
+  const chosenSpec = specs.find((item) => item.meta.id === spec);
   const everyTask = specs.flatMap((item) => item.tasks);
   const waves = withSelected([...new Set(everyTask.map((task) => task.wave).filter(Boolean))].sort((a, b) => Number(a) - Number(b)), onda);
   const personas = withSelected([...new Set(everyTask.map((task) => task.persona).filter(Boolean))].sort(), persona);
@@ -65,19 +75,40 @@ export function TasksPage({ version }: { version: number }) {
     .flatMap((item) => item.tasks.map((task) => ({ ...task, spec: item.meta.id })))
     .filter((task) => (onda === 'todas' || task.wave === onda) && (persona === 'todas' || task.persona === persona));
 
+  const specFilters = (
+    <div className={styles.filters} role="group" aria-label="Filtrar por spec">
+      <button type="button" aria-pressed={spec === 'todas'} onClick={() => setSpec('todas')}>
+        Todas <span>{specs.reduce((sum, item) => sum + item.tasks.length, 0)}</span>
+      </button>
+      {specs.map((item) => (
+        <button key={item.meta.id} type="button" aria-pressed={spec === item.meta.id} onClick={() => setSpec(item.meta.id)} title={item.meta.title}>
+          {item.meta.id} <span>{item.tasks.length}</span>
+        </button>
+      ))}
+    </div>
+  );
+  const header = (
+    <PageHeader
+      eyebrow="Tarefas"
+      title={spec === 'todas' ? 'Quadro de tarefas' : `Quadro de tarefas · ${spec}`}
+      subtitle={chosenSpec ? chosenSpec.meta.title : 'Todas as tarefas das specs abertas, pela etapa em que estão.'}
+    />
+  );
+
+  if (spec !== 'todas' && !chosenSpec) {
+    return (
+      <>
+        {header}
+        {specFilters}
+        <EmptyState title="Spec não encontrada" description={`A ${spec} não está entre as specs abertas com tarefas.`} action={<Button variant="secondary" onClick={() => setSpec('todas')}>Ver todas as specs</Button>} />
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader eyebrow="Tarefas" title="Quadro de tarefas" subtitle="Todas as tarefas das specs abertas, pela etapa em que estão." />
-      <div className={styles.filters} role="group" aria-label="Filtrar por spec">
-        <button type="button" aria-pressed={spec === 'todas'} onClick={() => setSpec('todas')}>
-          Todas <span>{specs.reduce((sum, item) => sum + item.tasks.length, 0)}</span>
-        </button>
-        {specs.map((item) => (
-          <button key={item.meta.id} type="button" aria-pressed={spec === item.meta.id} onClick={() => setSpec(item.meta.id)} title={item.meta.title}>
-            {item.meta.id} <span>{item.tasks.length}</span>
-          </button>
-        ))}
-      </div>
+      {header}
+      {specFilters}
       <div className={styles.controls} role="group" aria-label="Organizar o quadro">
         <Select label="Agrupar por" value={agrupamento} options={GROUPS} onChange={choose('agrupamento', setAgrupamento)} />
         <Select label="Ordenar por" value={ordem} options={ORDERS} onChange={choose('ordem', setOrdem)} />

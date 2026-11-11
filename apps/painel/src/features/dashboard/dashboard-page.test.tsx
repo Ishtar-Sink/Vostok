@@ -87,6 +87,14 @@ describe('DashboardPage', () => {
     expect(within(third).getByText('onda 2')).toBeTruthy();
   });
 
+  it('leva o quadro de cada spec ao menu Tarefas filtrado', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview()))));
+    render(<DashboardPage version={0} name="" />);
+    expect((await screen.findByRole('link', { name: 'Abrir o quadro' })).getAttribute('href')).toBe('/tarefas?spec=SPEC-001');
+    const section = screen.getByRole('region', { name: 'Tarefas que faltam' });
+    expect(within(section).getByRole('link', { name: /SPEC-001 · Spec em andamento/ }).getAttribute('href')).toBe('/tarefas?spec=SPEC-001');
+  });
+
   it('não mostra tarefa concluída em Tarefas que faltam', async () => {
     const specs = [{ meta, plan: false, plan_outdated: false, tasks: [task('TASK-01', 'done', '1'), task('TASK-02', 'in_progress', '1')] }];
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ specs })))));

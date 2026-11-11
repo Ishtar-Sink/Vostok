@@ -27,9 +27,10 @@ const SECRET_EXTENSIONS: [&str; 4] = ["pem", "key", "p12", "crt"];
 const RELEVANT_NAMES: [&str; 3] = ["primary", "brand", "accent"];
 const BRAND_KEYS: [&str; 4] = ["name", "icon", "primary", "secondary"];
 const BRAND_BLOCK: &str = "\n# Identidade do repositório, gravada pelo `vostok documents brand`. Vazio usa a do harness.\nbrand:\n  name: \"\"\n  icon: \"\"        # caminho relativo à raiz do projeto: .svg, .png ou .webp, até 256 KB\n  primary: \"\"\n  secondary: \"\"\n";
-const NEUTRALS: [&str; 10] = [
+const NEUTRALS: [&str; 11] = [
     "bg",
     "bg_elevated",
+    "surface",
     "surface_muted",
     "surface_hover",
     "border",
@@ -39,7 +40,7 @@ const NEUTRALS: [&str; 10] = [
     "text_faint",
     "code_bg",
 ];
-const DERIVED_ORDER: [&str; 22] = [
+const DERIVED_ORDER: [&str; 23] = [
     "primary",
     "primary_hover",
     "primary_soft",
@@ -52,6 +53,7 @@ const DERIVED_ORDER: [&str; 22] = [
     "calm_to",
     "bg",
     "bg_elevated",
+    "surface",
     "surface_muted",
     "surface_hover",
     "border",
@@ -287,7 +289,7 @@ impl Theme<'_> {
             Ok(to_rgb(tinted))
         };
         let bg = neutral("bg")?;
-        let surface = self.default_color("surface")?;
+        let surface = neutral("surface")?;
         let backgrounds = [bg, surface];
 
         let mut checked = |token: &'static str, start: Hsl, informed: Rgb| {
@@ -375,15 +377,10 @@ impl Theme<'_> {
             };
             tokens.push((token, to_hex(value)));
         }
-        let shadow_rgb = to_rgb(p.with_lightness(20.0));
+        let shadow_lightness = if self.light { 20.0 } else { 70.0 };
+        let shadow_rgb = to_rgb(p.with_lightness(shadow_lightness));
         for token in ["shadow_sm", "shadow_md"] {
-            let default = self.default_of(token)?;
-            let value = if self.light {
-                recolor_shadow(default, shadow_rgb)
-            } else {
-                default.to_string()
-            };
-            tokens.push((token, value));
+            tokens.push((token, recolor_shadow(self.default_of(token)?, shadow_rgb)));
         }
         Ok(Derived { tokens, warnings })
     }

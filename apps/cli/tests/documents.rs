@@ -175,6 +175,37 @@ fn brand_reset_restores_the_default_tokens() {
 }
 
 #[test]
+fn brand_dark_surface_and_shadow_follow_the_primary() {
+    let project = Project::new();
+    run_brand(
+        &project,
+        &["--primary", "#3B8175", "--secondary", "#255952"],
+    );
+    let dark = read_group(&project, "dark");
+    assert_ne!(dark["surface"], embedded_group("dark")["surface"]);
+    assert!(!dark["shadow_md"].contains("rgba(167, 139, 250"));
+    assert_eq!(read_group(&project, "light")["surface"], "#ffffff");
+    for foreground in ["text", "text_muted", "primary", "accent"] {
+        let ratio = contrast(&dark[foreground], &dark["surface"]);
+        assert!(ratio >= MIN_CONTRAST, "{foreground} = {ratio:.2}");
+    }
+}
+
+#[test]
+fn brand_dark_reset_restores_surface_and_shadow() {
+    let project = Project::new();
+    run_brand(
+        &project,
+        &["--primary", "#3B8175", "--secondary", "#255952"],
+    );
+    run_brand(&project, &["--reset"]);
+    let (dark, embedded) = (read_group(&project, "dark"), embedded_group("dark"));
+    for token in ["surface", "shadow_sm", "shadow_md"] {
+        assert_eq!(dark[token], embedded[token], "{token}");
+    }
+}
+
+#[test]
 fn brand_prints_each_token_before_and_after() {
     let project = Project::new();
     let before = read_group(&project, "light");

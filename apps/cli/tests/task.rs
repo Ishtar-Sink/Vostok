@@ -2965,6 +2965,16 @@ fn append_review(project: &Project, name: &str) {
     );
 }
 
+/// Log de evidência sem as linhas de data e commit do cabeçalho, como a conferência o compara.
+fn without_date_and_commit(log: &str) -> String {
+    let (header, body) = log.split_once("\n\n").unwrap();
+    let header: Vec<&str> = header
+        .lines()
+        .filter(|line| !line.starts_with("# data: ") && !line.starts_with("# commit: "))
+        .collect();
+    format!("{}\n\n{body}", header.join("\n"))
+}
+
 fn evidence_file(project: &Project, name: &str) -> String {
     read(project, &format!("{EVIDENCE_DIR}/{name}"))
 }
@@ -2981,10 +2991,10 @@ fn review_kept_print_is_not_generated_again() {
     assert!(stdout.contains("Resultado: passed."), "{stdout}");
     assert_eq!(evidence_file(&project, "tela.png"), kept);
     assert!(
-        stdout.contains("Conferidas mantidas sem gerar de novo: tela.png"),
+        stdout.contains("Conferências mantidas (hash igual): EV-01 tela.png"),
         "{stdout}"
     );
-    assert!(read(&project, TASK_PATH).contains("conferida(s) mantida(s): tela.png"));
+    assert!(read(&project, TASK_PATH).contains("conferida(s) mantida(s): EV-01 tela.png"));
 }
 
 #[test]
@@ -2999,7 +3009,7 @@ fn review_kept_automatic_with_the_new_line() {
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert_eq!(evidence_file(&project, "saida.txt"), kept);
     assert!(
-        stdout.contains("Conferidas mantidas sem gerar de novo: saida.txt"),
+        stdout.contains("Conferências mantidas (hash igual): EV-01 saida.txt"),
         "{stdout}"
     );
 }
@@ -3021,7 +3031,7 @@ fn review_kept_verify_output_survives_new_tests() {
 
 #[test]
 fn review_kept_dropped_by_an_adjustment() {
-    let project = print_task(SHOT);
+    let project = print_task(VARIABLE_SHOT);
     task(&project, &["evidence"]).assert().success();
     task(&project, &["evidence", "--reviewed", "tela.png"])
         .assert()
@@ -3192,7 +3202,7 @@ fn review_kinds_one_of_two_reviewed_is_pending() {
     let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
     with_review_kinds(&project, "");
     task(&project, &["evidence"]).assert().success();
-    append_review(&project, "um.txt");
+    reviewed(&project, "EV-01").assert().success();
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert!(stdout.contains("dois.txt"), "{stdout}");
     assert!(
@@ -3202,7 +3212,7 @@ fn review_kinds_one_of_two_reviewed_is_pending() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("Conferidas mantidas sem gerar de novo: um.txt"),
+        stdout.contains("Conferências mantidas (hash igual): EV-01 um.txt"),
         "{stdout}"
     );
     assert!(read(&project, TASK_PATH).contains("evidence_result: pending"));
@@ -3272,7 +3282,7 @@ fn review_user_reviewed_automatic_records_the_hash() {
     let content = read(&project, TASK_PATH);
     let line = format!(
         "| conferência | usuário | EV-01 saida.txt conferida pelo usuário (sha256 {}) |",
-        short_hash(kept.as_bytes())
+        short_hash(without_date_and_commit(&kept).as_bytes())
     );
     assert!(content.contains(&line), "{content}");
     assert!(content.contains("evidence_result: passed"), "{content}");
@@ -3318,10 +3328,10 @@ fn review_user_reviewed_with_a_failing_evidence_records_the_review() {
 }
 
 #[test]
-fn review_user_rejected_blocks_with_the_reason() {
+fn review_user_rejected_returns_to_in_progress_with_the_reason() {
     let project = reviewed_kinds_task("echo ok");
     task(&project, &["evidence"]).assert().success();
-    let stderr = failure_stderr(&mut task(
+    let stdout = success_stdout(&mut task(
         &project,
         &[
             "evidence",
@@ -3331,13 +3341,13 @@ fn review_user_rejected_blocks_with_the_reason() {
             "falta o total",
         ],
     ));
-    assert!(stderr.contains("saida.txt"), "{stderr}");
-    assert!(stderr.contains("falta o total"), "{stderr}");
-    assert_eq!(status(&project), "blocked");
+    assert!(stdout.contains("saida.txt"), "{stdout}");
+    assert!(stdout.contains("falta o total"), "{stdout}");
+    assert_eq!(status(&project), "in_progress");
     let content = read(&project, TASK_PATH);
     assert!(
         content
-            .contains("| rejeição | blocked | EV-01 saida.txt rejeitada pelo usuário (sha256 "),
+            .contains("| rejeição | in_progress | EV-01 saida.txt rejeitada pelo usuário (sha256 "),
         "{content}"
     );
     assert!(content.contains("): falta o total |"), "{content}");
@@ -3432,7 +3442,7 @@ fn review_user_rejection_after_review_wins() {
 }
 
 #[test]
-fn review_user_resume_after_rejection_asks_again() {
+fn review_user_rejection_does_not_block() {
     let project = reviewed_kinds_task("echo ok");
     task(&project, &["evidence"]).assert().success();
     task(
@@ -3446,10 +3456,10 @@ fn review_user_resume_after_rejection_asks_again() {
         ],
     )
     .assert()
-    .failure();
+    .success();
     task(&project, &["resume", "refazer a saída"])
         .assert()
-        .success();
+        .failure();
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert!(
         stdout.contains("Evidências sem conferência humana"),
@@ -5551,8 +5561,9 @@ fn antecipada_records_the_register_line() {
     success_stdout(&mut ahead(&project));
     let record = read(&project, TASK_PATH);
     assert!(
-        record
-            .contains("| evidências antecipadas | geradas | 1 evidências; a conferir: EV-01 saida.txt |"),
+        record.contains(
+            "| evidências antecipadas | geradas | 1 evidências; a conferir: EV-01 saida.txt |"
+        ),
         "{record}"
     );
 }
@@ -5707,7 +5718,7 @@ fn review_only_rejected_keeps_every_file() {
     success_stdout(&mut ahead(&project));
     let log = evidence_file(&project, "saida.txt");
     let screen = evidence_file(&project, "tela.png");
-    failure_stderr(&mut task(
+    success_stdout(&mut task(
         &project,
         &["evidence", "--rejected", "tela.png", "--motivo", "texto"],
     ));
@@ -5729,7 +5740,7 @@ fn review_only_generation_only_by_evidence_and_antecipada() {
     assert_eq!(counter_lines(&project), start + 2);
     reviewed(&project, "saida.txt").assert().success();
     assert_eq!(counter_lines(&project), start + 2);
-    failure_stderr(&mut task(
+    success_stdout(&mut task(
         &project,
         &["evidence", "--rejected", "saida.txt", "--motivo", "texto"],
     ));
@@ -5848,7 +5859,7 @@ fn executed_finalization_reaches_done() {
     let evidence = format!(
         "{}\n{}",
         automatic("saida.txt", "echo ola", None),
-        print_item("tela.png", &variable_shot("tela.png"))
+        print_item("tela.png", SHOT)
     );
     let project = executed_task(&evidence);
     reviewed(&project, "tela.png").assert().success();
@@ -5865,11 +5876,11 @@ fn executed_finalization_reaches_done() {
 #[test]
 fn executed_rejected_returns_to_in_progress() {
     let project = executed_task(&print_item("tela.png", &variable_shot("tela.png")));
-    let stderr = failure_stderr(&mut task(
+    let stdout = success_stdout(&mut task(
         &project,
         &["evidence", "--rejected", "tela.png", "--motivo", "x"],
     ));
-    assert!(stderr.contains("tela.png"), "{stderr}");
+    assert!(stdout.contains("tela.png"), "{stdout}");
     assert_eq!(status(&project), "in_progress");
     let content = read(&project, TASK_PATH);
     assert!(
@@ -6187,4 +6198,290 @@ fn evidence_id_follows_the_new_order_and_keeps_the_review() {
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     assert!(stdout.contains("- EV-02 a.txt ("), "{stdout}");
     assert!(!stdout.contains("- EV-01 b.txt ("), "{stdout}");
+}
+
+// --- Conferência por hash e recusa sem bloqueio (SPEC-049) ---
+
+const KEPT_LINE: &str = "Conferências mantidas (hash igual): ";
+
+/// Tarefa pronta para finalizar com dois prints: `tela.png` de saída fixa e `outra.png` com o
+/// conteúdo de `cor.txt`.
+fn two_prints() -> Project {
+    let evidence = format!(
+        "{}\n{}",
+        print_item("tela.png", "printf A > \"$VOSTOK_EVIDENCE/tela.png\""),
+        print_item(
+            "outra.png",
+            "printf \"$(cat cor.txt)\" > \"$VOSTOK_EVIDENCE/outra.png\""
+        )
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    write(&project, "cor.txt", "azul");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(status(&project), "executed");
+    project
+}
+
+fn rejected(project: &Project, id: &str, reason: &str) -> String {
+    success_stdout(&mut task(
+        project,
+        &["evidence", "--rejected", id, "--motivo", reason],
+    ))
+}
+
+/// `two_prints` com as duas evidências recusadas.
+fn two_rejections() -> Project {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    rejected(&project, "EV-02", "cor errada");
+    project
+}
+
+#[test]
+fn review_hash_ignores_the_date_and_commit_header() {
+    let project = reviewed_kinds_task("echo novo");
+    task(&project, &["evidence"]).assert().success();
+    reviewed(&project, "EV-01").assert().success();
+    let reviewed_log = evidence_file(&project, "saida.txt");
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert_ne!(evidence_file(&project, "saida.txt"), reviewed_log);
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 saida.txt")),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_hash_log_with_another_time_kept_after_an_adjustment() {
+    let project = reviewed_kinds_task("echo valor; echo \"finished in $(date +%s%N)s\"");
+    task(&project, &["evidence"]).assert().success();
+    reviewed(&project, "EV-01").assert().success();
+    let reviewed_log = evidence_file(&project, "saida.txt");
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert_ne!(
+        log_body(&evidence_file(&project, "saida.txt")),
+        log_body(&reviewed_log)
+    );
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 saida.txt")),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_hash_reviewed_print_waits_for_a_change_to_generate_again() {
+    let evidence = format!(
+        "{}\n{}",
+        print_item(
+            "tela.png",
+            "echo x >> contador.txt; printf A > \"$VOSTOK_EVIDENCE/tela.png\""
+        ),
+        print_item("outra.png", "printf B > \"$VOSTOK_EVIDENCE/outra.png\"")
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    success_stdout(&mut ahead(&project));
+    reviewed(&project, "EV-01").assert().success();
+    let start = counter_lines(&project);
+    let stdout = success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), start);
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 tela.png")),
+        "{stdout}"
+    );
+    rejected(&project, "EV-02", "texto");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), start);
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    let stdout = success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), start + 1);
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 tela.png")),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("- EV-01 tela.png ("), "{stdout}");
+}
+
+#[test]
+fn review_hash_rejection_generates_again_only_the_rejected() {
+    let evidence = [("um.png", "um"), ("dois.png", "dois"), ("tres.png", "tres")]
+        .iter()
+        .map(|(name, counter)| {
+            print_item(
+                name,
+                &format!("echo x >> {counter}.txt; printf \"$(date +%s%N)\" > \"$VOSTOK_EVIDENCE/{name}\""),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    success_stdout(&mut ahead(&project));
+    reviewed(&project, "EV-01").assert().success();
+    reviewed(&project, "EV-02").assert().success();
+    rejected(&project, "EV-03", "cortada");
+    let lines = |name: &str| read(&project, name).lines().count();
+    let stdout = success_stdout(&mut ahead(&project));
+    assert_eq!(
+        (lines("um.txt"), lines("dois.txt"), lines("tres.txt")),
+        (1, 1, 2)
+    );
+    assert!(
+        stdout.contains(&format!(
+            "{KEPT_LINE}EV-01 um.png, EV-02 dois.png; a conferir de novo (mudou): EV-03 tres.png"
+        )),
+        "{stdout}"
+    );
+    assert_eq!(field(&project, "rejected_evidences"), "[]");
+}
+
+#[test]
+fn review_hash_kept_after_an_adjustment() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    reviewed(&project, "EV-01").assert().success();
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 tela.png")),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_hash_kept_after_a_resume() {
+    let project = print_task(SHOT);
+    task(&project, &["evidence"]).assert().success();
+    reviewed(&project, "EV-01").assert().success();
+    write(&project, "a.txt", "dois\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().failure();
+    task(&project, &["resume", "refazer"]).assert().success();
+    task(&project, &["tests"]).assert().success();
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains(&format!("{KEPT_LINE}EV-01 tela.png")),
+        "{stdout}"
+    );
+    assert!(
+        !stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_hash_changed_output_asks_again() {
+    let project = print_task(VARIABLE_SHOT);
+    task(&project, &["evidence"]).assert().success();
+    reviewed(&project, "EV-01").assert().success();
+    append_row(&project, "ajuste", "in_progress", "ajuste de teste");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("a conferir de novo (mudou): EV-01 tela.png"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Evidências sem conferência humana"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn review_hash_legacy_full_hash_line_counts() {
+    let evidence = format!(
+        "{}\n{}",
+        automatic("a.txt", "echo a", None),
+        automatic("b.txt", "echo b", None)
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    with_review_kinds(&project, "");
+    task(&project, &["evidence"]).assert().success();
+    append_review(&project, "a.txt");
+    let stdout = success_stdout(&mut reviewed(&project, "EV-02"));
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(!stdout.contains("EV-01 a.txt ("), "{stdout}");
+}
+
+#[test]
+fn rejection_twice_keeps_the_task_in_progress() {
+    let project = two_prints();
+    let stdout = rejected(&project, "EV-01", "cortada");
+    assert!(stdout.contains("EV-01 tela.png"), "{stdout}");
+    assert!(stdout.contains("cortada"), "{stdout}");
+    let stdout = rejected(&project, "EV-02", "cor errada");
+    assert!(
+        stdout.contains("recusas pendentes: EV-01 tela.png, EV-02 outra.png"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("vostok task evidence SPEC-001 TASK-01 --antecipada"),
+        "{stdout}"
+    );
+    assert_eq!(status(&project), "in_progress");
+    assert_eq!(field(&project, "attempts"), "0");
+    assert_eq!(
+        field(&project, "rejected_evidences"),
+        "[tela.png, outra.png]"
+    );
+    let content = read(&project, TASK_PATH);
+    for line in [
+        "| rejeição | in_progress | EV-01 tela.png rejeitada pelo usuário",
+        "| rejeição | in_progress | EV-02 outra.png rejeitada pelo usuário",
+    ] {
+        assert!(content.contains(line), "{content}");
+    }
+}
+
+#[test]
+fn rejection_from_validating_returns_to_in_progress() {
+    let project = two_prints();
+    set_field(&project, TASK_PATH, "status", "validating");
+    rejected(&project, "EV-01", "x");
+    assert_eq!(status(&project), "in_progress");
+}
+
+#[test]
+fn rejection_of_the_same_evidence_is_not_repeated() {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    rejected(&project, "tela.png", "ainda cortada");
+    assert_eq!(field(&project, "rejected_evidences"), "[tela.png]");
+}
+
+#[test]
+fn rejection_cleared_when_the_output_changes() {
+    let project = two_rejections();
+    write(&project, "cor.txt", "verde");
+    let stdout = success_stdout(&mut ahead(&project));
+    assert_eq!(field(&project, "rejected_evidences"), "[tela.png]");
+    assert!(
+        stdout.contains("a conferir de novo (mudou): EV-02 outra.png"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn rejection_blocks_the_finish_citing_the_evidence() {
+    let project = two_rejections();
+    success_stdout(&mut ahead(&project));
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    for detail in [
+        "recusas: EV-01 tela.png recusada pelo usuário: cortada -> vostok task evidence SPEC-001 TASK-01 --antecipada",
+        "recusas: EV-02 outra.png recusada pelo usuário: cor errada -> vostok task evidence SPEC-001 TASK-01 --antecipada",
+    ] {
+        assert!(stderr.contains(detail), "{stderr}");
+    }
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn rejection_cleared_by_a_review() {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    reviewed(&project, "EV-01").assert().success();
+    assert_eq!(field(&project, "rejected_evidences"), "[]");
 }

@@ -1190,3 +1190,45 @@ fn manifest_rejects_malformed_content() {
         assert!(Manifest::parse(content).is_err(), "{content:?}");
     }
 }
+
+#[test]
+fn ct10_update_adds_required_list_items() {
+    let workspace = installed("claude-code");
+    workspace.replace(
+        "vostok/config/tasks.yml",
+        "evidence_fields:\n  - Título\n",
+        "evidence_fields:\n",
+    );
+    workspace.replace("vostok/config/tasks.yml", "  - Espera\n", "");
+    let skills_before = workspace.read("vostok/config/skills.yml");
+
+    let out = workspace.update();
+
+    assert!(out.contains("evidence_fields: Título"), "{out}");
+    assert!(out.contains("evidence_optional_fields: Espera"), "{out}");
+    let tasks = workspace.read("vostok/config/tasks.yml");
+    let fields = config_list(
+        &workspace.path("vostok/config/tasks.yml"),
+        "evidence_fields",
+    )
+    .unwrap();
+    let optional = config_list(
+        &workspace.path("vostok/config/tasks.yml"),
+        "evidence_optional_fields",
+    )
+    .unwrap();
+    assert!(fields.contains(&"Título".to_string()), "{tasks}");
+    assert!(optional.contains(&"Espera".to_string()), "{tasks}");
+    assert_eq!(workspace.read("vostok/config/skills.yml"), skills_before);
+    assert_eq!(workspace.redirect_dirs(), [".claude/skills"]);
+
+    let again = workspace.update();
+
+    assert!(!again.contains("evidence_fields: Título"), "{again}");
+    assert_eq!(workspace.read("vostok/config/tasks.yml"), tasks);
+    let path = workspace.path("vostok/config/tasks.yml");
+    let fields = config_list(&path, "evidence_fields").unwrap();
+    let optional = config_list(&path, "evidence_optional_fields").unwrap();
+    assert_eq!(fields.iter().filter(|item| *item == "Título").count(), 1);
+    assert_eq!(optional.iter().filter(|item| *item == "Espera").count(), 1);
+}

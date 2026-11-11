@@ -19,6 +19,12 @@ const CONFIG_DIR: &str = "config/";
 /// Itens que o contexto obrigatório precisa ter desde a v0.2.0 (RF-25).
 const REQUIRED_CONTEXT: &[&str] = &["personas/coordenador.md"];
 
+/// Itens de lista (arquivo, chave, item) que o binário exige nas listas já instaladas (RF-08).
+const REQUIRED_LIST_ITEMS: &[(&str, &str, &str)] = &[
+    ("config/tasks.yml", "evidence_fields", "Título"),
+    ("config/tasks.yml", "evidence_optional_fields", "Espera"),
+];
+
 const SKILL_FILE: &str = "SKILL.md";
 
 /// Chaves da comunicação pelo painel que saíram na 0.5.0, por arquivo de configuração (RF-23).
@@ -85,6 +91,7 @@ pub fn run() -> Result<()> {
     update_binary_files(&harness, &previous, &current, &mut changes)?;
     merge_configs(&harness, &mut changes)?;
     ensure_required_context(&harness, &mut changes)?;
+    ensure_required_list_items(&harness, &mut changes)?;
     let routing = routing::generate(&harness)?;
     for path in routing.changed {
         if !changes.routing.contains(&path) {
@@ -154,25 +161,58 @@ fn merge_configs(harness: &Harness, changes: &mut Changes) -> Result<()> {
 /// Garante os itens de `REQUIRED_CONTEXT` na lista `required` de `config/context.yml`, que o
 /// `merge_keys` não completa por já existir a chave (RF-25, CB-06).
 fn ensure_required_context(harness: &Harness, changes: &mut Changes) -> Result<()> {
-    let path = harness.root.join("config/context.yml");
+    let added = ensure_list_items(harness, "config/context.yml", "required", REQUIRED_CONTEXT)?;
+    changes.added_keys.extend(
+        added
+            .into_iter()
+            .map(|item| format!("config/context.yml: required.{item}")),
+    );
+    Ok(())
+}
+
+/// Acrescenta os itens de `REQUIRED_LIST_ITEMS` às listas que o projeto já tem, sem tocar nas
+/// demais listas (RF-08, CB-06).
+fn ensure_required_list_items(harness: &Harness, changes: &mut Changes) -> Result<()> {
+    for (file, key, item) in REQUIRED_LIST_ITEMS {
+        let added = ensure_list_items(harness, file, key, &[item])?;
+        changes.added_keys.extend(
+            added
+                .into_iter()
+                .map(|item| format!("{file}: {key}: {item}")),
+        );
+    }
+    Ok(())
+}
+
+/// Acrescenta no fim da lista `key` do arquivo os itens que faltam e devolve os acrescentados.
+/// Arquivo ou lista ausente não é tratado aqui: o `merge_keys` cria a chave.
+fn ensure_list_items(
+    harness: &Harness,
+    file: &str,
+    key: &str,
+    items: &[&str],
+) -> Result<Vec<String>> {
+    let path = harness.root.join(file);
     let Ok(content) = fs::read_to_string(&path) else {
-        return Ok(());
+        return Ok(Vec::new());
     };
-    let current = config_list(&path, "required").unwrap_or_default();
+    let current = config_list(&path, key).unwrap_or_default();
     let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
+    let header_line = format!("{key}:");
+    let empty_line = format!("{key}: []");
     let mut added = Vec::new();
-    for item in REQUIRED_CONTEXT {
+    for item in items {
         if current.iter().any(|existing| existing == item) {
             continue;
         }
         let Some(header) = lines
             .iter()
-            .position(|line| line.trim_end() == "required:" || line.trim_end() == "required: []")
+            .position(|line| line.trim_end() == header_line || line.trim_end() == empty_line)
         else {
             continue;
         };
-        if lines[header].trim_end() == "required: []" {
-            lines[header] = "required:".to_string();
+        if lines[header].trim_end() == empty_line {
+            lines[header] = header_line.clone();
         }
         let mut insert_at = header + 1;
         for (offset, line) in lines.iter().enumerate().skip(header + 1) {
@@ -184,16 +224,15 @@ fn ensure_required_context(harness: &Harness, changes: &mut Changes) -> Result<(
             }
         }
         lines.insert(insert_at, format!("  - {item}"));
-        added.push(format!("config/context.yml: required.{item}"));
+        added.push(item.to_string());
     }
     if added.is_empty() {
-        return Ok(());
+        return Ok(added);
     }
     let mut merged = lines.join("\n");
     merged.push('\n');
     write(&path, merged.as_bytes())?;
-    changes.added_keys.extend(added);
-    Ok(())
+    Ok(added)
 }
 
 /// Tira os redirecionamentos e a linha do catálogo de cada skill padrão do manifesto anterior que o

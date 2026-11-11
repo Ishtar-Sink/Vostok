@@ -950,12 +950,13 @@ fn base64(bytes: &[u8]) -> String {
 /// Conferência de uma evidência com o ID `EV-NN` pela posição do item em "Evidências".
 fn review_json(index: usize, review: &ReviewState) -> String {
     format!(
-        "{{\"id\":{},\"name\":{},\"kind\":{},\"status\":{},\"reason\":{}}}",
+        "{{\"id\":{},\"name\":{},\"kind\":{},\"status\":{},\"reason\":{},\"reviewed_at\":{}}}",
         json_string(&format!("EV-{:02}", index + 1)),
         json_string(&review.name),
         json_string(&review.kind),
         json_string(review.status),
-        json_string(&review.reason)
+        json_string(&review.reason),
+        json_string(&review.reviewed_at)
     )
 }
 
@@ -1393,8 +1394,10 @@ wave: 1
             kind: "print".into(),
             status: "a conferir",
             reason: String::new(),
+            reviewed_at: String::new(),
         };
         let first = review_json(0, &review);
+        assert!(first.ends_with("\"reason\":\"\",\"reviewed_at\":\"\"}"));
         assert!(first.contains("\"id\":\"EV-01\"") && first.contains("\"name\":\"tela.png\""));
         assert!(review_json(9, &review).contains("\"id\":\"EV-10\""));
     }

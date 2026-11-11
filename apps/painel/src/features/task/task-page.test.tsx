@@ -148,6 +148,44 @@ describe('TaskPage', () => {
     });
   });
 
+  describe('Data e aval da conferência', () => {
+    const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
+    const itemWith = async (review: Record<string, string>) => {
+      mockFetch({ ...taskDetail({}, [entry('saida.txt')]), reviews: [{ name: 'saida.txt', kind: 'automática', ...review }] });
+      render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+      await openEvidence();
+      await screen.findByText('saida.txt');
+      return within(screen.getByText('saida.txt').closest('li') as HTMLElement);
+    };
+
+    it('mostra a data e o aval da conferência', async () => {
+      const item = await itemWith({ status: 'conferida', reason: 'a tela bate', reviewed_at: '2026-11-10' });
+      expect(item.getByText('em 10/11/2026')).toBeTruthy();
+      expect(item.getByText('Aval: a tela bate')).toBeTruthy();
+    });
+
+    it('mostra só a data na conferência sem aval', async () => {
+      const item = await itemWith({ status: 'conferida', reason: '', reviewed_at: '2026-11-10' });
+      expect(item.getByText('em 10/11/2026')).toBeTruthy();
+      expect(item.queryByText(/Aval:/)).toBeNull();
+    });
+
+    it('mostra a data da rejeição com o motivo', async () => {
+      const item = await itemWith({ status: 'rejeitada', reason: 'falta o total', reviewed_at: '2026-11-09' });
+      expect(item.getByText('em 09/11/2026')).toBeTruthy();
+      expect(item.getByText('Motivo: falta o total')).toBeTruthy();
+      expect(item.queryByText(/Aval:/)).toBeNull();
+    });
+
+    it('não mostra data na evidência a conferir nem na resposta sem reviewed_at', async () => {
+      const pending = await itemWith({ status: 'a conferir', reason: '', reviewed_at: '' });
+      expect(pending.queryByText(/^em \d/)).toBeNull();
+      cleanup();
+      const legacy = await itemWith({ status: 'conferida', reason: '' });
+      expect(legacy.queryByText(/^em \d/)).toBeNull();
+    });
+  });
+
   it('não mostra botão de ação em nenhum status', async () => {
     for (const status of ['pending', 'approved', 'in_progress', 'validating', 'blocked', 'done']) {
       mockFetch(taskDetail({ status }));

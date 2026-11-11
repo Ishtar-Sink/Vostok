@@ -86,7 +86,10 @@ export interface EvidenceReview {
   name: string;
   kind: string;
   status: ReviewStatus;
+  /** Palavras do usuário: o motivo da rejeição ou o aval da conferência; vazio sem elas. */
   reason: string;
+  /** Data (AAAA-MM-DD) da linha de conferência ou rejeição válida; vazio a conferir; ausente numa CLI anterior à 0.6.0. */
+  reviewed_at?: string;
 }
 
 export interface TaskDetail {

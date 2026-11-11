@@ -55,6 +55,16 @@
   overflow-wrap: anywhere;
 }
 
+.reviewDate {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .reviewMessage {
   margin: 0;
   color: var(--text-muted);

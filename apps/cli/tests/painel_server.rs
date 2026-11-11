@@ -640,11 +640,39 @@ fn reviews_ct22_returns_the_four_states() {
     assert!(response.status().contains(" 200 "), "{}", response.head);
     let body = String::from_utf8(response.body).unwrap();
     for expected in [
-        r#"{"id":"EV-01","name":"conferida.txt","kind":"automática","status":"conferida","reason":""}"#,
-        r#""status":"rejeitada","reason":"falta o total""#,
+        r#"{"id":"EV-01","name":"conferida.txt","kind":"automática","status":"conferida","reason":"","reviewed_at":"2026-11-09"}"#,
+        r#""status":"rejeitada","reason":"falta o total","reviewed_at":"2026-11-09""#,
         r#""name":"pendente.txt","kind":"automática","status":"a conferir""#,
         r#""name":"tela.png","kind":"print","status":"sem aval""#,
         r#""id":"EV-04","name":"tela.png""#,
+    ] {
+        assert!(body.contains(expected), "faltou {expected} em {body}");
+    }
+}
+
+#[test]
+fn reviews_carry_the_date_and_the_user_words() {
+    let project = review_project();
+    let task = project.path().join("vostok/work/tasks/SPEC-001/TASK-01");
+    let hash = |name: &str| review_hash(&fs::read(task.join("evidencias").join(name)).unwrap());
+    fs::write(
+        task.join("registro.md"),
+        format!(
+            "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-11-10 | conferência | usuário | EV-01 conferida.txt conferida pelo usuário (sha256 {}): \"a tela bate com o layout\" |\n| 2 | 2026-11-10 | conferência | usuário | EV-02 rejeitada.txt conferida pelo usuário (sha256 {}) |\n| 3 | 2026-11-10 | conferência | usuário | EV-03 pendente.txt conferida pelo usuário (sha256 {}) |\n| 4 | 2026-11-11 | conferência retirada | usuário | EV-03 pendente.txt: \"engano\" |\n",
+            hash("conferida.txt"),
+            hash("rejeitada.txt"),
+            hash("pendente.txt")
+        ),
+    )
+    .unwrap();
+    let painel = start(project.path());
+    let response = get_raw(painel.address, "/api/tarefas/SPEC-001/TASK-01", None);
+    assert!(response.status().contains(" 200 "), "{}", response.head);
+    let body = String::from_utf8(response.body).unwrap();
+    for expected in [
+        r#""name":"conferida.txt","kind":"automática","status":"conferida","reason":"a tela bate com o layout","reviewed_at":"2026-11-10""#,
+        r#""name":"rejeitada.txt","kind":"automática","status":"conferida","reason":"","reviewed_at":"2026-11-10""#,
+        r#""name":"pendente.txt","kind":"automática","status":"a conferir","reason":"","reviewed_at":"""#,
     ] {
         assert!(body.contains(expected), "faltou {expected} em {body}");
     }

@@ -6173,6 +6173,8 @@ fn review_content(bytes: &[u8], ignore: &[String]) -> Vec<u8> {
 
 /// Linha do "Registro de execução" com as colunas que a conferência lê.
 struct RecordRow {
+    #[cfg_attr(not(feature = "painel"), allow(dead_code))]
+    date: String,
     step: String,
     detail: String,
 }
@@ -6189,10 +6191,11 @@ fn record_row(line: &str) -> Option<RecordRow> {
         return None;
     }
     let cells = record_cells(line);
-    let [_, _, step, _, detail, ..] = cells.as_slice() else {
+    let [_, date, step, _, detail, ..] = cells.as_slice() else {
         return None;
     };
     Some(RecordRow {
+        date: date.clone(),
         step: step.clone(),
         detail: detail.clone(),
     })
@@ -6285,6 +6288,16 @@ fn rejection_reason(row: &RecordRow) -> &str {
         .map_or("", |(_, reason)| reason)
 }
 
+/// Palavras do usuário numa linha de conferência ou rejeição: o texto depois de `): `, sem as aspas que o envolvem.
+#[cfg_attr(not(feature = "painel"), allow(dead_code))]
+fn review_note(row: &RecordRow) -> String {
+    let note = rejection_reason(row).trim();
+    note.strip_prefix('"')
+        .and_then(|inner| inner.strip_suffix('"'))
+        .unwrap_or(note)
+        .to_string()
+}
+
 #[cfg(feature = "painel")]
 /// Estado de conferência de uma evidência, como o painel o mostra (RF-28).
 pub(crate) struct ReviewState {
@@ -6292,20 +6305,25 @@ pub(crate) struct ReviewState {
     pub kind: String,
     pub status: &'static str,
     pub reason: String,
+    pub reviewed_at: String,
 }
 
 #[cfg(feature = "painel")]
 /// Estado de `name` pela última conferência ou rejeição com o hash dos bytes atuais; sem linha
 /// válida fica `a conferir`.
-fn review_status(rows: &[RecordRow], name: &str, hashes: &ReviewHashes) -> (&'static str, String) {
+fn review_status(
+    rows: &[RecordRow],
+    name: &str,
+    hashes: &ReviewHashes,
+) -> (&'static str, String, String) {
     match last_review(rows, name) {
-        Some((_, review)) if review.accepted && hashes.matches(&review.hash) => {
-            ("conferida", String::new())
+        Some((row, review)) if review.accepted && hashes.matches(&review.hash) => {
+            ("conferida", review_note(row), row.date.clone())
         }
         Some((row, review)) if hashes.matches(&review.hash) => {
-            ("rejeitada", rejection_reason(row).to_string())
+            ("rejeitada", review_note(row), row.date.clone())
         }
-        _ => ("a conferir", String::new()),
+        _ => ("a conferir", String::new(), String::new()),
     }
 }
 
@@ -6336,14 +6354,14 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
         .evidence_entries(&content)?
         .into_iter()
         .map(|entry| {
-            let (status, reason) = if !review_kinds.contains(&entry.kind) {
-                ("sem aval", String::new())
+            let (status, reason, reviewed_at) = if !review_kinds.contains(&entry.kind) {
+                ("sem aval", String::new(), String::new())
             } else {
                 match fs::read(evidence_dir.join(&entry.name)) {
                     Ok(bytes) if is_valid_evidence_name(&entry.name) => {
                         review_status(&rows, &entry.name, &tasks.review_hashes(&bytes))
                     }
-                    _ => ("a conferir", String::new()),
+                    _ => ("a conferir", String::new(), String::new()),
                 }
             };
             ReviewState {
@@ -6351,6 +6369,7 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
                 kind: entry.kind,
                 status,
                 reason,
+                reviewed_at,
             }
         })
         .collect())

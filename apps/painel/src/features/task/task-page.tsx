@@ -7,6 +7,9 @@ import { Markdown, slug } from '../../shared/markdown';
 import { onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Badge, type BadgeTone } from '../../ui/badge/badge';
+import { CopyButton } from '../../ui/copy-button/copy-button';
+import { ImageViewer } from '../../ui/image-viewer/image-viewer';
+import { VideoPlayer } from '../../ui/video-player/video-player';
 import { ErrorState } from '../../ui/error-state/error-state';
 import { LoadingState } from '../../ui/loading-state/loading-state';
 import { PageHeader } from '../../ui/page-header/page-header';
@@ -304,12 +307,15 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
       )}
       {open ? (
         IMAGE.test(file.name) ? (
-          <img className={styles.evidenceMedia} src={mediaUrl} alt={`Evidência ${file.name}`} />
+          <ImageViewer className={styles.evidenceMedia} src={mediaUrl} alt={`Evidência ${file.name}`} />
         ) : VIDEO.test(file.name) ? (
-          <video className={styles.evidenceMedia} src={mediaUrl} controls />
+          <VideoPlayer className={styles.evidenceMedia} src={mediaUrl} label={`Vídeo ${file.name}`} />
         ) : (
           <>
-            <pre className={styles.evidenceText}>{text ?? 'Carregando…'}</pre>
+            <div className={styles.evidenceBlock}>
+              {text !== null ? <CopyButton className={styles.copy} text={text} label={`Copiar ${file.name}`} /> : null}
+              <pre className={styles.evidenceText}>{text ?? 'Carregando…'}</pre>
+            </div>
             {total !== null ? (
               <p className={styles.reviewMessage} role="status">
                 Mostrando o primeiro 1 MB de {formatSize(total)}. <a className={styles.downloadLink} href={fileUrl(file.path)} download={file.name}>Baixar o arquivo inteiro</a>

@@ -265,7 +265,7 @@ describe('Evidências por tipo', () => {
     render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
     await openEvidence();
     fireEvent.click(await screen.findByRole('button', { name: /vazio\.txt/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /vazio\.txt/ }).getAttribute('aria-expanded')).toBe('true'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ver vazio.txt' }).getAttribute('aria-expanded')).toBe('true'));
     expect(screen.queryByText('Carregando…')).toBeNull();
     expect(filesOf(calls)).toHaveLength(0);
   });
@@ -276,7 +276,7 @@ describe('Evidências por tipo', () => {
     await openEvidence();
     fireEvent.click(await screen.findByRole('button', { name: /nota\.txt/ }));
     expect(await screen.findByText('Não foi possível ler o arquivo.')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /nota\.txt/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ver nota.txt' })).toBeTruthy();
   });
 });
 
@@ -456,5 +456,59 @@ describe('Esperas no aside', () => {
     await screen.findByText('Depende de', { selector: 'dt' });
     expect(aside().queryByText('Espera', { selector: 'dt' })).toBeNull();
     expect(row('Depende de')?.textContent).toContain('TASK-01');
+  });
+});
+
+describe('Componentes de mídia na evidência', () => {
+  const entry = (name: string) => ({ name, path: `x/${name}`, size: 100 });
+  const LOG = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nsaída';
+  function mockEvidence(names: string[], file = 'conteúdo') {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.startsWith('/api/tarefas')) return Promise.resolve(json(taskDetail({}, names.map(entry))));
+        if (url.startsWith('/arquivos/')) return Promise.resolve(new Response(file));
+        return Promise.resolve(json(specDetail));
+      }),
+    );
+  }
+  function stubClipboard(writeText: () => Promise<void>) {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  }
+
+  it('abre a imagem da evidência no visualizador', async () => {
+    mockEvidence(['tela.png']);
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ampliar Evidência tela.png' }));
+    expect(screen.getByRole('dialog', { name: 'Evidência tela.png' })).toBeTruthy();
+  });
+
+  it('toca o vídeo da evidência no player', async () => {
+    mockEvidence(['a.mp4']);
+    const { container } = render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+    const group = await screen.findByRole('group', { name: 'Vídeo a.mp4' });
+    expect(within(group).getByRole('button', { name: 'Tocar' })).toBeTruthy();
+    expect(container.querySelector('video')?.hasAttribute('controls')).toBe(false);
+  });
+
+  it('copia o conteúdo inteiro do texto com o cabeçalho', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    stubClipboard(writeText);
+    mockEvidence(['nota.txt'], LOG);
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver nota.txt' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Copiar nota.txt' }));
+    expect(writeText).toHaveBeenCalledWith(LOG);
+  });
+
+  it('não mostra o botão de copiar antes de o texto carregar', async () => {
+    mockEvidence(['nota.txt'], LOG);
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await openEvidence();
+    await screen.findByRole('button', { name: 'Ver nota.txt' });
+    expect(screen.queryByRole('button', { name: 'Copiar nota.txt' })).toBeNull();
   });
 });

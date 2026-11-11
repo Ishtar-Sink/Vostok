@@ -1,0 +1,160 @@
+.trigger {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.thumb {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* O token mais escuro do tema é o --bg do tema escuro; data-theme="dark" no diálogo o usa nos dois temas. */
+.dialog {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+}
+
+.dialog[open] {
+  display: block;
+}
+
+.dialog:not([open]) {
+  display: none;
+}
+
+/* Fundo do tema escuro a 80%: dá para ver a página por trás. */
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  animation: fade-in var(--motion-base) var(--motion-ease-enter) both;
+}
+
+.dialog[data-phase='out']::backdrop {
+  animation: fade-out var(--motion-base) var(--motion-ease-exit) both;
+}
+
+.frame {
+  display: grid;
+  place-items: center;
+}
+
+.frame[data-phase='in'] {
+  animation: grow var(--motion-slow) var(--motion-ease-enter) both;
+}
+
+.frame[data-phase='out'] {
+  animation: shrink var(--motion-slow) var(--motion-ease-exit) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes grow {
+  from { opacity: 0; transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale)); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes shrink {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translate(var(--from-x), var(--from-y)) scale(var(--from-scale)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog::backdrop,
+  .frame {
+    animation: none;
+  }
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.image {
+  max-width: 90vw;
+  max-height: 90vh;
+  cursor: zoom-in;
+  transition: transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+.image[data-zoomed] {
+  cursor: zoom-out;
+}
+
+.image[data-zoomed]:active {
+  cursor: grab;
+}
+
+.dragging .image {
+  cursor: grabbing;
+  transition: none;
+}
+
+.close {
+  position: absolute;
+  top: var(--s3);
+  right: var(--s3);
+  display: inline-flex;
+  padding: var(--s2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity var(--motion-fast) var(--motion-ease-standard);
+}
+
+.close:hover,
+.close:focus-visible {
+  opacity: 1;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.icon {
+  display: inline-flex;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { applyRedirect, parseRoute, readSearchParam, redirectOf, writeSearchParam } from './router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyRedirect, installScrollRestoration, navigate, parseRoute, readSearchParam, redirectOf, restoreScroll, writeSearchParam } from './router';
 
 describe('parseRoute', () => {
   it.each([
@@ -62,5 +62,78 @@ describe('Quadro único', () => {
     expect(history.length).toBe(before);
     writeSearchParam('spec', null);
     expect(location.pathname + location.search).toBe('/tarefas');
+  });
+});
+
+describe('Posição de rolagem', () => {
+  let uninstall: () => void;
+
+  function back() {
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    history.back();
+    return popped;
+  }
+
+  beforeEach(() => {
+    window.scrollTo = vi.fn();
+    Object.defineProperty(history, 'scrollRestoration', { value: 'auto', configurable: true, writable: true });
+    Object.defineProperty(window, 'scrollY', { value: 640, configurable: true, writable: true });
+    history.replaceState(null, '', '/tarefas?spec=SPEC-001');
+    uninstall = installScrollRestoration();
+  });
+
+  afterEach(() => {
+    uninstall();
+    vi.useRealTimers();
+    history.replaceState(null, '', '/');
+  });
+
+  it('guarda a rolagem da página ao navegar', async () => {
+    navigate('/tarefas/SPEC-001/TASK-01');
+    await back();
+    expect((history.state as { scroll: number }).scroll).toBe(640);
+    expect(location.pathname + location.search).toBe('/tarefas?spec=SPEC-001');
+  });
+
+  it('restaura a rolagem ao voltar', async () => {
+    navigate('/tarefas/SPEC-001/TASK-01');
+    await back();
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 640);
+  });
+
+  it('tenta de novo até a página ter altura para a rolagem', () => {
+    navigate('/tarefas/SPEC-001/TASK-01');
+    vi.useFakeTimers();
+    (window.scrollTo as ReturnType<typeof vi.fn>).mockClear();
+    window.scrollY = 0;
+    restoreScroll(640);
+    vi.advanceTimersByTime(100);
+    expect(window.scrollTo).toHaveBeenCalledTimes(3);
+    window.scrollY = 640;
+    vi.advanceTimersByTime(500);
+    expect(window.scrollTo).toHaveBeenCalledTimes(4);
+  });
+
+  it('desiste depois de 40 tentativas com a página sem altura', () => {
+    vi.useFakeTimers();
+    window.scrollY = 0;
+    restoreScroll(640);
+    vi.advanceTimersByTime(5000);
+    expect(window.scrollTo).toHaveBeenCalledTimes(40);
+  });
+
+  it('não restaura sem posição guardada', () => {
+    window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('mantém a posição guardada ao trocar a spec do endereço', () => {
+    history.replaceState({ scroll: 300 }, '', '/tarefas');
+    writeSearchParam('spec', 'SPEC-002');
+    expect((history.state as { scroll: number }).scroll).toBe(300);
+  });
+
+  it('desliga a restauração automática do navegador', () => {
+    expect(history.scrollRestoration).toBe('manual');
   });
 });

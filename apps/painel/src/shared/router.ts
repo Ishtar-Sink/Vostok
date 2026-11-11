@@ -67,7 +67,38 @@ export function useSearchParam(name: string): [string | null, (value: string | n
   return [value, set];
 }
 
+const RESTORE_INTERVAL_MS = 50;
+const RESTORE_TRIES = 40;
+let restoreTimer = 0;
+
+/** Rola até a posição e tenta de novo enquanto a página ainda não tem altura para chegar nela. */
+export function restoreScroll(top: number) {
+  window.clearTimeout(restoreTimer);
+  let tries = 0;
+  const attempt = () => {
+    window.scrollTo(0, top);
+    tries += 1;
+    if (Math.abs(window.scrollY - top) > 1 && tries < RESTORE_TRIES) {
+      restoreTimer = window.setTimeout(attempt, RESTORE_INTERVAL_MS);
+    }
+  };
+  attempt();
+}
+
+export function installScrollRestoration(): () => void {
+  if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+  const onPopState = (event: PopStateEvent) => {
+    const top = (event.state as { scroll?: unknown } | null)?.scroll;
+    if (typeof top === 'number') restoreScroll(top);
+  };
+  window.addEventListener('popstate', onPopState);
+  return () => window.removeEventListener('popstate', onPopState);
+}
+
 export function navigate(href: string) {
+  window.clearTimeout(restoreTimer);
+  const current = typeof window.history.state === 'object' ? window.history.state : null;
+  window.history.replaceState({ ...current, scroll: window.scrollY }, '');
   window.history.pushState(null, '', href);
   window.dispatchEvent(new PopStateEvent('popstate'));
   if (!href.includes('#')) window.scrollTo(0, 0);
@@ -84,7 +115,11 @@ export function useRoute(): Route {
       setRoute(parseRoute(window.location.pathname));
     };
     window.addEventListener('popstate', update);
-    return () => window.removeEventListener('popstate', update);
+    const uninstall = installScrollRestoration();
+    return () => {
+      window.removeEventListener('popstate', update);
+      uninstall();
+    };
   }, []);
   return route;
 }

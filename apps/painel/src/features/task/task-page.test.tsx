@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fileUrl } from '../../shared/api';
 import cardStyles from '../../ui/card/card.module.css';
 import { findLines, TaskPage } from './task-page';
@@ -775,5 +775,106 @@ describe('Destaque do Trecho', () => {
     expect(badges).toHaveLength(2);
     expect(badges[0].className).toMatch(/warning/);
     expect(badges[1].className).toMatch(/success/);
+  });
+});
+
+const summary = (id: string, wave: string) => ({ id, title: id, status: 'done', wave, profile: 'padrao', covers: '' });
+const waveSpec = { ...specDetail, tasks: [summary('TASK-01', '1'), summary('TASK-02', '1'), summary('TASK-03', '1'), summary('TASK-04', '2')] };
+const toReview = [{ name: 'a.txt', kind: 'automática', status: 'a conferir', reason: '' }];
+const reviewed = [{ name: 'a.txt', kind: 'automática', status: 'conferida', reason: '' }];
+
+function mockRoutes(details: Record<string, unknown> = {}, tasks = waveSpec) {
+  vi.stubGlobal('fetch', vi.fn((url: string) => {
+    if (!url.startsWith('/api/tarefas')) return Promise.resolve(json(tasks));
+    const id = url.split('/').pop() as string;
+    const body = details[id] ?? taskDetail({ id, wave: '1' });
+    return Promise.resolve(typeof body === 'number' ? json({}, body) : json(body));
+  }));
+}
+const withReviews = (id: string, reviews: object[]) => ({ ...taskDetail({ id, wave: '1' }), reviews });
+const renderTask = async (task = 'TASK-02') => {
+  render(<TaskPage spec="SPEC-001" task={task} version={0} />);
+  return screen.findByRole('navigation', { name: 'Tarefas da onda' });
+};
+
+describe('Barra da onda', () => {
+  beforeEach(() => { window.scrollTo = vi.fn(); });
+
+  it('volta por padrão ao quadro filtrado pela spec', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }) });
+    await renderTask();
+    expect(screen.getByRole('link', { name: /Quadro de SPEC-001|Voltar/ }).getAttribute('href')).toBe('/tarefas?spec=SPEC-001');
+  });
+
+  it('mostra a anterior, a próxima e a posição na onda', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }) });
+    const bar = await renderTask();
+    expect(bar.textContent).toContain('TASK-02 · Onda 1 · 2 de 3');
+    expect(within(bar).getByRole('link', { name: 'Tarefa anterior: TASK-01' }).getAttribute('href')).toBe('/tarefas/SPEC-001/TASK-01');
+    expect(within(bar).getByRole('link', { name: 'Próxima tarefa: TASK-03' }).getAttribute('href')).toBe('/tarefas/SPEC-001/TASK-03');
+  });
+
+  it('abre a próxima com → e a anterior com ←', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }) });
+    await renderTask();
+    await waitFor(() => {
+      fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+      expect(window.location.pathname).toBe('/tarefas/SPEC-001/TASK-03');
+    });
+    history.replaceState(null, '', '/');
+    fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+    expect(window.location.pathname).toBe('/tarefas/SPEC-001/TASK-01');
+  });
+
+  it('não troca de tarefa com as setas nas abas, num campo ou com modificador', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }) });
+    await renderTask();
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Resumo' }), { key: 'ArrowRight' });
+    const input = document.body.appendChild(document.createElement('input'));
+    fireEvent.keyDown(input, { key: 'ArrowRight' });
+    fireEvent.keyDown(document.body, { key: 'ArrowRight', altKey: true });
+    input.remove();
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('mostra só a posição na tarefa única na onda ou sem onda', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '2' }) }, { ...waveSpec, tasks: [summary('TASK-01', '1'), summary('TASK-02', '2')] });
+    const alone = await renderTask();
+    expect(alone.textContent).toContain('TASK-02 · Onda 2 · 1 de 1');
+    expect(within(alone).queryAllByRole('link')).toHaveLength(0);
+    expect(within(alone).queryByRole('button', { name: 'Próxima a conferir' })).toBeNull();
+    cleanup();
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '' }) });
+    const none = await renderTask();
+    expect(none.textContent).toContain('TASK-02 · Sem onda');
+    expect(within(none).queryAllByRole('link')).toHaveLength(0);
+    expect(within(none).queryByRole('button', { name: 'Próxima a conferir' })).toBeNull();
+  });
+});
+
+describe('Próxima a conferir', () => {
+  beforeEach(() => { window.scrollTo = vi.fn(); });
+
+  it('pula para a próxima tarefa da onda com evidência a conferir', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }), 'TASK-03': withReviews('TASK-03', reviewed), 'TASK-01': withReviews('TASK-01', toReview) });
+    const bar = await renderTask();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próxima a conferir' }));
+    await waitFor(() => expect(window.location.pathname + window.location.hash).toBe('/tarefas/SPEC-001/TASK-01#evidencias'));
+    expect(screen.getByRole('tab', { name: 'Evidências' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('avisa e fica na tarefa quando nenhuma tem evidência a conferir', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }), 'TASK-03': withReviews('TASK-03', reviewed), 'TASK-01': withReviews('TASK-01', reviewed) });
+    const bar = await renderTask();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próxima a conferir' }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Nenhuma outra tarefa da onda tem evidência a conferir.'));
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('pula a tarefa que não abre e segue para a próxima', async () => {
+    mockRoutes({ 'TASK-02': taskDetail({ wave: '1' }), 'TASK-03': 500, 'TASK-01': withReviews('TASK-01', toReview) });
+    const bar = await renderTask();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próxima a conferir' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/tarefas/SPEC-001/TASK-01'));
   });
 });

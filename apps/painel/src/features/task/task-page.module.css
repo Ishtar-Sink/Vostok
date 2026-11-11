@@ -48,6 +48,10 @@
   margin: 0;
   color: var(--text);
   font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
@@ -78,3 +82,70 @@
 .snippetCopy { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--s1); color: var(--success); font-size: var(--font-size-xs); white-space: nowrap; }
 .snippetCopy[data-ok='false'] { color: var(--danger); }
 .srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+.waveBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.waveStep {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--primary);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.waveStep:hover {
+  background: var(--primary-soft);
+}
+
+.waveStep:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.wavePosition {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.waveBar .waveAction {
+  min-height: 32px;
+  padding-block: 0;
+  line-height: 1.2;
+}
+
+.waveMessage {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.waveMessage:empty {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .waveBar {
+    justify-content: center;
+    text-align: center;
+  }
+}

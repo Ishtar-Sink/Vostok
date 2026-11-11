@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { fileUrl, formatDate, listOf, readTextPreview, useResource, type EvidenceReview, type FileRef, type ManualEvidence, type ReviewStatus, type SpecDetail, type TaskDetail } from '../../shared/api';
+import { fileUrl, formatDate, listOf, readTextPreview, useResource, type EvidenceReview, type FileRef, type ManualEvidence, type ReviewStatus, type SpecDetail, type TaskDetail, type TaskSummary } from '../../shared/api';
 import { BackLink } from '../../shared/back-link';
 import { buildReferences } from '../../shared/references';
 import { useReferencePopover } from '../../shared/ref-popover';
 import { Markdown, slug } from '../../shared/markdown';
-import { onLinkClick } from '../../shared/router';
+import { navigate, onLinkClick } from '../../shared/router';
 import { statusLabel, statusTone } from '../../shared/status';
 import { Badge, type BadgeTone } from '../../ui/badge/badge';
+import { Button } from '../../ui/button/button';
 import { CopyButton } from '../../ui/copy-button/copy-button';
 import { ImageViewer } from '../../ui/image-viewer/image-viewer';
 import { VideoPlayer } from '../../ui/video-player/video-player';
@@ -85,6 +86,78 @@ function snippetsOf(value: string): string[] {
   return [...value.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
 }
 
+const NO_REVIEW_MESSAGE = 'Nenhuma outra tarefa da onda tem evidência a conferir.';
+const KEY_BLOCKERS = 'input, textarea, select, [contenteditable="true"], [role="tablist"], dialog';
+
+function taskNumber(id: string): number {
+  return Number(id.replace(/\D/g, ''));
+}
+
+function waveTasks(tasks: TaskSummary[], id: string, wave: string): TaskSummary[] {
+  const current = tasks.find((item) => item.id === id);
+  if (!wave) return current ? [current] : [];
+  const same = tasks.filter((item) => item.wave === wave);
+  const list = current && !same.includes(current) ? [...same, current] : same;
+  return list.sort((a, b) => taskNumber(a.id) - taskNumber(b.id));
+}
+
+async function hasReviewToCheck(spec: string, id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/tarefas/${encodeURIComponent(spec)}/${encodeURIComponent(id)}`);
+    if (!response.ok) return false;
+    const detail = (await response.json()) as TaskDetail;
+    return (detail.reviews ?? []).some((review) => review.status === 'a conferir');
+  } catch {
+    return false;
+  }
+}
+
+function WaveBar({ spec, task, wave, tasks, onReview }: { spec: string; task: string; wave: string; tasks: TaskSummary[]; onReview: () => void }) {
+  const list = waveTasks(tasks, task, wave);
+  const index = list.findIndex((item) => item.id === task);
+  const previous = index > 0 ? list[index - 1] : undefined;
+  const next = index >= 0 && index < list.length - 1 ? list[index + 1] : undefined;
+  const [searching, setSearching] = useState(false);
+  const [message, setMessage] = useState('');
+  useEffect(() => setMessage(''), [task]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if ((event.target as Element | null)?.closest?.(KEY_BLOCKERS)) return;
+      const target = event.key === 'ArrowLeft' ? previous : event.key === 'ArrowRight' ? next : undefined;
+      if (target) navigate(`/tarefas/${spec}/${target.id}`);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [previous, next, spec]);
+
+  async function nextToReview() {
+    setSearching(true);
+    setMessage('');
+    const candidates = [...list.slice(index + 1), ...list.slice(0, index)];
+    for (const candidate of candidates) {
+      if (await hasReviewToCheck(spec, candidate.id)) {
+        onReview();
+        navigate(`/tarefas/${spec}/${candidate.id}#evidencias`);
+        setSearching(false);
+        return;
+      }
+    }
+    setMessage(NO_REVIEW_MESSAGE);
+    setSearching(false);
+  }
+
+  return (
+    <nav aria-label="Tarefas da onda" className={styles.waveBar}>
+      {previous && <a href={`/tarefas/${spec}/${previous.id}`} onClick={onLinkClick} aria-label={`Tarefa anterior: ${previous.id}`} className={styles.waveStep}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></a>}
+      <span className={styles.wavePosition}>{wave ? `${task} · Onda ${wave} · ${index + 1} de ${list.length}` : `${task} · Sem onda`}</span>
+      {next && <a href={`/tarefas/${spec}/${next.id}`} onClick={onLinkClick} aria-label={`Próxima tarefa: ${next.id}`} className={styles.waveStep}><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg></a>}
+      {list.length > 1 && <Button variant="ghost" size="small" className={styles.waveAction} loading={searching} onClick={nextToReview}>Próxima a conferir</Button>}
+      {list.length > 1 && <p role="status" className={styles.waveMessage}>{message}</p>}
+    </nav>
+  );
+}
+
 export function TaskPage({ spec, task, version }: { spec: string; task: string; version: number }) {
   const detail = useResource<TaskDetail>(`/api/tarefas/${encodeURIComponent(spec)}/${encodeURIComponent(task)}`, version);
   const specDetail = useResource<SpecDetail>(`/api/specs/${encodeURIComponent(spec)}`, version);
@@ -119,11 +192,12 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
 
   return (
     <div className={page.stack}>
-      <PageHeader back={<BackLink fallback={`/specs/${spec}/quadro`} label={`Quadro de ${spec}`} />} eyebrow={`${spec} · ${state.id}`} title={state.title} subtitle={state.description?.replace(/`/g, "")} actions={
+      <PageHeader back={<BackLink fallback={`/tarefas?spec=${spec}`} label={`Quadro de ${spec}`} />} eyebrow={`${spec} · ${state.id}`} title={state.title} subtitle={state.description?.replace(/`/g, "")} actions={
           <div className={styles.headerActions}>
             <Badge tone={statusTone(state.status)}>{statusLabel(state.status)}</Badge>
           </div>
         } />
+      {specDetail.kind === 'ready' && <WaveBar spec={spec} task={state.id} wave={state.wave ?? ''} tasks={specDetail.data.tasks} onReview={() => setTab('evidencias')} />}
       <div className={page.docLayout}>
         <div className={page.docMain}>
           <Tabs

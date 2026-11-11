@@ -6485,3 +6485,166 @@ fn rejection_cleared_by_a_review() {
     reviewed(&project, "EV-01").assert().success();
     assert_eq!(field(&project, "rejected_evidences"), "[]");
 }
+
+// --- Retirar conferência e aval no reviewed (SPEC-050) ---
+
+fn undo(project: &Project, id: &str, reason: &str) -> assert_cmd::Command {
+    task(project, &["evidence", "--undo", id, "--motivo", reason])
+}
+
+#[test]
+fn undo_withdraws_only_that_review() {
+    let project = two_prints();
+    reviewed(&project, "EV-01").assert().success();
+    reviewed(&project, "EV-02").assert().success();
+    let kept: Vec<String> = ["attempts", "tests_result", "regression_result", "status"]
+        .iter()
+        .map(|key| field(&project, key))
+        .collect();
+    let stdout = success_stdout(&mut undo(&project, "EV-02", "engano"));
+    assert!(
+        stdout.contains("Conferência de EV-02 outra.png retirada: engano."),
+        "{stdout}"
+    );
+    let record = read(&project, TASK_PATH);
+    let review = record
+        .find("| conferência | usuário | EV-02 outra.png conferida pelo usuário")
+        .expect(&record);
+    let withdrawn = record
+        .find("| conferência retirada | usuário | EV-02 outra.png: \"engano\" |")
+        .expect(&record);
+    assert!(review < withdrawn, "{record}");
+    let after: Vec<String> = ["attempts", "tests_result", "regression_result", "status"]
+        .iter()
+        .map(|key| field(&project, key))
+        .collect();
+    assert_eq!(kept, after);
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let unreviewed = stdout
+        .split("Evidências sem conferência humana")
+        .nth(1)
+        .expect(&stdout);
+    assert!(unreviewed.contains("EV-02 outra.png"), "{stdout}");
+    assert!(!unreviewed.contains("EV-01"), "{stdout}");
+    reviewed(&project, "EV-02").assert().success();
+}
+
+#[test]
+fn undo_withdraws_a_rejection() {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    let stdout = success_stdout(&mut undo(&project, "EV-01", "recusei por engano"));
+    assert!(
+        stdout.contains("Recusa de EV-01 tela.png retirada: recusei por engano."),
+        "{stdout}"
+    );
+    assert_eq!(field(&project, "rejected_evidences"), "[]");
+    assert!(read(&project, TASK_PATH)
+        .contains("| conferência retirada | usuário | EV-01 tela.png: \"recusei por engano\" |"));
+}
+
+#[test]
+fn undo_by_file_name() {
+    let project = two_prints();
+    reviewed(&project, "tela.png").assert().success();
+    let stdout = success_stdout(&mut undo(&project, "tela.png", "x"));
+    assert!(
+        stdout.contains("Conferência de EV-01 tela.png retirada"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn undo_without_review_is_refused() {
+    let project = two_prints();
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut undo(&project, "EV-01", "x"));
+    assert!(
+        stderr.contains(
+            "EV-01 tela.png não tem conferência nem recusa para retirar; nada foi registrado"
+        ),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+    reviewed(&project, "EV-01").assert().success();
+    undo(&project, "EV-01", "x").assert().success();
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut undo(&project, "EV-01", "x"));
+    assert!(
+        stderr.contains("não tem conferência nem recusa para retirar"),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn undo_requires_a_reason() {
+    let project = two_prints();
+    reviewed(&project, "EV-01").assert().success();
+    let before = read(&project, TASK_PATH);
+    let stderr = stderr_of(&mut task(&project, &["evidence", "--undo", "EV-01"]));
+    assert!(
+        stderr.contains("informe o motivo da retirada em --motivo; nada foi registrado"),
+        "{stderr}"
+    );
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn undo_conflicts_with_reviewed() {
+    let project = two_prints();
+    reviewed(&project, "EV-01").assert().success();
+    let before = read(&project, TASK_PATH);
+    task(
+        &project,
+        &[
+            "evidence",
+            "--undo",
+            "EV-01",
+            "--reviewed",
+            "EV-02",
+            "--motivo",
+            "x",
+        ],
+    )
+    .assert()
+    .failure();
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn review_reason_is_recorded() {
+    let project = two_prints();
+    task(
+        &project,
+        &["evidence", "--reviewed", "EV-01", "--motivo", "ok"],
+    )
+    .assert()
+    .success();
+    let record = read(&project, TASK_PATH);
+    let line = record
+        .lines()
+        .find(|line| {
+            line.contains("| conferência | usuário | EV-01 tela.png conferida pelo usuário")
+        })
+        .expect(&record);
+    assert!(line.contains("(sha256 "), "{line}");
+    assert!(line.trim_end().ends_with("): ok |"), "{line}");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(!stdout.contains("EV-01 tela.png ("), "{stdout}");
+}
+
+#[test]
+fn review_reason_is_optional() {
+    let project = two_prints();
+    reviewed(&project, "EV-01").assert().success();
+    let record = read(&project, TASK_PATH);
+    let line = record
+        .lines()
+        .find(|line| {
+            line.contains("| conferência | usuário | EV-01 tela.png conferida pelo usuário")
+        })
+        .expect(&record);
+    assert!(line.trim_end().ends_with(") |"), "{line}");
+    assert!(!line.contains("): "), "{line}");
+}

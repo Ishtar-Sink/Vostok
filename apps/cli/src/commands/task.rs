@@ -110,7 +110,10 @@ pub enum TaskCommand {
         /// Evidência rejeitada pelo usuário, pelo ID (EV-NN) ou pelo arquivo; exige --motivo e devolve a tarefa para in_progress, sem bloquear.
         #[arg(long, value_name = "EV-NN|ARQUIVO")]
         rejected: Option<String>,
-        /// Motivo da rejeição, nas palavras do usuário.
+        /// Retira a conferência ou a recusa de uma evidência, pelo ID (EV-NN) ou pelo arquivo; exige --motivo, sem ajuste nem retomada.
+        #[arg(long, value_name = "EV-NN|ARQUIVO", conflicts_with_all = ["reviewed", "rejected", "antecipada"])]
+        undo: Option<String>,
+        /// Motivo da rejeição ou da retirada (obrigatório) ou aval da conferência (opcional), nas palavras do usuário.
         #[arg(long, value_name = "MOTIVO", allow_hyphen_values = true)]
         motivo: Option<String>,
         /// Gera as evidências no fim da execução, sem mudar status nem resultados.
@@ -392,6 +395,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
             task_id,
             reviewed,
             rejected,
+            undo,
             motivo,
             antecipada,
         } => {
@@ -404,6 +408,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
                 &task,
                 &reviewed,
                 rejected.as_deref(),
+                undo.as_deref(),
                 motivo.as_deref(),
             )
         }
@@ -2135,6 +2140,7 @@ impl Tasks {
         task: &str,
         reviewed: &[String],
         rejected: Option<&str>,
+        undo: Option<&str>,
         motivo: Option<&str>,
     ) -> Result<()> {
         let file = self.find_task(spec, task)?;
@@ -2145,11 +2151,18 @@ impl Tasks {
         }
         let dir = self.evidence_dir(&file)?;
         let content = TaskDoc::at(&file).text()?;
+        let reason = normalized_reason(motivo.unwrap_or_default());
+        if let Some(given) = undo {
+            if reason.is_empty() {
+                bail!("informe o motivo da retirada em --motivo; nada foi registrado");
+            }
+            let (id, name) = self.resolve_evidence(&content, task, given)?;
+            return self.withdraw(&file, &content, (&id, &name), &reason);
+        }
         if let Some(name) = rejected {
             if !reviewed.is_empty() {
                 bail!("use --reviewed e --rejected em chamadas separadas; nada foi registrado");
             }
-            let reason = normalized_reason(motivo.unwrap_or_default());
             if reason.is_empty() {
                 bail!("informe o motivo da rejeição em --motivo; nada foi registrado");
             }
@@ -2168,7 +2181,7 @@ impl Tasks {
                     &file,
                     "conferência",
                     "usuário",
-                    &evidence_review(id, name, &self.review_hashes(bytes)),
+                    &evidence_review(id, name, &self.review_hashes(bytes), &reason),
                 )?;
             }
             let rejected = rejected_of(&file);
@@ -2788,6 +2801,42 @@ impl Tasks {
             "Evidência {id} {name} recusada: {reason}. Tarefa {task} em '{in_progress}'; recusas pendentes: {}. Corrija o que cada motivo aponta e gere as evidências de novo com vostok task evidence {spec} {task} --antecipada.",
             pending.join(", ")
         );
+        Ok(())
+    }
+
+    /// Retira a conferência ou a recusa de uma evidência: a evidência volta a `a conferir` sem
+    /// ajuste, retomada, tentativa nem mudança de resultado (RF-06, RN-02).
+    fn withdraw(
+        &self,
+        file: &Path,
+        content: &str,
+        (id, name): (&str, &str),
+        reason: &str,
+    ) -> Result<()> {
+        let rows = self.record_rows(content)?;
+        let Some((_, review)) = last_review(&rows, name) else {
+            bail!("{id} {name} não tem conferência nem recusa para retirar; nada foi registrado");
+        };
+        let kind = if review.accepted {
+            "Conferência"
+        } else {
+            "Recusa"
+        };
+        self.record_step(
+            file,
+            WITHDRAWN_STEP,
+            "usuário",
+            &format!("{id} {name}: \"{reason}\""),
+        )?;
+        let rejected = rejected_of(file);
+        if rejected.iter().any(|rejected| rejected == name) {
+            let pending: Vec<String> = rejected
+                .into_iter()
+                .filter(|rejected| rejected != name)
+                .collect();
+            write_rejected(file, &pending)?;
+        }
+        println!("{kind} de {id} {name} retirada: {reason}. A evidência volta a pedir conferência; mostre-a ao usuário de novo.");
         Ok(())
     }
 
@@ -6043,11 +6092,28 @@ fn evidence_line(index: usize, name: &str, path: &Path, description: &str) -> St
 
 /// Linha do registro que marca a conferência de uma evidência pelo usuário; o SHA-256 do arquivo
 /// faz a conferência valer só para o arquivo conferido.
-fn evidence_review(id: &str, name: &str, hashes: &ReviewHashes) -> String {
-    format!(
+fn evidence_review(id: &str, name: &str, hashes: &ReviewHashes, reason: &str) -> String {
+    let line = format!(
         "{id} {name} conferida pelo usuário (sha256 {})",
         hashes.current
-    )
+    );
+    if reason.is_empty() {
+        line
+    } else {
+        format!("{line}: {reason}")
+    }
+}
+
+/// Passo do registro que retira a conferência ou a recusa de uma evidência.
+const WITHDRAWN_STEP: &str = "conferência retirada";
+
+/// Evidência cuja conferência foi retirada, pela linha `EV-NN <nome>: "<motivo>"`.
+fn withdrawal_of(row: &RecordRow) -> Option<&str> {
+    if row.step != WITHDRAWN_STEP {
+        return None;
+    }
+    let (_, rest) = row.detail.split_once(' ')?;
+    rest.split_once(": \"").map(|(name, _)| name)
 }
 
 /// Linha do registro de uma evidência rejeitada pelo usuário, com o motivo depois dos dois pontos.
@@ -6185,11 +6251,15 @@ fn review_of(row: &RecordRow) -> Option<Review> {
 
 /// Última conferência ou rejeição de `name` no registro, com a linha dela.
 fn last_review<'a>(rows: &'a [RecordRow], name: &str) -> Option<(&'a RecordRow, Review)> {
-    rows.iter().rev().find_map(|row| {
-        review_of(row)
-            .filter(|review| review.name == name)
-            .map(|review| (row, review))
-    })
+    for row in rows.iter().rev() {
+        if withdrawal_of(row) == Some(name) {
+            return None;
+        }
+        if let Some(review) = review_of(row).filter(|review| review.name == name) {
+            return Some((row, review));
+        }
+    }
+    None
 }
 
 /// Conferência válida de `name`: a última linha de conferência ou rejeição dele é uma aceitação com

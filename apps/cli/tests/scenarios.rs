@@ -415,6 +415,10 @@ impl Scenario {
                 path.display()
             )
         });
+        let (expected, transcript) = (
+            without_review_details(&expected),
+            without_review_details(&transcript),
+        );
         assert!(
             expected == transcript,
             "cenário {} ({:?}) difere da fixture:\n{}",
@@ -499,6 +503,24 @@ fn normalize(text: &str, root: &std::path::Path) -> String {
     replace_commit_header(&replace_review_hashes(&replace_hashes(&replace_dates(
         &text,
     ))))
+}
+
+/// A linha de conferência do registro mudou com a SPEC-051: a tarefa em pasta grava só
+/// `EV-NN conferida no chat` (o hash e o texto ficam no `conferencias.md`), e o formato antigo grava
+/// o arquivo, o sha256 e as palavras do usuário. Para comparar os formatos, só o ID e a decisão ficam.
+fn without_review_details(text: &str) -> String {
+    const MARK: &str = "| conferência | usuário | ";
+    text.lines()
+        .map(|line| match line.split_once(MARK) {
+            Some((head, detail)) if detail.starts_with("EV-") => {
+                let id = detail.split(' ').next().unwrap_or_default();
+                format!("{head}{MARK}{id} conferida |")
+            }
+            _ => line.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
 }
 
 /// RF-13: no formato de pasta, o `finalize sources` traz o executivo e o técnico de cada tarefa.

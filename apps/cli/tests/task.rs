@@ -6648,3 +6648,286 @@ fn review_reason_is_optional() {
     assert!(line.trim_end().ends_with(") |"), "{line}");
     assert!(!line.contains("): "), "{line}");
 }
+
+// --- Conferências em arquivo próprio (SPEC-051) ---
+
+const REVIEWS: &str = "vostok/work/tasks/SPEC-001/TASK-01/conferencias.md";
+
+const SECOND_EVIDENCE: &str = "- `outra.txt` (automática): `echo outra`\n  - Prova: a outra saída.\n  - Trecho: a linha.\n  - Falha: arquivo ausente.\n";
+
+/// Tarefa em pasta em execução, com as evidências já geradas e todos os tipos pedindo conferência.
+fn folder_reviewing(two: bool) -> Project {
+    let project = folder_task("pending");
+    with_review_kinds(&project, "");
+    if two {
+        append(
+            &project,
+            &format!("{FOLDER}/verificacao.md"),
+            SECOND_EVIDENCE,
+        );
+    }
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    project
+}
+
+fn folder_review_hash(project: &Project, name: &str) -> String {
+    short_hash(
+        without_date_and_commit(&read(project, &format!("{FOLDER}/evidencias/{name}"))).as_bytes(),
+    )
+}
+
+/// Insere no registro da tarefa em pasta uma linha de conferência no formato antigo.
+fn insert_legacy_review(project: &Project, detail: &str) {
+    let path = format!("{FOLDER}/registro.md");
+    let record = read(project, &path).replace(
+        "\n\n## Histórico de ajustes",
+        &format!(
+            "\n| 90 | 2026-01-01 | conferência | usuário | {detail} |\n\n## Histórico de ajustes"
+        ),
+    );
+    write(project, &path, &record);
+}
+
+/// Texto da saída depois do aviso de evidências sem conferência humana; vazio se não houver.
+fn unreviewed_section(stdout: &str) -> String {
+    stdout
+        .split("Evidências sem conferência humana")
+        .nth(1)
+        .unwrap_or_default()
+        .to_string()
+}
+
+#[test]
+fn conferencias_arquivo_grava_a_conferida_com_origem_chat() {
+    let project = folder_reviewing(false);
+    task(
+        &project,
+        &[
+            "evidence",
+            "--reviewed",
+            "EV-01",
+            "--motivo",
+            "bate com o valor",
+        ],
+    )
+    .assert()
+    .success();
+    let reviews = read(&project, REVIEWS);
+    assert!(
+        reviews.contains("| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |"),
+        "{reviews}"
+    );
+    assert!(
+        reviews.contains(&format!(
+            "| EV-01 | saida.txt | conferida | {} | ",
+            folder_review_hash(&project, "saida.txt")
+        )),
+        "{reviews}"
+    );
+    assert!(reviews.contains("| chat | bate com o valor |"), "{reviews}");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("| conferência | usuário | EV-01 conferida no chat |"),
+        "{record}"
+    );
+    assert!(!record.contains("sha256"), "{record}");
+    assert!(!record.contains("bate com o valor"), "{record}");
+}
+
+#[test]
+fn conferencias_arquivo_recusa_e_retirada_trocam_a_linha() {
+    let project = folder_reviewing(false);
+    task(
+        &project,
+        &[
+            "evidence",
+            "--rejected",
+            "EV-01",
+            "--motivo",
+            "falta o total",
+        ],
+    )
+    .assert()
+    .success();
+    let reviews = read(&project, REVIEWS);
+    assert!(
+        reviews.contains("| EV-01 | saida.txt | recusada |"),
+        "{reviews}"
+    );
+    assert!(reviews.contains("| chat | falta o total |"), "{reviews}");
+    let state = read(&project, &format!("{FOLDER}/estado.yml"));
+    assert!(state.contains("\nstatus: in_progress\n"), "{state}");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(record.contains("EV-01 recusada no chat"), "{record}");
+    task(
+        &project,
+        &["evidence", "--undo", "EV-01", "--motivo", "engano"],
+    )
+    .assert()
+    .success();
+    let reviews = read(&project, REVIEWS);
+    assert_eq!(reviews.matches("| EV-01 |").count(), 1, "{reviews}");
+    assert!(
+        reviews.contains("| EV-01 | saida.txt | retirada |"),
+        "{reviews}"
+    );
+    assert!(reviews.contains("| chat | engano |"), "{reviews}");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(record.contains("EV-01 retirada no chat"), "{record}");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        unreviewed_section(&stdout).contains("EV-01 saida.txt"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn conferencias_arquivo_hash_diferente_pede_de_novo() {
+    let project = folder_reviewing(false);
+    task(&project, &["evidence", "--reviewed", "EV-01"])
+        .assert()
+        .success();
+    write(&project, "valor.txt", "b\n");
+    write(
+        &project,
+        &format!("{FOLDER}/evidencias/saida.txt"),
+        "adulterada\n",
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("a conferir de novo (mudou): EV-01 saida.txt"),
+        "{stdout}"
+    );
+    assert!(
+        unreviewed_section(&stdout).contains("EV-01 saida.txt"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn conferencias_arquivo_conferida_mantida_sem_gerar_de_novo() {
+    let project = folder_reviewing(false);
+    task(&project, &["evidence", "--reviewed", "EV-01"])
+        .assert()
+        .success();
+    let before = read(&project, &format!("{FOLDER}/evidencias/saida.txt"));
+    write(&project, "valor.txt", "b\n");
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Conferências mantidas (hash igual): EV-01 saida.txt"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert_eq!(
+        before,
+        read(&project, &format!("{FOLDER}/evidencias/saida.txt"))
+    );
+}
+
+#[test]
+fn conferencias_arquivo_linha_invalida_ignorada_com_aviso() {
+    let project = folder_reviewing(false);
+    let hash = folder_review_hash(&project, "saida.txt");
+    write(
+        &project,
+        REVIEWS,
+        &format!(
+            "| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |\n|---|---|---|---|---|---|---|\n| EV-01 | saida.txt | aprovada | {hash} | 2026-11-13T14:02:11Z | email | ok |\n"
+        ),
+    );
+    let output = task(&project, &["evidence"]).assert().success();
+    let output = output.get_output();
+    let stdout = String::from_utf8(output.stdout.clone()).unwrap();
+    let stderr = String::from_utf8(output.stderr.clone()).unwrap();
+    assert!(
+        stderr.contains("Aviso: conferencias.md de TASK-01, linha 3 inválida, ignorada:"),
+        "{stderr}"
+    );
+    assert!(
+        unreviewed_section(&stdout).contains("EV-01 saida.txt"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn conferencias_arquivo_briefing_sem_hash_nem_palavras() {
+    let project = folder_reviewing(false);
+    task(
+        &project,
+        &[
+            "evidence",
+            "--reviewed",
+            "EV-01",
+            "--motivo",
+            "palavras do usuário",
+        ],
+    )
+    .assert()
+    .success();
+    let brief = success_stdout(&mut task(&project, &["brief"]));
+    let record = brief.split("## Registro de execução").nth(1).expect(&brief);
+    assert!(record.contains("EV-01 conferida no chat"), "{record}");
+    assert!(!record.contains("sha256"), "{record}");
+    assert!(!record.contains("palavras do usuário"), "{record}");
+}
+
+#[test]
+fn conferencias_legado_registro_antigo_mantem_o_estado() {
+    let project = folder_reviewing(false);
+    insert_legacy_review(
+        &project,
+        &format!(
+            "EV-01 saida.txt conferida pelo usuário (sha256 {}): \"confere\"",
+            folder_review_hash(&project, "saida.txt")
+        ),
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    assert!(
+        stdout.contains("Conferências mantidas (hash igual): EV-01 saida.txt"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Resultado: passed."), "{stdout}");
+    assert!(!exists(&project, REVIEWS));
+}
+
+#[test]
+fn conferencias_legado_primeira_gravacao_leva_as_antigas() {
+    let project = folder_reviewing(true);
+    let hash = folder_review_hash(&project, "saida.txt");
+    insert_legacy_review(
+        &project,
+        &format!("EV-01 saida.txt conferida pelo usuário (sha256 {hash}): \"confere\""),
+    );
+    task(
+        &project,
+        &[
+            "evidence",
+            "--rejected",
+            "EV-02",
+            "--motivo",
+            "falta a outra",
+        ],
+    )
+    .assert()
+    .success();
+    let reviews = read(&project, REVIEWS);
+    assert!(
+        reviews.contains(&format!(
+            "| EV-01 | saida.txt | conferida | {hash} | 2026-01-01 | chat | confere |"
+        )),
+        "{reviews}"
+    );
+    assert!(
+        reviews.contains("| EV-02 | outra.txt | recusada |"),
+        "{reviews}"
+    );
+    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let section = unreviewed_section(&stdout);
+    assert!(section.contains("EV-02 outra.txt"), "{stdout}");
+    assert!(!section.contains("EV-01"), "{stdout}");
+}

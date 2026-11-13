@@ -2151,49 +2151,49 @@ impl Tasks {
         }
         let dir = self.evidence_dir(&file)?;
         let content = TaskDoc::at(&file).text()?;
-        let reason = normalized_reason(motivo.unwrap_or_default());
+        let text = motivo.unwrap_or_default();
         if let Some(given) = undo {
-            if reason.is_empty() {
-                bail!("informe o motivo da retirada em --motivo; nada foi registrado");
-            }
-            let (id, name) = self.resolve_evidence(&content, task, given)?;
-            return self.withdraw(&file, &content, (&id, &name), &reason);
+            return self.print_review(&ReviewRequest {
+                spec,
+                task,
+                evidence: given,
+                action: ReviewAction::Withdraw,
+                text,
+                origin: ReviewOrigin::Chat,
+                expected_hash: None,
+            });
         }
         if let Some(name) = rejected {
             if !reviewed.is_empty() {
                 bail!("use --reviewed e --rejected em chamadas separadas; nada foi registrado");
             }
-            if reason.is_empty() {
-                bail!("informe o motivo da rejeição em --motivo; nada foi registrado");
-            }
-            let (id, name) = self.resolve_evidence(&content, task, name)?;
-            return self.reject(&file, spec, task, (&id, &name), &reason);
+            return self.print_review(&ReviewRequest {
+                spec,
+                task,
+                evidence: name,
+                action: ReviewAction::Reject,
+                text,
+                origin: ReviewOrigin::Chat,
+                expected_hash: None,
+            });
         }
-        let mut approvals: Vec<(String, String, Vec<u8>)> = Vec::new();
         for given in reviewed {
-            let (id, name) = self.resolve_evidence(&content, task, given)?;
-            let bytes = self.reviewable(&content, &dir, &name)?;
-            approvals.push((id, name, bytes));
+            let (_, name) = self.resolve_evidence(&content, task, given)?;
+            self.reviewable(&content, &dir, &name)?;
         }
-        if !approvals.is_empty() {
-            for (id, name, bytes) in &approvals {
-                self.record_step(
-                    &file,
-                    "conferência",
-                    "usuário",
-                    &evidence_review(id, name, &self.review_hashes(bytes), &reason),
-                )?;
+        if !reviewed.is_empty() {
+            for given in reviewed {
+                self.record_review(&ReviewRequest {
+                    spec,
+                    task,
+                    evidence: given,
+                    action: ReviewAction::Accept,
+                    text,
+                    origin: ReviewOrigin::Chat,
+                    expected_hash: None,
+                })?;
             }
-            let rejected = rejected_of(&file);
-            let pending: Vec<String> = rejected
-                .iter()
-                .filter(|rejected| !approvals.iter().any(|(_, name, _)| name == *rejected))
-                .cloned()
-                .collect();
-            if pending.len() != rejected.len() {
-                write_rejected(&file, &pending)?;
-            }
-            return self.review_outcome(&file, spec, task, &dir);
+            return self.print_lines(&self.review_outcome(&file, spec, task, &dir)?);
         }
         let text = self.subsection(&content, "evidence_subsection")?;
         let items: Vec<&str> = text
@@ -2223,7 +2223,7 @@ impl Tasks {
         }
         print_kept_and_changed(&kept, &changed);
         let record = TaskDoc::at(&file).text()?;
-        let rows = self.record_rows(&record)?;
+        let reviews = self.reviews(&file, &record)?;
         let entries = self.evidence_entries(&record)?;
         let review_kinds = self.review_kinds();
         let mut unreviewed: Vec<String> = Vec::new();
@@ -2232,7 +2232,11 @@ impl Tasks {
             if !review_kinds.contains(&entry.kind) || !path.is_file() {
                 continue;
             }
-            if !review_is_valid(&rows, &entry.name, &self.review_hashes(&fs::read(&path)?)) {
+            if !review_is_valid(
+                &reviews,
+                &entry.name,
+                &self.review_hashes(&fs::read(&path)?),
+            ) {
                 unreviewed.push(evidence_line(index, &entry.name, &path, ""));
             }
         }
@@ -2293,25 +2297,35 @@ impl Tasks {
     }
 
     /// Depois de gravar conferências, recalcula o resultado sem gerar nem apagar evidências: só
-    /// muda `evidence_result` quando ele está `pending`, que é o estado da finalização.
-    fn review_outcome(&self, file: &Path, spec: &str, task: &str, dir: &Path) -> Result<()> {
+    /// muda `evidence_result` quando ele está `pending`, que é o estado da finalização. Devolve as
+    /// linhas que o comando mostra.
+    fn review_outcome(
+        &self,
+        file: &Path,
+        spec: &str,
+        task: &str,
+        dir: &Path,
+    ) -> Result<Vec<String>> {
         let record = TaskDoc::at(file).text()?;
-        let rows = self.record_rows(&record)?;
+        let reviews = self.reviews(file, &record)?;
         let review_kinds = self.review_kinds();
         let manual = self.cfg("evidence_manual")?;
         let mut unreviewed: Vec<String> = Vec::new();
-        let mut missing = String::new();
+        let mut missing: Vec<String> = Vec::new();
         let mut total = 0;
         for (index, entry) in self.evidence_entries(&record)?.iter().enumerate() {
             total += 1;
             let path = dir.join(&entry.name);
             if entry.kind == manual && !fs::metadata(&path).is_ok_and(|meta| meta.len() > 0) {
-                missing.push_str(&evidence_line(index, &entry.name, &path, &entry.rest));
-                missing.push('\n');
+                missing.push(evidence_line(index, &entry.name, &path, &entry.rest));
             }
             if review_kinds.contains(&entry.kind)
                 && path.is_file()
-                && !review_is_valid(&rows, &entry.name, &self.review_hashes(&fs::read(&path)?))
+                && !review_is_valid(
+                    &reviews,
+                    &entry.name,
+                    &self.review_hashes(&fs::read(&path)?),
+                )
             {
                 unreviewed.push(evidence_line(index, &entry.name, &path, ""));
             }
@@ -2329,24 +2343,36 @@ impl Tasks {
                 "passed",
                 &format!("{total} evidência(s) em {folder}/"),
             )?;
-            println!("Conferência registrada. Resultado: passed.");
-            return Ok(());
+            return Ok(vec![
+                "Conferência registrada. Resultado: passed.".to_string()
+            ]);
         }
+        let mut lines: Vec<String> = Vec::new();
         if pending {
             TaskDoc::at(file).set("evidence_result", "pending")?;
         } else {
-            println!("Conferência registrada; resultados sem mudança.");
+            lines.push("Conferência registrada; resultados sem mudança.".to_string());
         }
         if !unreviewed.is_empty() {
-            println!("Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <EV-NN|arquivo>:");
-            for line in unreviewed {
-                println!("{line}");
-            }
+            lines.push(format!("Evidências sem conferência humana; mostre cada uma ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <EV-NN|arquivo>:"));
+            lines.extend(unreviewed);
         }
         if !missing.is_empty() {
-            print!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{missing}");
+            lines.push(format!("Evidências manuais de {task} sem arquivo; peça ao usuário para anexá-las e execute vostok task evidence de novo:\n{}", missing.join("\n")));
+        }
+        Ok(lines)
+    }
+
+    fn print_lines(&self, lines: &[String]) -> Result<()> {
+        for line in lines {
+            println!("{line}");
         }
         Ok(())
+    }
+
+    fn print_review(&self, request: &ReviewRequest) -> Result<()> {
+        let outcome = self.review(request)?;
+        self.print_lines(&outcome.messages)
     }
 
     /// Gera as evidências com a tarefa em execução, sem mudar os resultados, lista o que falta o
@@ -2383,7 +2409,7 @@ impl Tasks {
             );
         }
         let entries = self.evidence_entries(&content)?;
-        let rows = self.record_rows(&content)?;
+        let reviews = self.reviews(&file, &content)?;
         let review_kinds = self.review_kinds();
         let mut pending: Vec<String> = Vec::new();
         let mut pending_labels: Vec<String> = Vec::new();
@@ -2391,7 +2417,11 @@ impl Tasks {
             let path = dir.join(&entry.name);
             if review_kinds.contains(&entry.kind)
                 && path.is_file()
-                && !review_is_valid(&rows, &entry.name, &self.review_hashes(&fs::read(&path)?))
+                && !review_is_valid(
+                    &reviews,
+                    &entry.name,
+                    &self.review_hashes(&fs::read(&path)?),
+                )
             {
                 pending.push(evidence_line(index, &entry.name, &path, ""));
                 pending_labels.push(format!("{} {}", evidence_id(index), entry.name));
@@ -2505,9 +2535,10 @@ impl Tasks {
         // Saída de cada evidência gravada, sem o cabeçalho, para conferir o texto esperado.
         let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
         let rows = self.record_rows(content)?;
+        let reviews = self.reviews(file, content)?;
         for (index, item) in items.iter().enumerate() {
             if let Some(name) = evidence_name(item, &from_verify) {
-                match self.review_kept(&rows, dir, name)? {
+                match self.review_kept(&rows, &reviews, dir, &evidence_id(index), name)? {
                     Some(true) => continue,
                     Some(false) => {
                         failed.push_str(&format!(
@@ -2653,8 +2684,8 @@ impl Tasks {
                 }
             }
         }
-        let (kept, changed) = self.reviews_after_generation(content, dir, &rows)?;
-        self.clear_changed_rejections(file, dir, &rows)?;
+        let (kept, changed) = self.reviews_after_generation(content, dir, &reviews)?;
+        self.clear_changed_rejections(file, dir, &reviews)?;
         Ok(Generated {
             same,
             missing,
@@ -2670,7 +2701,7 @@ impl Tasks {
         &self,
         content: &str,
         dir: &Path,
-        rows: &[RecordRow],
+        reviews: &[ReviewRecord],
     ) -> Result<(Vec<String>, Vec<String>)> {
         let mut kept: Vec<String> = Vec::new();
         let mut changed: Vec<String> = Vec::new();
@@ -2679,12 +2710,12 @@ impl Tasks {
             if !path.is_file() {
                 continue;
             }
-            let Some((_, review)) = last_review(rows, &entry.name) else {
+            let Some(review) = current_review(reviews, &entry.name) else {
                 continue;
             };
             let label = format!("{} {}", evidence_id(index), entry.name);
             let same = self.review_hashes(&fs::read(&path)?).matches(&review.hash);
-            if same && review.accepted {
+            if same && review.mark == ReviewMark::Accepted {
                 kept.push(label);
             } else if !same {
                 changed.push(label);
@@ -2695,16 +2726,23 @@ impl Tasks {
 
     /// Tira de `rejected_evidences` a evidência gerada com saída diferente da recusada (RF-09); a que
     /// não foi gerada continua recusada.
-    fn clear_changed_rejections(&self, file: &Path, dir: &Path, rows: &[RecordRow]) -> Result<()> {
+    fn clear_changed_rejections(
+        &self,
+        file: &Path,
+        dir: &Path,
+        reviews: &[ReviewRecord],
+    ) -> Result<()> {
         let rejected = rejected_of(file);
         let mut pending: Vec<String> = Vec::new();
         for name in &rejected {
             let path = dir.join(name);
             let still = !path.is_file()
-                || last_rejection(rows, name).is_some_and(|(_, review)| {
-                    self.review_hashes(&fs::read(&path).unwrap_or_default())
-                        .matches(&review.hash)
-                });
+                || current_review(reviews, name)
+                    .filter(|record| record.mark == ReviewMark::Rejected)
+                    .is_some_and(|record| {
+                        self.review_hashes(&fs::read(&path).unwrap_or_default())
+                            .matches(&record.hash)
+                    });
             if still {
                 pending.push(name.clone());
             }
@@ -2763,81 +2801,207 @@ impl Tasks {
         }
     }
 
-    /// Recusa de uma evidência pelo usuário: grava o motivo, marca a evidência em
-    /// `rejected_evidences` e devolve a tarefa para `in_progress`, sem bloquear nem contar
-    /// tentativa (RF-09, RN-03).
-    fn reject(
+    /// Grava a decisão do usuário sobre uma evidência. Na tarefa em pasta, troca a linha dela no
+    /// `conferencias.md` (levando as conferências antigas do registro na primeira gravação) e deixa no
+    /// registro só a linha curta; no arquivo único, grava como sempre no registro. A recusa devolve a
+    /// tarefa para `in_progress`, sem bloquear nem contar tentativa (RF-09, RN-03); a retirada não
+    /// muda ajuste, retomada, tentativa nem resultado (RF-06, RN-02).
+    fn apply_review(
         &self,
         file: &Path,
-        spec: &str,
-        task: &str,
-        (id, name): (&str, &str),
-        reason: &str,
-    ) -> Result<()> {
-        let dir = self.evidence_dir(file)?;
-        let content = TaskDoc::at(file).text()?;
-        let bytes = self.reviewable(&content, &dir, name)?;
+        record: ReviewRecord,
+        hashes: &ReviewHashes,
+    ) -> Result<ReviewRecord> {
         let doc = TaskDoc::at(file);
-        doc.set("evidence_result", "failed")?;
         let in_progress = &self.status.in_progress;
-        doc.set("status", in_progress)?;
-        self.record_step(
-            file,
-            "rejeição",
-            in_progress,
-            &evidence_rejection(id, name, &self.review_hashes(&bytes), reason),
-        )?;
-        let mut rejected = rejected_of(file);
-        if !rejected.iter().any(|rejected| rejected == name) {
-            rejected.push(name.to_string());
+        if record.mark == ReviewMark::Rejected {
+            doc.set("evidence_result", "failed")?;
+            doc.set("status", in_progress)?;
         }
-        write_rejected(file, &rejected)?;
-        let entries = self.evidence_entries(&content)?;
-        let pending: Vec<String> = rejected
-            .iter()
-            .map(|rejected| evidence_label(&entries, rejected))
-            .collect();
-        println!(
-            "Evidência {id} {name} recusada: {reason}. Tarefa {task} em '{in_progress}'; recusas pendentes: {}. Corrija o que cada motivo aponta e gere as evidências de novo com vostok task evidence {spec} {task} --antecipada.",
-            pending.join(", ")
-        );
-        Ok(())
+        if doc.folder() {
+            let mut records = self.reviews(file, &doc.text()?)?;
+            match records.iter().position(|other| other.name == record.name) {
+                Some(position) => records[position] = record.clone(),
+                None => records.push(record.clone()),
+            }
+            write_reviews(file, &records)?;
+            self.record_step(
+                file,
+                "conferência",
+                "usuário",
+                &review_line(&record.id, record.mark, &record.origin),
+            )?;
+        } else {
+            match record.mark {
+                ReviewMark::Accepted => self.record_step(
+                    file,
+                    "conferência",
+                    "usuário",
+                    &evidence_review(&record.id, &record.name, hashes, &record.text),
+                )?,
+                ReviewMark::Rejected => self.record_step(
+                    file,
+                    "rejeição",
+                    in_progress,
+                    &evidence_rejection(&record.id, &record.name, hashes, &record.text),
+                )?,
+                ReviewMark::Withdrawn => self.record_step(
+                    file,
+                    WITHDRAWN_STEP,
+                    "usuário",
+                    &format!("{} {}: \"{}\"", record.id, record.name, record.text),
+                )?,
+            }
+        }
+        let mut rejected = rejected_of(file);
+        let before = rejected.len();
+        rejected.retain(|name| name != &record.name);
+        if record.mark == ReviewMark::Rejected {
+            rejected.push(record.name.clone());
+        }
+        if record.mark == ReviewMark::Rejected || rejected.len() != before {
+            write_rejected(file, &rejected)?;
+        }
+        Ok(record)
     }
 
-    /// Retira a conferência ou a recusa de uma evidência: a evidência volta a `a conferir` sem
-    /// ajuste, retomada, tentativa nem mudança de resultado (RF-06, RN-02).
-    fn withdraw(
+    /// Conferir, recusar ou retirar uma evidência, sem imprimir nada: o comando e o painel usam esta
+    /// função (DEC-006). Devolve o registro gravado e a pasta da tarefa.
+    fn record_review(
         &self,
-        file: &Path,
-        content: &str,
-        (id, name): (&str, &str),
-        reason: &str,
-    ) -> Result<()> {
-        let rows = self.record_rows(content)?;
-        let Some((_, review)) = last_review(&rows, name) else {
-            bail!("{id} {name} não tem conferência nem recusa para retirar; nada foi registrado");
-        };
-        let kind = if review.accepted {
-            "Conferência"
-        } else {
-            "Recusa"
-        };
-        self.record_step(
-            file,
-            WITHDRAWN_STEP,
-            "usuário",
-            &format!("{id} {name}: \"{reason}\""),
-        )?;
-        let rejected = rejected_of(file);
-        if rejected.iter().any(|rejected| rejected == name) {
-            let pending: Vec<String> = rejected
-                .into_iter()
-                .filter(|rejected| rejected != name)
-                .collect();
-            write_rejected(file, &pending)?;
+        request: &ReviewRequest,
+    ) -> Result<(PathBuf, ReviewRecord, Option<ReviewRecord>), ReviewError> {
+        let (spec, task) = (request.spec, request.task);
+        let file = self
+            .find_task(spec, task)
+            .map_err(|error| ReviewError::TaskNotFound(error.to_string()))?;
+        self.require_running(&file, task)
+            .map_err(|error| ReviewError::Closed(error.to_string()))?;
+        let text = normalized_reason(request.text);
+        if text.is_empty() && request.action != ReviewAction::Accept {
+            return Err(ReviewError::MissingText(request.action));
         }
-        println!("{kind} de {id} {name} retirada: {reason}. A evidência volta a pedir conferência; mostre-a ao usuário de novo.");
-        Ok(())
+        let content = TaskDoc::at(&file).text()?;
+        let dir = self.evidence_dir(&file)?;
+        let (id, name) = self
+            .resolve_evidence(&content, task, request.evidence)
+            .map_err(|error| ReviewError::UnknownEvidence(error.to_string()))?;
+        let label = format!("{id} {name}");
+        let reviews = self.reviews(&file, &content)?;
+        let previous = current_review(&reviews, &name).cloned();
+        let bytes = match self.reviewable(&content, &dir, &name) {
+            Ok(bytes) => Some(bytes),
+            Err(_) if request.action == ReviewAction::Withdraw => None,
+            Err(error) => return Err(ReviewError::NotReviewable(error.to_string())),
+        };
+        let hashes = bytes.as_deref().map(|bytes| self.review_hashes(bytes));
+        if let (Some(expected), Some(hashes)) = (request.expected_hash, &hashes) {
+            if !hashes.matches(expected) {
+                return Err(ReviewError::Changed(label));
+            }
+        }
+        if request.action == ReviewAction::Withdraw && previous.is_none() {
+            return Err(ReviewError::NothingToWithdraw(label));
+        }
+        let hashes = hashes.unwrap_or_else(|| {
+            let hash = previous.as_ref().map(|record| record.hash.clone());
+            ReviewHashes::recorded(hash.unwrap_or_default())
+        });
+        let mark = match request.action {
+            ReviewAction::Accept => ReviewMark::Accepted,
+            ReviewAction::Reject => ReviewMark::Rejected,
+            ReviewAction::Withdraw => ReviewMark::Withdrawn,
+        };
+        let record = ReviewRecord {
+            id,
+            name,
+            mark,
+            hash: hashes.current.clone(),
+            date: utc_now(),
+            origin: request.origin.as_str().to_string(),
+            text,
+        };
+        let record = self.apply_review(&file, record, &hashes)?;
+        Ok((file, record, previous))
+    }
+
+    /// `record_review` mais as linhas que o comando mostra ao usuário.
+    fn review(&self, request: &ReviewRequest) -> Result<ReviewOutcome, ReviewError> {
+        let (file, record, previous) = self.record_review(request)?;
+        let (spec, task) = (request.spec, request.task);
+        let messages = match record.mark {
+            ReviewMark::Accepted => {
+                let dir = self.evidence_dir(&file)?;
+                self.review_outcome(&file, spec, task, &dir)?
+            }
+            ReviewMark::Rejected => {
+                let content = TaskDoc::at(&file).text()?;
+                let entries = self.evidence_entries(&content)?;
+                let pending: Vec<String> = rejected_of(&file)
+                    .iter()
+                    .map(|rejected| evidence_label(&entries, rejected))
+                    .collect();
+                vec![format!(
+                    "Evidência {} {} recusada: {}. Tarefa {task} em '{}'; recusas pendentes: {}. Corrija o que cada motivo aponta e gere as evidências de novo com vostok task evidence {spec} {task} --antecipada.",
+                    record.id,
+                    record.name,
+                    record.text,
+                    self.status.in_progress,
+                    pending.join(", ")
+                )]
+            }
+            ReviewMark::Withdrawn => {
+                let kind = match previous {
+                    Some(previous) if previous.mark == ReviewMark::Rejected => "Recusa",
+                    _ => "Conferência",
+                };
+                vec![format!(
+                    "{kind} de {} {} retirada: {}. A evidência volta a pedir conferência; mostre-a ao usuário de novo.",
+                    record.id, record.name, record.text
+                )]
+            }
+        };
+        let task_status = status_of(&file);
+        Ok(ReviewOutcome {
+            record,
+            task_status,
+            messages,
+        })
+    }
+
+    /// Conferências gravadas no registro antigo (`registro.md`), uma por evidência com decisão vigente.
+    fn legacy_reviews(&self, content: &str) -> Result<Vec<ReviewRecord>> {
+        let rows = self.record_rows(content)?;
+        let mut records = Vec::new();
+        for (index, entry) in self.evidence_entries(content)?.iter().enumerate() {
+            let Some((row, review)) = last_review(&rows, &entry.name) else {
+                continue;
+            };
+            records.push(ReviewRecord {
+                id: evidence_id(index),
+                name: entry.name.clone(),
+                mark: if review.accepted {
+                    ReviewMark::Accepted
+                } else {
+                    ReviewMark::Rejected
+                },
+                hash: review.hash,
+                date: row.date.clone(),
+                origin: "chat".to_string(),
+                text: review_note(row),
+            });
+        }
+        Ok(records)
+    }
+
+    /// Conferências da tarefa: as do `conferencias.md` na tarefa em pasta que já o tem; senão, as do
+    /// registro antigo.
+    fn reviews(&self, file: &Path, content: &str) -> Result<Vec<ReviewRecord>> {
+        if is_task_folder(file) && file.join(REVIEWS_FILE).is_file() {
+            let text = read(&file.join(REVIEWS_FILE))?;
+            return Ok(parse_reviews(&text, &task_id_of(file)));
+        }
+        self.legacy_reviews(content)
     }
 
     /// Linhas do "Registro de execução" de `content`, na ordem.
@@ -2852,23 +3016,29 @@ impl Tasks {
     /// atual e depois da última mudança da tarefa (ajuste ou retomada; a recusa de outra evidência não
     /// conta, para não gerar de novo as conferidas a cada recusa). `Some(true)` se o
     /// arquivo tem conteúdo, `Some(false)` se está vazio, `None` se ela é gerada de novo.
-    fn review_kept(&self, rows: &[RecordRow], dir: &Path, name: &str) -> Result<Option<bool>> {
+    fn review_kept(
+        &self,
+        rows: &[RecordRow],
+        reviews: &[ReviewRecord],
+        dir: &Path,
+        id: &str,
+        name: &str,
+    ) -> Result<Option<bool>> {
         let path = dir.join(name);
         if !is_valid_evidence_name(name) || !path.is_file() {
             return Ok(None);
         }
+        let Some(review) = current_review(reviews, name) else {
+            return Ok(None);
+        };
+        let Some(index) = review_position(rows, id, name) else {
+            return Ok(None);
+        };
         let changed_at = rows
             .iter()
             .rposition(|row| matches!(row.step.as_str(), "ajuste" | "retomada"));
-        let Some((index, review)) = rows.iter().enumerate().rev().find_map(|(index, row)| {
-            review_of(row)
-                .filter(|review| review.name == name)
-                .map(|review| (index, review))
-        }) else {
-            return Ok(None);
-        };
         let bytes = fs::read(&path)?;
-        let kept = review.accepted
+        let kept = review.mark == ReviewMark::Accepted
             && changed_at.is_none_or(|changed_at| index > changed_at)
             && self.review_hashes(&bytes).matches(&review.hash);
         Ok(kept.then_some(!bytes.is_empty()))
@@ -2914,15 +3084,16 @@ impl Tasks {
             return Ok(Vec::new());
         }
         let content = TaskDoc::at(file).text()?;
-        let rows = self.record_rows(&content)?;
+        let reviews = self.reviews(file, &content)?;
         let entries = self.evidence_entries(&content)?;
         let next = format!("vostok task evidence {spec} {task} --antecipada");
         Ok(rejected
             .iter()
             .map(|name| {
                 let label = evidence_label(&entries, name);
-                let reason =
-                    last_rejection(&rows, name).map_or("", |(row, _)| rejection_reason(row));
+                let reason = current_review(&reviews, name)
+                    .filter(|record| record.mark == ReviewMark::Rejected)
+                    .map_or("", |record| record.text.as_str());
                 (
                     "recusas",
                     format!("{label} recusada pelo usuário: {reason}"),
@@ -6129,6 +6300,144 @@ fn normalized_reason(reason: &str) -> String {
     reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Arquivo da tarefa em pasta com uma linha por evidência conferida, recusada ou retirada.
+const REVIEWS_FILE: &str = "conferencias.md";
+const REVIEWS_HEADER: &str =
+    "| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |\n|---|---|---|---|---|---|---|\n";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReviewAction {
+    Accept,
+    Reject,
+    Withdraw,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReviewOrigin {
+    Chat,
+    // Construída pelo servidor do painel (TASK-03).
+    #[allow(dead_code)]
+    Painel,
+}
+
+impl ReviewOrigin {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Chat => "chat",
+            Self::Painel => "painel",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReviewMark {
+    Accepted,
+    Rejected,
+    Withdrawn,
+}
+
+impl ReviewMark {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Accepted => "conferida",
+            Self::Rejected => "recusada",
+            Self::Withdrawn => "retirada",
+        }
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        [Self::Accepted, Self::Rejected, Self::Withdrawn]
+            .into_iter()
+            .find(|mark| mark.as_str() == text)
+    }
+}
+
+/// Uma linha do `conferencias.md`: a decisão do usuário sobre uma evidência.
+#[derive(Debug, Clone)]
+pub(crate) struct ReviewRecord {
+    pub id: String,
+    pub name: String,
+    pub mark: ReviewMark,
+    pub hash: String,
+    pub date: String,
+    pub origin: String,
+    pub text: String,
+}
+
+/// Pedido de conferência, recusa ou retirada de uma evidência; `evidence` é `EV-NN` ou o arquivo.
+pub(crate) struct ReviewRequest<'a> {
+    pub spec: &'a str,
+    pub task: &'a str,
+    pub evidence: &'a str,
+    pub action: ReviewAction,
+    pub text: &'a str,
+    pub origin: ReviewOrigin,
+    pub expected_hash: Option<&'a str>,
+}
+
+pub(crate) struct ReviewOutcome {
+    // Lidos só pelo servidor do painel (TASK-03).
+    #[allow(dead_code)]
+    pub record: ReviewRecord,
+    #[allow(dead_code)]
+    pub task_status: String,
+    pub messages: Vec<String>,
+}
+
+#[derive(Debug)]
+pub(crate) enum ReviewError {
+    MissingText(ReviewAction),
+    TaskNotFound(String),
+    UnknownEvidence(String),
+    NotReviewable(String),
+    Changed(String),
+    Closed(String),
+    NothingToWithdraw(String),
+    Other(anyhow::Error),
+}
+
+impl std::fmt::Display for ReviewError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingText(ReviewAction::Withdraw) => {
+                write!(
+                    formatter,
+                    "informe o motivo da retirada em --motivo; nada foi registrado"
+                )
+            }
+            Self::MissingText(_) => {
+                write!(
+                    formatter,
+                    "informe o motivo da rejeição em --motivo; nada foi registrado"
+                )
+            }
+            Self::Changed(label) => {
+                write!(
+                    formatter,
+                    "{label} mudou depois de aberta; confira de novo; nada foi registrado"
+                )
+            }
+            Self::NothingToWithdraw(label) => write!(
+                formatter,
+                "{label} não tem conferência nem recusa para retirar; nada foi registrado"
+            ),
+            Self::TaskNotFound(message)
+            | Self::UnknownEvidence(message)
+            | Self::NotReviewable(message)
+            | Self::Closed(message) => write!(formatter, "{message}"),
+            Self::Other(error) => write!(formatter, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for ReviewError {}
+
+impl From<anyhow::Error> for ReviewError {
+    fn from(error: anyhow::Error) -> Self {
+        Self::Other(error)
+    }
+}
+
 /// Hashes com que uma linha de conferência ou rejeição vale para a evidência atual.
 struct ReviewHashes {
     /// Oito primeiros dígitos do SHA-256 de `review_content`, gravado nas linhas novas (RF-08).
@@ -6147,6 +6456,14 @@ impl ReviewHashes {
 
     fn matches(&self, hash: &str) -> bool {
         hash == self.current || hash == self.legacy
+    }
+
+    /// Hashes de uma conferência já gravada, quando o arquivo da evidência não existe mais.
+    fn recorded(hash: String) -> Self {
+        Self {
+            legacy: hash.clone(),
+            current: hash,
+        }
     }
 }
 
@@ -6173,7 +6490,6 @@ fn review_content(bytes: &[u8], ignore: &[String]) -> Vec<u8> {
 
 /// Linha do "Registro de execução" com as colunas que a conferência lê.
 struct RecordRow {
-    #[cfg_attr(not(feature = "painel"), allow(dead_code))]
     date: String,
     step: String,
     detail: String,
@@ -6265,20 +6581,116 @@ fn last_review<'a>(rows: &'a [RecordRow], name: &str) -> Option<(&'a RecordRow, 
     None
 }
 
-/// Conferência válida de `name`: a última linha de conferência ou rejeição dele é uma aceitação com
-/// o hash dos bytes atuais, também depois de ajuste e retomada; a rejeição posterior vence (RN-02).
-fn review_is_valid(rows: &[RecordRow], name: &str, hashes: &ReviewHashes) -> bool {
-    last_review(rows, name)
-        .is_some_and(|(_, review)| review.accepted && hashes.matches(&review.hash))
+/// Conferência válida de `name`: o registro vigente dele é uma aceitação com o hash dos bytes
+/// atuais, também depois de ajuste e retomada; a recusa posterior vence (RN-02).
+fn review_is_valid(reviews: &[ReviewRecord], name: &str, hashes: &ReviewHashes) -> bool {
+    current_review(reviews, name)
+        .is_some_and(|record| record.mark == ReviewMark::Accepted && hashes.matches(&record.hash))
 }
 
-/// Última rejeição de `name` no registro, com a linha dela.
-fn last_rejection<'a>(rows: &'a [RecordRow], name: &str) -> Option<(&'a RecordRow, Review)> {
-    rows.iter().rev().find_map(|row| {
-        review_of(row)
-            .filter(|review| review.name == name && !review.accepted)
-            .map(|review| (row, review))
+/// Registro vigente de `name`: o que não foi retirado.
+fn current_review<'a>(reviews: &'a [ReviewRecord], name: &str) -> Option<&'a ReviewRecord> {
+    reviews
+        .iter()
+        .find(|record| record.name == name && record.mark != ReviewMark::Withdrawn)
+}
+
+/// Índice da última linha de conferência do registro dessa evidência, pelo ID ou pelo arquivo.
+fn review_position(rows: &[RecordRow], id: &str, name: &str) -> Option<usize> {
+    let prefix = format!("{id} ");
+    rows.iter().rposition(|row| {
+        row.step == "conferência"
+            && (row.detail.starts_with(&prefix)
+                || review_of(row).is_some_and(|review| review.name == name))
     })
+}
+
+fn write_reviews(task_dir: &Path, records: &[ReviewRecord]) -> Result<()> {
+    let mut text = REVIEWS_HEADER.to_string();
+    for record in records {
+        text.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            escape_pipes(&record.id),
+            escape_pipes(&record.name),
+            record.mark.as_str(),
+            escape_pipes(&record.hash),
+            escape_pipes(&record.date),
+            escape_pipes(&record.origin),
+            escape_pipes(&record.text)
+        ));
+    }
+    let temporary = task_dir.join(format!("{REVIEWS_FILE}.tmp"));
+    write(&temporary, &text)?;
+    fs::rename(&temporary, task_dir.join(REVIEWS_FILE))
+        .with_context(|| format!("não foi possível gravar {REVIEWS_FILE}"))
+}
+
+fn review_line(id: &str, mark: ReviewMark, origin: &str) -> String {
+    format!("{id} {} no {origin}", mark.as_str())
+}
+
+fn is_review_hash(text: &str) -> bool {
+    (8..=64).contains(&text.len()) && text.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+}
+
+fn starts_with_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes.len() >= 10
+        && bytes[..10]
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| match index {
+                4 | 7 => *byte == b'-',
+                _ => byte.is_ascii_digit(),
+            })
+}
+
+fn parse_review_line(line: &str) -> Option<ReviewRecord> {
+    let cells = record_cells(line);
+    let [id, name, mark, hash, date, origin, text] = cells.as_slice() else {
+        return None;
+    };
+    if !is_evidence_id(id)
+        || !is_valid_evidence_name(name)
+        || !is_review_hash(hash)
+        || !starts_with_date(date)
+        || !matches!(origin.as_str(), "chat" | "painel")
+    {
+        return None;
+    }
+    Some(ReviewRecord {
+        id: id.clone(),
+        name: name.clone(),
+        mark: ReviewMark::parse(mark)?,
+        hash: hash.clone(),
+        date: date.clone(),
+        origin: origin.clone(),
+        text: text.clone(),
+    })
+}
+
+/// Registros do `conferencias.md`; a linha inválida é ignorada com um aviso (CB-08) e, para o mesmo
+/// arquivo, vale a última linha válida.
+fn parse_reviews(text: &str, task: &str) -> Vec<ReviewRecord> {
+    let mut records: Vec<ReviewRecord> = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if !line.starts_with('|') || line.starts_with("| ID |") || line.starts_with("|---") {
+            continue;
+        }
+        let Some(record) = parse_review_line(line) else {
+            eprintln!(
+                "Aviso: {REVIEWS_FILE} de {task}, linha {} inválida, ignorada: {line}",
+                index + 1
+            );
+            continue;
+        };
+        match records.iter().position(|other| other.name == record.name) {
+            Some(position) => records[position] = record,
+            None => records.push(record),
+        }
+    }
+    records
 }
 
 /// Motivo de uma linha de rejeição, depois de `): `.
@@ -6289,7 +6701,6 @@ fn rejection_reason(row: &RecordRow) -> &str {
 }
 
 /// Palavras do usuário numa linha de conferência ou rejeição: o texto depois de `): `, sem as aspas que o envolvem.
-#[cfg_attr(not(feature = "painel"), allow(dead_code))]
 fn review_note(row: &RecordRow) -> String {
     let note = rejection_reason(row).trim();
     note.strip_prefix('"')
@@ -6309,22 +6720,35 @@ pub(crate) struct ReviewState {
 }
 
 #[cfg(feature = "painel")]
-/// Estado de `name` pela última conferência ou rejeição com o hash dos bytes atuais; sem linha
-/// válida fica `a conferir`.
+/// Estado de `name` pelo registro vigente com o hash dos bytes atuais; sem registro válido fica
+/// `a conferir`.
 fn review_status(
-    rows: &[RecordRow],
+    reviews: &[ReviewRecord],
     name: &str,
     hashes: &ReviewHashes,
 ) -> (&'static str, String, String) {
-    match last_review(rows, name) {
-        Some((row, review)) if review.accepted && hashes.matches(&review.hash) => {
-            ("conferida", review_note(row), row.date.clone())
+    match current_review(reviews, name) {
+        Some(record) if record.mark == ReviewMark::Accepted && hashes.matches(&record.hash) => {
+            ("conferida", record.text.clone(), record.date.clone())
         }
-        Some((row, review)) if hashes.matches(&review.hash) => {
-            ("rejeitada", review_note(row), row.date.clone())
+        Some(record) if hashes.matches(&record.hash) => {
+            ("rejeitada", record.text.clone(), record.date.clone())
         }
         _ => ("a conferir", String::new(), String::new()),
     }
+}
+
+#[cfg(feature = "painel")]
+#[allow(dead_code)]
+/// Confere, recusa ou retira uma evidência para o servidor do painel, com a mesma função do comando.
+pub(crate) fn review_evidence(
+    harness: &Path,
+    request: &ReviewRequest,
+) -> Result<ReviewOutcome, ReviewError> {
+    let tasks = Tasks::new(Harness {
+        root: harness.to_path_buf(),
+    })?;
+    tasks.review(request)
 }
 
 #[cfg(feature = "painel")]
@@ -6347,7 +6771,7 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
         verification.trim_end(),
         record
     );
-    let rows = tasks.record_rows(&content)?;
+    let reviews = tasks.reviews(task_dir, &content)?;
     let review_kinds = tasks.review_kinds();
     let evidence_dir = task_dir.join(&layout.evidence_dir);
     Ok(tasks
@@ -6359,7 +6783,7 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
             } else {
                 match fs::read(evidence_dir.join(&entry.name)) {
                     Ok(bytes) if is_valid_evidence_name(&entry.name) => {
-                        review_status(&rows, &entry.name, &tasks.review_hashes(&bytes))
+                        review_status(&reviews, &entry.name, &tasks.review_hashes(&bytes))
                     }
                     _ => ("a conferir", String::new(), String::new()),
                 }

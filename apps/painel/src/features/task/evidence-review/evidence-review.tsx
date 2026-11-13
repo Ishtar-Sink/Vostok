@@ -4,6 +4,8 @@ import { Badge, type BadgeTone } from '../../../ui/badge/badge';
 import { SplitDialog, type SplitDialogPane } from '../../../ui/split-dialog/split-dialog';
 import { CATEGORIES, type EvidenceEntry } from '../evidence-list/evidence-items';
 import { EvidenceViewer, TEXT, type TextState } from './evidence-viewer';
+import { nextToReview } from './next-to-review';
+import { ReviewActions, type ReviewAction } from './review-actions';
 import { ReviewExplanation, type CheckField } from './review-explanation';
 import { checksOf, isVisual, snippetsOf, type SnippetCheck } from './snippet-checks';
 import styles from './evidence-review.module.css';
@@ -24,7 +26,7 @@ function readsText(entry: EvidenceEntry): boolean {
   return Boolean(entry.file) && TEXT.test(entry.name) && !(entry.manual && !entry.manual.attached);
 }
 
-function useEvidenceText(entry: EvidenceEntry): TextState {
+function useEvidenceText(entry: EvidenceEntry, reload: number): TextState {
   const [text, setText] = useState<TextState>(NO_TEXT);
   useEffect(() => {
     setText(NO_TEXT);
@@ -40,7 +42,7 @@ function useEvidenceText(entry: EvidenceEntry): TextState {
     return () => {
       alive = false;
     };
-  }, [entry.name]);
+  }, [entry.name, reload]);
   return text;
 }
 
@@ -68,6 +70,10 @@ function useCopyMessage() {
 }
 
 export interface EvidenceReviewProps {
+  spec: string;
+  task: string;
+  /** Status da tarefa: concluída (`done`) não mostra as ações. */
+  taskStatus: string;
   /** Evidências por onde ‹ › e ← → navegam: as das categorias filtradas, na ordem da lista. */
   entries: EvidenceEntry[];
   current: EvidenceEntry;
@@ -76,8 +82,10 @@ export interface EvidenceReviewProps {
 }
 
 /** Modal de conferência: a explicação da evidência à esquerda e a evidência aberta à direita. */
-export function EvidenceReview({ entries, current, onNavigate, onClose }: EvidenceReviewProps) {
-  const text = useEvidenceText(current);
+export function EvidenceReview({ spec, task, taskStatus, entries, current, onNavigate, onClose }: EvidenceReviewProps) {
+  const [reload, setReload] = useState(0);
+  const [notice, setNotice] = useState<{ text: string; alert: boolean } | null>(null);
+  const text = useEvidenceText(current, reload);
   const [active, setActive] = useState<{ field: CheckField; id: string } | null>(null);
   const [pane, setPane] = useState<SplitDialogPane>('side');
   const { message, copy } = useCopyMessage();
@@ -85,6 +93,7 @@ export function EvidenceReview({ entries, current, onNavigate, onClose }: Eviden
   useEffect(() => {
     setActive(null);
     setPane('side');
+    setNotice(null);
   }, [current.name]);
 
   const checks = useMemo<Record<CheckField, SnippetCheck[]>>(() => {
@@ -132,6 +141,21 @@ export function EvidenceReview({ entries, current, onNavigate, onClose }: Eviden
     if (target) onNavigate(target.name);
   }
 
+  function done(action: ReviewAction) {
+    if (action === 'retirar') {
+      setNotice({ text: 'Decisão retirada: a evidência volta para A conferir.', alert: false });
+      return;
+    }
+    const following = nextToReview(entries, current.name);
+    if (following) onNavigate(following.name);
+    else setNotice({ text: 'Não há outra evidência a conferir neste filtro.', alert: false });
+  }
+
+  function changed(message: string) {
+    setNotice({ text: message, alert: true });
+    setReload((value) => value + 1);
+  }
+
   const badge = statusBadge(current);
 
   return (
@@ -145,17 +169,25 @@ export function EvidenceReview({ entries, current, onNavigate, onClose }: Eviden
       onPaneChange={setPane}
       onKeyDown={onKeys}
       side={<ReviewExplanation entry={current} checks={checks} logNote={logNote} active={active} onSelect={select} copied={message} />}
-      main={<EvidenceViewer entry={current} text={text} hits={hits} />}
+      main={<EvidenceViewer entry={current} text={text} hits={hits} version={reload} />}
       footer={
-        <nav aria-label="Navegar entre as evidências" className={styles.nav}>
-          <button type="button" className={styles.navButton} aria-label="Anterior (←)" title="Anterior (←)" disabled={!previous} onClick={() => previous && onNavigate(previous.name)}>
-            ‹
-          </button>
-          <span className={styles.position}>{index >= 0 ? `${index + 1} de ${entries.length}` : ''}</span>
-          <button type="button" className={styles.navButton} aria-label="Próxima (→)" title="Próxima (→)" disabled={!next} onClick={() => next && onNavigate(next.name)}>
-            ›
-          </button>
-        </nav>
+        <>
+          <nav aria-label="Navegar entre as evidências" className={styles.nav}>
+            <button type="button" className={styles.navButton} aria-label="Anterior (←)" title="Anterior (←)" disabled={!previous} onClick={() => previous && onNavigate(previous.name)}>
+              ‹
+            </button>
+            <span className={styles.position}>{index >= 0 ? `${index + 1} de ${entries.length}` : ''}</span>
+            <button type="button" className={styles.navButton} aria-label="Próxima (→)" title="Próxima (→)" disabled={!next} onClick={() => next && onNavigate(next.name)}>
+              ›
+            </button>
+          </nav>
+          {notice ? (
+            <p role={notice.alert ? 'alert' : 'status'} className={styles.notice}>
+              {notice.text}
+            </p>
+          ) : null}
+          {taskStatus !== 'done' ? <ReviewActions spec={spec} task={task} entry={current} onDone={done} onChanged={changed} /> : null}
+        </>
       }
     />
   );

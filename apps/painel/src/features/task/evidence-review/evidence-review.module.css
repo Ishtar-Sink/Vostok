@@ -270,3 +270,38 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+.actions {
+  display: flex;
+  gap: var(--s2);
+  margin-left: auto;
+}
+
+.actions .reject {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: transparent;
+  color: var(--danger);
+}
+
+.actions .reject:hover {
+  background: var(--danger-soft);
+}
+
+.notice {
+  order: 3;
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.notice[role='alert'] {
+  color: var(--danger);
+}
+
+@media (max-width: 760px) {
+  .actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

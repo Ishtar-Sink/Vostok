@@ -66,7 +66,7 @@ function LogLines({ text, hits, diff }: { text: string; hits: Set<number>; diff:
 }
 
 /** A evidência aberta no lado direito do modal: imagem, vídeo, log numerado ou o link de baixar. */
-export function EvidenceViewer({ entry, text, hits }: { entry: EvidenceEntry; text: TextState; hits: Set<number> }) {
+export function EvidenceViewer({ entry, text, hits, version = 0 }: { entry: EvidenceEntry; text: TextState; hits: Set<number>; version?: number }) {
   const { file, manual, name } = entry;
   const exitCode = text.value ? EXIT_CODE.exec(text.value.split('\n', 4)[3] ?? '')?.[1] : undefined;
   const reviewedAt = entry.review?.reviewed_at;
@@ -75,17 +75,19 @@ export function EvidenceViewer({ entry, text, hits }: { entry: EvidenceEntry; te
     if (manual && !manual.attached) return <p className={styles.missing}>Falta anexar: {manual.description}</p>;
     if (!file) return <p className={styles.missing}>O arquivo da evidência não foi encontrado.</p>;
     const url = fileUrl(file.path);
+    // depois de um 409 o arquivo mudou: a versão na URL faz a imagem e o vídeo serem buscados de novo
+    const mediaUrl = version > 0 ? `${url}?v=${version}` : url;
     if (IMAGE.test(name)) {
       return (
         <div className={styles.media}>
-          <ImageViewer src={url} alt={`Evidência ${name}`} />
+          <ImageViewer src={mediaUrl} alt={`Evidência ${name}`} />
         </div>
       );
     }
     if (VIDEO.test(name)) {
       return (
         <div className={styles.media}>
-          <VideoPlayer src={url} label={`Vídeo ${name}`} />
+          <VideoPlayer src={mediaUrl} label={`Vídeo ${name}`} />
         </div>
       );
     }

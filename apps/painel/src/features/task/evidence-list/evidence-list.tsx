@@ -201,7 +201,7 @@ export function EvidenceList({ detail, headingId }: EvidenceListProps) {
           </section>
         );
       })}
-      {current ? <EvidenceReview entries={navigable} current={current} onNavigate={setOpenName} onClose={() => setOpenName(null)} /> : null}
+      {current ? <EvidenceReview spec={detail.spec} task={detail.state.id} taskStatus={detail.state.status} entries={navigable} current={current} onNavigate={setOpenName} onClose={() => setOpenName(null)} /> : null}
     </>
   );
 }

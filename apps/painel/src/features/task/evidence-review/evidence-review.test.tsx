@@ -1,9 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { EvidenceReview as Review } from '../../../shared/api';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { acceptEvidence, rejectEvidence, withdrawReview, type EvidenceReview as Review } from '../../../shared/api';
 import type { EvidenceEntry } from '../evidence-list/evidence-items';
 import { EvidenceReview } from './evidence-review';
 import styles from './evidence-review.module.css';
+
+vi.mock('../../../shared/api', async (original) => ({
+  ...(await original<typeof import('../../../shared/api')>()),
+  acceptEvidence: vi.fn(),
+  rejectEvidence: vi.fn(),
+  withdrawReview: vi.fn(),
+}));
 
 const MB = 1024 * 1024;
 const LOG = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest a ... ok\ntest b ... ok\n0 failed\nFAILED x\nFAILED y';
@@ -48,10 +55,12 @@ function entry(over: Omit<Partial<EvidenceEntry>, 'review'> & { review?: Partial
   };
 }
 
-function open(current: EvidenceEntry, entries: EvidenceEntry[] = [current]) {
+function open(current: EvidenceEntry, entries: EvidenceEntry[] = [current], taskStatus = 'executed') {
   const onNavigate = vi.fn();
   const onClose = vi.fn();
-  const view = render(<EvidenceReview entries={entries} current={current} onNavigate={onNavigate} onClose={onClose} />);
+  const view = render(
+    <EvidenceReview spec="SPEC-001" task="TASK-02" taskStatus={taskStatus} entries={entries} current={current} onNavigate={onNavigate} onClose={onClose} />,
+  );
   return { ...view, onNavigate, onClose };
 }
 
@@ -185,7 +194,7 @@ describe('EvidenceReview', () => {
     expect(onNavigate).toHaveBeenLastCalledWith('c.txt');
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });
     expect(onNavigate).toHaveBeenCalledTimes(2);
-    rerender(<EvidenceReview entries={[first, third]} current={third} onNavigate={onNavigate} onClose={vi.fn()} />);
+    rerender(<EvidenceReview spec="SPEC-001" task="TASK-02" taskStatus="executed" entries={[first, third]} current={third} onNavigate={onNavigate} onClose={vi.fn()} />);
     expect(screen.getByText('2 de 2')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Próxima (→)' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowLeft' });
@@ -279,5 +288,158 @@ describe('EvidenceReview', () => {
     expect(await within(evidence()).findByText('tudo certo')).toBeTruthy();
     expect(within(evidence()).getByText('código de saída 1')).toBeTruthy();
     expect(evidence().textContent).not.toContain('\u001b');
+  });
+});
+
+describe('Ações da conferência', () => {
+  const ok = { ok: true } as const;
+  const toReview = (name: string, over: Parameters<typeof entry>[0] = {}) =>
+    entry({ name, id: `EV-${name}`, title: name, ...over, review: { sha256: 'h1', ...over.review } });
+  const first = toReview('a.txt');
+  const done = toReview('b.txt', { category: 'conferidas', review: { status: 'conferida' } });
+  const last = toReview('c.txt');
+  const popover = (name: string) => screen.getByRole('dialog', { name });
+  const field = (name: string) => within(popover(name)).getByRole('textbox') as HTMLTextAreaElement;
+  const type = (name: string, value: string) => fireEvent.input(field(name), { target: { value } });
+  const confirm = (name: string, label: string) => fireEvent.click(within(popover(name)).getByRole('button', { name: label }));
+
+  beforeEach(() => {
+    vi.mocked(acceptEvidence).mockReset().mockResolvedValue(ok);
+    vi.mocked(rejectEvidence).mockReset().mockResolvedValue(ok);
+    vi.mocked(withdrawReview).mockReset().mockResolvedValue(ok);
+  });
+
+  it('mostra Recusar e Aceitar na evidência a conferir e Retirar na decidida', () => {
+    mockFiles();
+    open(first);
+    expect(screen.getByRole('button', { name: 'Recusar' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Aceitar' })).toBeTruthy();
+    cleanup();
+    open(done);
+    expect(screen.getByRole('button', { name: 'Retirar conferência' })).toBeTruthy();
+    cleanup();
+    open(toReview('d.txt', { category: 'recusadas', review: { status: 'recusada', reason: 'falta' } }));
+    expect(screen.getByRole('button', { name: 'Retirar recusa' })).toBeTruthy();
+    cleanup();
+    for (const item of [toReview('e.txt', { category: 'conferidas', review: { status: 'sem aval' } }), toReview('f.txt', { id: '' })]) {
+      open(item);
+      expect(screen.queryByRole('button', { name: /^(Recusar|Aceitar|Retirar)/ })).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('esconde as ações na tarefa concluída', () => {
+    mockFiles();
+    open(first, [first], 'done');
+    expect(screen.queryByRole('button', { name: /^(Recusar|Aceitar|Retirar)/ })).toBeNull();
+  });
+
+  it('aceita com observação e abre a próxima a conferir do filtro', async () => {
+    mockFiles();
+    const { onNavigate } = open(first, [first, done, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    expect(document.activeElement).toBe(field('Aceitar a evidência'));
+    expect(field('Aceitar a evidência').getAttribute('aria-label')).toBe('Observação');
+    type('Aceitar a evidência', 'ok');
+    confirm('Aceitar a evidência', 'Aceitar');
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('c.txt'));
+    expect(acceptEvidence).toHaveBeenCalledWith('SPEC-001', 'TASK-02', 'EV-a.txt', 'h1', 'ok');
+  });
+
+  it('aceita sem observação', async () => {
+    mockFiles();
+    open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    confirm('Aceitar a evidência', 'Aceitar');
+    await waitFor(() => expect(acceptEvidence).toHaveBeenCalledWith('SPEC-001', 'TASK-02', 'EV-a.txt', 'h1', ''));
+  });
+
+  it('não recusa sem motivo', () => {
+    mockFiles();
+    open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
+    confirm('Recusar a evidência', 'Recusar');
+    expect(rejectEvidence).not.toHaveBeenCalled();
+    expect(field('Recusar a evidência').getAttribute('aria-label')).toBe('Motivo da recusa');
+    expect(field('Recusar a evidência').getAttribute('aria-invalid')).toBe('true');
+    expect(within(popover('Recusar a evidência')).getByRole('alert').textContent).toBe('Obrigatório');
+  });
+
+  it('recusa com motivo e abre a próxima', async () => {
+    mockFiles();
+    const { onNavigate } = open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
+    type('Recusar a evidência', 'falta o total');
+    confirm('Recusar a evidência', 'Recusar');
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('c.txt'));
+    expect(rejectEvidence).toHaveBeenCalledWith('SPEC-001', 'TASK-02', 'EV-a.txt', 'h1', 'falta o total');
+  });
+
+  it('retira a conferência com motivo e fica na evidência', async () => {
+    mockFiles();
+    const { onNavigate } = open(done, [first, done, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar conferência' }));
+    confirm('Retirar a decisão', 'Retirar');
+    expect(withdrawReview).not.toHaveBeenCalled();
+    type('Retirar a decisão', 'engano');
+    confirm('Retirar a decisão', 'Retirar');
+    expect(await screen.findByText('Decisão retirada: a evidência volta para A conferir.')).toBeTruthy();
+    expect(withdrawReview).toHaveBeenCalledWith('SPEC-001', 'TASK-02', 'EV-b.txt', 'h1', 'engano');
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('avisa quando não há outra a conferir e fica na evidência aceita', async () => {
+    mockFiles();
+    const { onNavigate } = open(first, [first, done]);
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    confirm('Aceitar a evidência', 'Aceitar');
+    const notice = await screen.findByText('Não há outra evidência a conferir neste filtro.');
+    expect(notice.getAttribute('role')).toBe('status');
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('recarrega a evidência quando o arquivo mudou', async () => {
+    const message = 'A evidência mudou ou a tarefa não está em conferência: recarregue a página.';
+    vi.mocked(acceptEvidence).mockResolvedValue({ ok: false, status: 409, message });
+    const calls = mockFiles();
+    open(first, [first, last]);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    confirm('Aceitar a evidência', 'Aceitar');
+    expect((await screen.findByRole('alert')).textContent).toBe(message);
+    expect(screen.queryByRole('dialog', { name: 'Aceitar a evidência' })).toBeNull();
+    await waitFor(() => expect(calls).toHaveLength(2));
+  });
+
+  it('mostra o erro do servidor na caixa', async () => {
+    vi.mocked(rejectEvidence).mockResolvedValue({ ok: false, status: 403, message: 'O painel recusou a gravação: recarregue a página.' });
+    mockFiles();
+    const { onNavigate } = open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
+    type('Recusar a evidência', 'falta');
+    confirm('Recusar a evidência', 'Recusar');
+    const alert = await within(popover('Recusar a evidência')).findByRole('alert');
+    expect(alert.textContent).toBe('O painel recusou a gravação: recarregue a página.');
+    const button = within(popover('Recusar a evidência')).getByRole('button', { name: 'Recusar' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('não navega com as setas no campo da caixa', () => {
+    mockFiles();
+    const { onNavigate } = open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Aceitar' }));
+    fireEvent.keyDown(field('Aceitar a evidência'), { key: 'ArrowRight' });
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('o Esc fecha só a caixa', () => {
+    mockFiles();
+    const { onClose } = open(first, [first, last]);
+    fireEvent.click(screen.getByRole('button', { name: 'Recusar' }));
+    fireEvent.keyDown(field('Recusar a evidência'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Recusar a evidência' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'a.txt' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

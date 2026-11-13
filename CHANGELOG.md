@@ -2,6 +2,20 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.1] - 2026-11-13
+
+### Melhorias
+
+- A aba Evidências do painel separa as evidências em A conferir, Recusadas e Conferidas, com um resumo das contagens que também filtra, e alterna entre lista e cards, lembrando a escolha. (SPEC-051)
+- Clicar numa evidência abre uma janela de conferência com o que ela prova, como foi feita e como reproduzir ao lado do arquivo; cada texto do trecho e da falha mostra o resultado em verde ou vermelho e destaca a linha no log. (SPEC-051)
+- A conferência, a recusa e a retirada podem ser feitas no próprio painel, sem o agente. A gravação só é aceita da página aberta, com uma chave da sessão, e o resto do painel continua só de leitura. (SPEC-051)
+- As conferências ficam num arquivo próprio de cada tarefa, com a origem (chat ou painel), e o histórico da tarefa guarda só uma linha curta por decisão. As tarefas antigas mantêm o estado, sem migração. (SPEC-051)
+- As skills de execução e de finalização respeitam o que já foi decidido no painel e perguntam só pelo que falta. As evidências aceitam o subitem opcional `Como:`, de uma frase. (SPEC-051)
+
+### Correções
+
+- A busca do trecho e da falha esperados não acha mais falsos positivos, como `0 passed` dentro de `10 passed`, e a contagem e o destaque usam a mesma regra. (SPEC-051)
+
 ## [0.6.0] - 2026-11-11
 
 ### Recursos

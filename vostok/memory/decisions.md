@@ -2,7 +2,7 @@
 type: decision
 title: "Decisões"
 description: "Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade."
-updated_at: 2026-11-08T22:50:39Z
+updated_at: 2026-11-12T13:40:21Z
 ---
 
 # Decisões
@@ -62,7 +62,7 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 ## DEC-005: Painel somente leitura e aval no chat
 
 - **Data:** 2026-11-08
-- **Status:** ativa
+- **Status:** substituída
 - **Tags:** arquitetura, painel, somente-leitura, aval, chat, pedidos
 - **Origem:** SPEC-042 (painel somente leitura a partir da versão pré painel), resposta 1A do refinamento; proposta confirmada pelo Victor com "ok" em 2026-11-08.
 - **Contexto:** Com o painel interativo da DEC-004, o consumo de tokens subiu, sobretudo pelo loop da process-requests: cerca de 24% de uma sessão de ~/rd/app e cerca de 93% de um dia do ai-hub. A SPEC-042 reconstruiu a main a partir da v0.2.10 e lançou a 0.5.0.
@@ -70,3 +70,15 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 - **Alternativas descartadas:** Manter a DEC-004 parcial, com o painel interativo e o loop sob demanda: o custo de tokens continuaria. Aval com origem chat gravado em arquivo: mantém a trava e os arquivos sem ganho, porque o pedido no chat já é o aval.
 - **Consequências:** Saem os comandos vostok pedidos, vostok perguntas e vostok avais, o módulo de aval, as skills process-requests e ask-agent, os ramos por pedido das skills e as chaves da comunicação. O vostok update da 0.5.0 remove de uma instalação da 0.4.0 as skills, as chaves e as pastas de pedidos, perguntas e avais, listando cada uma. O painel mostra specs, tarefas, ondas, tarefas que faltam e documentos, e se atualiza sozinho.
 - **Substitui:** DEC-004
+
+## DEC-006: Painel com escrita só na conferência de evidências
+
+- **Data:** 2026-11-12
+- **Status:** ativa
+- **Tags:** arquitetura, painel, aval, conferência, evidências, somente-leitura
+- **Origem:** Estudo de viabilidade da conferência de evidências pelo painel, em 2026-11-12; proposta confirmada pelo Victor com "pode registrar a decisão".
+- **Contexto:** A DEC-005 deixou o painel somente leitura porque o loop da process-requests consumia muitos tokens. O usuário quer conferir, recusar e retirar a conferência de evidências pelo painel, continuando a conduzir o trabalho pelo chat. Essas ações não precisam do agente: são as mesmas operações do `vostok task evidence --reviewed`, `--rejected` e `--undo`.
+- **Decisão:** O painel continua local, só em 127.0.0.1, sem servidor externo, banco nem MCP, e sem agente. Ele aceita escrita só para conferir (com observação opcional), recusar (com motivo) e retirar a conferência de evidências, pela mesma lógica da CLI, com token de sessão e conferência de `Host` e `Origin`. Todas as demais rotas continuam somente leitura, com 405. Não há pedidos em arquivo, perguntas nem loop: o trabalho e os demais avais continuam no chat.
+- **Alternativas descartadas:** Manter a DEC-005: a conferência continuaria só pelo chat, sem ganho de tokens, porque a escrita no painel não passa pelo agente. Gravar a conferência no front-matter da evidência: prints e vídeos não têm onde guardar e a escrita mudaria o sha256 que valida a conferência. Voltar aos pedidos em arquivo da DEC-004: traria de volta o custo do loop.
+- **Consequências:** O servidor do painel ganha rotas POST restritas às três ações, com token e conferência de origem; a lógica de conferência da CLI vira função chamada pelo comando e pelo painel; as skills `execute-task` e `finish-task` passam a considerar as conferências feitas no painel antes de perguntar. Uma recusa pelo painel devolve a tarefa para execução na hora, e o agente vê isso no próximo comando.
+- **Substitui:** DEC-005

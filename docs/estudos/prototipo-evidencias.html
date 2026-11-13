@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo da aba Evidências</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600;700&display=swap">
+<style>
+/* Tokens copiados de apps/painel/src/theme/tokens.css (identidade Ishtar Sink / Vega). */
+:root, [data-theme='light'] {
+  --bg: #f3f0fa; --bg-elevated: #faf8fe; --surface: #ffffff; --surface-muted: #eae5f6; --surface-hover: #e1daf2;
+  --border: #d9d1ec; --border-strong: #bfb3dd;
+  --primary: #6d28d9; --primary-hover: #5b21b6; --primary-soft: #ebe0fd; --primary-on: #ffffff;
+  --accent: #0e7490; --accent-soft: #d8f1f6;
+  --text: #1a1230; --text-muted: #4f4469; --text-faint: #8b84a3;
+  --success: #047857; --success-soft: #d9f3e7; --warning: #92400e; --warning-soft: #fcefcf;
+  --danger: #be123c; --danger-soft: #fde2e9; --info: #0369a1; --info-soft: #daeefb;
+  --shadow-sm: 0 1px 2px rgba(42,24,96,.08);
+  --shadow-md: 0 4px 12px rgba(42,24,96,.1), 0 1px 3px rgba(42,24,96,.06);
+  --shadow-lg: 0 18px 44px rgba(42,24,96,.2), 0 4px 12px rgba(42,24,96,.08);
+  --code-bg: #faf8fe; --hl: #fcefcf;
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  --bg: #0b0816; --bg-elevated: #110b21; --surface: #181028; --surface-muted: #130d22; --surface-hover: #241a3d;
+  --border: #2f2250; --border-strong: #45337a;
+  --primary: #a78bfa; --primary-hover: #c4b5fd; --primary-soft: #2b1d52; --primary-on: #12082b;
+  --accent: #22d3ee; --accent-soft: #0f3342;
+  --text: #f5f1ff; --text-muted: #b1a5cf; --text-faint: #7a6c9e;
+  --success: #34d399; --success-soft: #0e2e27; --warning: #fbbf24; --warning-soft: #33260b;
+  --danger: #fb7185; --danger-soft: #3a1222; --info: #38bdf8; --info-soft: #0c2c42;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.45);
+  --shadow-md: 0 6px 16px rgba(0,0,0,.5), 0 0 0 1px rgba(167,139,250,.08);
+  --shadow-lg: 0 22px 52px rgba(0,0,0,.65), 0 0 0 1px rgba(167,139,250,.14);
+  --code-bg: #110b21; --hl: #33260b;
+  color-scheme: dark;
+}
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px; --radius-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+  --font-display: 'Outfit', system-ui, sans-serif; --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --motion-base: 200ms; --ease: cubic-bezier(.4,0,.2,1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--font-body); }
+button { font: inherit; color: inherit; }
+code, pre, .mono { font-family: var(--font-mono); }
+
+/* ---------- moldura do protótipo ---------- */
+.proto-bar { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between;
+  padding: var(--s3) var(--s6); border-bottom: 1px solid var(--border); background: var(--bg-elevated); font-size: 13px; color: var(--text-muted); }
+.proto-bar strong { color: var(--text); font-family: var(--font-display); }
+.proto-bar label { display: inline-flex; gap: var(--s2); align-items: center; cursor: pointer; }
+.page { max-width: 1100px; margin: 0 auto; padding: var(--s6) var(--s4) var(--s10, 48px); }
+.crumbs { color: var(--text-muted); font-size: 13px; margin-bottom: var(--s2); }
+h1 { font-family: var(--font-display); font-size: 30px; margin: 0 0 var(--s6); line-height: 1.15; }
+.tabs { display: flex; gap: var(--s6); border-bottom: 1px solid var(--border); margin-bottom: var(--s6); }
+.tabs span { padding: var(--s2) 0; font-weight: 600; color: var(--text-muted); }
+.tabs .on { color: var(--primary); box-shadow: inset 0 -2px 0 var(--primary); }
+
+/* anotações Vega */
+.annot [data-vega] { outline: 2px dashed var(--accent); outline-offset: 3px; position: relative; }
+.annot [data-vega]::after { content: attr(data-vega); position: absolute; top: -10px; right: 6px; z-index: 5;
+  background: var(--accent); color: #fff; font: 600 10px/1 var(--font-body); padding: 3px 6px; border-radius: 4px; white-space: nowrap; pointer-events: none; }
+.annot [data-vega-ok] { outline: 1px dotted var(--text-faint); outline-offset: 3px; }
+
+/* ---------- cabeçalho da aba ---------- */
+.ev-head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; margin-bottom: var(--s5); }
+.ev-head h2 { font-family: var(--font-display); font-size: 21px; margin: 0; }
+.summary { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.view-switcher { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-muted); border-radius: var(--radius-sm); }
+.view-switcher button { border: 0; background: transparent; width: 34px; height: 30px; border-radius: 6px; cursor: pointer; display: grid; place-items: center; color: var(--text-muted); }
+.view-switcher button[aria-pressed='true'] { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+.view-switcher svg { width: 16px; height: 16px; }
+
+/* badges */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.b-pending { background: var(--warning-soft); color: var(--warning); }
+.b-rejected { background: var(--danger-soft); color: var(--danger); }
+.b-ok { background: var(--success-soft); color: var(--success); }
+.b-kind { background: var(--surface-muted); color: var(--text-muted); font-weight: 500; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ---------- categorias ---------- */
+.group { margin-bottom: var(--s6); }
+.group > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; font-family: var(--font-display); font-weight: 600; font-size: 16px; }
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary .chev { transition: transform var(--motion-base) var(--ease); color: var(--text-faint); }
+.group[open] > summary .chev { transform: rotate(90deg); }
+.group .count { color: var(--text-faint); font-weight: 500; font-family: var(--font-body); font-size: 13px; }
+.group .hint { margin-left: auto; color: var(--text-faint); font: 400 12px var(--font-body); }
+
+/* lista */
+.list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.row { display: grid; grid-template-columns: 64px minmax(0,1fr) auto auto 92px 20px; gap: var(--s4); align-items: center;
+  padding: var(--s3) var(--s4); border-top: 1px solid var(--border); cursor: pointer; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; text-align: left; }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--surface-hover); }
+.row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.ev-id { font: 500 12px var(--font-mono); color: var(--primary); }
+.row .title { font-weight: 600; min-width: 0; }
+.row .title small { display: block; font: 400 12px var(--font-mono); color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .date { color: var(--text-faint); font-size: 12px; text-align: right; }
+.row .arrow { color: var(--text-faint); }
+
+/* cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--s4); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; text-align: left; padding: 0; display: flex; flex-direction: column;
+  transition: box-shadow var(--motion-base) var(--ease), transform var(--motion-base) var(--ease); }
+.card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.card:focus-visible { outline: 2px solid var(--primary); }
+.card .body { padding: var(--s4); display: grid; gap: var(--s2); }
+.card .meta { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
+.card .title { font-weight: 600; }
+.card .foot { display: flex; gap: var(--s2); align-items: center; justify-content: space-between; color: var(--text-faint); font-size: 12px; }
+
+/* ---------- modal de conferência ---------- */
+.backdrop { position: fixed; inset: 0; background: color-mix(in srgb, #0b0816 55%, transparent); display: grid; place-items: center; padding: var(--s6);
+  opacity: 0; pointer-events: none; transition: opacity var(--motion-base) var(--ease); z-index: 20; }
+.backdrop.open { opacity: 1; pointer-events: auto; }
+.dialog { width: min(1240px, 100%); height: min(820px, 100%); background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  display: grid; grid-template-rows: auto minmax(0,1fr) auto; grid-template-columns: minmax(0,1fr); overflow: hidden; transform: scale(.98); transition: transform var(--motion-base) var(--ease); }
+.backdrop.open .dialog { transform: none; }
+.d-head { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4) var(--s3) var(--s6); border-bottom: 1px solid var(--border); }
+.d-head h3 { margin: 0; font-family: var(--font-display); font-size: 18px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-head .spacer { flex: 1; }
+.icon-btn { width: 34px; height: 34px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--text-muted); }
+.icon-btn:hover { background: var(--surface-hover); }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+.pos { color: var(--text-faint); font-size: 12px; min-width: 44px; text-align: center; }
+.split { grid-row: 2; display: grid; grid-template-columns: minmax(380px, 470px) minmax(0,1fr); min-height: 0; }
+.side { min-width: 0; overflow: auto; padding: var(--s5) var(--s6); border-right: 1px solid var(--border); display: grid; gap: var(--s5); align-content: start; }
+.side h4 { margin: 0 0 var(--s2); font: 600 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); }
+.side p { margin: 0; }
+.how { display: grid; gap: var(--s2); }
+.how .tool { display: flex; gap: var(--s2); align-items: center; font-weight: 600; }
+.how .tool svg { width: 16px; height: 16px; color: var(--accent); }
+.cmd { display: flex; gap: var(--s2); align-items: flex-start; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--s2) var(--s2) var(--s2) var(--s3); }
+.cmd code { flex: 1; font-size: 12px; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.copy { border: 0; background: transparent; cursor: pointer; color: var(--text-faint); padding: 2px; border-radius: 4px; }
+.copy:hover { color: var(--primary); background: var(--surface-hover); }
+.note { font-size: 13px; color: var(--text-muted); }
+.derived { font-size: 11px; color: var(--text-faint); }
+
+/* trecho e falha estruturados */
+.checks { display: grid; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.check { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; gap: var(--s2); align-items: center; padding: var(--s2) var(--s3); border-top: 1px solid var(--border);
+  background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; }
+.check:first-child { border-top: 0; }
+.check:hover, .check.active { background: var(--surface-hover); }
+.check code { font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+.check .ico { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.ico.good { background: var(--success-soft); color: var(--success); }
+.ico.bad { background: var(--danger-soft); color: var(--danger); }
+.check .res { font-size: 11px; white-space: nowrap; font-weight: 600; }
+.check .res.good { color: var(--success); } .check .res.bad { color: var(--danger); }
+.na { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: var(--s2) var(--s3); font-size: 13px; color: var(--text-muted); }
+.na strong { color: var(--text); font-weight: 600; }
+.legend { font-size: 12px; color: var(--text-faint); margin-top: var(--s1); }
+
+/* área da evidência */
+.viewer { min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr); background: var(--code-bg); }
+.v-bar { display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s4); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); background: var(--surface); }
+.v-bar .file { font-family: var(--font-mono); color: var(--text); }
+.v-bar .spacer { flex: 1; }
+.v-meta { display: flex; gap: var(--s4); flex-wrap: wrap; }
+.log { overflow: auto; margin: 0; padding: var(--s3) 0; font: 12.5px/1.65 var(--font-mono); }
+.log .ln { display: grid; grid-template-columns: 48px minmax(0,1fr); padding-right: var(--s4); }
+.log .ln span:first-child { color: var(--text-faint); text-align: right; padding-right: var(--s3); user-select: none; }
+.log .ln span:last-child { white-space: pre-wrap; word-break: break-word; }
+.log .ln.head { color: var(--text-faint); }
+.log .ln.hit { background: var(--hl); box-shadow: inset 3px 0 0 var(--warning); }
+.log .add { color: var(--success); } .log .del { color: var(--danger); }
+.media { display: grid; place-items: center; padding: var(--s6); overflow: auto; }
+.media .shot-big { width: min(100%, 720px); aspect-ratio: 16/10; background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); padding: var(--s5); display: grid; gap: var(--s3); align-content: start; cursor: zoom-in; }
+.media .shot-big i { display: block; height: 10px; border-radius: 5px; background: var(--surface-muted); }
+.media .shot-big .pill { display: flex; gap: var(--s2); align-items: center; }
+.media .shot-big .pill b { padding: 2px 10px; border-radius: 99px; background: var(--success-soft); color: var(--success); font-size: 12px; }
+.media .shot-big .pill em { font-style: normal; font-size: 12px; color: var(--text-faint); }
+.player { width: min(100%, 720px); background: #000; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-md); }
+.player .screen { aspect-ratio: 16/9; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#2b1d52,#0f3342); }
+.player .controls { display: flex; gap: var(--s3); align-items: center; padding: var(--s2) var(--s3); background: #110b21; color: #b1a5cf; font-size: 12px; }
+.player .track { flex: 1; height: 4px; border-radius: 2px; background: #2f2250; position: relative; }
+.player .track::before { content: ''; position: absolute; inset: 0 70% 0 0; background: #a78bfa; border-radius: 2px; }
+
+/* rodapé de decisão */
+.d-foot { border-top: 1px solid var(--border); padding: var(--s3) var(--s6); display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; background: var(--bg-elevated); }
+.d-foot .state { display: flex; gap: var(--s2); align-items: center; font-size: 13px; color: var(--text-muted); min-width: 0; }
+.d-foot .spacer { flex: 1; }
+.d-foot { position: relative; }
+.nav { display: flex; align-items: center; gap: var(--s2); }
+.actions { display: flex; gap: var(--s2); margin-left: auto; }
+.ask { position: absolute; right: var(--s6); bottom: calc(100% + 8px); width: min(380px, calc(100% - 32px)); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--s4); display: grid; gap: var(--s3); z-index: 3; }
+.ask h5 { margin: 0; font: 600 15px var(--font-display); }
+.ask p { margin: 0; font-size: 12px; color: var(--text-faint); }
+.ask textarea { width: 100%; min-height: 84px; resize: vertical; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: 8px 12px; font: inherit; color: var(--text); }
+.ask textarea:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.ask .row-btns { display: flex; justify-content: flex-end; gap: var(--s2); }
+.d-foot input { flex: 1 1 260px; min-width: 0; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: 8px 12px; font: inherit; color: var(--text); }
+.d-foot input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.btn { border: 1px solid transparent; border-radius: var(--radius-sm); padding: 8px 16px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--primary); color: var(--primary-on); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-danger { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn-danger:hover { background: var(--danger-soft); }
+.btn-ghost { background: transparent; color: var(--text-muted); border-color: var(--border); }
+.btn-ghost:hover { background: var(--surface-hover); }
+.m-tabs { display: none; }
+
+/* ---------- celular ---------- */
+@media (max-width: 760px) {
+  .page { padding: var(--s4); }
+  h1 { font-size: 24px; }
+  .row { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: 'id arrow' 'title arrow'; row-gap: 2px; padding: var(--s3) var(--s4); }
+  .row .ev-id { grid-area: id; }
+  .row .title { grid-area: title; }
+  .row .arrow { grid-area: arrow; display: block; align-self: center; }
+  .row .kind, .row .date, .row > .badge:not(.kind) { display: none; }
+  .backdrop { padding: 0; }
+  .dialog { height: 100%; border-radius: 0; }
+  .split { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr); }
+  .d-head { gap: var(--s2); }
+  .d-head #d-state, .d-head .pos { display: none; }
+  .d-head .ev-id { white-space: nowrap; }
+  .d-head h3 { font-size: 16px; }
+  .m-tabs { display: flex; gap: var(--s4); padding: 0 var(--s4); border-bottom: 1px solid var(--border); }
+  .m-tabs button { border: 0; background: none; padding: var(--s2) 0; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+  .m-tabs button[aria-selected='true'] { color: var(--primary); box-shadow: inset 0 -2px 0 var(--primary); }
+  .split[data-pane='side'] .viewer, .split[data-pane='viewer'] .side { display: none; }
+  .side { border-right: 0; padding: var(--s4); }
+  .d-head { padding-left: var(--s4); }
+  .d-foot { padding: var(--s3) var(--s4); }
+  .d-foot .spacer { display: none; }
+  .ask { right: var(--s4); }
+}
+</style>
+</head>
+<body>
+
+<div class="proto-bar">
+  <span><strong>Protótipo</strong> · aba Evidências e modal de conferência (SPEC-051). Dados da SPEC-050 TASK-07.</span>
+  <span style="display:flex;gap:16px;flex-wrap:wrap">
+    <label><input type="checkbox" id="annot"> Mostrar componentes Vega</label>
+    <label><input type="checkbox" id="dark"> Tema escuro</label>
+  </span>
+</div>
+
+<main class="page" id="page">
+  <div class="crumbs">Tarefas / SPEC-050 / TASK-07</div>
+  <h1>Data e aval da conferência no painel</h1>
+  <div class="tabs"><span>Resumo</span><span class="on">Evidências</span><span>Para o agente</span></div>
+
+  <div class="ev-head">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <h2>Evidências</h2>
+      <div class="summary" id="summary"></div>
+    </div>
+    <div class="view-switcher" role="group" aria-label="Visualização" data-vega-ok>
+      <button id="v-list" aria-pressed="true" title="Lista" aria-label="Lista"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h9M5 8h9M5 12h9"/><circle cx="2" cy="4" r=".8" fill="currentColor"/><circle cx="2" cy="8" r=".8" fill="currentColor"/><circle cx="2" cy="12" r=".8" fill="currentColor"/></svg></button>
+      <button id="v-cards" aria-pressed="false" title="Cards" aria-label="Cards"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg></button>
+    </div>
+  </div>
+
+  <div id="groups"></div>
+</main>
+
+<div class="backdrop" id="backdrop" aria-hidden="true">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="d-title" data-vega="Novo na Vega: SplitDialog (dialog em dois painéis)">
+    <div class="d-head">
+      <span class="ev-id" id="d-id"></span>
+      <h3 id="d-title"></h3>
+      <span id="d-state"></span>
+      <span class="spacer"></span>
+      <button class="icon-btn" id="d-close" aria-label="Fechar (Esc)" title="Fechar (Esc)">✕</button>
+    </div>
+    <div style="display:grid;grid-template-rows:auto minmax(0,1fr);grid-template-columns:minmax(0,1fr);min-height:0">
+      <div class="m-tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-pane="side">Explicação</button>
+        <button role="tab" aria-selected="false" data-pane="viewer">Evidência</button>
+      </div>
+      <div class="split" id="split" data-pane="side">
+        <aside class="side" id="side"></aside>
+        <section class="viewer" id="viewer"></section>
+      </div>
+    </div>
+    <div class="d-foot" id="d-foot" data-vega-ok></div>
+  </div>
+</div>
+
+<script>
+const LOG = `$ cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib --test painel_server -- reviews_ revisao_traz_o_id_pela_posicao
+# data: 2026-11-11T22:08:10Z
+# commit: 67ad3fa (com mudanças não commitadas)
+# código de saída: 0
+    Finished \`test\` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (apps/cli/target/debug/deps/vostok-1088c3117a55453a)
+running 1 test
+test painel::read::tests::revisao_traz_o_id_pela_posicao ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 82 filtered out; finished in 0.00s
+     Running tests/painel_server.rs (apps/cli/target/debug/deps/painel_server-de3884e73881c865)
+running 3 tests
+test reviews_carry_the_date_and_the_user_words ... ok
+test reviews_only_get_post_is_405 ... ok
+test reviews_ct22_returns_the_four_states ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.05s`;
+
+const VITEST = `$ pnpm --dir apps/painel exec vitest run src/features/task/task-page.test.tsx --reporter=verbose
+# data: 2026-11-11T22:08:31Z
+# commit: 67ad3fa (com mudanças não commitadas)
+# código de saída: 0
+ ✓ src/features/task/task-page.test.tsx > Data e aval da conferência > mostra a data e o aval da conferência 41ms
+ ✓ src/features/task/task-page.test.tsx > Data e aval da conferência > mostra só a data na conferência sem aval 12ms
+ × src/features/task/task-page.test.tsx > Data e aval da conferência > mostra a data da rejeição com o motivo 18ms
+   → expected "Motivo: falta o teste" to be in the document
+ ✓ src/features/task/task-page.test.tsx > Data e aval da conferência > não mostra data na evidência a conferir 9ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)`;
+
+const DIFF = `diff --git a/docs/estudos/contexto-por-ferramenta.md b/docs/estudos/contexto-por-ferramenta.md
+# data: 2026-11-11T21:02:44Z
+# commit: 2108c14
+# código de saída: 0
+@@ -0,0 +1,6 @@
++# Contexto por ferramenta
++
++## Claude Code
++SessionStart (startup, resume, clear, compact) injeta o stdout.
++Limite: 10.000 caracteres por campo; acima, arquivo e prévia de 2.000.
++## Codex`;
+
+const EVIDENCES = [
+  { id:'EV-01', title:'A leitura da tarefa traz a data e o aval', file:'leitura-da-conferencia.txt', kind:'automática', kindLabel:'Log', state:'pending', date:'11/11 22:08', size:'1,1 KB',
+    proves:'A API da tarefa manda a data e as palavras do usuário de cada conferência válida, vazias na retirada e na evidência a conferir (RF-09, CT-10, CB-06).',
+    tool:'cargo test', how:'Roda os testes da leitura do painel: o teste da posição do ID na biblioteca e os três de `reviews_` do servidor do painel.',
+    cmd:'cargo test --manifest-path apps/cli/Cargo.toml --features painel --lib --test painel_server -- reviews_ revisao_traz_o_id_pela_posicao',
+    trecho:['test reviews_carry_the_date_and_the_user_words ... ok','test reviews_ct22_returns_the_four_states ... ok','test painel::read::tests::revisao_traz_o_id_pela_posicao ... ok'],
+    falha:['FAILED','panicked'], body:LOG, type:'log' },
+  { id:'EV-02', title:'A aba Evidências mostra a data e o aval', file:'aval-na-aba.txt', kind:'automática, da verificação', kindLabel:'Log', state:'rejected', date:'11/11 22:09', size:'0,9 KB',
+    proves:'A evidência conferida mostra a data e o aval, a sem aval só a data, a rejeitada a data com o motivo, e a a conferir nenhuma data (RF-09, CT-10, CB-06).',
+    tool:'Vitest', how:'Reaproveita a saída do comando rotulado da Verificação, que roda os testes da página da tarefa com o relatório detalhado.',
+    cmd:'pnpm --dir apps/painel exec vitest run src/features/task/task-page.test.tsx --reporter=verbose',
+    trecho:['Data e aval da conferência > mostra a data e o aval da conferência','Data e aval da conferência > mostra só a data na conferência sem aval'],
+    falha:['×','FAIL'], body:VITEST, type:'log', reason:'falta o teste da rejeição passar' },
+  { id:'EV-03', title:'Evidência com a data e o aval, a 1280 px', file:'aval-na-evidencia-1280.png', kind:'print', kindLabel:'Print', state:'ok', date:'11/11 22:10', size:'184 KB',
+    proves:'No painel real, a EV-01 mostra o selo conferida, a data e o aval; a EV-02, conferida sem motivo, só a data (RF-09, CT-10).',
+    tool:'Playwright', how:'Monta um projeto de exemplo com o fixture-midia.sh, confere duas evidências pela CLI, sobe o painel e fotografa a aba Evidências depois de clicar em Conferidas.',
+    cmd:'PAINEL_CLICAR=\'role=button[name=/^Conferidas/]\' bash apps/painel/scripts/print.sh \'/tarefas/SPEC-001/TASK-01#evidencias\' aval-na-evidencia-1280.png 1280,1200',
+    ler:'Veja "em dd/mm/aaaa" ao lado do selo da EV-01 e da EV-02, e "Aval:" só na EV-01, em cor discreta.',
+    trecho:[], falha:[], type:'image', reviewedAt:'11/11/2026', words:'Ok, finalizar e commitar' },
+  { id:'EV-04', title:'Data e aval sem rolagem lateral, a 375 px', file:'aval-na-evidencia-375.png', kind:'print', kindLabel:'Print', state:'ok', date:'11/11 22:10', size:'96 KB',
+    proves:'No celular, o selo, a data e o aval quebram linha dentro do cartão da evidência, sem rolagem lateral (RF-09).',
+    tool:'Playwright', how:'O mesmo projeto de exemplo da EV-03, fotografado na largura de um celular.',
+    cmd:'bash apps/painel/scripts/print.sh \'/tarefas/SPEC-001/TASK-01#evidencias\' aval-na-evidencia-375.png 375,1400',
+    ler:'O aval da EV-01 em uma ou mais linhas abaixo do selo e da data, dentro da largura da tela.',
+    trecho:[], falha:[], type:'image', reviewedAt:'11/11/2026', words:'' },
+  { id:'EV-05', title:'Troca entre lista e blocos do quadro', file:'trocar-visualizacao.webm', kind:'print', kindLabel:'Vídeo', state:'ok', date:'11/11 18:40', size:'412 KB',
+    proves:'A troca entre lista e blocos funciona do início ao fim, e a escolha volta depois de recarregar (RF-11).',
+    tool:'Playwright (vídeo)', how:'Grava a tela com o video.mjs enquanto clica em Blocos, recarrega a página e volta para Lista.',
+    cmd:'PAINEL_ACOES=\'clicar [aria-label=Blocos];;esperar 600;;tecla F5;;clicar [aria-label=Lista]\' bash apps/painel/scripts/print.sh \'/tarefas?spec=SPEC-050\' trocar-visualizacao.webm',
+    ler:'A troca para Blocos, o recarregamento mantendo Blocos e a volta para Lista.',
+    trecho:[], falha:[], type:'video', reviewedAt:'11/11/2026', words:'todas ok' },
+  { id:'EV-06', title:'Estudo do contexto por ferramenta', file:'estudo-contexto.diff', kind:'diff', kindLabel:'Diff', state:'pending', date:'11/11 21:02', size:'6,2 KB',
+    proves:'O estudo registra o mecanismo, o limite e a decisão de cada ferramenta (RF-04, CT-06).',
+    tool:'git diff', how:'Diferença do arquivo do estudo contra o commit gravado no baseline da tarefa.',
+    cmd:'git diff 2108c14 -- docs/estudos/contexto-por-ferramenta.md',
+    trecho:['## Claude Code','10.000 caracteres'], falha:[], body:DIFF, type:'diff' },
+];
+
+/* Evidências extras, só para ver a quebra de linhas na lista e nos cards. */
+const MORE = [
+  ['EV-07','Recusa do contexto carregado com a saída num pipe, redirecionada ou capturada numa variável','pre-bash-recusa.txt','pending','log'],
+  ['EV-08','Comandos permitidos','pre-bash-permite.txt','pending','log'],
+  ['EV-09','Núcleo curto do contexto no início da sessão, abaixo do limite de 10.000 caracteres do Claude Code','hook-session-start.txt','pending','log'],
+  ['EV-10','Tamanho do núcleo em caracteres','nucleo-tamanho.txt','rejected','log'],
+  ['EV-11','Seletor de visualização com Lista e Blocos a 1280 px, com o ativo destacado na cor do tema e os filtros alinhados','blocos-1280.png','rejected','image'],
+  ['EV-12','Blocos a 375 px','blocos-375.png','ok','image'],
+  ['EV-13','Init e update gravam os hooks sem tocar nos do usuário','hooks-init-update.txt','ok','log'],
+  ['EV-14','Garantia configurada ou lacuna avisada por ferramenta','garantia-por-ferramenta.txt','ok','log'],
+  ['EV-15','Retirar a conferência de uma evidência dada por engano, sem mexer nas outras nem nas tentativas da tarefa','retirar-conferencia-de-uma-evidencia-dada-por-engano.txt','ok','log'],
+  ['EV-16','Vídeo da troca de visualização','trocar-visualizacao-do-quadro-entre-lista-e-blocos.webm','pending','video'],
+];
+for (const [id, title, file, state, type] of MORE) {
+  const base = EVIDENCES.find(e => e.type === (type === 'log' ? 'log' : type)) || EVIDENCES[0];
+  EVIDENCES.push({ ...base, id, title, file, state, type,
+    kindLabel: { log:'Log', image:'Print', video:'Vídeo' }[type],
+    reason: state === 'rejected' ? 'o print não mostra o filtro de etapas aberto' : base.reason,
+    reviewedAt: '12/11/2026', words: state === 'ok' ? 'ok' : '' });
+}
+
+const STATES = {
+  pending:  { label:'A conferir', cls:'b-pending', hint:'precisam do seu aval' },
+  rejected: { label:'Recusadas', single:'Recusada', cls:'b-rejected', hint:'voltaram para correção' },
+  ok:       { label:'Conferidas', single:'Conferida', cls:'b-ok', hint:'' },
+};
+STATES.pending.single = 'A conferir';
+let view = 'list', current = -1, activeCheck = null;
+const order = () => ['pending','rejected','ok'].flatMap(s => EVIDENCES.filter(e => e.state === s));
+
+/* ---------- busca do trecho: mesma regra do painel (reticências como curinga) ---------- */
+function esc(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function findLines(text, needle){
+  const parts = needle.split(/\.\.\.|…/).map(p => p.trim()).filter(Boolean).map(esc);
+  if (!parts.length) return [];
+  // Igual ao painel: diferencia maiúsculas e exige limite de palavra nas pontas.
+  const re = new RegExp(`(?<![\\p{L}\\p{N}_])${parts.join('.*')}(?![\\p{L}\\p{N}_])`, 'u');
+  return text.split('\n').map((l,i) => re.test(l) && i > 3 ? i : -1).filter(i => i >= 0);
+}
+const h = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- lista e cards ---------- */
+function badge(state){ const s = STATES[state]; return `<span class="badge ${s.cls}"><span class="dot"></span>${s.single}</span>`; }
+function renderSummary(){
+  document.getElementById('summary').innerHTML = ['pending','rejected','ok'].map(s => {
+    const n = EVIDENCES.filter(e => e.state === s).length;
+    const word = { pending:'a conferir', rejected: n === 1 ? 'recusada' : 'recusadas', ok: n === 1 ? 'conferida' : 'conferidas' }[s];
+    return `<span class="badge ${STATES[s].cls}">${n} ${word}</span>`;
+  }).join('');
+}
+function renderGroups(){
+  const html = ['pending','rejected','ok'].map(s => {
+    const items = EVIDENCES.filter(e => e.state === s);
+    if (!items.length) return '';
+    const inner = view === 'list'
+      ? `<div class="list" data-vega-ok>${items.map(e => `
+          <button class="row" data-id="${e.id}">
+            <span class="ev-id">${e.id}</span>
+            <span class="title">${h(e.title)}<small>${h(e.file)}</small></span>
+            <span class="badge b-kind kind">${e.kindLabel}</span>
+            ${badge(e.state)}
+            <span class="date">${e.date}</span>
+            <span class="arrow">›</span>
+          </button>`).join('')}</div>`
+      : `<div class="cards">${items.map(e => `
+          <button class="card" data-id="${e.id}" data-vega-ok>
+            <div class="body">
+              <div class="meta"><span class="ev-id">${e.id}</span><span class="badge b-kind">${e.kindLabel}</span></div>
+              <div class="title">${h(e.title)}</div>
+              <div class="foot">${badge(e.state)}<span>${e.date}</span></div>
+            </div>
+          </button>`).join('')}</div>`;
+    return `<details class="group" open data-vega-ok>
+      <summary><span class="chev">▸</span>${STATES[s].label}<span class="count">${items.length}</span>${STATES[s].hint ? `<span class="hint">${STATES[s].hint}</span>` : ''}</summary>
+      ${inner}</details>`;
+  }).join('');
+  document.getElementById('groups').innerHTML = html;
+  document.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => openModal(b.dataset.id)));
+  renderSummary();
+}
+
+/* ---------- modal ---------- */
+const COPY_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>';
+const TOOL_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l4 4-4 4M8 12h6"/></svg>';
+function checks(e, list, expectFound){
+  if (!list.length) return '';
+  return `<div class="checks" data-vega="Novo na Vega: CheckList (itens com estado)">${list.map((t,i) => {
+    const lines = e.body ? findLines(e.body, t) : [];
+    const found = lines.length > 0, good = found === expectFound;
+    const where = `${lines.length} linha${lines.length > 1 ? 's' : ''}`;
+    const res = expectFound ? (found ? `apareceu · ${where}` : 'não apareceu') : (found ? `apareceu · ${where}` : 'não apareceu');
+    return `<button class="check" data-lines="${lines.join(',')}" title="Clique para destacar no log e copiar">
+      <span class="ico ${good ? 'good' : 'bad'}">${good ? '✓' : '✕'}</span>
+      <code>${h(t)}</code><span class="res ${good ? 'good' : 'bad'}">${res}</span></button>`;
+  }).join('')}</div>`;
+}
+function renderSide(e){
+  const visual = e.type === 'image' || e.type === 'video';
+  const na = (why) => `<div class="na"><strong>Não se aplica.</strong> ${why}</div>`;
+  const trechoWhy = visual ? 'Prints e vídeos não têm texto para procurar: confira olhando, como diz "Como ler".' : 'O planejamento não definiu um texto esperado para esta evidência.';
+  const falhaWhy = visual ? 'Prints e vídeos não têm texto para procurar: a falha é o que "Como ler" descreve não aparecer.'
+    : e.type === 'diff' ? 'Num diff, a falha é a mudança esperada não aparecer, e o Trecho esperado já confere isso.'
+    : 'O planejamento não definiu sinais de falha para esta evidência.';
+  const reading = `
+    ${visual ? `<section><h4>Como ler</h4><p class="note">${h(e.ler || '')}</p></section>` : ''}
+    <section><h4>Trecho esperado</h4>${e.trecho.length ? checks(e, e.trecho, true) + '<div class="legend">Cada texto precisa aparecer no log.</div>' : na(trechoWhy)}</section>
+    <section><h4>Sinais de falha</h4>${e.falha.length ? checks(e, e.falha, false) + '<div class="legend">Nenhum destes textos pode aparecer no log.</div>' : na(falhaWhy)}</section>`;
+  const review = e.state === 'ok'
+    ? `<section><h4>Conferência</h4><p class="note">Conferida em ${e.reviewedAt}${e.words ? ` · Aval: “${h(e.words)}”` : ''}</p></section>`
+    : e.state === 'rejected' ? `<section><h4>Recusa</h4><p class="note">Motivo: “${h(e.reason)}”</p></section>` : '';
+  document.getElementById('side').innerHTML = `
+    <section><h4>O que prova</h4><p>${h(e.proves)}</p></section>
+    <section class="how"><h4>Como foi feita</h4>
+      <div class="tool">${TOOL_SVG}${h(e.tool)} <span class="badge b-kind">${h(e.kind)}</span></div>
+      <p class="note">${h(e.how)}</p>
+      <div class="derived">Derivado do tipo e do comando; a frase vem do subitem opcional "Como:".</div></section>
+    <section><h4>Como reproduzir</h4>
+      <div class="cmd"><code>${h(e.cmd)}</code><button class="copy" title="Copiar" aria-label="Copiar comando" data-vega="Novo na Vega: CopyButton">${COPY_SVG}</button></div></section>
+    ${reading}${review}`;
+  document.querySelectorAll('.check').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.check').forEach(x => x.classList.toggle('active', x === c && !c.classList.contains('active')));
+    highlight(c.classList.contains('active') ? c.dataset.lines : '');
+    if (window.matchMedia('(max-width: 760px)').matches && c.dataset.lines) setPane('viewer');
+  }));
+}
+function renderViewer(e){
+  const bar = `<div class="v-bar"><span class="file">${h(e.file)}</span><span>${e.size}</span><span class="spacer"></span><span class="v-meta">${e.type === 'log' || e.type === 'diff' ? '<span>código de saída 0</span>' : ''}<span>${e.date}</span></span></div>`;
+  let body;
+  if (e.type === 'image') body = `<div class="media"><div class="shot-big" title="Clique para ampliar" data-vega="Novo na Vega: ImageViewer"><i style="width:30%;height:14px;background:var(--primary-soft)"></i><i></i><i style="width:80%"></i><div class="pill"><b>conferida</b><em>em 11/11/2026 · Aval: a tela bate com o layout aprovado</em></div><i style="width:60%"></i><i style="width:75%"></i><div class="pill"><b>conferida</b><em>em 11/11/2026</em></div><i style="width:50%"></i></div></div>`;
+  else if (e.type === 'video') body = `<div class="media"><div class="player" data-vega="Novo na Vega: VideoPlayer"><div class="screen">▶  trocar-visualizacao.webm</div><div class="controls"><span>▶</span><span>0:03 / 0:09</span><div class="track"></div><span>1×</span><span>⛶</span></div></div></div>`;
+  else body = `<pre class="log" id="log">${e.body.split('\n').map((l,i) => {
+      const cls = i < 4 ? 'head' : '';
+      const txt = e.type === 'diff' && i > 3 ? (l.startsWith('+') ? `<span class="add">${h(l)}</span>` : l.startsWith('-') ? `<span class="del">${h(l)}</span>` : h(l)) : h(l);
+      return `<div class="ln ${cls}" data-ln="${i}"><span>${i+1}</span><span>${txt}</span></div>`; }).join('')}</pre>`;
+  document.getElementById('viewer').innerHTML = bar + body;
+}
+function highlight(lines){
+  const set = new Set(String(lines).split(',').filter(Boolean).map(Number));
+  document.querySelectorAll('#log .ln').forEach(l => l.classList.toggle('hit', set.has(+l.dataset.ln)));
+  const first = document.querySelector('#log .ln.hit'); if (first) first.scrollIntoView({ block:'center', behavior:'smooth' });
+}
+function renderFoot(e){
+  const foot = document.getElementById('d-foot');
+  const total = order().length;
+  const nav = `<div class="nav">
+      <button class="icon-btn" id="d-prev" aria-label="Anterior (←)" title="Anterior (←)" ${current === 0 ? 'disabled' : ''}>‹</button>
+      <span class="pos" id="d-pos">${current + 1} de ${total}</span>
+      <button class="icon-btn" id="d-next" aria-label="Próxima (→)" title="Próxima (→)" ${current === total - 1 ? 'disabled' : ''}>›</button>
+    </div>`;
+  const actions = e.state === 'pending'
+    ? `<button class="btn btn-danger" data-ask="reject">Recusar</button><button class="btn btn-primary" data-ask="accept">Aceitar</button>`
+    : `<button class="btn btn-ghost" data-ask="undo">Retirar ${e.state === 'ok' ? 'conferência' : 'recusa'}</button>`;
+  foot.innerHTML = `${nav}<div class="actions">${actions}</div>`;
+  document.getElementById('d-prev').onclick = () => { if (current > 0) { current--; show(); } };
+  document.getElementById('d-next').onclick = () => { if (current < order().length - 1) { current++; show(); } };
+  foot.querySelectorAll('[data-ask]').forEach(b => b.onclick = () => ask(e, b.dataset.ask));
+}
+const ASK = {
+  accept: { title:'Aceitar a evidência', hint:'Observação opcional: fica registrada como o seu aval.', label:'Aceitar', cls:'btn-primary', required:false, placeholder:'Ex.: a tela bate com o layout aprovado' },
+  reject: { title:'Recusar a evidência', hint:'O motivo é obrigatório: é o que o agente vai corrigir.', label:'Recusar', cls:'btn-danger', required:true, placeholder:'O que está errado ou falta' },
+  undo:   { title:'Retirar a decisão', hint:'O motivo é obrigatório e fica no registro; a evidência volta para A conferir.', label:'Retirar', cls:'btn-ghost', required:true, placeholder:'Por que retirar' },
+};
+function ask(e, kind){
+  document.querySelector('.ask')?.remove();
+  const a = ASK[kind];
+  const box = document.createElement('div');
+  box.className = 'ask'; box.setAttribute('role','dialog'); box.setAttribute('aria-label', a.title);
+  box.dataset.vega = 'Vega: Popover com campo (variante do ConfirmDialog)';
+  box.innerHTML = `<h5>${a.title}</h5><p>${a.hint}</p><textarea id="ask-text" placeholder="${a.placeholder}"></textarea>
+    <div class="row-btns"><button class="btn btn-ghost" id="ask-cancel">Cancelar</button><button class="btn ${a.cls}" id="ask-ok">${a.label}</button></div>`;
+  document.getElementById('d-foot').appendChild(box);
+  const text = document.getElementById('ask-text'); text.focus();
+  document.getElementById('ask-cancel').onclick = () => box.remove();
+  document.getElementById('ask-ok').onclick = () => {
+    const v = text.value.trim();
+    if (a.required && !v) { text.style.outlineColor = 'var(--danger)'; text.focus(); text.placeholder = 'Obrigatório'; return; }
+    box.remove();
+    if (kind === 'accept') Object.assign(e, { state:'ok', reviewedAt:'13/11/2026', words:v });
+    if (kind === 'reject') Object.assign(e, { state:'rejected', reason:v });
+    if (kind === 'undo') { Object.assign(e, { state:'pending' }); renderGroups(); current = order().findIndex(x => x === e); show(); return; }
+    renderGroups(); next();
+  };
+}
+function show(){
+  const list = order(), e = list[current];
+  document.getElementById('d-id').textContent = e.id;
+  document.getElementById('d-title').textContent = e.title;
+  document.getElementById('d-state').innerHTML = badge(e.state);
+  renderSide(e); renderViewer(e); renderFoot(e); setPane('side');
+}
+function next(){ const list = order(); const i = list.findIndex(e => e.state === 'pending'); current = i >= 0 ? i : Math.min(current, list.length - 1); show(); }
+function openModal(id){ current = order().findIndex(e => e.id === id); show();
+  const b = document.getElementById('backdrop'); b.classList.add('open'); b.setAttribute('aria-hidden','false'); document.getElementById('d-close').focus(); }
+function closeModal(){ const b = document.getElementById('backdrop'); b.classList.remove('open'); b.setAttribute('aria-hidden','true'); }
+function setPane(p){ document.getElementById('split').dataset.pane = p;
+  document.querySelectorAll('.m-tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.pane === p)); }
+
+document.getElementById('d-close').onclick = closeModal;
+document.getElementById('backdrop').addEventListener('click', ev => { if (ev.target.id === 'backdrop') closeModal(); });
+document.querySelectorAll('.m-tabs button').forEach(b => b.onclick = () => setPane(b.dataset.pane));
+document.addEventListener('keydown', ev => {
+  if (!document.getElementById('backdrop').classList.contains('open') || ['INPUT','TEXTAREA'].includes(ev.target.tagName)) { if (ev.key === 'Escape') document.querySelector('.ask')?.remove(); return; }
+  if (ev.key === 'Escape') { if (document.querySelector('.ask')) document.querySelector('.ask').remove(); else closeModal(); }
+  if (ev.key === 'ArrowLeft') document.getElementById('d-prev').click();
+  if (ev.key === 'ArrowRight') document.getElementById('d-next').click();
+});
+document.getElementById('v-list').onclick = () => { view = 'list'; syncView(); };
+document.getElementById('v-cards').onclick = () => { view = 'cards'; syncView(); };
+function syncView(){ document.getElementById('v-list').setAttribute('aria-pressed', view === 'list'); document.getElementById('v-cards').setAttribute('aria-pressed', view === 'cards'); renderGroups(); }
+document.getElementById('dark').onchange = ev => document.documentElement.dataset.theme = ev.target.checked ? 'dark' : 'light';
+document.getElementById('annot').onchange = ev => document.body.classList.toggle('annot', ev.target.checked);
+renderGroups();
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-//! Testes do `vostok painel` somente leitura com o binário real: escuta só em `127.0.0.1`, página
-//! sem token, 405 para o que não é leitura e entrega de arquivos (SPEC-042).
+//! Testes do `vostok painel` com o binário real: escuta só em `127.0.0.1`, token de sessão na página,
+//! escrita só nas três rotas de conferência, 405 para o resto e entrega de arquivos (SPEC-042, SPEC-051).
 #![cfg(feature = "painel")]
 
 mod common;
@@ -139,18 +139,17 @@ fn unknown_api_route_is_404() {
 }
 
 #[test]
-fn leitura_pagina_sem_token_ou_explica_o_bundle_ausente() {
+fn pagina_serve_o_app_ou_explica_o_bundle_ausente() {
     let project = project();
     let painel = start(project.path());
     let response = request(
         painel.address,
         "GET /specs/SPEC-001 HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n",
     );
-    let served = status_line(&response).contains(" 200 ") && !response.contains("painel-token");
+    let served = status_line(&response).contains(" 200 ");
     let explained = status_line(&response).contains(" 503 ")
         && response.contains("pnpm --dir apps/painel build");
     assert!(served || explained, "{response}");
-    assert!(!response.contains("painel-token"), "{response}");
 }
 
 #[test]
@@ -640,8 +639,8 @@ fn reviews_ct22_returns_the_four_states() {
     assert!(response.status().contains(" 200 "), "{}", response.head);
     let body = String::from_utf8(response.body).unwrap();
     for expected in [
-        r#"{"id":"EV-01","name":"conferida.txt","kind":"automática","status":"conferida","reason":"","reviewed_at":"2026-11-09"}"#,
-        r#""status":"rejeitada","reason":"falta o total","reviewed_at":"2026-11-09""#,
+        r#"{"id":"EV-01","name":"conferida.txt","kind":"automática","status":"conferida","reason":"","reviewed_at":"2026-11-09""#,
+        r#""status":"recusada","reason":"falta o total","reviewed_at":"2026-11-09""#,
         r#""name":"pendente.txt","kind":"automática","status":"a conferir""#,
         r#""name":"tela.png","kind":"print","status":"sem aval""#,
         r#""id":"EV-04","name":"tela.png""#,
@@ -689,4 +688,370 @@ fn reviews_only_get_post_is_405() {
         let response = request(painel.address, &raw);
         assert!(status_line(&response).contains(" 405 "), "{response}");
     }
+}
+
+// --- Conferência pelo painel (SPEC-051) ---
+
+const WRITABLE_TASK: &str = "vostok/work/tasks/SPEC-001/TASK-01";
+const REVIEW_ROUTE: &str = "/api/tarefas/SPEC-001/TASK-01/evidencias/EV-01";
+
+/// Projeto com o harness extraído e a TASK-01 em pasta, em execução, com `saida.txt` a conferir.
+fn writable_project() -> common::Project {
+    let project = common::Project::new();
+    let root = project.root();
+    fs::write(root.join("valor.txt"), "a\n").unwrap();
+    let task = root.join(WRITABLE_TASK);
+    fs::create_dir_all(&task).unwrap();
+    let files = [
+        ("estado.yml", "id: TASK-01\nspec: SPEC-001\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [SPEC-001, simples]\nstatus: pending\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n"),
+        ("execucao.md", "### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n"),
+        ("verificacao.md", "### Baseline\n\n- `cat valor.txt`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha.\n  - Falha: arquivo ausente.\n"),
+        ("criterios.md", "### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n"),
+        ("executivo.md", "Resumo.\n"),
+        ("tecnico.md", "Detalhes.\n"),
+        ("registro.md", "## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n"),
+    ];
+    for (name, content) in files {
+        fs::write(task.join(name), content).unwrap();
+    }
+    for args in [
+        ["task", "adjust", "record-manual", "SPEC-001", "TASK-01"].as_slice(),
+        ["task", "approve", "approve", "SPEC-001", "TASK-01"].as_slice(),
+        ["task", "start", "SPEC-001", "TASK-01"].as_slice(),
+        ["task", "evidence", "SPEC-001", "TASK-01"].as_slice(),
+    ] {
+        project.vostok().args(args).assert().success();
+    }
+    project
+}
+
+fn page_token(address: SocketAddr) -> String {
+    let body = String::from_utf8(get_raw(address, "/", None).body).unwrap();
+    let marker = "<meta name=\"vostok-token\" content=\"";
+    let start = body
+        .find(marker)
+        .unwrap_or_else(|| panic!("página sem token: {body}"))
+        + marker.len();
+    body[start..]
+        .split('"')
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn trusted(address: SocketAddr, host: &str, token: &str) -> Vec<(String, String)> {
+    let port = address.port();
+    vec![
+        ("Host".to_string(), format!("{host}:{port}")),
+        ("Origin".to_string(), format!("http://{host}:{port}")),
+        ("X-Vostok-Token".to_string(), token.to_string()),
+    ]
+}
+
+fn send(
+    address: SocketAddr,
+    method: &str,
+    target: &str,
+    headers: &[(String, String)],
+    body: &str,
+) -> Raw {
+    let mut raw = format!("{method} {target} HTTP/1.1\r\n");
+    if !headers.iter().any(|(name, _)| name == "Host") {
+        raw.push_str("Host: x\r\n");
+    }
+    for (name, value) in headers {
+        raw.push_str(&format!("{name}: {value}\r\n"));
+    }
+    raw.push_str(&format!(
+        "Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    ));
+    let mut stream = TcpStream::connect(address).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    stream.write_all(raw.as_bytes()).unwrap();
+    let mut bytes = Vec::new();
+    stream.read_to_end(&mut bytes).unwrap();
+    let split = bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .unwrap_or_else(|| panic!("resposta sem cabeçalhos: {bytes:?}"));
+    Raw {
+        head: String::from_utf8_lossy(&bytes[..split]).into_owned(),
+        body: bytes[split + 4..].to_vec(),
+    }
+}
+
+fn post(address: SocketAddr, target: &str, headers: &[(String, String)], body: &str) -> Raw {
+    send(address, "POST", target, headers, body)
+}
+
+fn task_file(project: &common::Project, name: &str) -> String {
+    fs::read_to_string(project.root().join(WRITABLE_TASK).join(name)).unwrap_or_default()
+}
+
+fn body_text(raw: &Raw) -> String {
+    String::from_utf8_lossy(&raw.body).into_owned()
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_grava_aceite_com_origem_painel() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let token = page_token(painel.address);
+    let response = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/aceitar"),
+        &trusted(painel.address, "127.0.0.1", &token),
+        r#"{"texto": "bate com o log"}"#,
+    );
+    let body = body_text(&response);
+    assert!(
+        response.status().contains(" 200 "),
+        "{} {body}",
+        response.head
+    );
+    for expected in [
+        r#""id":"EV-01""#,
+        r#""status":"conferida""#,
+        r#""origin":"painel""#,
+    ] {
+        assert!(body.contains(expected), "faltou {expected} em {body}");
+    }
+    let reviews = task_file(&project, "conferencias.md");
+    assert!(
+        reviews.contains("| EV-01 | saida.txt | conferida |"),
+        "{reviews}"
+    );
+    assert!(reviews.contains("| painel | bate com o log |"), "{reviews}");
+    let record = task_file(&project, "registro.md");
+    assert!(
+        record.contains("| conferência | usuário | EV-01 conferida no painel |"),
+        "{record}"
+    );
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_grava_recusa_e_retirada_com_texto() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let token = page_token(painel.address);
+    let headers = trusted(painel.address, "localhost", &token);
+    let rejected = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/recusar"),
+        &headers,
+        r#"{"texto": "falta o total"}"#,
+    );
+    let body = body_text(&rejected);
+    assert!(
+        rejected.status().contains(" 200 "),
+        "{} {body}",
+        rejected.head
+    );
+    assert!(body.contains(r#""status":"recusada""#), "{body}");
+    assert!(body.contains(r#""task_status":"in_progress""#), "{body}");
+    let reviews = task_file(&project, "conferencias.md");
+    assert!(
+        reviews.contains("| EV-01 | saida.txt | recusada |"),
+        "{reviews}"
+    );
+    let withdrawn = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/retirar"),
+        &headers,
+        r#"{"texto": "engano"}"#,
+    );
+    let body = body_text(&withdrawn);
+    assert!(
+        withdrawn.status().contains(" 200 "),
+        "{} {body}",
+        withdrawn.head
+    );
+    assert!(body.contains(r#""status":"a conferir""#), "{body}");
+    let reviews = task_file(&project, "conferencias.md");
+    assert!(
+        reviews.contains("| EV-01 | saida.txt | retirada |"),
+        "{reviews}"
+    );
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_recusa_sem_token_ou_de_outra_origem() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let token = page_token(painel.address);
+    let record = task_file(&project, "registro.md");
+    let port = painel.address.port();
+    let good = trusted(painel.address, "127.0.0.1", &token);
+    let without_token: Vec<_> = good
+        .iter()
+        .filter(|(name, _)| name != "X-Vostok-Token")
+        .cloned()
+        .collect();
+    let wrong_token = trusted(painel.address, "127.0.0.1", &"0".repeat(64));
+    let mut evil_origin = good.clone();
+    evil_origin[1].1 = "http://evil.example".to_string();
+    let without_origin: Vec<_> = good
+        .iter()
+        .filter(|(name, _)| name != "Origin")
+        .cloned()
+        .collect();
+    let mut evil_host = good.clone();
+    evil_host[0].1 = format!("evil.example:{port}");
+    for headers in [
+        without_token,
+        wrong_token,
+        evil_origin,
+        without_origin,
+        evil_host,
+    ] {
+        let response = post(
+            painel.address,
+            &format!("{REVIEW_ROUTE}/aceitar"),
+            &headers,
+            r#"{"texto": "ok"}"#,
+        );
+        assert!(
+            response.status().contains(" 403 "),
+            "{:?} {}",
+            headers,
+            response.head
+        );
+        assert!(task_file(&project, "conferencias.md").is_empty());
+        assert_eq!(task_file(&project, "registro.md"), record);
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_recusa_texto_ausente() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let headers = trusted(painel.address, "127.0.0.1", &page_token(painel.address));
+    for (action, body) in [
+        ("recusar", "{}"),
+        ("retirar", r#"{"texto": "   "}"#),
+        ("aceitar", "não é json"),
+        ("aceitar", r#"{"texto": 5}"#),
+    ] {
+        let response = post(
+            painel.address,
+            &format!("{REVIEW_ROUTE}/{action}"),
+            &headers,
+            body,
+        );
+        assert!(
+            response.status().contains(" 400 "),
+            "{action} {body} {}",
+            response.head
+        );
+        assert!(task_file(&project, "conferencias.md").is_empty());
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_recusa_evidencia_ou_tarefa_inexistente() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let headers = trusted(painel.address, "127.0.0.1", &page_token(painel.address));
+    for route in [
+        "/api/tarefas/SPEC-001/TASK-01/evidencias/EV-09",
+        "/api/tarefas/SPEC-001/TASK-09/evidencias/EV-01",
+        "/api/tarefas/SPEC-999/TASK-01/evidencias/EV-01",
+        "/api/tarefas/SPEC-001/TASK-01/evidencias/saida.txt",
+    ] {
+        let response = post(
+            painel.address,
+            &format!("{route}/aceitar"),
+            &headers,
+            r#"{"texto": "ok"}"#,
+        );
+        assert!(
+            response.status().contains(" 404 "),
+            "{route} {}",
+            response.head
+        );
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_recusa_tarefa_fora_de_conferencia() {
+    let project = writable_project();
+    let painel = start(project.root());
+    let headers = trusted(painel.address, "127.0.0.1", &page_token(painel.address));
+    let changed = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/aceitar"),
+        &headers,
+        r#"{"texto": "", "sha256": "00000000"}"#,
+    );
+    assert!(changed.status().contains(" 409 "), "{}", changed.head);
+    assert!(task_file(&project, "conferencias.md").is_empty());
+    let state = project.root().join(WRITABLE_TASK).join("estado.yml");
+    let text = fs::read_to_string(&state).unwrap();
+    fs::write(&state, text.replace("status: in_progress", "status: done")).unwrap();
+    let closed = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/aceitar"),
+        &headers,
+        r#"{"texto": "ok"}"#,
+    );
+    assert!(closed.status().contains(" 409 "), "{}", closed.head);
+    assert!(task_file(&project, "conferencias.md").is_empty());
+}
+
+#[test]
+fn conferencia_post_somente_tres_rotas_aceitam_post() {
+    let project = project();
+    let painel = start(project.path());
+    let headers = trusted(painel.address, "127.0.0.1", "x");
+    for method in ["PUT", "DELETE", "PATCH"] {
+        let response = send(
+            painel.address,
+            method,
+            &format!("{REVIEW_ROUTE}/aceitar"),
+            &headers,
+            "{}",
+        );
+        assert!(
+            response.status().contains(" 405 "),
+            "{method} {}",
+            response.head
+        );
+    }
+    for route in [
+        "/api/visao".to_string(),
+        "/api/tarefas/SPEC-001/TASK-01".to_string(),
+        REVIEW_ROUTE.to_string(),
+        format!("{REVIEW_ROUTE}/apagar"),
+        "/".to_string(),
+    ] {
+        let response = post(painel.address, &route, &headers, "{}");
+        assert!(
+            response.status().contains(" 405 "),
+            "POST {route} {}",
+            response.head
+        );
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn conferencia_post_pagina_entrega_o_token_da_sessao() {
+    let project = project();
+    let painel = start(project.path());
+    let token = page_token(painel.address);
+    assert_eq!(token.len(), 64, "{token}");
+    assert!(token.chars().all(|c| c.is_ascii_hexdigit()), "{token}");
+    let page = body_text(&get_raw(painel.address, "/specs/SPEC-001", None));
+    assert!(page.contains(&format!("content=\"{token}\"")), "{page}");
+    let other = start(project.path());
+    assert_ne!(page_token(other.address), token);
 }

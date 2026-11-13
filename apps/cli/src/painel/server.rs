@@ -1,14 +1,18 @@
-//! Servidor HTTP do painel: escuta só em `127.0.0.1`, serve o bundle de `apps/painel` e despacha os GET para a leitura e o aviso ao vivo; os demais métodos respondem 405.
+//! Servidor HTTP do painel: escuta só em `127.0.0.1`, serve o bundle de `apps/painel` com o token da sessão, despacha os GET para a leitura e o aviso ao vivo e aceita POST só nas três rotas de conferência de evidências (DEC-006); os demais métodos e rotas respondem 405.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use anyhow::{anyhow, Result};
 
-use super::{live, not_found, read, text, Painel, Reply};
+use super::{json, json_string, live, not_found, read, safe_segment, text, Painel, Reply, Session};
+use crate::commands::task::{
+    review_evidence, ReviewAction, ReviewError, ReviewMark, ReviewOrigin, ReviewOutcome,
+    ReviewRequest,
+};
 
 /// Se o bundle de `apps/painel` foi embutido neste binário.
 pub const HAS_BUNDLE: bool = cfg!(painel_bundle);
@@ -19,6 +23,12 @@ gere o bundle com `pnpm --dir apps/painel install --frozen-lockfile && pnpm --di
 (Node e pnpm no PATH) e compile de novo com `cargo install --path apps/cli --features painel`.";
 
 const LIVE_PATH: &str = "/api/ao-vivo";
+
+/// Maior corpo aceito num POST de conferência.
+const MAX_BODY: usize = 16 * 1024;
+
+/// Uma conferência por vez, para duas abas não gravarem o mesmo arquivo juntas.
+static REVIEW_LOCK: Mutex<()> = Mutex::new(());
 
 #[cfg(painel_bundle)]
 static DIST: include_dir::Dir<'static> =
@@ -47,9 +57,11 @@ pub fn serve(
         .ok_or_else(|| anyhow!("endereço de escuta inválido"))?;
     announce(format!("http://{address}/"));
     let painel = Arc::new(painel);
+    let session = Arc::new(Session::new(address.port()));
     for request in server.incoming_requests() {
         let painel = Arc::clone(&painel);
-        thread::spawn(move || handle(&painel, request));
+        let session = Arc::clone(&session);
+        thread::spawn(move || handle(&painel, &session, request));
     }
     Ok(())
 }
@@ -72,9 +84,24 @@ fn listen_error(
     }
 }
 
-fn handle(painel: &Painel, request: tiny_http::Request) {
+fn handle(painel: &Painel, session: &Session, mut request: tiny_http::Request) {
     let method = request.method().as_str().to_string();
     let url = request.url().to_string();
+    if method == "POST" {
+        let headers = PostHeaders::of(&request);
+        let mut body = Vec::new();
+        let read = request
+            .as_reader()
+            .take(MAX_BODY as u64 + 1)
+            .read_to_end(&mut body);
+        let reply = if read.is_err() || body.len() > MAX_BODY {
+            text(400, "corpo grande demais ou ilegível; nada foi registrado")
+        } else {
+            review_post(painel, session, &url, &headers, &body)
+        };
+        let _ = request.respond(to_response(reply));
+        return;
+    }
     if method == "GET" {
         if url.split('?').next() == Some(LIVE_PATH) {
             live::handle(painel, request);
@@ -87,7 +114,163 @@ fn handle(painel: &Painel, request: tiny_http::Request) {
             return;
         }
     }
-    let _ = request.respond(to_response(dispatch(painel, &method, &url)));
+    let _ = request.respond(to_response(dispatch(painel, session, &method, &url)));
+}
+
+/// Cabeçalhos que decidem se um POST vem da página do próprio painel.
+pub struct PostHeaders {
+    pub host: Option<String>,
+    pub origin: Option<String>,
+    pub token: Option<String>,
+}
+
+impl PostHeaders {
+    fn of(request: &tiny_http::Request) -> Self {
+        let find = |name: &'static str| {
+            request
+                .headers()
+                .iter()
+                .find(|header| header.field.equiv(name))
+                .map(|header| header.value.as_str().to_string())
+        };
+        Self {
+            host: find("Host"),
+            origin: find("Origin"),
+            token: find("X-Vostok-Token"),
+        }
+    }
+}
+
+/// POST de conferência: só `/api/tarefas/<SPEC>/<TASK>/evidencias/<EV-NN>/aceitar|recusar|retirar`,
+/// com o token da sessão e `Host` e `Origin` do próprio painel; grava pela mesma função do
+/// `vostok task evidence`, com a origem `painel`.
+pub fn review_post(
+    painel: &Painel,
+    session: &Session,
+    url: &str,
+    headers: &PostHeaders,
+    body: &[u8],
+) -> Reply {
+    let path = url.split('?').next().unwrap_or_default();
+    let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+    let (spec, task, evidence, action) = match parts.as_slice() {
+        ["api", "tarefas", spec, task, "evidencias", evidence, action] => {
+            let action = match *action {
+                "aceitar" => ReviewAction::Accept,
+                "recusar" => ReviewAction::Reject,
+                "retirar" => ReviewAction::Withdraw,
+                _ => return text(405, "método não permitido"),
+            };
+            (*spec, *task, *evidence, action)
+        }
+        _ => return text(405, "método não permitido"),
+    };
+    if !trusted_request(session, headers) {
+        return text(403, "token ou origem recusados; nada foi registrado");
+    }
+    let evidence_id = evidence
+        .strip_prefix("EV-")
+        .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()));
+    if safe_segment(spec).is_err() || safe_segment(task).is_err() || !evidence_id {
+        return not_found();
+    }
+    let Some((review_text, expected_hash)) = review_body(body) else {
+        return text(
+            400,
+            "corpo inválido; envie {\"texto\": \"...\"}; nada foi registrado",
+        );
+    };
+    let request = ReviewRequest {
+        spec,
+        task,
+        evidence,
+        action,
+        text: &review_text,
+        origin: ReviewOrigin::Painel,
+        expected_hash: expected_hash.as_deref(),
+    };
+    let result = {
+        let _guard = REVIEW_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        review_evidence(&painel.root, &request)
+    };
+    match result {
+        Ok(outcome) => json(review_json(&outcome)),
+        Err(ReviewError::MissingText(_)) => text(400, "informe o texto; nada foi registrado"),
+        Err(error @ (ReviewError::TaskNotFound(_) | ReviewError::UnknownEvidence(_))) => {
+            text(404, &error.to_string())
+        }
+        Err(
+            error @ (ReviewError::NotReviewable(_)
+            | ReviewError::Changed(_)
+            | ReviewError::Closed(_)
+            | ReviewError::NothingToWithdraw(_)),
+        ) => text(409, &error.to_string()),
+        Err(error @ ReviewError::Other(_)) => text(500, &error.to_string()),
+    }
+}
+
+/// `texto` e `sha256` do corpo JSON; corpo vazio vale `{}`. `None` para corpo que não é um objeto
+/// ou com um dos dois campos fora de texto.
+fn review_body(body: &[u8]) -> Option<(String, Option<String>)> {
+    if body.iter().all(u8::is_ascii_whitespace) {
+        return Some((String::new(), None));
+    }
+    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let object = value.as_object()?;
+    let field = |name: &str| match object.get(name) {
+        None => Some(None),
+        Some(serde_json::Value::String(value)) => Some(Some(value.clone())),
+        Some(_) => None,
+    };
+    let review_text = field("texto")?.unwrap_or_default();
+    let expected_hash = field("sha256")?;
+    Some((review_text, expected_hash))
+}
+
+fn trusted_request(session: &Session, headers: &PostHeaders) -> bool {
+    let port = session.port;
+    let token = headers
+        .token
+        .as_deref()
+        .is_some_and(|given| same_token(given, &session.token));
+    let host = headers.host.as_deref().is_some_and(|host| {
+        host == format!("127.0.0.1:{port}") || host == format!("localhost:{port}")
+    });
+    let origin = headers.origin.as_deref().is_some_and(|origin| {
+        origin == format!("http://127.0.0.1:{port}") || origin == format!("http://localhost:{port}")
+    });
+    token && host && origin
+}
+
+/// Compara os tokens sem sair no primeiro byte diferente, para o tempo não revelar o prefixo.
+fn same_token(given: &str, expected: &str) -> bool {
+    given.len() == expected.len()
+        && given
+            .bytes()
+            .zip(expected.bytes())
+            .fold(0u8, |diff, (x, y)| diff | (x ^ y))
+            == 0
+}
+
+fn review_json(outcome: &ReviewOutcome) -> String {
+    let record = &outcome.record;
+    let status = match record.mark {
+        ReviewMark::Accepted => "conferida",
+        ReviewMark::Rejected => "recusada",
+        ReviewMark::Withdrawn => "a conferir",
+    };
+    format!(
+        "{{\"id\":{},\"name\":{},\"status\":{},\"reason\":{},\"reviewed_at\":{},\"origin\":{},\"task_status\":{}}}",
+        json_string(&record.id),
+        json_string(&record.name),
+        json_string(status),
+        json_string(&record.text),
+        json_string(&record.date),
+        json_string(&record.origin),
+        json_string(&outcome.task_status),
+    )
 }
 
 /// Interpreta `Range: bytes=...` de um só intervalo (início-fim, início- ou -final) sobre um
@@ -191,23 +374,41 @@ fn respond_file(request: tiny_http::Request, found: Result<read::FileDelivery, R
 }
 
 /// Roteia uma requisição já lida: `GET /api/...` e `GET /arquivos/...` para a leitura, os demais
-/// `GET` para o bundle e qualquer outro método para o 405.
-pub fn dispatch(painel: &Painel, method: &str, url: &str) -> Reply {
+/// `GET` para o bundle, com o token da sessão no `index.html`, e qualquer outro método para o 405.
+/// O POST das três rotas de conferência é tratado antes, por `review_post`.
+pub fn dispatch(painel: &Painel, session: &Session, method: &str, url: &str) -> Reply {
     let (path, query) = url.split_once('?').unwrap_or((url, ""));
     let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
     match method {
         "GET" if matches!(parts.first(), Some(&"api" | &"arquivos")) => {
             read::route(painel, &parts, query).unwrap_or_else(not_found)
         }
-        "GET" => asset(path),
+        "GET" => asset(path, &session.token),
         _ => text(405, "método não permitido"),
     }
 }
 
-/// Arquivo do bundle; rotas do app (sem extensão) recebem o `index.html`, sem alteração.
-fn asset(path: &str) -> Reply {
+/// Arquivo do bundle; rotas do app (sem extensão) recebem o `index.html`, com o token da sessão.
+fn asset(path: &str, token: &str) -> Reply {
     let name = bundle_name(path);
-    page(name, bundle_file(name))
+    let mut reply = page(name, bundle_file(name));
+    if name == "index.html" && reply.status == 200 {
+        reply.body = with_token(&reply.body, token);
+    }
+    reply
+}
+
+/// Põe `<meta name="vostok-token">` antes do primeiro `</head>`; sem `</head>`, nada muda.
+fn with_token(html: &[u8], token: &str) -> Vec<u8> {
+    let Some(position) = html.windows(7).position(|window| window == b"</head>") else {
+        return html.to_vec();
+    };
+    let meta = format!("<meta name=\"vostok-token\" content=\"{token}\">");
+    let mut out = Vec::with_capacity(html.len() + meta.len());
+    out.extend_from_slice(&html[..position]);
+    out.extend_from_slice(meta.as_bytes());
+    out.extend_from_slice(&html[position..]);
+    out
 }
 
 fn bundle_name(path: &str) -> &str {
@@ -285,6 +486,13 @@ mod tests {
 
     use super::*;
 
+    fn session() -> Session {
+        Session {
+            token: "t".to_string(),
+            port: 1,
+        }
+    }
+
     fn painel() -> Painel {
         Painel {
             project: PathBuf::from("/projeto-inexistente"),
@@ -306,7 +514,7 @@ mod tests {
     fn post_put_e_delete_sao_405() {
         for path in ["/api/arquivo", "/api/evidencias", "/api/pedidos/anexos"] {
             for method in ["POST", "PUT", "DELETE", "PATCH"] {
-                let reply = dispatch(&painel(), method, path);
+                let reply = dispatch(&painel(), &session(), method, path);
                 assert_eq!(reply.status, 405, "{method} {path}");
             }
         }
@@ -323,7 +531,12 @@ mod tests {
             work: root.join("work"),
             root,
         };
-        let reply = dispatch(&painel, "GET", "/arquivos/vostok/work/docs/executivo.html");
+        let reply = dispatch(
+            &painel,
+            &session(),
+            "GET",
+            "/arquivos/vostok/work/docs/executivo.html",
+        );
         assert_eq!(reply.status, 200);
         assert_eq!(reply.body, b"<p>executivo</p>");
     }
@@ -356,35 +569,39 @@ mod tests {
 
     #[test]
     fn atividades_sao_404() {
-        let reply = dispatch(&painel(), "GET", "/api/atividades?limite=5");
+        let reply = dispatch(&painel(), &session(), "GET", "/api/atividades?limite=5");
         assert_eq!(reply.status, 404);
     }
 
     #[test]
     fn unknown_api_route_is_404() {
         for url in ["/api/nada", "/api/rota-desconhecida/x?y=1"] {
-            assert_eq!(dispatch(&painel(), "GET", url).status, 404, "{url}");
+            assert_eq!(
+                dispatch(&painel(), &session(), "GET", url).status,
+                404,
+                "{url}"
+            );
         }
     }
 
     #[test]
     fn other_methods_are_405() {
         for method in ["DELETE", "PATCH", "OPTIONS"] {
-            let reply = dispatch(&painel(), method, "/api/arquivo");
+            let reply = dispatch(&painel(), &session(), method, "/api/arquivo");
             assert_eq!(reply.status, 405, "{method}");
         }
     }
 
     #[test]
-    fn index_html_vai_sem_token() {
-        let html = b"<html><head><title>Painel</title></head><body></body></html>";
-        let reply = page("index.html", Some(html));
-        assert_eq!(reply.status, 200);
-        assert_eq!(reply.content_type, "text/html; charset=utf-8");
-        assert_eq!(reply.body, html);
-        assert!(!String::from_utf8(reply.body)
-            .unwrap()
-            .contains("painel-token"));
+    fn index_html_leva_o_token_da_sessao() {
+        assert_eq!(
+            with_token(
+                b"<html><head><title>Painel</title></head><body></body></html>",
+                "abc"
+            ),
+            b"<html><head><title>Painel</title><meta name=\"vostok-token\" content=\"abc\"></head><body></body></html>"
+        );
+        assert_eq!(with_token(b"sem head", "abc"), b"sem head");
     }
 
     #[test]
@@ -404,7 +621,7 @@ mod tests {
     #[cfg(not(painel_bundle))]
     #[test]
     fn page_without_bundle_explains_how_to_build_it() {
-        let reply = dispatch(&painel(), "GET", "/");
+        let reply = dispatch(&painel(), &session(), "GET", "/");
         assert_eq!(reply.status, 503);
         assert!(String::from_utf8(reply.body)
             .unwrap()
@@ -413,11 +630,11 @@ mod tests {
 
     #[cfg(painel_bundle)]
     #[test]
-    fn served_index_vai_sem_token() {
-        let reply = dispatch(&painel(), "GET", "/");
+    fn served_index_leva_o_token_da_sessao() {
+        let reply = dispatch(&painel(), &session(), "GET", "/");
         assert_eq!(reply.status, 200);
-        assert!(!String::from_utf8(reply.body)
+        assert!(String::from_utf8(reply.body)
             .unwrap()
-            .contains("painel-token"));
+            .contains("<meta name=\"vostok-token\" content=\"t\">"));
     }
 }

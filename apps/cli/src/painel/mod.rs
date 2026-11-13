@@ -44,6 +44,43 @@ impl Painel {
     }
 }
 
+/// Sessão do painel aberto: o token entregue na página e a porta que `Host` e `Origin` precisam citar.
+pub struct Session {
+    pub token: String,
+    pub port: u16,
+}
+
+impl Session {
+    pub fn new(port: u16) -> Self {
+        Self {
+            token: session_token(),
+            port,
+        }
+    }
+}
+
+/// Token de 64 dígitos hexadecimais, novo a cada painel aberto: mistura sementes aleatórias do
+/// sistema, a hora e o processo, sem depender de outra biblioteca.
+pub fn session_token() -> String {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let mut bytes = Vec::with_capacity(48);
+    for _ in 0..4 {
+        let mut hasher = RandomState::new().build_hasher();
+        hasher.write_u8(0);
+        bytes.extend_from_slice(&hasher.finish().to_le_bytes());
+    }
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_nanos())
+        .unwrap_or_default();
+    bytes.extend_from_slice(&nanos.to_le_bytes());
+    bytes.extend_from_slice(&std::process::id().to_le_bytes());
+    crate::support::sha256_hex(&bytes)
+}
+
 pub fn text(status: u16, message: &str) -> Reply {
     Reply {
         status,
@@ -137,6 +174,17 @@ pub fn safe_segment(value: &str) -> Result<&str, Reply> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_token_has_64_hex_digits_and_changes() {
+        let first = session_token();
+        let second = session_token();
+        for token in [&first, &second] {
+            assert_eq!(token.len(), 64, "{token}");
+            assert!(token.chars().all(|c| c.is_ascii_hexdigit()), "{token}");
+        }
+        assert_ne!(first, second);
+    }
 
     #[test]
     fn safe_segment_accepts_ids() {

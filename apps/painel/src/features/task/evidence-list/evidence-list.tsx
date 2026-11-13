@@ -4,6 +4,7 @@ import { Badge, type BadgeTone } from '../../../ui/badge/badge';
 import { ListIcon } from '../../../ui/view-switcher/view-icons';
 import { ViewSwitcher } from '../../../ui/view-switcher/view-switcher';
 import { CATEGORIES, type EvidenceCategory, type EvidenceEntry, evidenceEntries } from './evidence-items';
+import { EvidenceReview } from '../evidence-review/evidence-review';
 import { GridIcon } from './grid-icon';
 import styles from './evidence-list.module.css';
 
@@ -60,13 +61,13 @@ function fileLine(entry: EvidenceEntry): string {
 
 interface ItemProps {
   entry: EvidenceEntry;
-  onOpen?: (name: string) => void;
+  onOpen: (name: string) => void;
 }
 
 function Row({ entry, onOpen }: ItemProps) {
   const file = fileLine(entry);
   return (
-    <button type="button" className={styles.row} aria-haspopup="dialog" onClick={() => onOpen?.(entry.name)}>
+    <button type="button" className={styles.row} aria-haspopup="dialog" onClick={() => onOpen(entry.name)}>
       <span className={styles.id}>{entry.id}</span>
       <span className={styles.rowTitle}>
         <span className={styles.titleText}>{entry.title}</span>
@@ -87,7 +88,7 @@ function Row({ entry, onOpen }: ItemProps) {
 function Card({ entry, onOpen }: ItemProps) {
   const file = fileLine(entry);
   return (
-    <button type="button" className={styles.card} aria-haspopup="dialog" onClick={() => onOpen?.(entry.name)}>
+    <button type="button" className={styles.card} aria-haspopup="dialog" onClick={() => onOpen(entry.name)}>
       <span className={styles.meta}>
         <span className={styles.id}>{entry.id}</span>
         <Badge tone="neutral">{entry.kindLabel}</Badge>
@@ -105,16 +106,15 @@ function Card({ entry, onOpen }: ItemProps) {
 export interface EvidenceListProps {
   detail: TaskDetail;
   headingId: string;
-  /** Chamado com o nome do arquivo da evidência clicada. */
-  onOpen?: (name: string) => void;
 }
 
-/** Aba Evidências: resumo por estado, filtro em pills e as categorias em lista ou cards. */
-export function EvidenceList({ detail, headingId, onOpen }: EvidenceListProps) {
+/** Aba Evidências: resumo por estado, filtro em pills, as categorias em lista ou cards e o modal de conferência. */
+export function EvidenceList({ detail, headingId }: EvidenceListProps) {
   const entries = useMemo(() => evidenceEntries(detail), [detail]);
   const [view, setView] = useState(readView);
   const [filters, setFilters] = useState<EvidenceCategory[]>([]);
   const [collapsed, setCollapsed] = useState<EvidenceCategory[]>([]);
+  const [openName, setOpenName] = useState<string | null>(null);
 
   if (entries.length === 0) {
     return (
@@ -137,6 +137,8 @@ export function EvidenceList({ detail, headingId, onOpen }: EvidenceListProps) {
   const visible = (filters.length === 0 ? CATEGORIES : CATEGORIES.filter((category) => filters.includes(category.id))).filter(
     (category) => byCategory(category.id).length > 0,
   );
+  const navigable = visible.flatMap((category) => byCategory(category.id));
+  const current = entries.find((entry) => entry.name === openName);
 
   return (
     <>
@@ -190,15 +192,16 @@ export function EvidenceList({ detail, headingId, onOpen }: EvidenceListProps) {
             <div id={`${groupId}-itens`} hidden={!open} className={view === 'cards' ? styles.cards : styles.list}>
               {items.map((entry) =>
                 view === 'cards' ? (
-                  <Card key={entry.name} entry={entry} onOpen={onOpen} />
+                  <Card key={entry.name} entry={entry} onOpen={setOpenName} />
                 ) : (
-                  <Row key={entry.name} entry={entry} onOpen={onOpen} />
+                  <Row key={entry.name} entry={entry} onOpen={setOpenName} />
                 ),
               )}
             </div>
           </section>
         );
       })}
+      {current ? <EvidenceReview entries={navigable} current={current} onNavigate={setOpenName} onClose={() => setOpenName(null)} /> : null}
     </>
   );
 }

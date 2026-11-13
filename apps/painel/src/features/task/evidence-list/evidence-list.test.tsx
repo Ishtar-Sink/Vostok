@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/preact';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { EvidenceReview, FileRef, ManualEvidence, TaskDetail } from '../../../shared/api';
 import { EvidenceList } from './evidence-list';
 
@@ -29,6 +29,16 @@ const MIXED = [
 ];
 
 const VERIFICATION = ['### Evidências', '', '- `saida.txt` (automática): `cat x`', '  - Título: Testes do quadro passam', ''].join('\n');
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function close() { this.removeAttribute('open'); };
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+});
+
+function mockLog() {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok'))));
+}
 
 afterEach(() => {
   cleanup();
@@ -157,14 +167,37 @@ describe('EvidenceList', () => {
     expect(within(done).getByText('solta.txt')).toBeTruthy();
   });
 
-  it('chama onOpen com o arquivo ao clicar na linha e no card', () => {
-    const onOpen = vi.fn();
-    render(<EvidenceList detail={detail(MIXED)} headingId="evidencias" onOpen={onOpen} />);
+  it('abre o modal ao clicar na linha e no card', async () => {
+    mockLog();
+    render(<EvidenceList detail={detail(MIXED)} headingId="evidencias" />);
     fireEvent.click(screen.getByText('a.txt').closest('button') as HTMLElement);
-    expect(onOpen).toHaveBeenLastCalledWith('a.txt');
+    const dialog = await screen.findByRole('dialog', { name: 'a.txt' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Cards' }));
     fireEvent.click(screen.getByText('EV-02').closest('button') as HTMLElement);
-    expect(onOpen).toHaveBeenLastCalledWith('b.txt');
+    expect(await screen.findByRole('dialog', { name: 'b.txt' })).toBeTruthy();
+  });
+
+  it('navega no modal só pelas categorias filtradas', async () => {
+    mockLog();
+    const reviews = [
+      review('EV-01', 'feita.txt', 'conferida', { reviewed_at: '2020-01-02' }),
+      review('EV-02', 'volta.txt', 'recusada', { reason: 'falta', reviewed_at: '2020-01-03' }),
+      review('EV-03', 'nova.txt', 'a conferir'),
+    ];
+    render(<EvidenceList detail={detail(reviews)} headingId="evidencias" />);
+    fireEvent.click(pill('1 a conferir'));
+    fireEvent.click(pill('1 recusada'));
+    fireEvent.click(screen.getByText('nova.txt').closest('button') as HTMLElement);
+    const dialog = await screen.findByRole('dialog', { name: 'nova.txt' });
+    expect(within(dialog).getByText('1 de 2')).toBeTruthy();
+    fireEvent.keyDown(dialog, { key: 'ArrowRight' });
+    const next = await screen.findByRole('dialog', { name: 'volta.txt' });
+    expect(within(next).getByText('2 de 2')).toBeTruthy();
+    expect((within(next).getByRole('button', { name: 'Próxima (→)' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(next, { key: 'ArrowRight' });
+    expect(screen.queryByRole('dialog', { name: 'feita.txt' })).toBeNull();
   });
 
   it('mostra o aviso sem evidências e sem resumo', () => {

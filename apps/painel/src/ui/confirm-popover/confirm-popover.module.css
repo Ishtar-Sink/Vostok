@@ -1,0 +1,78 @@
+.root {
+  position: absolute;
+  right: var(--s6);
+  bottom: calc(100% + var(--s2));
+  z-index: 3;
+  display: grid;
+  gap: var(--s3);
+  width: min(380px, calc(100% - var(--s8)));
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.description {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-faint);
+}
+
+.field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 84px;
+  padding: var(--s2) var(--s3);
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.field:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+.field[aria-invalid='true'] {
+  outline: 2px solid var(--danger);
+  outline-offset: -1px;
+}
+
+.message {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+.actions .danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: transparent;
+  color: var(--danger);
+}
+
+.actions .danger:hover {
+  background: var(--danger-soft);
+}
+
+@media (max-width: 760px) {
+  .root {
+    right: var(--s4);
+  }
+}

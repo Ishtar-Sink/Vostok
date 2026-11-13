@@ -2,7 +2,7 @@
 type: decision
 title: "Decisões"
 description: "Decisões estruturantes do projeto e o motivo de cada uma. Consulte antes de decidir algo que afete arquitetura, stack, dados, contratos ou convenções, e quando houver ambiguidade."
-updated_at: 2026-11-12T13:40:21Z
+updated_at: 2026-11-13T22:34:11Z
 ---
 
 # Decisões
@@ -74,7 +74,7 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 ## DEC-006: Painel com escrita só na conferência de evidências
 
 - **Data:** 2026-11-12
-- **Status:** ativa
+- **Status:** substituída
 - **Tags:** arquitetura, painel, aval, conferência, evidências, somente-leitura
 - **Origem:** Estudo de viabilidade da conferência de evidências pelo painel, em 2026-11-12; proposta confirmada pelo Victor com "pode registrar a decisão".
 - **Contexto:** A DEC-005 deixou o painel somente leitura porque o loop da process-requests consumia muitos tokens. O usuário quer conferir, recusar e retirar a conferência de evidências pelo painel, continuando a conduzir o trabalho pelo chat. Essas ações não precisam do agente: são as mesmas operações do `vostok task evidence --reviewed`, `--rejected` e `--undo`.
@@ -82,3 +82,15 @@ Entradas criadas por `add-memory.sh` e consultadas por `search-memory.sh`. Não 
 - **Alternativas descartadas:** Manter a DEC-005: a conferência continuaria só pelo chat, sem ganho de tokens, porque a escrita no painel não passa pelo agente. Gravar a conferência no front-matter da evidência: prints e vídeos não têm onde guardar e a escrita mudaria o sha256 que valida a conferência. Voltar aos pedidos em arquivo da DEC-004: traria de volta o custo do loop.
 - **Consequências:** O servidor do painel ganha rotas POST restritas às três ações, com token e conferência de origem; a lógica de conferência da CLI vira função chamada pelo comando e pelo painel; as skills `execute-task` e `finish-task` passam a considerar as conferências feitas no painel antes de perguntar. Uma recusa pelo painel devolve a tarefa para execução na hora, e o agente vê isso no próximo comando.
 - **Substitui:** DEC-005
+
+## DEC-007: Painel grava a conferência e as configurações das evidências
+
+- **Data:** 2026-11-13
+- **Status:** ativa
+- **Tags:** arquitetura, painel, configurações, evidências, escrita
+- **Origem:** Refinamento da SPEC-052 (configurações das evidências no painel), rodada 1, pergunta 1, e rodada 2; proposta confirmada pelo Victor com "Registrar" em 2026-11-13.
+- **Contexto:** A SPEC-052 traz de volta as configurações ao painel, aos poucos, começando pelas das evidências, depois do "big bang" da tela antiga, removida na 0.5.0. A DEC-006 só permite ao painel gravar a conferência de evidências.
+- **Decisão:** O painel continua local (127.0.0.1), sem servidor externo, banco nem agente. Ele grava a conferência das evidências (DEC-006) e as configurações liberadas grupo a grupo, a começar pelas das evidências, por rotas POST restritas, com token de sessão, `Host` e `Origin` conferidos, pela validação da CLI. Só são aceitas as chaves de uma lista fechada. Todo o resto continua 405.
+- **Alternativas descartadas:** O painel só mostrar e um comando gravar: o usuário teria de sair do painel. Voltar à edição livre dos `.yml`: o "big bang" da tela antiga.
+- **Consequências:** Nova rota POST de configurações; a CLI ganha a validação por chave e uma gravação que mantém os comentários; cada grupo novo de configurações entra por spec própria.
+- **Substitui:** DEC-006

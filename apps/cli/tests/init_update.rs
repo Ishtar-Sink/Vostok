@@ -1233,6 +1233,31 @@ fn ct10_update_adds_required_list_items() {
     assert_eq!(optional.iter().filter(|item| *item == "Espera").count(), 1);
 }
 
+#[test]
+fn update_adds_the_como_field() {
+    let workspace = installed("claude-code");
+    workspace.replace("vostok/config/tasks.yml", "  - Como\n", "");
+    let count = |workspace: &Workspace| {
+        config_list(
+            &workspace.path("vostok/config/tasks.yml"),
+            "evidence_optional_fields",
+        )
+        .unwrap()
+        .iter()
+        .filter(|item| item.as_str() == "Como")
+        .count()
+    };
+    assert_eq!(count(&workspace), 0);
+
+    let out = workspace.update();
+
+    assert!(out.contains("evidence_optional_fields: Como"), "{out}");
+    assert_eq!(count(&workspace), 1);
+    let again = workspace.update();
+    assert!(!again.contains("evidence_optional_fields: Como"), "{again}");
+    assert_eq!(count(&workspace), 1);
+}
+
 // --- hooks do Claude Code (SPEC-050) ---
 
 const SETTINGS: &str = ".claude/settings.json";

@@ -395,10 +395,23 @@ impl Layout<'_> {
                 )
             })
             .collect();
+        let verification = fs::read_to_string(dir.join("verificacao.md")).unwrap_or_default();
+        let kinds = EvidenceKindNames::of(&self.harness());
+        let baseline = estado_pairs(&dir.join("estado.yml"))
+            .into_iter()
+            .find(|(key, _)| key == "baseline_commit")
+            .map(|(_, value)| registered(&value).to_string())
+            .unwrap_or_default();
         let reviews: Vec<String> = evidence_review_states(&self.painel.root, &dir)
             .iter()
             .enumerate()
-            .map(|(index, review)| review_json(index, review))
+            .map(|(index, review)| {
+                review_json(
+                    index,
+                    review,
+                    &explanation(&verification, &kinds, &baseline, review),
+                )
+            })
             .collect();
         Ok(json(format!(
             "{{\"spec\":{},\"archived\":{archived},\"state\":{},\"files\":{{{}}},\"evidence\":[{}],\"reviews\":[{}]}}",
@@ -947,16 +960,219 @@ fn base64(bytes: &[u8]) -> String {
     out
 }
 
-/// Conferência de uma evidência com o ID `EV-NN` pela posição do item em "Evidências".
-fn review_json(index: usize, review: &ReviewState) -> String {
+/// Como a evidência foi feita e como reproduzi-la, derivados do tipo e do comando (RF-13), e a
+/// frase do subitem `Como:` (RF-14).
+#[derive(Default)]
+struct Explanation {
+    command: String,
+    tool: String,
+    reproduce: String,
+    how: String,
+}
+
+const HOW_FIELD: &str = "Como";
+const MANUAL_TOOL: &str = "Anexada pelo usuário";
+const DIFF_TOOL: &str = "git diff";
+const PRINT_TOOL: &str = "Playwright (print)";
+const VIDEO_TOOL: &str = "Playwright (vídeo)";
+
+/// Nomes dos tipos de evidência e o rótulo da Verificação, lidos do `config/tasks.yml`.
+struct EvidenceKindNames {
+    manual: String,
+    diff: String,
+    label: String,
+}
+
+impl EvidenceKindNames {
+    fn of(harness: &Harness) -> Self {
+        let config = harness.config_file("tasks.yml");
+        let get = |key: &str, fallback: &str| {
+            config_get(&config, key).unwrap_or_else(|_| fallback.to_string())
+        };
+        Self {
+            manual: get("evidence_manual", "manual"),
+            diff: get("evidence_diff", "diff"),
+            label: get("verify_label", "# evidência:"),
+        }
+    }
+}
+
+/// Linhas do item da evidência `name` em "Evidências": a linha sem recuo e as recuadas abaixo dela.
+fn evidence_lines<'t>(verification: &'t str, name: &str) -> Vec<&'t str> {
+    let start = format!("- `{name}`");
+    let mut lines = verification
+        .lines()
+        .skip_while(|line| !line.starts_with(&start));
+    let Some(first) = lines.next() else {
+        return Vec::new();
+    };
+    std::iter::once(first)
+        .chain(lines.take_while(|line| crate::support::is_indented(line)))
+        .collect()
+}
+
+/// Comando logo abaixo de `<label> <name>` na Verificação, com as continuações em `\`; a mesma
+/// regra de `labeled_commands` do `task.rs`.
+fn labeled_command(verification: &str, label: &str, name: &str) -> String {
+    let marker = format!("{label} {name}");
+    let lines: Vec<&str> = verification.lines().collect();
+    let Some(position) = lines.iter().position(|line| line.trim() == marker) else {
+        return String::new();
+    };
+    let mut command = Vec::new();
+    for line in &lines[position + 1..] {
+        let opens = command.is_empty();
+        if opens && (line.trim().is_empty() || line.trim_start().starts_with('#')) {
+            break;
+        }
+        command.push(*line);
+        if !line.trim_end().ends_with('\\') {
+            break;
+        }
+    }
+    command.join("\n").trim().to_string()
+}
+
+/// Corta `text` nos separadores que estão fora de aspas e de parênteses.
+fn top_level_split(text: &str, separators: &[&str]) -> Vec<String> {
+    let mut pieces = Vec::new();
+    let mut current = String::new();
+    let (mut single, mut double, mut depth) = (false, false, 0usize);
+    let mut index = 0;
+    while index < text.len() {
+        let rest = &text[index..];
+        let character = rest.chars().next().unwrap_or_default();
+        if !single && !double && depth == 0 {
+            if let Some(separator) = separators.iter().find(|sep| rest.starts_with(**sep)) {
+                pieces.push(std::mem::take(&mut current));
+                index += separator.len();
+                continue;
+            }
+        }
+        match character {
+            '\'' if !double => single = !single,
+            '"' if !single => double = !double,
+            '(' if !single && !double => depth += 1,
+            ')' if !single && !double => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        current.push(character);
+        index += character.len_utf8();
+    }
+    pieces.push(current);
+    pieces
+        .into_iter()
+        .map(|piece| piece.trim().to_string())
+        .filter(|piece| !piece.is_empty())
+        .collect()
+}
+
+fn is_assignment(word: &str) -> bool {
+    let Some((name, _)) = word.split_once('=') else {
+        return false;
+    };
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && characters.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Primeiro programa do comando, depois de variáveis e de `cd`; vazio quando o primeiro não é um
+/// nome reconhecível, como `"$B"` ou `!` (CB-12).
+fn program_of(command: &str) -> String {
+    for piece in top_level_split(command, &["&&", "||", ";", "|", "\n"]) {
+        let words = top_level_split(&piece, &[" ", "\t"]);
+        let Some(first) = words.iter().find(|word| !is_assignment(word)) else {
+            continue;
+        };
+        if first == "cd" {
+            continue;
+        }
+        let recognizable = !first.starts_with('-')
+            && first
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '+' | '-'));
+        if !recognizable {
+            return String::new();
+        }
+        return first.rsplit('/').next().unwrap_or_default().to_string();
+    }
+    String::new()
+}
+
+fn explanation(
+    verification: &str,
+    kinds: &EvidenceKindNames,
+    baseline: &str,
+    review: &ReviewState,
+) -> Explanation {
+    let lines = evidence_lines(verification, &review.name);
+    let declared = lines
+        .first()
+        .and_then(|line| crate::commands::task::evidence_item(line))
+        .map(|(_, _, rest)| rest.trim().trim_matches('`').to_string())
+        .unwrap_or_default();
+    let command = if declared.is_empty() {
+        labeled_command(verification, &kinds.label, &review.name)
+    } else {
+        declared
+    };
+    let how = lines
+        .iter()
+        .skip(1)
+        .filter_map(|line| crate::support::evidence_subitem(line))
+        .find(|(field, _)| *field == HOW_FIELD)
+        .map(|(_, text)| text.trim().to_string())
+        .unwrap_or_default();
+    let tool = if review.kind == kinds.manual {
+        MANUAL_TOOL.to_string()
+    } else if review.kind == kinds.diff {
+        DIFF_TOOL.to_string()
+    } else if review.name.ends_with(".webm") {
+        VIDEO_TOOL.to_string()
+    } else if review.name.ends_with(".png") {
+        PRINT_TOOL.to_string()
+    } else {
+        program_of(&command)
+    };
+    let reproduce = if review.kind == kinds.manual {
+        String::new()
+    } else if review.kind == kinds.diff {
+        let base = if baseline.is_empty() {
+            "HEAD"
+        } else {
+            baseline
+        };
+        format!("git diff {base} -- {command}")
+    } else {
+        command.clone()
+    };
+    Explanation {
+        command,
+        tool,
+        reproduce,
+        how,
+    }
+}
+
+/// Conferência de uma evidência com o ID `EV-NN` pela posição do item em "Evidências", com a
+/// origem, o hash atual e a explicação.
+fn review_json(index: usize, review: &ReviewState, explanation: &Explanation) -> String {
     format!(
-        "{{\"id\":{},\"name\":{},\"kind\":{},\"status\":{},\"reason\":{},\"reviewed_at\":{}}}",
+        "{{\"id\":{},\"name\":{},\"kind\":{},\"status\":{},\"reason\":{},\"reviewed_at\":{},\"origin\":{},\"sha256\":{},\"command\":{},\"tool\":{},\"reproduce\":{},\"how\":{}}}",
         json_string(&format!("EV-{:02}", index + 1)),
         json_string(&review.name),
         json_string(&review.kind),
         json_string(review.status),
         json_string(&review.reason),
-        json_string(&review.reviewed_at)
+        json_string(&review.reviewed_at),
+        json_string(&review.origin),
+        json_string(&review.sha256),
+        json_string(&explanation.command),
+        json_string(&explanation.tool),
+        json_string(&explanation.reproduce),
+        json_string(&explanation.how)
     )
 }
 
@@ -1395,10 +1611,206 @@ wave: 1
             status: "a conferir",
             reason: String::new(),
             reviewed_at: String::new(),
+            origin: String::new(),
+            sha256: String::new(),
         };
-        let first = review_json(0, &review);
-        assert!(first.ends_with("\"reason\":\"\",\"reviewed_at\":\"\"}"));
+        let first = review_json(0, &review, &Explanation::default());
+        assert!(first.contains("\"reason\":\"\",\"reviewed_at\":\"\""));
         assert!(first.contains("\"id\":\"EV-01\"") && first.contains("\"name\":\"tela.png\""));
-        assert!(review_json(9, &review).contains("\"id\":\"EV-10\""));
+        assert!(review_json(9, &review, &Explanation::default()).contains("\"id\":\"EV-10\""));
+    }
+
+    const EXPLAIN_TASKS_CONFIG: &str = "status:\n  pending: pending\n  approved: approved\n  in_progress: in_progress\n  validating: validating\n  blocked: blocked\n  done: done\nexecution_section: Execução\nevidence_subsection: Evidências\nrecord_section: Registro de execução\nevidence_from_verify: \"automática, da verificação\"\nevidence_review_kinds: [automática]\nverify_label: \"# evidência:\"\nevidence_manual: manual\nevidence_diff: diff\n";
+    const ESTADO_COM_BASELINE: &str =
+        "id: TASK-01\ntitle: \"Primeira\"\nstatus: in_progress\nwave: 1\nbaseline_commit: abc1234\n";
+    const TASK_DIR: &str = "vostok/work/tasks/SPEC-001/TASK-01";
+
+    fn explained(verification: &str, estado: &str, files: &[(&str, &str)]) -> String {
+        let (dir, painel) = project();
+        write(dir.path(), "vostok/config/tasks.yml", EXPLAIN_TASKS_CONFIG);
+        write(
+            dir.path(),
+            &format!("{TASK_DIR}/verificacao.md"),
+            verification,
+        );
+        write(dir.path(), &format!("{TASK_DIR}/estado.yml"), estado);
+        for (relative, content) in files {
+            write(dir.path(), &format!("{TASK_DIR}/{relative}"), content);
+        }
+        body(&get(&painel, "/api/tarefas/SPEC-001/TASK-01"))
+    }
+
+    fn review_of<'a>(body: &'a str, name: &str) -> &'a str {
+        let marker = format!("\"name\":{}", json_string(name));
+        let reviews = body
+            .split_once("\"reviews\":[")
+            .map_or(body, |(_, rest)| rest);
+        reviews
+            .split("{\"id\":")
+            .find(|part| part.contains(&marker))
+            .unwrap_or_else(|| panic!("sem a evidência {name} em {body}"))
+    }
+
+    fn evidences(items: &str) -> String {
+        format!("### Evidências\n\n{items}")
+    }
+
+    fn assert_review(body: &str, name: &str, fragments: &[&str]) {
+        let review = review_of(body, name);
+        for fragment in fragments {
+            assert!(review.contains(fragment), "faltou {fragment} em {review}");
+        }
+    }
+
+    #[test]
+    fn explicacao_de_cada_tipo_de_evidencia() {
+        let verification = "### Verificação\n\n```bash\n# evidência: log.txt\npnpm --dir apps/painel exec vitest run src/a.test.ts\n```\n\n### Evidências\n\n- `log.txt` (automática, da verificação)\n- `cargo.txt` (automática): `cargo test --test task -- review`\n- `skill.diff` (diff): `packages/harness/skills/default/x/SKILL.md`\n- `tela.png` (print): `bash apps/painel/scripts/print.sh /tarefas tela.png`\n- `fluxo.webm` (print): `bash apps/painel/scripts/print.sh /tarefas fluxo.webm`\n- `foto.jpg` (manual): foto do aparelho.\n";
+        let body = explained(verification, ESTADO_COM_BASELINE, &[]);
+        assert_review(
+            &body,
+            "log.txt",
+            &[
+                r#""command":"pnpm --dir apps/painel exec vitest run src/a.test.ts","tool":"pnpm","reproduce":"pnpm --dir apps/painel exec vitest run src/a.test.ts","how":"""#,
+            ],
+        );
+        assert_review(
+            &body,
+            "cargo.txt",
+            &[r#""tool":"cargo","reproduce":"cargo test --test task -- review""#],
+        );
+        assert_review(
+            &body,
+            "skill.diff",
+            &[
+                r#""command":"packages/harness/skills/default/x/SKILL.md","tool":"git diff","reproduce":"git diff abc1234 -- packages/harness/skills/default/x/SKILL.md""#,
+            ],
+        );
+        assert_review(
+            &body,
+            "tela.png",
+            &[
+                r#""tool":"Playwright (print)","reproduce":"bash apps/painel/scripts/print.sh /tarefas tela.png""#,
+            ],
+        );
+        assert_review(&body, "fluxo.webm", &[r#""tool":"Playwright (vídeo)""#]);
+        assert_review(
+            &body,
+            "foto.jpg",
+            &[r#""command":"foto do aparelho.","tool":"Anexada pelo usuário","reproduce":"""#],
+        );
+    }
+
+    #[test]
+    fn explicacao_traz_a_frase_do_como() {
+        let body = explained(
+            &evidences("- `gera.txt` (automática): `bash scripts/monta.sh`\n  - Título: Fixture montada\n  - Como: monta a fixture com duas tarefas e roda a conferência\n- `sem.txt` (automática): `cargo test`\n"),
+            ESTADO_COM_BASELINE,
+            &[],
+        );
+        assert_review(
+            &body,
+            "gera.txt",
+            &[
+                r#""tool":"bash","reproduce":"bash scripts/monta.sh","how":"monta a fixture com duas tarefas e roda a conferência""#,
+            ],
+        );
+        assert_review(&body, "sem.txt", &[r#""how":"""#]);
+    }
+
+    #[test]
+    fn explicacao_sem_programa_reconhecivel_fica_so_com_o_comando() {
+        let body = explained(
+            &evidences("- `a.txt` (automática): `\"$B\" task evidence SPEC-001 TASK-01`\n- `b.txt` (automática): `! grep -n x a.txt`\n"),
+            ESTADO_COM_BASELINE,
+            &[],
+        );
+        assert_review(
+            &body,
+            "a.txt",
+            &[r#""tool":"","reproduce":"\"$B\" task evidence SPEC-001 TASK-01""#],
+        );
+        assert_review(
+            &body,
+            "b.txt",
+            &[r#""tool":"","reproduce":"! grep -n x a.txt""#],
+        );
+    }
+
+    #[test]
+    fn explicacao_acha_o_programa_depois_de_variaveis_e_cd() {
+        let body = explained(
+            &evidences("- `a.txt` (automática): `FOO=1 cargo test`\n- `b.txt` (automática): `cd apps/cli && cargo test`\n- `c.txt` (automática): `D=\"$(mktemp -d)\" && bash x.sh \"$D\"`\n- `d.txt` (automática): `./target/debug/vostok task status`\n"),
+            ESTADO_COM_BASELINE,
+            &[],
+        );
+        for (name, tool) in [
+            ("a.txt", "cargo"),
+            ("b.txt", "cargo"),
+            ("c.txt", "bash"),
+            ("d.txt", "vostok"),
+        ] {
+            assert_review(&body, name, &[&format!("\"tool\":\"{tool}\"")]);
+        }
+    }
+
+    #[test]
+    fn explicacao_do_diff_sem_baseline_usa_o_head() {
+        let body = explained(
+            &evidences("- `a.diff` (diff): `docs/a.md`\n"),
+            "id: TASK-01\nstatus: in_progress\n",
+            &[],
+        );
+        assert_review(
+            &body,
+            "a.diff",
+            &[r#""reproduce":"git diff HEAD -- docs/a.md""#],
+        );
+    }
+
+    #[test]
+    fn revisao_traz_origem_hash_e_recusada() {
+        let h = |text: &str| sha256_hex(text.as_bytes())[..8].to_string();
+        let reviews = format!(
+            "| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |\n|---|---|---|---|---|---|---|\n| EV-01 | a.txt | conferida | {} | 2026-11-13T14:02:11Z | painel | ok |\n| EV-02 | b.txt | recusada | {} | 2026-11-13T14:03:40Z | chat | falta o total |\n",
+            h("a"),
+            h("b")
+        );
+        let body = explained(
+            &evidences("- `a.txt` (automática): `echo a`\n- `b.txt` (automática): `echo b`\n- `c.txt` (automática): `echo c`\n"),
+            ESTADO_COM_BASELINE,
+            &[
+                ("evidencias/a.txt", "a"),
+                ("evidencias/b.txt", "b"),
+                ("evidencias/c.txt", "c"),
+                ("conferencias.md", &reviews),
+            ],
+        );
+        assert_review(
+            &body,
+            "a.txt",
+            &[
+                r#""status":"conferida""#,
+                r#""origin":"painel""#,
+                &format!("\"sha256\":\"{}\"", h("a")),
+            ],
+        );
+        assert_review(
+            &body,
+            "b.txt",
+            &[
+                r#""status":"recusada""#,
+                r#""reason":"falta o total""#,
+                r#""origin":"chat""#,
+            ],
+        );
+        assert_review(
+            &body,
+            "c.txt",
+            &[
+                r#""status":"a conferir""#,
+                r#""origin":"""#,
+                &format!("\"sha256\":\"{}\"", h("c")),
+            ],
+        );
     }
 }

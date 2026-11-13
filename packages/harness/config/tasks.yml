@@ -235,9 +235,11 @@ evidence_fields:
   - Falha
 evidence_title_field: Título
 evidence_title_max: 60
+# Como: frase opcional, de até 160 caracteres, sobre o que o script ou comando faz; o painel a mostra em "Como foi feita".
 evidence_optional_fields:
   - Artefato
   - Espera
+  - Como
 
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples

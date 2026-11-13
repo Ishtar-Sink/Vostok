@@ -23,6 +23,7 @@ const REQUIRED_CONTEXT: &[&str] = &["personas/coordenador.md"];
 const REQUIRED_LIST_ITEMS: &[(&str, &str, &str)] = &[
     ("config/tasks.yml", "evidence_fields", "Título"),
     ("config/tasks.yml", "evidence_optional_fields", "Espera"),
+    ("config/tasks.yml", "evidence_optional_fields", "Como"),
 ];
 
 const SKILL_FILE: &str = "SKILL.md";

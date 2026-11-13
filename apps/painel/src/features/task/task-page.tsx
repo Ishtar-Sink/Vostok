@@ -564,7 +564,7 @@ function EvidenceItem({ file, reviews, notes }: { file: FileRef; reviews: Map<st
 
 const REVIEW_TONE: Record<ReviewStatus, BadgeTone> = {
   conferida: 'success',
-  rejeitada: 'danger',
+  recusada: 'danger',
   'a conferir': 'warning',
   'sem aval': 'neutral',
 };
@@ -573,13 +573,13 @@ const REVIEW_TONE: Record<ReviewStatus, BadgeTone> = {
 function ReviewRow({ review }: { review: EvidenceReview }) {
   const tone = REVIEW_TONE[review.status];
   if (!tone) return null;
-  const hasDecision = review.status === 'conferida' || review.status === 'rejeitada';
+  const hasDecision = review.status === 'conferida' || review.status === 'recusada';
   return (
     <div className={styles.review}>
       <Badge tone={tone}>{review.status}</Badge>
       {hasDecision && review.reviewed_at ? <time className={styles.reviewDate} dateTime={review.reviewed_at}>{`em ${formatDate(review.reviewed_at)}`}</time> : null}
       {review.status === 'conferida' && review.reason ? <p className={styles.reviewReason}>{`Aval: ${review.reason}`}</p> : null}
-      {review.status === 'rejeitada' && review.reason ? <p className={styles.reviewReason}>Motivo: {review.reason}</p> : null}
+      {review.status === 'recusada' && review.reason ? <p className={styles.reviewReason}>Motivo: {review.reason}</p> : null}
     </div>
   );
 }

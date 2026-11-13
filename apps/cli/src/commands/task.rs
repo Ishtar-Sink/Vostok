@@ -6717,6 +6717,11 @@ pub(crate) struct ReviewState {
     pub status: &'static str,
     pub reason: String,
     pub reviewed_at: String,
+    /// `chat` ou `painel`, do `conferencias.md`; vazio sem conferência válida.
+    pub origin: String,
+    /// Hash atual da conferência (`ReviewHashes::current`), que o painel manda de volta no POST
+    /// para o 409 de arquivo que mudou (CB-06); vazio sem arquivo.
+    pub sha256: String,
 }
 
 #[cfg(feature = "painel")]
@@ -6726,15 +6731,21 @@ fn review_status(
     reviews: &[ReviewRecord],
     name: &str,
     hashes: &ReviewHashes,
-) -> (&'static str, String, String) {
+) -> (&'static str, String, String, String) {
     match current_review(reviews, name) {
-        Some(record) if record.mark == ReviewMark::Accepted && hashes.matches(&record.hash) => {
-            ("conferida", record.text.clone(), record.date.clone())
-        }
-        Some(record) if hashes.matches(&record.hash) => {
-            ("rejeitada", record.text.clone(), record.date.clone())
-        }
-        _ => ("a conferir", String::new(), String::new()),
+        Some(record) if record.mark == ReviewMark::Accepted && hashes.matches(&record.hash) => (
+            "conferida",
+            record.text.clone(),
+            record.date.clone(),
+            record.origin.clone(),
+        ),
+        Some(record) if hashes.matches(&record.hash) => (
+            "recusada",
+            record.text.clone(),
+            record.date.clone(),
+            record.origin.clone(),
+        ),
+        _ => ("a conferir", String::new(), String::new(), String::new()),
     }
 }
 
@@ -6778,15 +6789,20 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
         .evidence_entries(&content)?
         .into_iter()
         .map(|entry| {
-            let (status, reason, reviewed_at) = if !review_kinds.contains(&entry.kind) {
-                ("sem aval", String::new(), String::new())
-            } else {
-                match fs::read(evidence_dir.join(&entry.name)) {
-                    Ok(bytes) if is_valid_evidence_name(&entry.name) => {
-                        review_status(&reviews, &entry.name, &tasks.review_hashes(&bytes))
-                    }
-                    _ => ("a conferir", String::new(), String::new()),
+            let hashes = fs::read(evidence_dir.join(&entry.name))
+                .ok()
+                .filter(|_| is_valid_evidence_name(&entry.name))
+                .map(|bytes| tasks.review_hashes(&bytes));
+            let sha256 = hashes
+                .as_ref()
+                .map(|hashes| hashes.current.clone())
+                .unwrap_or_default();
+            let (status, reason, reviewed_at, origin) = match &hashes {
+                _ if !review_kinds.contains(&entry.kind) => {
+                    ("sem aval", String::new(), String::new(), String::new())
                 }
+                Some(hashes) => review_status(&reviews, &entry.name, hashes),
+                None => ("a conferir", String::new(), String::new(), String::new()),
             };
             ReviewState {
                 name: entry.name,
@@ -6794,6 +6810,8 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
                 status,
                 reason,
                 reviewed_at,
+                origin,
+                sha256,
             }
         })
         .collect())

@@ -94,7 +94,7 @@ describe('TaskPage', () => {
     const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
     const reviews = [
       { name: 'saida.txt', kind: 'automática', status: 'conferida', reason: '' },
-      { name: 'nota.diff', kind: 'diff', status: 'rejeitada', reason: 'falta o total' },
+      { name: 'nota.diff', kind: 'diff', status: 'recusada', reason: 'falta o total' },
       { name: 'tela.png', kind: 'print', status: 'a conferir', reason: '' },
       { name: 'extra.txt', kind: 'automática', status: 'sem aval', reason: '' },
     ];
@@ -107,10 +107,10 @@ describe('TaskPage', () => {
       await openEvidence();
       await screen.findByText('saida.txt');
       expect(itemOf('saida.txt').getByText('conferida')).toBeTruthy();
-      expect(itemOf('nota.diff').getByText('rejeitada')).toBeTruthy();
+      expect(itemOf('nota.diff').getByText('recusada')).toBeTruthy();
       expect(itemOf('tela.png').getByText('a conferir')).toBeTruthy();
       expect(itemOf('extra.txt').getByText('sem aval')).toBeTruthy();
-      for (const text of ['conferida', 'rejeitada', 'a conferir', 'sem aval']) expect(screen.getAllByText(text)).toHaveLength(1);
+      for (const text of ['conferida', 'recusada', 'a conferir', 'sem aval']) expect(screen.getAllByText(text)).toHaveLength(1);
     });
 
     it('mostra o motivo da rejeição', async () => {
@@ -135,7 +135,7 @@ describe('TaskPage', () => {
       render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
       await openEvidence();
       await screen.findByText('saida.txt');
-      for (const text of ['conferida', 'rejeitada', 'a conferir', 'sem aval']) expect(screen.queryByText(text)).toBeNull();
+      for (const text of ['conferida', 'recusada', 'a conferir', 'sem aval']) expect(screen.queryByText(text)).toBeNull();
     });
 
     it('mostra o selo da evidência manual anexada', async () => {
@@ -171,7 +171,7 @@ describe('TaskPage', () => {
     });
 
     it('mostra a data da rejeição com o motivo', async () => {
-      const item = await itemWith({ status: 'rejeitada', reason: 'falta o total', reviewed_at: '2026-11-09' });
+      const item = await itemWith({ status: 'recusada', reason: 'falta o total', reviewed_at: '2026-11-09' });
       expect(item.getByText('em 09/11/2026')).toBeTruthy();
       expect(item.getByText('Motivo: falta o total')).toBeTruthy();
       expect(item.queryByText(/Aval:/)).toBeNull();
@@ -454,7 +454,7 @@ describe('ordem da evidência', () => {
     expect(screen.getByText('prova da saída')).toBeTruthy();
     expect(screen.getByText('linha do trecho')).toBeTruthy();
     expect(screen.getByText('linha da falha')).toBeTruthy();
-    for (const label of ['conferida', 'rejeitada', 'a conferir', 'sem aval']) expect(screen.queryByText(label)).toBeNull();
+    for (const label of ['conferida', 'recusada', 'a conferir', 'sem aval']) expect(screen.queryByText(label)).toBeNull();
   });
 
   it('mostra só o nome do arquivo para evidência fora da verificação', async () => {
@@ -580,7 +580,7 @@ describe('ID das evidências', () => {
 describe('Filtro de evidências', () => {
   const entry = (name: string) => ({ name, path: `x/${name}`, size: 3 });
   const names = ['saida.txt', 'nota.diff', 'tela.png', 'extra.txt'];
-  const statuses = ['conferida', 'rejeitada', 'a conferir', 'sem aval'];
+  const statuses = ['conferida', 'recusada', 'a conferir', 'sem aval'];
   const reviews = (list: string[]) => names.map((name, index) => ({ name, kind: 'automática', status: list[index], reason: '' }));
   async function open(task: unknown) {
     mockFetch(task);
@@ -606,7 +606,7 @@ describe('Filtro de evidências', () => {
   });
 
   it('avisa quando nenhuma evidência está no filtro', async () => {
-    await open({ ...taskDetail({}, names.map(entry)), reviews: reviews(['rejeitada', 'rejeitada', 'a conferir', 'sem aval']) });
+    await open({ ...taskDetail({}, names.map(entry)), reviews: reviews(['recusada', 'recusada', 'a conferir', 'sem aval']) });
     await screen.findByText('saida.txt');
     fireEvent.click(within(group()).getByRole('button', { name: 'Conferidas 0' }));
     expect(screen.getByText('Nenhuma evidência neste filtro.')).toBeTruthy();

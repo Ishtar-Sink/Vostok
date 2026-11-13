@@ -78,7 +78,7 @@ export interface ManualEvidence extends FileRef {
 }
 
 /** Estado da conferência de uma evidência, calculado pela CLI (campo `reviews`). */
-export type ReviewStatus = 'conferida' | 'rejeitada' | 'a conferir' | 'sem aval';
+export type ReviewStatus = 'conferida' | 'recusada' | 'a conferir' | 'sem aval';
 
 export interface EvidenceReview {
   /** `EV-NN` pela ordem dos itens de "Evidências"; ausente numa CLI anterior à 0.6.0. */
@@ -86,10 +86,22 @@ export interface EvidenceReview {
   name: string;
   kind: string;
   status: ReviewStatus;
-  /** Palavras do usuário: o motivo da rejeição ou o aval da conferência; vazio sem elas. */
+  /** Palavras do usuário: o motivo da recusa ou o aval da conferência; vazio sem elas. */
   reason: string;
   /** Data (AAAA-MM-DD) da linha de conferência ou rejeição válida; vazio a conferir; ausente numa CLI anterior à 0.6.0. */
   reviewed_at?: string;
+  /** Origem da conferência: `chat` (vostok task evidence) ou `painel`; vazio sem conferência. */
+  origin?: string;
+  /** Hash atual da evidência, mandado de volta no POST para o servidor recusar com 409 o arquivo que mudou (CB-06). */
+  sha256?: string;
+  /** Comando da evidência; no diff, o caminho; na manual, a descrição. */
+  command?: string;
+  /** Ferramenta que gerou a evidência (Playwright, git diff, o primeiro programa do comando); vazia quando o comando não tem programa reconhecível. */
+  tool?: string;
+  /** Comando para reproduzir a evidência; vazio na manual. */
+  reproduce?: string;
+  /** Frase do subitem `Como:`; vazia sem ele. */
+  how?: string;
 }
 
 export interface TaskDetail {
@@ -196,6 +208,53 @@ export async function readTextPreview(path: string): Promise<TextPreview> {
   const total = Number((response.headers.get('Content-Range') ?? '').split('/')[1]);
   return { text, total: Number.isFinite(total) && total > TEXT_PREVIEW_BYTES ? total : null };
 }
+
+export type ReviewAction = 'aceitar' | 'recusar' | 'retirar';
+
+export type ReviewResult = { ok: true } | { ok: false; status: number; message: string };
+
+const REVIEW_ERRORS: Record<number, string> = {
+  400: 'Escreva o motivo.',
+  403: 'O painel recusou a gravação: recarregue a página.',
+  404: 'Evidência não encontrada.',
+  409: 'A evidência mudou ou a tarefa não está em conferência: recarregue a página.',
+};
+
+/** Token da sessão que o servidor põe na página; vazio fora do painel servido pela CLI. */
+export function sessionToken(): string {
+  return document.querySelector('meta[name="vostok-token"]')?.getAttribute('content') ?? '';
+}
+
+async function postReview(
+  action: ReviewAction,
+  spec: string,
+  task: string,
+  id: string,
+  sha256: string,
+  texto: string,
+): Promise<ReviewResult> {
+  const url = `/api/tarefas/${encodeURIComponent(spec)}/${encodeURIComponent(task)}/evidencias/${encodeURIComponent(id)}/${action}`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vostok-Token': sessionToken() },
+      body: JSON.stringify(sha256 ? { texto, sha256 } : { texto }),
+    });
+    if (response.ok) return { ok: true };
+    return { ok: false, status: response.status, message: REVIEW_ERRORS[response.status] ?? `Erro ${response.status}.` };
+  } catch {
+    return { ok: false, status: 0, message: 'Sem conexão com o painel.' };
+  }
+}
+
+export const acceptEvidence = (spec: string, task: string, id: string, sha256: string, texto = '') =>
+  postReview('aceitar', spec, task, id, sha256, texto);
+
+export const rejectEvidence = (spec: string, task: string, id: string, sha256: string, texto: string) =>
+  postReview('recusar', spec, task, id, sha256, texto);
+
+export const withdrawReview = (spec: string, task: string, id: string, sha256: string, texto: string) =>
+  postReview('retirar', spec, task, id, sha256, texto);
 
 export function listOf(value: string): string[] {
   return value.replace(/[[\]]/g, '').split(',').map((item) => item.trim()).filter(Boolean);

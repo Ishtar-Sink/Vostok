@@ -149,6 +149,7 @@ evidence_fields:
 evidence_optional_fields:
   - Artefato
   - Espera
+  - Como
 
 # Persistência das evidências no projeto (`vostok task persist`). Com `persist_dir` vazio, ela fica
 # desligada e a conclusão funciona como antes. O caminho parte da raiz do projeto, com <SPEC> e <TASK>

@@ -2,6 +2,14 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.2] - 2026-11-13
+
+### Recursos
+
+- O painel ganhou a página Configurações, aberta pelo botão com engrenagem logo abaixo da troca de tema. Ela traz de volta, de forma controlada, só o grupo das evidências: quais tipos pedem conferência, os limites de gravação, a cópia das evidências para o projeto, as extensões aceitas nos documentos e os trechos da regressão. (SPEC-052)
+- Cada configuração tem um controle que evita erro de digitação: caixas de seleção, números com unidade, interruptor e etiquetas com sugestões; texto livre só na pasta e no nome do guia. As mudanças ficam pendentes até Salvar, podem ser descartadas, e sair da página com elas pede confirmação. (SPEC-052)
+- A gravação passa pela validação da CLI: valor inválido volta com o erro ao lado do campo e nada é gravado, só as linhas das configurações alteradas mudam nos arquivos, com os comentários mantidos, e uma edição feita por fora depois da leitura não é sobrescrita. A gravação só é aceita da página aberta, com a chave da sessão. (SPEC-052)
+
 ## [0.6.1] - 2026-11-13
 
 ### Melhorias

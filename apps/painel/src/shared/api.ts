@@ -256,6 +256,61 @@ export const rejectEvidence = (spec: string, task: string, id: string, sha256: s
 export const withdrawReview = (spec: string, task: string, id: string, sha256: string, texto: string) =>
   postReview('retirar', spec, task, id, sha256, texto);
 
+/** Valor de uma configuração: número, texto ou lista. */
+export type SettingsValue = number | string | string[];
+
+/** Configurações das evidências lidas ou gravadas, com o sha256 de cada arquivo. */
+export interface EvidenceSettings {
+  arquivos: Record<string, string>;
+  valores: Record<string, SettingsValue>;
+}
+
+/** Resultado da gravação: os valores novos ou o erro, com os campos e o arquivo quando houver. */
+export type SaveSettingsResult =
+  | { ok: true; data: EvidenceSettings }
+  | { ok: false; status: number; erros?: Record<string, string>; arquivo?: string; message: string };
+
+/** Rota de leitura e gravação das configurações das evidências. */
+export const EVIDENCE_SETTINGS_URL = '/api/configuracoes/evidencias';
+
+const SETTINGS_ERRORS: Record<number, string> = {
+  400: 'Corrija os campos marcados.',
+  403: 'O painel recusou a gravação: abra o painel pelo vostok painel e recarregue a página.',
+};
+
+export async function saveEvidenceSettings(
+  valores: Record<string, SettingsValue>,
+  arquivos: Record<string, string>,
+): Promise<SaveSettingsResult> {
+  try {
+    const response = await fetch(EVIDENCE_SETTINGS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vostok-Token': sessionToken() },
+      body: JSON.stringify({ valores, arquivos }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) return { ok: true, data: body };
+    if (response.status === 409) {
+      const arquivo = body.arquivo as string | undefined;
+      return {
+        ok: false,
+        status: 409,
+        arquivo,
+        message: `O arquivo ${arquivo ?? 'de configuração'} mudou desde a leitura. Recarregue para continuar; as suas mudanças ficam na tela.`,
+      };
+    }
+    return {
+      ok: false,
+      status: response.status,
+      erros: body.erros,
+      arquivo: body.arquivo,
+      message: SETTINGS_ERRORS[response.status] ?? `Erro ${response.status}.`,
+    };
+  } catch {
+    return { ok: false, status: 0, message: 'Sem conexão com o painel.' };
+  }
+}
+
 export function listOf(value: string): string[] {
   return value.replace(/[[\]]/g, '').split(',').map((item) => item.trim()).filter(Boolean);
 }

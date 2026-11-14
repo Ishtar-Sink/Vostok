@@ -1,4 +1,4 @@
-//! Servidor HTTP do painel: escuta só em `127.0.0.1`, serve o bundle de `apps/painel` com o token da sessão, despacha os GET para a leitura e o aviso ao vivo e aceita POST só nas três rotas de conferência de evidências (DEC-006); os demais métodos e rotas respondem 405.
+//! Servidor HTTP do painel: escuta só em `127.0.0.1`, serve o bundle de `apps/painel` com o token da sessão, despacha os GET para a leitura e o aviso ao vivo e aceita POST só nas três rotas de conferência de evidências (DEC-006) e na de configurações das evidências (DEC-007); os demais métodos e rotas respondem 405.
 
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
@@ -13,6 +13,8 @@ use crate::commands::task::{
     review_evidence, ReviewAction, ReviewError, ReviewMark, ReviewOrigin, ReviewOutcome,
     ReviewRequest,
 };
+use crate::harness::Harness;
+use crate::settings::{write_evidence_settings, SettingsError, SettingsRequest};
 
 /// Se o bundle de `apps/painel` foi embutido neste binário.
 pub const HAS_BUNDLE: bool = cfg!(painel_bundle);
@@ -24,11 +26,15 @@ gere o bundle com `pnpm --dir apps/painel install --frozen-lockfile && pnpm --di
 
 const LIVE_PATH: &str = "/api/ao-vivo";
 
-/// Maior corpo aceito num POST de conferência.
+/// Maior corpo aceito num POST.
 const MAX_BODY: usize = 16 * 1024;
 
-/// Uma conferência por vez, para duas abas não gravarem o mesmo arquivo juntas.
-static REVIEW_LOCK: Mutex<()> = Mutex::new(());
+/// Uma gravação por vez, de conferência ou de configurações: duas abas não gravam o mesmo arquivo
+/// juntas e a conferência não lê o `tasks.yml` no meio de uma gravação.
+static WRITE_LOCK: Mutex<()> = Mutex::new(());
+
+const SETTINGS_BODY_HINT: &str =
+    "corpo inválido; envie {\"valores\": {...}, \"arquivos\": {...}}; nada foi gravado";
 
 #[cfg(painel_bundle)]
 static DIST: include_dir::Dir<'static> =
@@ -97,7 +103,7 @@ fn handle(painel: &Painel, session: &Session, mut request: tiny_http::Request) {
         let reply = if read.is_err() || body.len() > MAX_BODY {
             text(400, "corpo grande demais ou ilegível; nada foi registrado")
         } else {
-            review_post(painel, session, &url, &headers, &body)
+            post_route(painel, session, &url, &headers, &body)
         };
         let _ = request.respond(to_response(reply));
         return;
@@ -139,6 +145,79 @@ impl PostHeaders {
             token: find("X-Vostok-Token"),
         }
     }
+}
+
+/// Despacha um POST: a rota de configurações das evidências (DEC-007) ou as três de conferência
+/// (DEC-006); o resto responde 405 em `review_post`.
+pub fn post_route(
+    painel: &Painel,
+    session: &Session,
+    url: &str,
+    headers: &PostHeaders,
+    body: &[u8],
+) -> Reply {
+    let path = url.split('?').next().unwrap_or_default();
+    if path.trim_matches('/') == "api/configuracoes/evidencias" {
+        settings_post(painel, session, headers, body)
+    } else {
+        review_post(painel, session, url, headers, body)
+    }
+}
+
+/// POST de configurações das evidências, com o token da sessão e `Host` e `Origin` do próprio
+/// painel; grava pela validação da CLI, tudo ou nada.
+pub fn settings_post(
+    painel: &Painel,
+    session: &Session,
+    headers: &PostHeaders,
+    body: &[u8],
+) -> Reply {
+    if !trusted_request(session, headers) {
+        return text(403, "token ou origem recusados; nada foi gravado");
+    }
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return json_reply(
+            400,
+            serde_json::json!({"erros": {"corpo": SETTINGS_BODY_HINT}}),
+        );
+    };
+    let request = match SettingsRequest::from_json(&value) {
+        Ok(request) => request,
+        Err(error) => return settings_error(error),
+    };
+    let result = {
+        let _guard = WRITE_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        write_evidence_settings(
+            &Harness {
+                root: painel.root.clone(),
+            },
+            &request,
+        )
+    };
+    match result {
+        Ok(snapshot) => json(read::settings_json(&snapshot)),
+        Err(error) => settings_error(error),
+    }
+}
+
+/// Traduz o erro da CLI para a resposta do contrato.
+fn settings_error(error: SettingsError) -> Reply {
+    match error {
+        SettingsError::Invalid(errors) => json_reply(400, serde_json::json!({"erros": errors})),
+        SettingsError::Conflict { file } => json_reply(409, serde_json::json!({"arquivo": file})),
+        SettingsError::Io(error) => text(
+            500,
+            &format!("não foi possível gravar as configurações: {error}"),
+        ),
+    }
+}
+
+fn json_reply(status: u16, value: serde_json::Value) -> Reply {
+    let mut reply = json(value.to_string());
+    reply.status = status;
+    reply
 }
 
 /// POST de conferência: só `/api/tarefas/<SPEC>/<TASK>/evidencias/<EV-NN>/aceitar|recusar|retirar`,
@@ -190,7 +269,7 @@ pub fn review_post(
         expected_hash: expected_hash.as_deref(),
     };
     let result = {
-        let _guard = REVIEW_LOCK
+        let _guard = WRITE_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         review_evidence(&painel.root, &request)
@@ -375,7 +454,7 @@ fn respond_file(request: tiny_http::Request, found: Result<read::FileDelivery, R
 
 /// Roteia uma requisição já lida: `GET /api/...` e `GET /arquivos/...` para a leitura, os demais
 /// `GET` para o bundle, com o token da sessão no `index.html`, e qualquer outro método para o 405.
-/// O POST das três rotas de conferência é tratado antes, por `review_post`.
+/// O POST das rotas de conferência e de configurações é tratado antes, por `post_route`.
 pub fn dispatch(painel: &Painel, session: &Session, method: &str, url: &str) -> Reply {
     let (path, query) = url.split_once('?').unwrap_or((url, ""));
     let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
@@ -499,6 +578,59 @@ mod tests {
             root: PathBuf::from("/projeto-inexistente/vostok"),
             work: PathBuf::from("/projeto-inexistente/vostok/work"),
         }
+    }
+
+    fn trusted_headers() -> PostHeaders {
+        PostHeaders {
+            host: Some("127.0.0.1:1".to_string()),
+            origin: Some("http://127.0.0.1:1".to_string()),
+            token: Some("t".to_string()),
+        }
+    }
+
+    #[test]
+    fn configuracoes_post_corpo_ilegivel_e_400_em_corpo() {
+        for body in [b"nao e json".as_slice(), b"".as_slice()] {
+            let reply = settings_post(&painel(), &session(), &trusted_headers(), body);
+            assert_eq!(reply.status, 400, "{body:?}");
+            assert!(reply.content_type.contains("application/json"));
+            assert!(String::from_utf8(reply.body).unwrap().contains("\"corpo\""));
+        }
+        let reply = settings_post(
+            &painel(),
+            &session(),
+            &trusted_headers(),
+            br#"{"valores":5,"arquivos":{}}"#,
+        );
+        assert_eq!(reply.status, 400);
+        assert!(String::from_utf8(reply.body)
+            .unwrap()
+            .contains("\"valores\""));
+    }
+
+    #[test]
+    fn configuracoes_post_sem_token_e_403_e_outro_caminho_e_405() {
+        let untrusted = PostHeaders {
+            host: None,
+            origin: None,
+            token: None,
+        };
+        let protected = post_route(
+            &painel(),
+            &session(),
+            "/api/configuracoes/evidencias",
+            &untrusted,
+            b"{}",
+        );
+        assert_eq!(protected.status, 403);
+        let other = post_route(
+            &painel(),
+            &session(),
+            "/api/configuracoes",
+            &untrusted,
+            b"{}",
+        );
+        assert_eq!(other.status, 405);
     }
 
     #[test]

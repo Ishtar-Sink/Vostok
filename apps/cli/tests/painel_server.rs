@@ -1,5 +1,6 @@
 //! Testes do `vostok painel` com o binário real: escuta só em `127.0.0.1`, token de sessão na página,
-//! escrita só nas três rotas de conferência, 405 para o resto e entrega de arquivos (SPEC-042, SPEC-051).
+//! escrita só nas três rotas de conferência e na de configurações das evidências, 405 para o resto e
+//! entrega de arquivos (SPEC-042, SPEC-051, SPEC-052).
 #![cfg(feature = "painel")]
 
 mod common;
@@ -1054,4 +1055,314 @@ fn conferencia_post_pagina_entrega_o_token_da_sessao() {
     assert!(page.contains(&format!("content=\"{token}\"")), "{page}");
     let other = start(project.path());
     assert_ne!(page_token(other.address), token);
+}
+
+// --- Configurações das evidências (SPEC-052) ---
+
+const SETTINGS_ROUTE: &str = "/api/configuracoes/evidencias";
+const SETTINGS_KEYS: [&str; 12] = [
+    "documents.embed_max_mb",
+    "documents.image_extensions",
+    "documents.text_extensions",
+    "documents.video_extensions",
+    "tasks.evidence_baseline_timeout",
+    "tasks.evidence_review_kinds",
+    "tasks.evidence_title_max",
+    "tasks.persist_dir",
+    "tasks.persist_max_mb",
+    "tasks.persist_readme",
+    "tasks.regression_alert",
+    "tasks.regression_ignore",
+];
+
+fn config_text(project: &common::Project, name: &str) -> String {
+    fs::read_to_string(project.harness().join("config").join(name)).unwrap()
+}
+
+fn settings_get(address: SocketAddr) -> serde_json::Value {
+    let raw = get_raw(address, SETTINGS_ROUTE, None);
+    assert!(raw.status().contains(" 200 "), "{}", raw.head);
+    serde_json::from_slice(&raw.body).unwrap()
+}
+
+fn settings_json_of(raw: &Raw) -> serde_json::Value {
+    serde_json::from_slice(&raw.body)
+        .unwrap_or_else(|_| panic!("corpo sem JSON: {}", body_text(raw)))
+}
+
+fn settings_request(values: serde_json::Value, files: &serde_json::Value) -> String {
+    serde_json::json!({"valores": values, "arquivos": files}).to_string()
+}
+
+#[test]
+fn configuracoes_get_le_as_chaves_e_os_sha256() {
+    use serde_json::json;
+    let project = common::Project::new();
+    let painel = start(project.root());
+    let raw = get_raw(painel.address, SETTINGS_ROUTE, None);
+    assert!(raw.status().contains(" 200 "), "{}", raw.head);
+    assert!(
+        raw.header("Content-Type")
+            .unwrap_or_default()
+            .contains("application/json"),
+        "{}",
+        raw.head
+    );
+    let settings = settings_json_of(&raw);
+    let values = &settings["valores"];
+    let mut keys: Vec<&str> = values
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(keys, SETTINGS_KEYS);
+    assert_eq!(values["tasks.evidence_baseline_timeout"], 120);
+    assert_eq!(values["tasks.evidence_title_max"], 60);
+    assert_eq!(values["tasks.persist_dir"], "");
+    assert_eq!(
+        values["tasks.evidence_review_kinds"],
+        json!([
+            "automática",
+            "automática, da verificação",
+            "diff",
+            "manual",
+            "print"
+        ])
+    );
+    assert_eq!(values["documents.video_extensions"], json!(["mp4", "webm"]));
+    let files = settings["arquivos"].as_object().unwrap();
+    let mut names: Vec<&str> = files.keys().map(String::as_str).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["documents.yml", "tasks.yml"]);
+    for name in names {
+        assert_eq!(
+            files[name],
+            vostok::support::sha256_hex(config_text(&project, name).as_bytes()),
+            "{name}"
+        );
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn configuracoes_post_grava_so_as_chaves_enviadas() {
+    use serde_json::json;
+    let project = common::Project::new();
+    let painel = start(project.root());
+    let before = settings_get(painel.address);
+    let tasks_before = config_text(&project, "tasks.yml");
+    let response = post(
+        painel.address,
+        SETTINGS_ROUTE,
+        &trusted(painel.address, "127.0.0.1", &page_token(painel.address)),
+        &settings_request(
+            json!({"tasks.evidence_title_max": 80, "documents.video_extensions": ["mp4", "webm", "mov"]}),
+            &before["arquivos"],
+        ),
+    );
+    assert!(
+        response.status().contains(" 200 "),
+        "{} {}",
+        response.head,
+        body_text(&response)
+    );
+    let saved = settings_json_of(&response);
+    assert_eq!(saved["valores"]["tasks.evidence_title_max"], 80);
+    assert_eq!(
+        saved["valores"]["documents.video_extensions"],
+        json!(["mp4", "webm", "mov"])
+    );
+    assert_eq!(saved["valores"]["tasks.evidence_baseline_timeout"], 120);
+    let tasks_after = config_text(&project, "tasks.yml");
+    assert_eq!(
+        saved["arquivos"]["tasks.yml"],
+        vostok::support::sha256_hex(tasks_after.as_bytes())
+    );
+    assert_ne!(
+        saved["arquivos"]["tasks.yml"],
+        before["arquivos"]["tasks.yml"]
+    );
+    assert!(
+        tasks_after.contains("evidence_title_max: 80"),
+        "{tasks_after}"
+    );
+    assert!(
+        !tasks_after.contains("evidence_title_max: 60"),
+        "{tasks_after}"
+    );
+    assert_eq!(tasks_after.lines().count(), tasks_before.lines().count());
+    assert_eq!(
+        settings_get(painel.address)["valores"]["tasks.evidence_title_max"],
+        80
+    );
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn configuracoes_post_recusa_sem_token_ou_de_outra_origem() {
+    use serde_json::json;
+    let project = common::Project::new();
+    let painel = start(project.root());
+    let token = page_token(painel.address);
+    let tasks = config_text(&project, "tasks.yml");
+    let documents = config_text(&project, "documents.yml");
+    let body = settings_request(
+        json!({"tasks.evidence_title_max": 80}),
+        &settings_get(painel.address)["arquivos"],
+    );
+    let port = painel.address.port();
+    let good = trusted(painel.address, "localhost", &token);
+    let without_token: Vec<_> = good
+        .iter()
+        .filter(|(name, _)| name != "X-Vostok-Token")
+        .cloned()
+        .collect();
+    let wrong_token = trusted(painel.address, "localhost", &"0".repeat(64));
+    let mut evil_origin = good.clone();
+    evil_origin[1].1 = "http://evil.example".to_string();
+    let without_origin: Vec<_> = good
+        .iter()
+        .filter(|(name, _)| name != "Origin")
+        .cloned()
+        .collect();
+    let mut evil_host = good.clone();
+    evil_host[0].1 = format!("evil.example:{port}");
+    for headers in [
+        without_token,
+        wrong_token,
+        evil_origin,
+        without_origin,
+        evil_host,
+    ] {
+        let response = post(painel.address, SETTINGS_ROUTE, &headers, &body);
+        assert!(
+            response.status().contains(" 403 "),
+            "{:?} {}",
+            headers,
+            response.head
+        );
+        assert_eq!(config_text(&project, "tasks.yml"), tasks);
+        assert_eq!(config_text(&project, "documents.yml"), documents);
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn configuracoes_post_recusa_chave_fora_da_lista_ou_valor_invalido() {
+    use serde_json::json;
+    let project = common::Project::new();
+    let painel = start(project.root());
+    let headers = trusted(painel.address, "127.0.0.1", &page_token(painel.address));
+    let tasks = config_text(&project, "tasks.yml");
+    let documents = config_text(&project, "documents.yml");
+    let files = settings_get(painel.address)["arquivos"].clone();
+    let cases = [
+        (
+            settings_request(json!({"tasks.max_attempts": 5}), &files),
+            "tasks.max_attempts",
+        ),
+        (
+            settings_request(
+                json!({"tasks.evidence_title_max": 80, "tasks.evidence_baseline_timeout": -1}),
+                &files,
+            ),
+            "tasks.evidence_baseline_timeout",
+        ),
+        (
+            settings_request(json!({"tasks.evidence_title_max": true}), &files),
+            "tasks.evidence_title_max",
+        ),
+        ("não é json".to_string(), "corpo"),
+        (r#"{"valores": 5, "arquivos": {}}"#.to_string(), "valores"),
+    ];
+    for (body, key) in cases {
+        let response = post(painel.address, SETTINGS_ROUTE, &headers, &body);
+        assert!(
+            response.status().contains(" 400 "),
+            "{body} {}",
+            response.head
+        );
+        assert!(
+            response
+                .header("Content-Type")
+                .unwrap_or_default()
+                .contains("application/json"),
+            "{body} {}",
+            response.head
+        );
+        let errors = &settings_json_of(&response)["erros"];
+        assert!(errors.get(key).is_some(), "{body} {errors}");
+        assert_eq!(config_text(&project, "tasks.yml"), tasks, "{body}");
+        assert_eq!(config_text(&project, "documents.yml"), documents, "{body}");
+    }
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn configuracoes_post_recusa_arquivo_alterado_depois_da_leitura() {
+    use serde_json::json;
+    let project = common::Project::new();
+    let painel = start(project.root());
+    let headers = trusted(painel.address, "127.0.0.1", &page_token(painel.address));
+    let before = settings_get(painel.address);
+    let tasks_path = project.harness().join("config").join("tasks.yml");
+    let edited = format!("{}# editado à mão\n", config_text(&project, "tasks.yml"));
+    fs::write(&tasks_path, &edited).unwrap();
+    let stale = post(
+        painel.address,
+        SETTINGS_ROUTE,
+        &headers,
+        &settings_request(json!({"tasks.evidence_title_max": 80}), &before["arquivos"]),
+    );
+    assert!(stale.status().contains(" 409 "), "{}", stale.head);
+    assert_eq!(settings_json_of(&stale), json!({"arquivo": "tasks.yml"}));
+    assert_eq!(config_text(&project, "tasks.yml"), edited);
+    let reread = post(
+        painel.address,
+        SETTINGS_ROUTE,
+        &headers,
+        &settings_request(
+            json!({"tasks.evidence_title_max": 80}),
+            &settings_get(painel.address)["arquivos"],
+        ),
+    );
+    assert!(
+        reread.status().contains(" 200 "),
+        "{} {}",
+        reread.head,
+        body_text(&reread)
+    );
+}
+
+#[test]
+fn configuracoes_somente_get_e_post_na_rota() {
+    let project = project();
+    let painel = start(project.path());
+    let headers = trusted(painel.address, "127.0.0.1", "x");
+    for method in ["PUT", "DELETE", "PATCH"] {
+        let response = send(painel.address, method, SETTINGS_ROUTE, &headers, "{}");
+        assert!(
+            response.status().contains(" 405 "),
+            "{method} {}",
+            response.head
+        );
+    }
+    for route in [
+        "/api/configuracoes",
+        "/api/configuracoes/geral",
+        "/api/configuracoes/evidencias/extra",
+    ] {
+        let response = post(painel.address, route, &headers, "{}");
+        assert!(
+            response.status().contains(" 405 "),
+            "POST {route} {}",
+            response.head
+        );
+    }
+    let protected = post(painel.address, SETTINGS_ROUTE, &headers, "{}");
+    assert!(protected.status().contains(" 403 "), "{}", protected.head);
+    let unknown = get_raw(painel.address, "/api/configuracoes/geral", None);
+    assert!(unknown.status().contains(" 404 "), "{}", unknown.head);
 }

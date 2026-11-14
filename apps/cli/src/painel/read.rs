@@ -1,4 +1,5 @@
-//! Leitura dos arquivos de `vostok/` para o painel: visão, specs, planos, tarefas e documentos.
+//! Leitura dos arquivos de `vostok/` para o painel: visão, specs, planos, tarefas, documentos e
+//! configurações das evidências.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -12,6 +13,7 @@ use crate::commands::plan::{plan_outdated, waves};
 use crate::commands::task::{evidence_review_states, ReviewState};
 use crate::harness::Harness;
 use crate::models;
+use crate::settings::{read_evidence_settings, SettingsSnapshot};
 use crate::support::{config_get, frontmatter_get, sha256_hex, yaml_unescape};
 
 /// Arquivos da tarefa em pasta mostrados no painel, na ordem das abas.
@@ -147,6 +149,7 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
         ["api", "specs", id] => layout.spec(id),
         ["api", "planos", id] => layout.plan(id),
         ["api", "tarefas", spec, task] => layout.task(spec, task),
+        ["api", "configuracoes", "evidencias"] => layout.evidence_settings(),
         ["api", "arquivo"] => layout.file(&query_value(query, "caminho")),
         ["api", "fonte"] => layout.source(&query_value(query, "caminho")),
         // Documentos HTML abertos por caminho, para que os links relativos (assets/) funcionem.
@@ -157,6 +160,11 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
         _ => return None,
     };
     Some(reply.unwrap_or_else(|reply| reply))
+}
+
+/// `{"arquivos": ..., "valores": ...}` das configurações das evidências, no GET e no 200 do POST.
+pub fn settings_json(snapshot: &SettingsSnapshot) -> String {
+    snapshot.to_json().to_string()
 }
 
 /// A decisão de `Layout::file` sem ler o arquivo, para o servidor entregá-lo por partes.
@@ -178,6 +186,17 @@ pub fn file_delivery(
 }
 
 impl Layout<'_> {
+    fn evidence_settings(&self) -> Result<Reply, Reply> {
+        read_evidence_settings(&self.harness())
+            .map(|snapshot| json(settings_json(&snapshot)))
+            .map_err(|error| {
+                text(
+                    500,
+                    &format!("não foi possível ler as configurações: {error}"),
+                )
+            })
+    }
+
     /// Specs abertas com as tarefas, specs arquivadas e a atividade recente do registro de execução.
     fn overview(&self) -> String {
         let harness = self.harness();
@@ -1179,6 +1198,7 @@ fn review_json(index: usize, review: &ReviewState, explanation: &Explanation) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::SettingValue;
     use tempfile::TempDir;
 
     const MAIN_YML: &str = "paths:\n  specs: ./work/specs\n  plans: ./work/plans\n  tasks: ./work/tasks\n  archive: ./work/.archive\n";
@@ -1811,6 +1831,34 @@ wave: 1
                 r#""origin":"""#,
                 &format!("\"sha256\":\"{}\"", h("c")),
             ],
+        );
+    }
+
+    #[test]
+    fn configuracoes_json_traz_arquivos_e_valores() {
+        let snapshot = SettingsSnapshot {
+            files: BTreeMap::from([
+                ("documents.yml".to_string(), "d".to_string()),
+                ("tasks.yml".to_string(), "t".to_string()),
+            ]),
+            values: BTreeMap::from([
+                (
+                    "tasks.evidence_baseline_timeout".to_string(),
+                    SettingValue::Int(120),
+                ),
+                (
+                    "tasks.persist_dir".to_string(),
+                    SettingValue::Text(String::new()),
+                ),
+                (
+                    "tasks.regression_alert".to_string(),
+                    SettingValue::List(vec!["FAILED".into(), "error".into()]),
+                ),
+            ]),
+        };
+        assert_eq!(
+            settings_json(&snapshot),
+            r#"{"arquivos":{"documents.yml":"d","tasks.yml":"t"},"valores":{"tasks.evidence_baseline_timeout":120,"tasks.persist_dir":"","tasks.regression_alert":["FAILED","error"]}}"#
         );
     }
 }

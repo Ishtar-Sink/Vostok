@@ -7,6 +7,7 @@ export type Route =
   | { page: 'tasks' }
   | { page: 'task'; spec: string; task: string }
   | { page: 'documents' }
+  | { page: 'settings' }
   | { page: 'missing' };
 
 const SPEC_VIEWS = ['documento', 'plano'] as const;
@@ -16,6 +17,7 @@ export function parseRoute(pathname: string): Route {
   const [first, second, third] = parts;
   if (parts.length === 0) return { page: 'dashboard' };
   if (first === 'documentos' && parts.length === 1) return { page: 'documents' };
+  if (first === 'configuracoes' && parts.length === 1) return { page: 'settings' };
   if (first === 'specs' && parts.length === 1) return { page: 'specs' };
   if (first === 'specs' && third === 'quadro' && parts.length === 3) return { page: 'tasks' };
   if (first === 'specs' && parts.length <= 3) {

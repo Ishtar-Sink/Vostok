@@ -19,4 +19,11 @@ describe('Topbar', () => {
     expect(screen.getByRole('link', { name: 'SPEC-001' }).getAttribute('href')).toBe('/tarefas?spec=SPEC-001');
     expect(screen.getByRole('link', { name: 'Tarefas' }).getAttribute('href')).toBe('/tarefas');
   });
+
+  it('mostra a migalha Configurações na página de configurações', () => {
+    render(<Topbar route={{ page: 'settings' }} connected drawer={false} open={false} onToggle={() => {}} />);
+    const trail = screen.getByRole('navigation', { name: 'Trilha' });
+    expect(trail.textContent).toBe('Configurações');
+    expect(trail.textContent).not.toContain('Não encontrada');
+  });
 });

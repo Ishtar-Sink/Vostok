@@ -15,13 +15,13 @@ describe('parseRoute', () => {
     ['/documentos', { page: 'documents' }],
     ['/atividades', { page: 'missing' }],
     ['/perguntas', { page: 'missing' }],
-    ['/configuracoes', { page: 'missing' }],
+    ['/configuracoes', { page: 'settings' }],
   ])('maps %s to the right page', (path, route) => {
     expect(parseRoute(path)).toEqual(route);
   });
 
   it('leva as páginas removidas para não encontrada', () => {
-    for (const path of ['/pendencias', '/perguntas', '/atividades', '/configuracoes']) {
+    for (const path of ['/pendencias', '/perguntas', '/atividades']) {
       expect(parseRoute(path)).toEqual({ page: 'missing' });
     }
   });
@@ -30,8 +30,12 @@ describe('parseRoute', () => {
     expect(parseRoute('/specs/SPEC-029/outra')).toEqual({ page: 'spec', id: 'SPEC-029', view: 'documento' });
   });
 
-  it.each(['/nada', '/tarefas/SPEC-029', '/pendencias/x', '/planos', '/specs/a/b/c'])('treats %s as missing', (path) => {
+  it.each(['/nada', '/tarefas/SPEC-029', '/pendencias/x', '/planos', '/specs/a/b/c', '/configuracoes/evidencias'])('treats %s as missing', (path) => {
     expect(parseRoute(path)).toEqual({ page: 'missing' });
+  });
+
+  it('abre Configurações com a barra no fim', () => {
+    expect(parseRoute('/configuracoes/')).toEqual({ page: 'settings' });
   });
 });
 

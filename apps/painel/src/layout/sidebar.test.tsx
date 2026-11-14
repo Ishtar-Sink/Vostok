@@ -35,9 +35,10 @@ describe('Sidebar só de leitura', () => {
       .slice(0, 4)
       .map((link) => link.textContent);
     expect(labels).toEqual(['Painel', 'Specs', 'Tarefas', 'Documentos']);
-    for (const name of ['Pendências', 'Perguntas', 'Atividades', 'Configurações']) {
+    for (const name of ['Pendências', 'Perguntas', 'Atividades']) {
       expect(screen.queryByText(name)).toBeNull();
     }
+    expect(within(nav).queryByRole('link', { name: 'Configurações' })).toBeNull();
   });
 
   it('não mostra contagem nem aviso do agente', () => {
@@ -62,5 +63,43 @@ describe('Sidebar só de leitura', () => {
     sidebar({ onToggleTheme });
     fireEvent.click(screen.getByRole('button', { name: 'Tema escuro' }));
     expect(onToggleTheme).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Botão Configurações', () => {
+  afterEach(() => history.replaceState(null, '', '/'));
+
+  it('fica logo abaixo do botão de tema', () => {
+    sidebar();
+    const theme = screen.getByRole('button', { name: 'Tema escuro' });
+    const link = screen.getByRole('link', { name: 'Configurações' });
+    expect(theme.nextElementSibling).toBe(link);
+  });
+
+  it('abre /configuracoes sem recarregar', () => {
+    window.scrollTo = vi.fn();
+    sidebar();
+    const link = screen.getByRole('link', { name: 'Configurações' });
+    expect(link.getAttribute('href')).toBe('/configuracoes');
+    fireEvent.click(link);
+    expect(location.pathname).toBe('/configuracoes');
+  });
+
+  it('marca Configurações na página de configurações', () => {
+    sidebar({ route: { page: 'settings' } });
+    expect(screen.getByRole('link', { name: 'Configurações' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Painel' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('não marca Configurações nas outras páginas', () => {
+    sidebar({ route: { page: 'specs' } });
+    expect(screen.getByRole('link', { name: 'Configurações' }).getAttribute('aria-current')).toBeNull();
+  });
+
+  it('mostra a engrenagem só como decoração', () => {
+    sidebar();
+    const link = screen.getByRole('link', { name: 'Configurações' });
+    expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(link.textContent).toBe('Configurações');
   });
 });

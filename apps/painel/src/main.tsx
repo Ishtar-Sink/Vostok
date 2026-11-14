@@ -13,6 +13,7 @@ import { SpecPage } from './features/spec/spec-page';
 import { TasksPage } from './features/board/tasks-page';
 import { TaskPage } from './features/task/task-page';
 import { DocumentsPage } from './features/documents/documents-page';
+import { SettingsPage } from './features/settings/settings-page';
 import { EmptyState } from './ui/empty-state/empty-state';
 import { BackToTop } from './shared/back-to-top';
 import styles from './layout/layout.module.css';
@@ -95,6 +96,7 @@ function App() {
             {route.page === 'tasks' && <TasksPage version={version} />}
             {route.page === 'task' && <TaskPage spec={route.spec} task={route.task} version={version} />}
             {route.page === 'documents' && <DocumentsPage version={version} />}
+            {route.page === 'settings' && <SettingsPage />}
             {route.page === 'missing' && <EmptyState title="Página não encontrada" description="Volte pelo menu da barra lateral." />}
           </div>
         </main>

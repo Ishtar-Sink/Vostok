@@ -286,6 +286,64 @@ fn evidence_title_longer_than_60_is_refused_by_the_plan_approval() {
     assert!(refused.contains("saida.txt"), "{refused}");
 }
 
+// --- Campos novos das evidências (SPEC-055) ---
+
+const NEW_FIELDS_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`\n  - Título: Saída aparece\n  - Mostra: o comando escreve ok.\n  - Cobre: RF-01\n  - Onde olhar: a primeira linha.\n  - Trecho: a linha `ok`.\n  - Falha: se aparecer erro, então o comando quebrou.\n  - Reproduzir: `echo ok`";
+
+fn plan_validation_passes(evidence: &str) {
+    let project = Project::new();
+    plan_with_evidence(&project, evidence);
+    project
+        .vostok()
+        .args(["plan", "approve", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+fn plan_validation_refusal(evidence: &str) -> String {
+    let project = Project::new();
+    plan_with_evidence(&project, evidence);
+    failure_stderr(
+        project
+            .vostok()
+            .args(["plan", "approve", "validate", "SPEC-001"]),
+    )
+}
+
+#[test]
+fn new_evidence_fields_mostra_without_prova_is_approved_by_the_plan() {
+    plan_validation_passes(NEW_FIELDS_EVIDENCE);
+}
+
+#[test]
+fn new_evidence_fields_prova_and_mostra_together_are_approved_by_the_plan() {
+    plan_validation_passes(&format!("{NEW_FIELDS_EVIDENCE}\n  - Prova: ok."));
+}
+
+#[test]
+fn new_evidence_fields_without_prova_and_mostra_are_refused_by_the_plan() {
+    let evidence = NEW_FIELDS_EVIDENCE.replace("\n  - Mostra: o comando escreve ok.", "");
+    let refused = plan_validation_refusal(&evidence);
+    assert!(
+        refused.contains("sem o subitem 'Prova' ou 'Mostra'"),
+        "{refused}"
+    );
+    assert!(refused.contains("saida.txt"), "{refused}");
+}
+
+#[test]
+fn new_evidence_fields_unknown_multi_word_field_is_refused_by_the_plan() {
+    let refused = plan_validation_refusal(&format!("{NEW_FIELDS_EVIDENCE}\n  - Onde ver: x"));
+    assert!(refused.contains("desconhecido 'Onde ver'"), "{refused}");
+}
+
+#[test]
+fn current_evidence_format_is_approved_by_the_plan() {
+    plan_validation_passes(
+        "- `saida.txt` (automática): `echo ok`\n  - Título: Saída aparece\n  - Prova: ok.\n  - Trecho: ok.\n  - Falha: erro.",
+    );
+}
+
 // --- Perfis de execução (SPEC-014: RF-17, RF-21, RF-26, CT-12, CT-16) ---
 
 const FACTS_HEADER: &str = "| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|";

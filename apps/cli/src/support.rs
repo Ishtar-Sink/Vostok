@@ -619,19 +619,30 @@ pub fn existing_dir(path: &Path) -> Result<std::path::PathBuf> {
     Ok(logical)
 }
 
+pub const EVIDENCE_PROOF_FIELD: &str = "Prova";
+pub const EVIDENCE_SHOWS_FIELD: &str = "Mostra";
+
+/// Subitem obrigatório que outro subitem satisfaz: com as duas, vale Mostra (SPEC-055, CB-01).
+const EVIDENCE_ALTERNATIVES: &[(&str, &str)] = &[(EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD)];
+
 /// Nomes dos subitens de cada evidência (`evidence_fields` e `evidence_optional_fields`).
 pub struct EvidenceFields {
     pub required: Vec<String>,
     pub optional: Vec<String>,
 }
 
-/// Linha recuada de subitem de evidência, `  - Campo: texto`, como (campo, texto).
+/// Linha recuada de subitem de evidência, `  - Campo: texto`, como (campo, texto), com o campo de
+/// até três palavras.
 pub fn evidence_subitem(line: &str) -> Option<(&str, &str)> {
     if !is_indented(line) {
         return None;
     }
     let (field, text) = line.trim_start().strip_prefix("- ")?.split_once(": ")?;
-    let valid = !field.is_empty() && !field.contains(char::is_whitespace);
+    let valid = !field.is_empty()
+        && field.trim() == field
+        && !field.contains("  ")
+        && !field.contains('\t')
+        && field.split(' ').count() <= 3;
     valid.then_some((field, text))
 }
 
@@ -691,11 +702,23 @@ pub fn evidence_subitem_errors(
     if let (Some(fields), true) = (fields, require) {
         for (evidence, seen) in &evidences {
             for field in &fields.required {
-                if !seen.contains(&field.as_str()) {
-                    errors.push(format!(
-                        "'{section}' com evidência sem o subitem '{field}': {evidence}"
-                    ));
+                let alternative = EVIDENCE_ALTERNATIVES
+                    .iter()
+                    .find(|(required, _)| required == field)
+                    .map(|(_, alternative)| *alternative);
+                let present = seen.contains(&field.as_str())
+                    || alternative.is_some_and(|alternative| seen.contains(&alternative));
+                if present {
+                    continue;
                 }
+                errors.push(match alternative {
+                    Some(alternative) => format!(
+                        "'{section}' com evidência sem o subitem '{field}' ou '{alternative}': {evidence}"
+                    ),
+                    None => format!(
+                        "'{section}' com evidência sem o subitem '{field}': {evidence}"
+                    ),
+                });
             }
         }
     }
@@ -709,7 +732,13 @@ mod evidence_tests {
     fn fields() -> EvidenceFields {
         EvidenceFields {
             required: vec!["Prova".into(), "Trecho".into(), "Falha".into()],
-            optional: vec!["Artefato".into()],
+            optional: vec![
+                "Artefato".into(),
+                "Mostra".into(),
+                "Cobre".into(),
+                "Onde olhar".into(),
+                "Reproduzir".into(),
+            ],
         }
     }
 
@@ -721,7 +750,12 @@ mod evidence_tests {
         assert_eq!(evidence_subitem("  - Prova: algo"), Some(("Prova", "algo")));
         assert_eq!(evidence_subitem("- Prova: algo"), None);
         assert_eq!(evidence_subitem("  - Prova algo"), None);
-        assert_eq!(evidence_subitem("  - Duas palavras: x"), None);
+        assert_eq!(evidence_subitem("  - Quatro palavras no nome: x"), None);
+        assert_eq!(
+            evidence_subitem("  - Onde olhar: linha 3"),
+            Some(("Onde olhar", "linha 3"))
+        );
+        assert_eq!(evidence_subitem("  - Onde  olhar: x"), None);
     }
 
     #[test]
@@ -762,5 +796,44 @@ mod evidence_tests {
     fn subitem_before_any_evidence_is_reported() {
         let errors = evidence_subitem_errors("  - Prova: p\n", "Evidências", None, false);
         assert!(errors[0].contains("antes de qualquer evidência"));
+    }
+
+    #[test]
+    fn new_fields_mostra_replaces_prova() {
+        let text = "- `a.txt` (automática): `true`\n  - Mostra: m\n  - Trecho: t\n  - Falha: f\n";
+        assert!(evidence_subitem_errors(text, "Evidências", Some(&fields()), true).is_empty());
+    }
+
+    #[test]
+    fn new_fields_mostra_and_prova_together_are_accepted() {
+        let text = format!("{COMPLETE}  - Mostra: m\n");
+        assert!(evidence_subitem_errors(&text, "Evidências", Some(&fields()), true).is_empty());
+    }
+
+    #[test]
+    fn new_fields_missing_prova_and_mostra_names_both() {
+        let text = "- `a.txt` (automática): `true`\n  - Trecho: t\n  - Falha: f\n";
+        let errors = evidence_subitem_errors(text, "Evidências", Some(&fields()), true);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(errors[0].contains("sem o subitem 'Prova' ou 'Mostra'"));
+    }
+
+    #[test]
+    fn new_fields_all_optional_fields_are_known() {
+        let text = format!(
+            "{COMPLETE}  - Mostra: m\n  - Cobre: RF-01, CT-01\n  - Onde olhar: 0:05, o botão muda\n  - Reproduzir: `vostok painel`\n"
+        );
+        for require in [false, true] {
+            let errors = evidence_subitem_errors(&text, "Evidências", Some(&fields()), require);
+            assert!(errors.is_empty(), "{errors:?}");
+        }
+    }
+
+    #[test]
+    fn new_fields_unknown_multi_word_field_is_reported() {
+        let text = format!("{COMPLETE}  - Onde ver: x\n");
+        let errors = evidence_subitem_errors(&text, "Evidências", Some(&fields()), false);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(errors[0].contains("desconhecido 'Onde ver'"));
     }
 }

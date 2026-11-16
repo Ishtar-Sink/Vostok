@@ -689,14 +689,21 @@ fn set_config(project: &Project, key: &str, value: &str) {
     write(project, path, &content);
 }
 
+const VALIDATED_EVIDENCE: &str = "- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha com o valor.\n  - Falha: arquivo ausente.\n- `tela.png` (manual): print da tela\n  - Prova: a tela abre.\n  - Trecho: o título.\n  - Falha: tela em branco.\n";
+
 /// Tarefa validada, com uma evidência automática (`saida.txt`, de `cat valor.txt`) e uma manual
 /// (`tela.png`), com a persistência ligada.
 fn validated_task(value: &str) -> Project {
+    validated_task_with(value, VALIDATED_EVIDENCE)
+}
+
+/// `validated_task` com a lista de "Evidências" informada.
+fn validated_task_with(value: &str, evidence: &str) -> Project {
     let project = running_task(&[("valor.txt", "a\n")]);
     set_config(&project, "persist_dir", "docs/evidencias/<SPEC>/<TASK>");
     let content = read(&project, TASK_PATH).replace(
         "### Evidências\n\nNão se aplica.\n",
-        "### Evidências\n\n- `saida.txt` (automática): `cat valor.txt`\n  - Prova: o valor é lido.\n  - Trecho: a linha com o valor.\n  - Falha: arquivo ausente.\n- `tela.png` (manual): print da tela\n  - Prova: a tela abre.\n  - Trecho: o título.\n  - Falha: tela em branco.\n",
+        &format!("### Evidências\n\n{evidence}"),
     );
     write(&project, TASK_PATH, &content);
     write(&project, "valor.txt", value);
@@ -1161,6 +1168,56 @@ fn evidence_title_61_chars_is_refused_by_the_task_validation() {
     let refused = failure_stderr(&mut nested(&project, "adjust", "validate"));
     assert!(refused.contains("mais de 60 caracteres"), "{refused}");
     assert!(refused.contains("saida.txt"), "{refused}");
+}
+
+// --- Campos novos das evidências (SPEC-055) ---
+
+const NEW_FIELDS_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`\n  - Título: Saída aparece\n  - Mostra: o comando escreve ok.\n  - Cobre: RF-01\n  - Onde olhar: a primeira linha.\n  - Trecho: a linha `ok`.\n  - Falha: se aparecer erro, então o comando quebrou.\n  - Reproduzir: `echo ok`";
+
+fn approve_and_start(evidence: &str) {
+    let project = Project::new();
+    write(&project, TASK_PATH, &complete_task("pending", evidence));
+    success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    success_stdout(&mut nested(&project, "approve", "validate"));
+    success_stdout(&mut nested(&project, "approve", "approve"));
+    success_stdout(&mut task(&project, &["start"]));
+    assert_eq!(status(&project), "in_progress");
+}
+
+#[test]
+fn new_evidence_fields_are_approved_and_started() {
+    approve_and_start(NEW_FIELDS_EVIDENCE);
+}
+
+#[test]
+fn current_evidence_format_is_approved_and_started() {
+    approve_and_start(&format!(
+        "{}\n  - Título: Saída aparece",
+        automatic("saida.txt", "echo ok", None)
+    ));
+}
+
+/// Guia da persistência de `validated_task` com a Prova de `saida.txt` trocada pelos subitens dados.
+fn persisted_guide_with(proof: &str) -> String {
+    let evidence = VALIDATED_EVIDENCE.replace("  - Prova: o valor é lido.\n", proof);
+    let project = validated_task_with("a\n", &evidence);
+    task(&project, &["persist"]).assert().success();
+    guide(&project)
+}
+
+#[test]
+fn new_evidence_fields_persist_guide_uses_mostra() {
+    let text =
+        persisted_guide_with("  - Mostra: o valor aparece.\n  - Onde olhar: a primeira linha.\n");
+    assert!(text.contains("- **Prova:** o valor aparece."), "{text}");
+    assert!(!text.contains("#{PROVA}"), "{text}");
+}
+
+#[test]
+fn new_evidence_fields_mostra_wins_in_the_persist_guide() {
+    let text = persisted_guide_with("  - Prova: o valor é lido.\n  - Mostra: o valor aparece.\n");
+    assert!(text.contains("- **Prova:** o valor aparece."), "{text}");
+    assert!(!text.contains("o valor é lido"), "{text}");
 }
 
 // --- Ajuste de tarefa em execução com criar e remover (SPEC-012) ---

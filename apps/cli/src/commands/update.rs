@@ -24,6 +24,10 @@ const REQUIRED_LIST_ITEMS: &[(&str, &str, &str)] = &[
     ("config/tasks.yml", "evidence_fields", "Título"),
     ("config/tasks.yml", "evidence_optional_fields", "Espera"),
     ("config/tasks.yml", "evidence_optional_fields", "Como"),
+    ("config/tasks.yml", "evidence_optional_fields", "Mostra"),
+    ("config/tasks.yml", "evidence_optional_fields", "Cobre"),
+    ("config/tasks.yml", "evidence_optional_fields", "Onde olhar"),
+    ("config/tasks.yml", "evidence_optional_fields", "Reproduzir"),
 ];
 
 const SKILL_FILE: &str = "SKILL.md";

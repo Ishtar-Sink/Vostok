@@ -1258,6 +1258,46 @@ fn update_adds_the_como_field() {
     assert_eq!(count(&workspace), 1);
 }
 
+#[test]
+fn update_adds_the_new_evidence_fields() {
+    const NEW_FIELDS: [&str; 4] = ["Mostra", "Cobre", "Onde olhar", "Reproduzir"];
+    let workspace = installed("claude-code");
+    for field in NEW_FIELDS {
+        workspace.replace("vostok/config/tasks.yml", &format!("  - {field}\n"), "");
+    }
+    let count = |workspace: &Workspace, field: &str| {
+        config_list(
+            &workspace.path("vostok/config/tasks.yml"),
+            "evidence_optional_fields",
+        )
+        .unwrap()
+        .iter()
+        .filter(|item| item.as_str() == field)
+        .count()
+    };
+    for field in NEW_FIELDS {
+        assert_eq!(count(&workspace, field), 0, "{field}");
+    }
+
+    let out = workspace.update();
+
+    for field in NEW_FIELDS {
+        assert!(
+            out.contains(&format!("evidence_optional_fields: {field}")),
+            "{out}"
+        );
+        assert_eq!(count(&workspace, field), 1, "{field}");
+    }
+    let again = workspace.update();
+    assert!(
+        !again.contains("evidence_optional_fields: Mostra"),
+        "{again}"
+    );
+    for field in NEW_FIELDS {
+        assert_eq!(count(&workspace, field), 1, "{field}");
+    }
+}
+
 // --- hooks do Claude Code (SPEC-050) ---
 
 const SETTINGS: &str = ".claude/settings.json";

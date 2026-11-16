@@ -17,7 +17,8 @@ use crate::models;
 use crate::support::{
     config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
     frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection, render,
-    sha256_hex, template_leftovers, yaml_escape, EvidenceFields,
+    sha256_hex, template_leftovers, yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD,
+    EVIDENCE_SHOWS_FIELD,
 };
 
 #[derive(Debug, Subcommand)]
@@ -3928,7 +3929,15 @@ impl Tasks {
             };
             values = HashMap::from([
                 ("NAME", evidence.name.clone()),
-                ("PROVA", field("Prova", "#{PROVA}")),
+                (
+                    "PROVA",
+                    evidence
+                        .fields
+                        .get(EVIDENCE_SHOWS_FIELD)
+                        .or_else(|| evidence.fields.get(EVIDENCE_PROOF_FIELD))
+                        .cloned()
+                        .unwrap_or_else(|| "#{PROVA}".to_string()),
+                ),
                 ("COMMAND", command),
                 ("FILE", file_text),
                 ("TRECHO_ESPERADO", field("Trecho", "#{TRECHO_ESPERADO}")),

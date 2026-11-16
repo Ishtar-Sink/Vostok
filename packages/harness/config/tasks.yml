@@ -236,10 +236,15 @@ evidence_fields:
 evidence_title_field: Título
 evidence_title_max: 60
 # Como: frase opcional, de até 160 caracteres, sobre o que o script ou comando faz; o painel a mostra em "Como foi feita".
+# Mostra: o que a evidência mostra, em linguagem de usuário; substitui Prova (com as duas, vale Mostra). Cobre: IDs separados por vírgula. Onde olhar: texto livre, tempos de vídeo em m:ss ou mm:ss. Reproduzir: um comando entre crases.
 evidence_optional_fields:
   - Artefato
   - Espera
   - Como
+  - Mostra
+  - Cobre
+  - Onde olhar
+  - Reproduzir
 
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples

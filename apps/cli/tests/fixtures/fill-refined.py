@@ -7,7 +7,7 @@ import sys
 DEFAULTS = {
     'SPEC_SUMMARY': 'Resumo.',
     'OBJECTIVE': 'Objetivo.',
-    'CURRENT_STATE': 'Estado atual.',
+    'CURRENT_STATE_USER': 'O usuário vê isto.', 'CURRENT_STATE_INTERNALS': 'Funciona assim.',
     'DEFECT_CURRENT': 'a', 'DEFECT_EXPECTED': 'b', 'DEFECT_REPRODUCTION': 'c', 'DEFECT_ROOT_CAUSE': 'd',
     'SCOPE_IN': '- Dentro.', 'SCOPE_OUT': '- Fora.',
     'FUNCTIONAL_REQUIREMENTS': '| RF-01 | O sistema deve A. |\n| RF-02 | O sistema deve B. |',
@@ -27,7 +27,7 @@ DEFAULTS = {
     'ACCEPTANCE_CRITERIA': '- [ ] CA-01: Critério (RF-01, RF-02, S-01, PQ-01). Cita `#{VAR}` em crases.',
     'REFERENCES': '| arquivo | `AGENTS.md` | Uso. |',
     'WHAT_CHANGED': '| 1 | Assunto | Antes | Depois |',
-    'DECISIONS': '| 1 | Decisão | Alternativa | inferência A |',
+    'DECISIONS': '| 1 | Decisão | Alternativa | Razão. | inferência A |',
     'PENDING': '| - | Nenhuma | - |',
     # Plano de tarefas (templates/plan/plan.md): cobre RF-01, RF-02 e CT-01 da spec acima.
     # TASK-01 soma 4 pontos (simples) e TASK-02 soma 5 (moderada) com os pesos padrão.

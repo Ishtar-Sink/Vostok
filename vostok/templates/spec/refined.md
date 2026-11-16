@@ -14,8 +14,8 @@
 
 ## Registro de decisões
 
-| # | Decisão | Alternativa descartada | Motivo |
-|---|---|---|---|
+| # | Decisão | Alternativa descartada | Motivo | Origem |
+|---|---|---|---|---|
 #{DECISIONS}
 
 ## Pendências

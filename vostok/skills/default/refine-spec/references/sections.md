@@ -45,7 +45,7 @@ Como preencher cada seção. As seções de cada tipo e a ordem delas estão em 
 
 | Seção | Conteúdo |
 |---|---|
-| Estado atual | Só em `improvement`. Como funciona hoje, citando os arquivos envolvidos. |
+| Estado atual | Só em `improvement`. Duas partes. "O que o usuário vê hoje": o comportamento que quem usa nota, em frases, sem siglas nem caminhos de arquivo. "Como funciona por dentro": os componentes e os arquivos envolvidos, que alimentam os "Componentes afetados". |
 | Defeito | Só em `fix`. Comportamento atual, comportamento esperado, passos para reproduzir e causa raiz (ou "desconhecida"). |
 | Requisitos funcionais | O que o sistema deve fazer, com `RF-01`. Cada requisito começa com "O sistema deve" ou com o nome do componente. |
 | Requisitos não funcionais | Desempenho, compatibilidade, segurança, portabilidade, com `RNF-01` e como verificar. |
@@ -78,6 +78,6 @@ A análise segue tese, antítese e síntese. O objetivo é chegar a uma conclus�
 |---|---|
 | Resumo (logo abaixo do título) | 1 ou 2 frases com o que a spec entrega. |
 | O que mudou | Uma linha por assunto alterado em relação ao rascunho. |
-| Registro de decisões | Uma linha por resposta do usuário e uma por inferência. O motivo indica a origem: `resposta 1B` ou `inferência A`. |
+| Registro de decisões | Uma linha por resposta do usuário e uma por inferência. O motivo diz a razão em uma frase, sem apontar para a conversa (ex.: "o usuário prefere finalizar em lote para não repetir o pedido nove vezes", não "resposta 2"). A coluna Origem traz `resposta 1B` ou `inferência A`. |
 | Pendências | Uma linha por ambiguidade não resolvida, ou uma linha com `-` e `Nenhuma`. |
 | Histórico de ajustes | Não preencha. O script da skill `adjust-spec` acrescenta uma linha a cada ajuste. |

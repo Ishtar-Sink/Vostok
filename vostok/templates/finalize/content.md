@@ -7,6 +7,21 @@
 
 <!-- Para quem decide ou acompanha sem ler código: lido em 3 a 5 minutos, de 400 a 800 palavras. Linguagem de negócio, sem caminhos, comandos nem nomes de funções (nada entre crases). -->
 
+## Resultado
+
+<!-- Uma frase de até 30 palavras com o que mudou para quem usa, lida ao lado do selo de situação no topo. Sem números de processo: os cartões já os mostram. -->
+#{EXEC_RESULT}
+
+## Decisão pedida
+
+<!-- A decisão que depende de quem lê, numa linha, ou "Nenhuma decisão pendente". -->
+#{EXEC_DECISION}
+
+## Indicador de valor
+
+<!-- A métrica de resultado do cartão "Resultado": tabela "| Valor | Antes | Depois | Rótulo |" com uma linha, só com números das fontes ou das métricas do vostok finalize sources. Sem métrica, "Não se aplica.", e o cartão mostra a primeira entrega de "O que foi entregue". -->
+#{EXEC_VALUE_INDICATOR}
+
 ## Em resumo
 
 <!-- A conclusão do documento inteiro: o que foi entregue e o ganho principal. Prosa, um parágrafo de 2 a 4 frases. Aparece na faixa do topo. -->
@@ -115,4 +130,4 @@
 <!-- Tabela "| ID | O que foi verificado | Evidência |": uma linha por requisito funcional (RF) e não funcional (RNF) da spec, citando a evidência ("TASK-NN / arquivo") que o prova, e uma linha por critério de aceite (CA-NN) da spec, com o resultado da conferência ("atendido" ou "não atendido: motivo") e a evidência que o sustenta. -->
 #{EVIDENCE_COVERAGE}
 
-<!-- Um bloco por evidência, criado pelo `vostok finalize create`. Preencha "Prova" (o requisito que a evidência sustenta, em linguagem direta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela). -->
+<!-- Um bloco por evidência, criado pelo vostok finalize create. O documento já traz da tarefa o título, o que a evidência mostra, onde olhar e o que seria falha, e o comando real do log. Preencha "Prova" com o requisito que a evidência sustenta, em palavras; "Como chegar" já vem com o comando do log quando existe (senão, escreva os passos); e "Como ler" com o que conferir que a tarefa não disse. -->

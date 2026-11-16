@@ -16,7 +16,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 ## Termos
 
 - **Spec finalizável:** spec com status `implemented` e todas as tarefas `done`.
-- **Fontes:** o que o `vostok finalize sources` imprime (spec, registro e histórico de cada tarefa, evidências, caminhos alterados, memória e commits do período, e, nas tarefas em pasta, o `executivo.md` e o `tecnico.md` de cada uma) mais o código dos caminhos alterados. O executivo e o técnico das tarefas são a base da síntese; o `tecnico.html` já inclui o técnico de cada tarefa.
+- **Fontes:** o que o `vostok finalize sources` imprime (spec, registro e histórico de cada tarefa, evidências, caminhos alterados, memória e commits do período, e, nas tarefas em pasta, o `executivo.md` e o `tecnico.md` de cada uma) mais o bloco "Métricas" (ciclo, retrabalho, critérios, evidências, volume e situação), calculado pela CLI, e o código dos caminhos alterados. O executivo e o técnico das tarefas são a base da síntese; o `tecnico.html` já inclui o técnico de cada tarefa.
 - **Conteúdo:** o arquivo `<paths.finalize>/<SPEC_ID>/content.md`, criado a partir de `templates/finalize/content.md` e escrito pelo agente. É a única entrada de texto dos documentos.
 - **Documentos:** `executivo.html`, `tecnico.html` e `evidencias.html`, gerados pelo `vostok finalize build` a partir do conteúdo, da spec e das tarefas.
 - **Arquivo:** a pasta `<paths.archive>/<SPEC_ID>/`, fora do git, para onde vão a spec, o conteúdo, as tarefas, as evidências e os documentos.
@@ -28,7 +28,7 @@ Fecha o ciclo de uma spec implementada: três documentos sintetizados em HTML, a
 [finalize-spec-03]: O executivo é para quem decide sem ler código: objetivo, entregas, valor e impacto, ganhos secundários, riscos e próximos passos, em linguagem de negócio, sem caminhos, comandos, nomes de funções nem IDs de requisito, de 400 a 800 palavras.
 [finalize-spec-04]: O técnico é a transferência de conhecimento de quem vai manter: o quê, por quê e como, mais operação e diagnóstico, mapa do código e limites e dívidas, de 1.000 a 2.000 palavras, e "Referências" com o motivo de cada item.
 [finalize-spec-05]: Não edite a spec, as tarefas nem as evidências. Só o conteúdo é escrito à mão; os documentos e o arquivo são gerados pelos comandos.
-[finalize-spec-06]: Não invente números. Um número em "Em números" ou em "Valor e impacto" só entra se vier das fontes (contado ou medido); sem nenhum, escreva "Não se aplica." em "Em números".
+[finalize-spec-06]: Não invente números. Um número em "Em números" ou em "Valor e impacto" só entra se vier das fontes (contado ou medido); sem nenhum, escreva "Não se aplica." em "Em números". O "Indicador de valor" também só usa números das fontes ou das métricas.
 [finalize-spec-07]: No máximo 2 rodadas de correção do `vostok finalize validate` ([agent/anti-loop-02]). Na terceira falha, **PARE** com o template `blocker`.
 [finalize-spec-08]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [finalize-spec-09]: A skill é executada no Coordenador, uma spec por vez, sem disparar subagente: ele já tem as fontes no contexto, e um subagente recomeçaria a leitura do zero.
@@ -92,7 +92,7 @@ O comando imprime o caminho do conteúdo. Se ele já existir, o comando recusa: 
 
 Substitua cada variável `#{...}` seguindo os comentários do arquivo, que trazem o propósito, o formato e o tamanho de cada seção, e as regras [finalize-spec-02] a [finalize-spec-06] e [finalize-spec-10]:
 
-- `# Executivo`: Em resumo (a conclusão de tudo, na faixa do topo), Em números (até 3 itens `- **<valor>** <rótulo>`, ou "Não se aplica."), Objetivo, O que foi entregue (um parágrafo por entrega, com o nome em negrito), Valor e impacto (com a tabela antes e depois quando houver), Ganhos secundários, Riscos e limites e Próximos passos.
+- `# Executivo`: Resultado (uma frase de até 30 palavras com o efeito para quem usa, sem números de processo), Decisão pedida (uma linha ou "Nenhuma decisão pendente"), Indicador de valor (tabela de uma linha ou "Não se aplica."), Em resumo (a conclusão de tudo, na faixa do topo), Em números (até 3 itens `- **<valor>** <rótulo>`, ou "Não se aplica."), Objetivo, O que foi entregue (um parágrafo por entrega, com o nome em negrito), Valor e impacto (com a tabela antes e depois quando houver), Ganhos secundários, Riscos e limites e Próximos passos. O selo de situação, os cartões de tempo, qualidade e esforço e as barras do ciclo e das evidências são gerados pela CLI e não se repetem no texto.
 - `# Técnico`: Em resumo, Em números, Contexto, Como funciona (seguindo uma operação real), Decisões (uma por parágrafo), O que foi feito (por tema, com os requisitos e os commits), Operação e diagnóstico (passos numerados e a tabela de sintomas), Mapa do código (tabela de caminho, papel e testes), Limites e dívidas e Referências.
 - `# Evidências`: Em resumo, Mapa de cobertura (uma linha por RF e RNF da spec, com a evidência que o prova, e uma linha por critério de aceite, com o resultado da conferência, [finalize-spec-11]) e, em cada bloco, "Prova" (o requisito que a evidência sustenta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela).
 

@@ -130,4 +130,4 @@
 <!-- Tabela "| ID | O que foi verificado | Evidência |": uma linha por requisito funcional (RF) e não funcional (RNF) da spec, citando a evidência ("TASK-NN / arquivo") que o prova, e uma linha por critério de aceite (CA-NN) da spec, com o resultado da conferência ("atendido" ou "não atendido: motivo") e a evidência que o sustenta. -->
 #{EVIDENCE_COVERAGE}
 
-<!-- Um bloco por evidência, criado pelo `vostok finalize create`. Preencha "Prova" (o requisito que a evidência sustenta, em linguagem direta), "Como chegar" (o comando ou os passos que a geram) e "Como ler" (o que observar nela). -->
+<!-- Um bloco por evidência, criado pelo vostok finalize create. O documento já traz da tarefa o título, o que a evidência mostra, onde olhar e o que seria falha, e o comando real do log. Preencha "Prova" com o requisito que a evidência sustenta, em palavras; "Como chegar" já vem com o comando do log quando existe (senão, escreva os passos); e "Como ler" com o que conferir que a tarefa não disse. -->

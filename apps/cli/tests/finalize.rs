@@ -1470,3 +1470,128 @@ fn executive_validate_refuses_long_result_and_bad_indicator() {
         "{stderr}"
     );
 }
+
+// --- Documento de evidências com os campos da tarefa (SPEC-055) ---
+
+const NEW_FIELDS: &str = "  - Título: Valor inválido é recusado\n  - Mostra: A CLI recusa o valor e não grava nada.\n  - Cobre: RF-01, CT-01\n  - Onde olhar: No fim do log, `1 passed`.\n  - Trecho: `1 passed`\n  - Falha: Se aparecer `FAILED`, o valor passou.\n  - Reproduzir: `cargo test -- recusa`\n";
+const LOG: &str =
+    "$ cargo test -- recusa\n# data: 2026-11-16T10:00:00Z\n# commit: abc1234\n1 passed\n";
+
+/// Reescreve as evidências da tarefa em pasta com os subitens dados e grava o log da evidência.
+fn evidence_task(subitems: &str, log: &str) -> impl FnOnce(&std::path::Path) {
+    let subitems = subitems.to_string();
+    let log = log.to_string();
+    move |folder: &std::path::Path| {
+        fs::write(
+            folder.join("verificacao.md"),
+            format!("### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `echo depois`\n{subitems}"),
+        )
+        .unwrap();
+        fs::write(folder.join("evidencias/saida.txt"), log).unwrap();
+    }
+}
+
+fn evidence_doc(subitems: &str, log: &str) -> (Project, String) {
+    let project = built_folder_project_with(evidence_task(subitems, log));
+    let html = built_documents(&project).remove(2).1;
+    (project, html)
+}
+
+fn assert_in_order(html: &str, parts: &[&str]) {
+    let mut from = 0;
+    for part in parts {
+        let at = html[from..]
+            .find(part)
+            .unwrap_or_else(|| panic!("faltou, na ordem, {part}:\n{html}"));
+        from += at + part.len();
+    }
+}
+
+#[test]
+fn evidence_doc_uses_the_title_and_the_task_fields() {
+    let (_project, html) = evidence_doc(NEW_FIELDS, LOG);
+    assert_in_order(
+        &html,
+        &[
+            "<b class=\"piece-title\">Valor inválido é recusado</b>",
+            "<small class=\"piece-file\">EV-01 saida.txt</small>",
+            "<p><b>Mostra</b>A CLI recusa o valor e não grava nada.</p>",
+            "<p><b>Onde olhar</b>No fim do log, <code>1 passed</code>.</p>",
+            "<p><b>Falha</b>Se aparecer <code>FAILED</code>, o valor passou.</p>",
+            "<p><b>Como chegar</b><code>cargo test -- recusa</code></p>",
+        ],
+    );
+    assert!(!html.contains("<b>Prova</b>a saída de CT-01."), "{html}");
+}
+
+#[test]
+fn evidence_doc_create_prefills_the_real_command() {
+    let project = filled_folder_project(evidence_task(NEW_FIELDS, LOG));
+    let content = fs::read_to_string(finalize_content_path(&project)).unwrap();
+    assert!(
+        content.contains("- **Como chegar:** `cargo test -- recusa`"),
+        "{content}"
+    );
+    assert!(!content.contains("#{EVIDENCE_01_HOW}"), "{content}");
+}
+
+#[test]
+fn evidence_doc_mostra_wins_over_prova() {
+    let subitems = format!("{NEW_FIELDS}  - Prova: texto antigo da prova (RF-01).\n");
+    let (_project, html) = evidence_doc(&subitems, LOG);
+    assert!(
+        html.contains("<b>Mostra</b>A CLI recusa o valor e não grava nada."),
+        "{html}"
+    );
+    assert!(!html.contains("texto antigo da prova"), "{html}");
+}
+
+#[test]
+fn evidence_doc_current_format_keeps_prova_and_trecho() {
+    let subitems = "  - Título: Saída aparece\n  - Prova: a saída aparece (CT-01).\n  - Trecho: `depois`\n  - Falha: `FAILED`\n";
+    let (_project, html) = evidence_doc(subitems, LOG);
+    assert!(
+        html.contains("<p><b>Mostra</b>a saída aparece (CT-01).</p>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<p><b>O que olhar</b><code>depois</code></p>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<p><b>Falha</b><code>FAILED</code></p>"),
+        "{html}"
+    );
+}
+
+#[test]
+fn evidence_doc_without_log_command_uses_the_written_how() {
+    let (_project, html) = evidence_doc(NEW_FIELDS, "depois\n");
+    assert!(html.contains("<p><b>Como chegar</b>rodar.</p>"), "{html}");
+    let project = Project::new();
+    write_spec(&project, "implemented");
+    evidence_task(NEW_FIELDS, "depois\n")(&write_folder_task(&project, "TASK-01"));
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    let content = fs::read_to_string(finalize_content_path(&project)).unwrap();
+    assert!(content.contains("#{EVIDENCE_01_HOW}"), "{content}");
+}
+
+#[test]
+fn evidence_doc_without_title_falls_back_to_the_file() {
+    let (_project, html) = evidence_doc("", "depois\n");
+    assert!(
+        html.contains("<b class=\"piece-title\">EV-01 saida.txt</b>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<p><b>Prova</b>a saída de CT-01.</p>"),
+        "{html}"
+    );
+    for label in ["<b>Mostra</b>", "<b>Onde olhar</b>", "<b>Falha</b>"] {
+        assert!(!html.contains(label), "{label}: {html}");
+    }
+}

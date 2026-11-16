@@ -441,6 +441,23 @@ impl Finalization {
             .collect())
     }
 
+    /// Subitens de cada evidência de "Evidências" da tarefa, na ordem de `evidence_items`.
+    fn evidence_notes(&self, task: &Task) -> Result<Vec<EvidenceNotes>> {
+        let mut notes: Vec<EvidenceNotes> = Vec::new();
+        for line in self
+            .task_subsection(task, "evidence_subsection")?
+            .lines()
+            .map(strip_cr)
+        {
+            if evidence_item(line).is_some() {
+                notes.push(EvidenceNotes::default());
+            } else if let Some(note) = notes.last_mut() {
+                note.fill(line);
+            }
+        }
+        Ok(notes)
+    }
+
     /// Itens de "Mudar" de todas as tarefas, sem repetição: ação e caminho.
     fn changed_items(&self) -> Result<Vec<(String, String)>> {
         let mut items: Vec<(String, String)> = Vec::new();
@@ -547,6 +564,51 @@ fn evidence_item(line: &str) -> Option<(String, String)> {
     let kind = rest.strip_prefix(" (")?;
     let end = kind.find(')')?;
     (end > 0).then(|| (name.to_string(), kind[..end].to_string()))
+}
+
+/// Subitens que o documento de evidências herda da tarefa.
+#[derive(Default)]
+struct EvidenceNotes {
+    title: String,
+    shows: String,
+    proof: String,
+    where_to_look: String,
+    snippet: String,
+    failure: String,
+}
+
+impl EvidenceNotes {
+    /// Lê um subitem recuado "  - Campo: texto". `support::evidence_subitem` não serve: recusa nome de
+    /// campo com espaço, como "Onde olhar".
+    fn fill(&mut self, line: &str) {
+        if !line.starts_with([' ', '\t']) {
+            return;
+        }
+        let Some((name, value)) = line
+            .trim_start()
+            .strip_prefix("- ")
+            .and_then(|item| item.split_once(": "))
+        else {
+            return;
+        };
+        let field = match name {
+            "Título" => &mut self.title,
+            "Mostra" => &mut self.shows,
+            "Prova" => &mut self.proof,
+            "Onde olhar" => &mut self.where_to_look,
+            "Trecho" => &mut self.snippet,
+            "Falha" => &mut self.failure,
+            _ => return,
+        };
+        *field = value.trim().to_string();
+    }
+}
+
+/// Comando da primeira linha do log de uma evidência (`$ comando`); `None` sem log legível nesse formato.
+fn log_command(path: &Path) -> Option<String> {
+    let text = fs::read_to_string(path).ok()?;
+    let command = text.lines().next()?.strip_prefix("$ ")?.trim();
+    (!command.is_empty()).then(|| command.to_string())
 }
 
 /// Item "- `caminho` (ação)" da subseção "Mudar", como ação e caminho.
@@ -1650,6 +1712,7 @@ impl Finalization {
         let study = self.study_model();
         for task in &self.tasks {
             let task_id = task.id();
+            let evidence_dir = self.task_evidence_dir(task)?;
             for (index, (name, _)) in self.evidence_items(task)?.into_iter().enumerate() {
                 blocks += 1;
                 content.push_str(&format!(
@@ -1661,8 +1724,12 @@ impl Finalization {
                         "- **{EVIDENCE_PROOF}:** #{{EVIDENCE_{blocks:02}_PROOF}}\n"
                     ));
                 }
+                let how = match log_command(&evidence_dir.join(&name)).filter(|_| study) {
+                    Some(command) => format!("`{command}`"),
+                    None => format!("#{{EVIDENCE_{blocks:02}_HOW}}"),
+                };
                 content.push_str(&format!(
-                    "- **{EVIDENCE_HOW}:** #{{EVIDENCE_{blocks:02}_HOW}}\n- **{EVIDENCE_READ}:** #{{EVIDENCE_{blocks:02}_READ}}\n"
+                    "- **{EVIDENCE_HOW}:** {how}\n- **{EVIDENCE_READ}:** #{{EVIDENCE_{blocks:02}_READ}}\n"
                 ));
             }
         }
@@ -2633,6 +2700,36 @@ fn proof_html(content: &str, heading: &str) -> String {
     format!("    <p><b>{EVIDENCE_PROOF}</b>{}</p>", inline_html(&proof))
 }
 
+/// Parágrafo `<p><b>rótulo</b>texto</p>` de um campo da evidência; vazio sem o texto.
+fn note_html(label: &str, text: &str) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+    format!("    <p><b>{label}</b>{}</p>", inline_html(text))
+}
+
+/// O que a evidência mostra: "Mostra" da tarefa, senão a "Prova" da tarefa, senão a "Prova" do conteúdo.
+fn shows_html(note: &EvidenceNotes, content: &str, heading: &str) -> String {
+    let shows = if note.shows.is_empty() {
+        &note.proof
+    } else {
+        &note.shows
+    };
+    if shows.is_empty() {
+        return proof_html(content, heading);
+    }
+    note_html("Mostra", shows)
+}
+
+/// Onde olhar na evidência: "Onde olhar" da tarefa, senão o "Trecho" como "O que olhar".
+fn where_html(note: &EvidenceNotes) -> String {
+    if note.where_to_look.is_empty() {
+        note_html("O que olhar", &note.snippet)
+    } else {
+        note_html("Onde olhar", &note.where_to_look)
+    }
+}
+
 /// Coluna de números da faixa do resumo: cada item `- **<valor>** <rótulo>` de `## Em números` vira um
 /// bloco. Sem a seção ou sem itens nesse formato, fica vazia e a faixa ocupa a largura toda.
 fn numbers_html(part: &str) -> String {
@@ -3570,8 +3667,10 @@ impl Finalization {
                 html_escape(&task_title)
             ).into_bytes());
             let evidences = self.evidence_items(task)?;
+            let mut notes = self.evidence_notes(task)?.into_iter();
             for (index, (name, kind)) in evidences.iter().enumerate() {
                 total += 1;
+                let note = notes.next().unwrap_or_default();
                 let media = self.media_html(
                     &evidence_dir.join(name),
                     &task_id,
@@ -3583,10 +3682,15 @@ impl Finalization {
                 let heading = evidence_heading_in(&content, &task_id, index, name)
                     .unwrap_or_else(|| legacy_evidence_heading(&task_id, name));
                 let label = html_escape(&format!("EV-{:02} {name}", index + 1));
+                let how = evidence_field(&content, &heading, EVIDENCE_HOW);
+                let reach = match log_command(&evidence_dir.join(name)) {
+                    Some(command) => format!("<code>{}</code>", html_escape(&command)),
+                    None => inline_html(&how),
+                };
                 let values: HashMap<&str, String> = HashMap::from([
                     ("TASK_ID", html_escape(&task_id)),
                     ("TASK_TITLE", html_escape(&task_title)),
-                    ("NAME", label),
+                    ("NAME", label.clone()),
                     ("KIND", html_escape(kind)),
                     (
                         "KIND_CLASS",
@@ -3603,6 +3707,19 @@ impl Finalization {
                         inline_html(&evidence_field(&content, &heading, EVIDENCE_READ)),
                     ),
                     ("PROOF", proof_html(&content, &heading)),
+                    (
+                        "TITLE",
+                        if note.title.is_empty() {
+                            label.clone()
+                        } else {
+                            html_escape(&note.title)
+                        },
+                    ),
+                    ("FILE", label.clone()),
+                    ("SHOWS", shows_html(&note, &content, &heading)),
+                    ("WHERE", where_html(&note)),
+                    ("FAILURE", note_html("Falha", &note.failure)),
+                    ("REACH", reach),
                 ]);
                 let template = read_template(&templates.join(EVIDENCE_ITEM_TEMPLATE), errors);
                 items.extend(splice(

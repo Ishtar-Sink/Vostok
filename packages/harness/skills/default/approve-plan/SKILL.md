@@ -3,7 +3,7 @@ name: approve-plan
 description: "Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status"
   templates: "templates/task/task.md"
@@ -34,10 +34,11 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 [approve-plan-04]: Nunca edite o plano, a spec nem o front-matter das tarefas. Nas tarefas, só substitua as variáveis `#{...}`.
 [approve-plan-05]: O detalhamento segue o plano e a spec. Não acrescente escopo, tarefas nem cobertura.
 [approve-plan-06]: A "Execução" é escrita para um agente sem outro contexto: caminhos exatos, passos na ordem e comandos que possam ser executados.
-[approve-plan-07]: O "Resumo executivo" usa linguagem de negócio, sem nomes de arquivos, funções ou comandos.
+[approve-plan-07]: O "Resumo executivo" usa linguagem de negócio: o resultado na primeira frase, sem nomes de arquivos, funções ou comandos e sem os termos do harness (perfil de execução, onda, baseline, Coordenador).
 [approve-plan-08]: Detalhe cada tarefa para o modelo do perfil dela: em `mecanica`, passos quase mecânicos, com o texto-alvo e os caminhos exatos; em `padrao`, as decisões locais já tomadas; em `julgamento`, as alternativas e os critérios de escolha.
 [approve-plan-09]: Nos "Detalhes técnicos", cite os arquivos que a tarefa divide com outras da mesma onda, para o Coordenador executá-las em sequência.
 [approve-plan-10]: Recuse em "Concluída quando" o critério que só se comprova na finalização da spec (documentos finais, conferência dos critérios de aceite da spec, `vostok finalize`). Se nenhum critério de aceite da spec cobre o critério recusado, **PARE** e responda com o template `blocker`, propondo o ajuste da spec pela skill `adjust-spec`.
+[approve-plan-11]: Os critérios de "Concluída quando" dizem em palavras o que fica comprovado, com os IDs só no parêntese final, e cada "Como comprovar" traz o comando exato ou o lugar exato para conferir.
 
 ## Checklist
 
@@ -101,7 +102,7 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
-Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
+Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, resultado na primeira frase e sem termos do harness, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
 
 **Execução** (para o agente):
 
@@ -121,25 +122,31 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
   cargo clippy --manifest-path apps/cli/Cargo.toml -- -D warnings
   ```
 - **`#{TASK_EVIDENCE}`:** lista com um item por evidência: `` - `arquivo` (automática): `comando` `` (a saída do comando vira o arquivo) ou `` - `arquivo` (manual): o que o usuário deve anexar ``. `arquivo` é só o nome do arquivo, sem caminho, sem começar por `.` e diferente de `baseline` e `validation`: a evidência é gravada com esse nome na pasta de evidências da tarefa. Com `persist_dir` configurado em `config/tasks.yml`, a cópia das evidências para o projeto é feita pelo `vostok task persist`: o item nunca leva o destino da cópia. Prefira a automática; use a manual só quando não houver comando que a produza. A evidência mostra o comportamento entregue: o produto executando o caso do CT, gravado como log com comando, data, commit e código de saída, nunca a leitura do texto que a tarefa escreveu (`grep`, `sed` ou `cat` de um caminho de "Mudar" é recusado). Formatos: `(automática)`, com o comando; `(automática, da verificação)`, para a saída de um comando rotulado da Verificação; `(diff): caminho`, para entrega de texto; `(print): comando`, para tela (o comando grava a imagem em `$VOSTOK_EVIDENCE/<arquivo>`); e `(manual)`. Subitem opcional `Espera:`, com um texto curto que o `vostok task evidence` procura na saída. Subitem opcional `` Requer: `caminho` ``, com os caminhos `criar` da tarefa de que a evidência depende, separados por vírgula: sem eles, ela não roda no baseline e grava `não executada: <caminho> ainda não existe` (por exemplo, `` Requer: `src/app/registro.ts` `` para um teste ponta a ponta da tela nova). No baseline, cada evidência tem o tempo-limite de `evidence_baseline_timeout` em `config/tasks.yml`; subitem opcional `Tempo-limite: <segundos>` (0 sem limite) só para evidência legitimamente lenta, porque vira uma exceção que o usuário aprova com a tarefa. Antes de escrever uma evidência automática, rode o comando e confira que a saída de hoje não é a esperada. O `vostok task baseline` grava a saída de cada evidência automática antes da mudança, e o `vostok task evidence` avisa quando a saída final é igual. Sem evidência, escreva `Não se aplica.` Sob cada evidência, recuados com dois espaços, escreva os subitens que explicam como interpretá-la para quem não executou a tarefa:
-  - `Título:` um nome curto da evidência, em linguagem simples, com até 60 caracteres (`evidence_title_max` em `config/tasks.yml`), que diz ao usuário o que ela mostra.
-  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre.
+  - `Título:` o resultado, em frase afirmativa e em linguagem simples, com até 60 caracteres (`evidence_title_max` em `config/tasks.yml`): "Valor inválido é recusado e nada é gravado", não "Testes de validação".
+  - `Mostra:` opcional, o que a evidência mostra numa frase em linguagem de usuário, sem IDs, com até 200 caracteres. Com `Mostra:`, o `Prova:` fica opcional; com os dois, vale o `Mostra:`.
+  - `Prova:` o que a evidência prova e os critérios ou IDs que ela cobre, com os IDs só no fim. Obrigatório quando não há `Mostra:`.
+  - `Cobre:` opcional, os IDs cobertos separados por vírgula (`RF-01, CT-01`); com ele, os IDs saem do texto de `Mostra:`.
+  - `Onde olhar:` opcional, texto livre sobre onde olhar: no log, a linha e a posição; no print, a região da tela; no vídeo, o tempo no formato `m:ss` e o que acontece nele (`0:05 aparece "Configurações salvas"`).
   - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova); cada texto entre crases aparece igual na saída, sem crase dentro dele e sem símbolo solto, como `+`, que acha quase qualquer linha.
-  - `Falha:` o que apareceria se a tarefa tivesse falhado; os textos entre crases seguem a mesma regra do `Trecho:`.
+  - `Falha:` o que apareceria se a tarefa tivesse falhado, no formato "se aparecer `X`, então Y quebrou"; os textos entre crases seguem a mesma regra do `Trecho:`.
+  - `Reproduzir:` opcional, um comando entre crases, curto e pronto para copiar, quando o comando da evidência for longo ou montar um ambiente.
   - `Artefato:` opcional, o artefato medido (versão, build type, SHA-256).
   - `Como:` opcional, uma frase de até 160 caracteres sobre o que o script ou o comando faz, que o painel mostra em "Como foi feita". Escreva só quando o comando não se explica sozinho (um script do projeto, uma fixture montada no próprio comando, variáveis de ambiente que mudam o comportamento); omita em comandos óbvios, como `cargo test` ou `pnpm ... vitest run`, e em `(diff)` e `(manual)`, que o painel já explica pelo tipo e pelo comando.
 
   ```markdown
   - `cargo-test.txt` (automática): `cargo test`
-    - Título: Testes do aceite passam
-    - Prova: os testes do aceite passam (RF-01, CT-01).
-    - Trecho: as linhas `test accepted_... ok` e `test result: ok`.
-    - Falha: `FAILED` ou `test result: FAILED`.
+    - Título: Aceite válido é gravado e inválido é recusado
+    - Mostra: o aceite com dados válidos é gravado, e o inválido é recusado com a mensagem do campo.
+    - Cobre: RF-01, CT-01
+    - Onde olhar: no fim do log, `test result: ok` sem testes ignorados.
+    - Trecho: as linhas `test accepted_valid ... ok` e `test result: ok`.
+    - Falha: se aparecer `FAILED`, o aceite quebrou; se aparecer `running 0 tests`, o filtro não achou os testes.
   ```
-- **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão, ligados aos IDs cobertos. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o comando, o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação. Nenhum critério depende da finalização da spec: um critério que só se comprova nela é recusado ([approve-plan-10]); o que a spec exige nesse momento fica nos critérios de aceite dela, conferidos pela skill `finalize-spec`.
+- **`#{TASK_DONE}`:** checklist dos critérios objetivos de conclusão. Cada critério diz em palavras o que fica comprovado, como quem usa o resultado o descreveria (ex.: "Valor fora da faixa é recusado e nada é gravado"), sem sigla no meio da frase; os IDs cobertos vão só no parêntese final. Cada critério é um item `- [ ] critério (IDs).`, seguido de uma linha em branco e da comprovação numa citação recuada com dois espaços, `  > Como comprovar: ...`, com uma linha em branco entre os critérios. "Como comprovar" é escrito para uma pessoa entender: diz em linguagem simples o que conferir e qual o resultado esperado, com o comando exato para rodar ou o lugar exato para olhar (ex.: "abrir `config/tasks.yml` e ver `max_attempts: 2`", "rodar a suíte e ver 'Falhou: 0'"), citando o caso da suíte ou o arquivo de evidência só como apoio. O agente que executa a tarefa marca `[x]` em cada item só depois de conferir a comprovação. Nenhum critério depende da finalização da spec: um critério que só se comprova nela é recusado ([approve-plan-10]); o que a spec exige nesse momento fica nos critérios de aceite dela, conferidos pela skill `finalize-spec`.
 
 **Descrição** (para pessoas; `executivo.md` e `tecnico.md` na tarefa em pasta e as variáveis abaixo no arquivo único):
 
-- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: objetivo, benefício, perfil de execução, risco e o que a tarefa bloqueia ou desbloqueia.
+- **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: o resultado na primeira frase, depois o benefício, o risco e o que a tarefa bloqueia ou desbloqueia. Não cite o perfil de execução nem termos do harness (onda, baseline, Coordenador), nem arquivos ou comandos.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.
 - **`#{TASK_CARD_DESCRIPTION}`:** uma ou duas frases sobre o que a tarefa entrega, pronta para o card.
 - **`#{TASK_CARD_CRITERIA}`:** checklist de critérios de aceite, cada item como `  - [ ] critério`, indentado sob "Critérios de aceite".

@@ -353,6 +353,7 @@ fn fill_variables(content: &str) -> String {
             let name = &line[start + 2..line.find('}').unwrap()];
             out.push_str(match name {
                 "EXEC_NUMBERS" => "- **2** tarefas concluídas",
+                "EXEC_VALUE_INDICATOR" => "Não se aplica.",
                 "TECH_NUMBERS" => "Não se aplica.",
                 "TECH_OPERATION" => "1. Rodar `vostok finalize build`.",
                 "TECH_CODE_MAP" => "| Caminho | Papel | Testes |\n|---|---|---|\n| `src/novo.rs` | novo | `novo_` |",
@@ -1251,4 +1252,221 @@ fn metrics_legacy_content_template_keeps_sources_without_the_block() {
     )
     .unwrap();
     assert!(!metrics_output(&project).contains("## Métricas"));
+}
+
+// --- Executivo como documento de decisão (SPEC-055) ---
+
+/// Preenche o conteúdo criado, aplica as seções dadas, gera os documentos e devolve o `executivo.html`.
+fn executive_html(project: &Project, sections: &[(&str, &str)]) -> String {
+    let path = finalize_content_path(project);
+    let mut content = fs::read_to_string(&path).unwrap();
+    for number in 1..=9 {
+        for field in ["PROOF", "HOW", "READ"] {
+            content = content.replace(&format!("#{{EVIDENCE_{number:02}_{field}}}"), "texto.");
+        }
+    }
+    fs::write(&path, fill_variables(&content)).unwrap();
+    for (title, text) in sections {
+        set_section(&path, title, text);
+    }
+    let output = project
+        .vostok()
+        .args(["finalize", "build", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    fs::read_to_string(
+        project
+            .harness()
+            .join("work/finalize/SPEC-001/executivo.html"),
+    )
+    .unwrap()
+}
+
+const DECISION_SECTIONS: [(&str, &str); 2] = [
+    (
+        "Resultado",
+        "Quem usa o painel ajusta tudo em poucos cliques.",
+    ),
+    ("Decisão pedida", "Escolher o próximo grupo."),
+];
+
+#[test]
+fn executive_green_spec_shows_badge_result_decision_and_cards() {
+    let html = executive_html(&green_project(), &DECISION_SECTIONS);
+    assert!(
+        html.contains("<p class=\"badge green\" role=\"status\"><span aria-hidden=\"true\"></span>Situação: verde · Concluída sem pendências</p>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<p class=\"result\">Quem usa o painel ajusta tudo em poucos cliques.</p>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<p class=\"ask\"><b>Decisão pedida</b>Escolher o próximo grupo.</p>"),
+        "{html}"
+    );
+    let titles: Vec<usize> = ["Resultado", "Tempo", "Qualidade", "Esforço"]
+        .iter()
+        .map(|title| {
+            html.find(&format!("<h2 class=\"card-title\">{title}</h2>"))
+                .unwrap_or_else(|| panic!("cartão {title}"))
+        })
+        .collect();
+    assert!(
+        titles.windows(2).all(|pair| pair[0] < pair[1]),
+        "{titles:?}"
+    );
+    for value in ["1 h 49 min", "2 de 2", "2 tarefas"] {
+        assert!(
+            html.contains(&format!("<b class=\"card-value\">{value}</b>")),
+            "{value}"
+        );
+    }
+    assert!(html.find("class=\"badge green\"").unwrap() < html.find("class=\"summary\"").unwrap());
+}
+
+#[test]
+fn executive_amber_and_red_badges_follow_the_rule() {
+    let amber = green_project_with(
+        "| 3 | 2026-11-13 | testes | blocked | 2 falhas |\n",
+        0,
+        MET_ALL,
+    );
+    let html = executive_html(&amber, &DECISION_SECTIONS);
+    assert!(html.contains("class=\"badge amber\""), "{html}");
+    assert!(
+        html.contains("Situação: âmbar · Concluída com ressalvas"),
+        "{html}"
+    );
+    assert!(html.contains("1 bloqueio"), "{html}");
+
+    let red = green_project_with(
+        "",
+        0,
+        "| CA-01 | Atendido: um | x |\n| CA-02 | Não atendido: faltou o vídeo | x |\n",
+    );
+    let html = executive_html(&red, &DECISION_SECTIONS);
+    assert!(html.contains("class=\"badge red\""), "{html}");
+    assert!(
+        html.contains("Situação: vermelho · Critério de aceite não atendido"),
+        "{html}"
+    );
+}
+
+#[test]
+fn executive_value_indicator_fills_the_result_card() {
+    let table = "| Valor | Antes | Depois | Rótulo |\n|---|---|---|---|\n| 12 | 0 | 12 | configurações editáveis no painel |";
+    let html = executive_html(&green_project(), &[("Indicador de valor", table)]);
+    assert!(html.contains("<b class=\"card-value\">12</b>"), "{html}");
+    assert!(html.contains("configurações editáveis no painel"), "{html}");
+    assert!(html.contains("antes: 0 · depois: 12"), "{html}");
+
+    let html = executive_html(
+        &green_project(),
+        &[
+            ("Indicador de valor", "Não se aplica."),
+            ("O que foi entregue", "**Página nova.** Abre pelo botão."),
+        ],
+    );
+    assert!(
+        html.contains("<b class=\"card-value\">Página nova</b>"),
+        "{html}"
+    );
+    assert!(html.contains("sem métrica de valor nas fontes"), "{html}");
+}
+
+#[test]
+fn executive_bars_are_inline_svg_with_text() {
+    let html = executive_html(&green_project(), &DECISION_SECTIONS);
+    for id in ["barra-ciclo", "barra-evidencias"] {
+        let figure = html
+            .split(&format!("<figure class=\"bar\" id=\"{id}\">"))
+            .nth(1)
+            .unwrap_or_else(|| panic!("{id}"));
+        let figure = &figure[..figure.find("</figure>").unwrap()];
+        assert!(figure.contains("<svg role=\"img\""), "{figure}");
+        assert!(figure.contains("aria-label="), "{figure}");
+    }
+    assert!(
+        html.contains("<figcaption>1 h 49 min da aprovação à implementação</figcaption>"),
+        "{html}"
+    );
+    for mark in [
+        "<li>criada 22:29</li>",
+        "<li>aprovada 22:37</li>",
+        "<li>planejada 22:49</li>",
+        "<li>implementada 2026-11-14 00:26</li>",
+    ] {
+        assert!(html.contains(mark), "{mark}");
+    }
+    assert!(
+        html.contains("aria-label=\"Evidências: 3 conferidas, 0 recusadas, 0 a conferir\""),
+        "{html}"
+    );
+    assert!(!html.contains("http://") && !html.contains("https://"));
+    assert!(!html.contains("<link") && !html.contains("<script src"));
+}
+
+#[test]
+fn executive_cycle_bar_shows_only_existing_marks() {
+    let project = Project::new();
+    write_metrics_spec(&project, "approved_at: 2026-11-13T22:37:19Z\n");
+    metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", "");
+    coverage(&project, MET_ALL);
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    assert!(
+        html.contains("<p class=\"na\">Sem horas suficientes para desenhar o ciclo.</p>"),
+        "{html}"
+    );
+    assert!(
+        !html.contains("id=\"barra-ciclo\"><figcaption>1 h"),
+        "{html}"
+    );
+    assert!(html.contains("sem registro de hora"), "{html}");
+}
+
+#[test]
+fn executive_execution_block_has_no_redundant_ratios() {
+    let project = green_project();
+    let sources = metrics_block(&project);
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    let block = html.split("id=\"execucao\"").nth(1).unwrap();
+    let block = &block[..block.find("</section>").unwrap()];
+    assert!(!block.contains("<small> / "), "{block}");
+    assert!(block.contains("<li>2 tarefas em 2 ondas</li>"), "{block}");
+    let rework = sources
+        .lines()
+        .find_map(|line| line.strip_prefix("- Retrabalho: "))
+        .unwrap();
+    assert!(block.contains(&format!("<li>{rework}</li>")), "{block}");
+}
+
+#[test]
+fn executive_validate_refuses_long_result_and_bad_indicator() {
+    let project = green_project();
+    let path = finalize_content_path(&project);
+    let content = fs::read_to_string(&path).unwrap();
+    fs::write(&path, fill_variables(&content)).unwrap();
+    let long = vec!["palavra"; 31].join(" ");
+    set_section(&path, "Resultado", &long);
+    set_section(
+        &path,
+        "Indicador de valor",
+        "| Valor | Antes |\n|---|---|\n| 1 | 2 |",
+    );
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("Resultado (Executivo): 31 palavras, o máximo é 30"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("Indicador de valor (Executivo): use a tabela \"| Valor | Antes | Depois | Rótulo |\" com uma linha, ou \"Não se aplica.\""),
+        "{stderr}"
+    );
 }

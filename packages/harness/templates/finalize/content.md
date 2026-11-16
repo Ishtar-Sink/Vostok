@@ -7,6 +7,21 @@
 
 <!-- Para quem decide ou acompanha sem ler código: lido em 3 a 5 minutos, de 400 a 800 palavras. Linguagem de negócio, sem caminhos, comandos nem nomes de funções (nada entre crases). -->
 
+## Resultado
+
+<!-- Uma frase de até 30 palavras com o que mudou para quem usa, lida ao lado do selo de situação no topo. Sem números de processo: os cartões já os mostram. -->
+#{EXEC_RESULT}
+
+## Decisão pedida
+
+<!-- A decisão que depende de quem lê, numa linha, ou "Nenhuma decisão pendente". -->
+#{EXEC_DECISION}
+
+## Indicador de valor
+
+<!-- A métrica de resultado do cartão "Resultado": tabela "| Valor | Antes | Depois | Rótulo |" com uma linha, só com números das fontes ou das métricas do vostok finalize sources. Sem métrica, "Não se aplica.", e o cartão mostra a primeira entrega de "O que foi entregue". -->
+#{EXEC_VALUE_INDICATOR}
+
 ## Em resumo
 
 <!-- A conclusão do documento inteiro: o que foi entregue e o ganho principal. Prosa, um parágrafo de 2 a 4 frases. Aparece na faixa do topo. -->

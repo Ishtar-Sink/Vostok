@@ -40,6 +40,8 @@ const EVIDENCE_PROOF: &str = "Prova";
 /// Seção que marca o template de conteúdo do estudo de conteúdo (SPEC-025); sem ela, vale o modelo anterior.
 const COVERAGE_SECTION: &str = "Mapa de cobertura";
 const NOT_APPLICABLE: &str = "Não se aplica.";
+/// Máximo de palavras da frase "Resultado" do executivo.
+const MAX_RESULT_WORDS: usize = 30;
 const MAX_NUMBERS: usize = 3;
 const MAX_LIST_ITEM_CHARS: usize = 300;
 const EXECUTIVE_WORDS_WARNING: usize = 1000;
@@ -887,7 +889,6 @@ impl Situation {
         }
     }
 
-    #[allow(dead_code)]
     fn class(self) -> &'static str {
         match self {
             Self::Green => "green",
@@ -1324,6 +1325,310 @@ fn metrics_lines(metrics: &SpecMetrics) -> Vec<String> {
     lines
 }
 
+// --- Topo do executivo ---
+
+/// Células de uma linha de tabela Markdown, sem espaços nas pontas.
+fn table_cells(line: &str) -> Vec<&str> {
+    line.trim()
+        .trim_start_matches('|')
+        .trim_end_matches('|')
+        .split('|')
+        .map(str::trim)
+        .collect()
+}
+
+const VALUE_INDICATOR_HEADER: [&str; 4] = ["Valor", "Antes", "Depois", "Rótulo"];
+
+/// Linha de dados do "Indicador de valor": valor, antes, depois e rótulo.
+fn value_indicator(part: &str) -> Option<[String; 4]> {
+    let section = section_of(part, "Indicador de valor");
+    let rows: Vec<&str> = prose_lines(&section)
+        .filter(|line| line.starts_with('|') && !is_table_separator(line))
+        .collect();
+    let cells = table_cells(rows.get(1)?);
+    (table_cells(rows.first()?) == VALUE_INDICATOR_HEADER && cells.len() == 4)
+        .then(|| [cells[0], cells[1], cells[2], cells[3]].map(str::to_string))
+}
+
+/// Erros do "Resultado" e do "Indicador de valor" do executivo, só quando o conteúdo já tem o "Resultado".
+fn decision_errors(part: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let words: usize = prose_lines(&section_of(part, "Resultado"))
+        .map(|line| line.split_whitespace().count())
+        .sum();
+    if words > MAX_RESULT_WORDS {
+        errors.push(format!(
+            "Resultado (Executivo): {words} palavras, o máximo é {MAX_RESULT_WORDS}"
+        ));
+    }
+    let indicator = section_of(part, "Indicador de valor");
+    let lines: Vec<&str> = prose_lines(&indicator).collect();
+    let valid = lines == [NOT_APPLICABLE]
+        || (lines.len() == 3
+            && table_cells(lines[0]) == VALUE_INDICATOR_HEADER
+            && is_table_separator(lines[1])
+            && lines[2].starts_with('|')
+            && table_cells(lines[2]).len() == 4
+            && table_cells(lines[2]).iter().all(|cell| !cell.is_empty()));
+    if !lines.is_empty() && !valid {
+        errors.push(
+            "Indicador de valor (Executivo): use a tabela \"| Valor | Antes | Depois | Rótulo |\" com uma linha, ou \"Não se aplica.\""
+                .to_string(),
+        );
+    }
+    errors
+}
+
+/// Selo de situação: a cor pela classe e o texto por extenso.
+fn badge_html(metrics: &SpecMetrics) -> String {
+    let text = match metrics.situation {
+        Situation::Green => "Concluída sem pendências",
+        Situation::Amber => "Concluída com ressalvas",
+        Situation::Red => "Critério de aceite não atendido",
+    };
+    format!(
+        "<p class=\"badge {}\" role=\"status\"><span aria-hidden=\"true\"></span>Situação: {} · {text}</p>",
+        metrics.situation.class(),
+        metrics.situation.label()
+    )
+}
+
+/// Primeira entrega de "O que foi entregue": o primeiro trecho em negrito, sem o ponto final.
+fn first_delivery(part: &str) -> Option<String> {
+    let section = section_of(part, "O que foi entregue");
+    let start = section.find("**")? + 2;
+    let end = start + section[start..].find("**")?;
+    let name = section[start..end].trim().trim_end_matches('.').trim();
+    (!name.is_empty()).then(|| name.to_string())
+}
+
+fn card_html(title: &str, value: &str, detail: &str, note: Option<String>) -> String {
+    let note = note.map_or(String::new(), |note| {
+        format!("<p class=\"card-note\">{}</p>", html_escape(&note))
+    });
+    format!(
+        "<article class=\"card\"><h2 class=\"card-title\">{title}</h2><b class=\"card-value\">{}</b><p>{}</p>{note}</article>\n",
+        html_escape(value),
+        html_escape(detail)
+    )
+}
+
+/// Os quatro cartões: resultado, tempo, qualidade e esforço.
+fn cards_html(metrics: &SpecMetrics, part: &str) -> String {
+    let none = "sem métrica de valor nas fontes";
+    let result = match (value_indicator(part), first_delivery(part)) {
+        (Some([value, before, after, label]), _) => card_html(
+            "Resultado",
+            &value,
+            &label,
+            Some(format!("antes: {before} · depois: {after}")),
+        ),
+        (None, Some(name)) => card_html("Resultado", &name, none, None),
+        (None, None) => card_html("Resultado", "Entrega concluída", none, None),
+    };
+    let time = match metrics.approval_to_implementation {
+        Some(seconds) => card_html(
+            "Tempo",
+            &duration_text(seconds),
+            "da aprovação à implementação",
+            None,
+        ),
+        None => card_html("Tempo", "—", "sem registro de hora", None),
+    };
+    let met = metrics
+        .criteria
+        .iter()
+        .filter(|c| **c == CriterionResult::Met)
+        .count();
+    let checked = metrics.evidence_accepted;
+    let total = checked + metrics.evidence_refused + metrics.evidence_to_check;
+    let quality = card_html(
+        "Qualidade",
+        &if metrics.criteria_total == 0 || !metrics.coverage_found {
+            "a conferir".to_string()
+        } else {
+            format!("{met} de {}", metrics.criteria_total)
+        },
+        &format!(
+            "{checked} de {total} evidências conferidas, {}",
+            plural(metrics.evidence_refused, "recusa", "recusas")
+        ),
+        None,
+    );
+    let mut effort = Vec::new();
+    if metrics.waves > 0 {
+        effort.push(plural(metrics.waves, "onda", "ondas"));
+    }
+    effort.push(plural(metrics.adjustments, "ajuste", "ajustes"));
+    effort.push(plural(
+        metrics.extra_attempts,
+        "tentativa extra",
+        "tentativas extras",
+    ));
+    effort.push(plural(metrics.blocks, "bloqueio", "bloqueios"));
+    let effort = card_html(
+        "Esforço",
+        &plural(metrics.tasks, "tarefa", "tarefas"),
+        &effort.join(", "),
+        None,
+    );
+    format!("{result}{time}{quality}{effort}")
+}
+
+/// Marcas do ciclo para a barra: a data só aparece quando o dia muda em relação à marca anterior.
+fn cycle_mark_texts(metrics: &SpecMetrics) -> Vec<String> {
+    let mut previous = metrics
+        .cycle
+        .first()
+        .map(|mark| date_of(mark.seconds))
+        .unwrap_or_default();
+    metrics
+        .cycle
+        .iter()
+        .map(|mark| {
+            let day = date_of(mark.seconds);
+            let text = if day == previous {
+                format!("{} {}", mark.label, hour_of(mark.seconds))
+            } else {
+                format!("{} {day} {}", mark.label, hour_of(mark.seconds))
+            };
+            previous = day;
+            text
+        })
+        .collect()
+}
+
+fn marks_html(list: &str, items: &[String]) -> String {
+    let items: String = items
+        .iter()
+        .map(|item| format!("<li>{}</li>", html_escape(item)))
+        .collect();
+    format!("<{list} class=\"marks\">{items}</{list}>")
+}
+
+/// Barra do ciclo em SVG embutido, com um trecho por intervalo entre marcas.
+fn cycle_bar_html(metrics: &SpecMetrics) -> String {
+    let caption = metrics
+        .approval_to_implementation
+        .map_or("Ciclo da entrega".to_string(), |seconds| {
+            format!("{} da aprovação à implementação", duration_text(seconds))
+        });
+    let caption = html_escape(&caption);
+    let marks = &metrics.cycle;
+    if marks.len() < 2 {
+        return format!(
+            "<figure class=\"bar\" id=\"barra-ciclo\"><figcaption>{caption}</figcaption><p class=\"na\">Sem horas suficientes para desenhar o ciclo.</p></figure>"
+        );
+    }
+    let texts = cycle_mark_texts(metrics);
+    let start = marks[0].seconds;
+    let span = (marks[marks.len() - 1].seconds - start).max(1) as f64;
+    let rects: String = marks
+        .windows(2)
+        .map(|pair| {
+            let width = (((pair[1].seconds - pair[0].seconds) as f64 / span) * 1000.0)
+                .round()
+                .max(10.0);
+            let x = (((pair[0].seconds - start) as f64 / span) * 1000.0)
+                .round()
+                .min(1000.0 - width);
+            let class = if pair[1].label == "implementada" {
+                "seg exec"
+            } else {
+                "seg"
+            };
+            format!("<rect class=\"{class}\" x=\"{x}\" y=\"0\" width=\"{width}\" height=\"14\"/>")
+        })
+        .collect();
+    format!(
+        "<figure class=\"bar\" id=\"barra-ciclo\"><figcaption>{caption}</figcaption><svg role=\"img\" aria-label=\"{}\" viewBox=\"0 0 1000 14\" preserveAspectRatio=\"none\">{rects}</svg>{}</figure>",
+        html_escape(&format!("Ciclo: {}", texts.join(", "))),
+        marks_html("ol", &texts)
+    )
+}
+
+/// Barra das evidências por estado: conferidas, recusadas e a conferir.
+fn evidence_bar_html(metrics: &SpecMetrics) -> String {
+    let counts = [
+        ("seg ok", metrics.evidence_accepted),
+        ("seg bad", metrics.evidence_refused),
+        ("seg todo", metrics.evidence_to_check),
+    ];
+    let total: usize = counts.iter().map(|(_, count)| count).sum();
+    if total == 0 {
+        return "<figure class=\"bar\" id=\"barra-evidencias\"><p class=\"na\">Nenhuma evidência.</p></figure>".to_string();
+    }
+    let last = counts
+        .iter()
+        .rposition(|(_, count)| *count > 0)
+        .unwrap_or(0);
+    let (mut x, mut rects) = (0, String::new());
+    for (index, (class, count)) in counts.iter().enumerate() {
+        if *count == 0 {
+            continue;
+        }
+        let width = if index == last {
+            1000 - x
+        } else {
+            count * 1000 / total
+        };
+        rects.push_str(&format!(
+            "<rect class=\"{class}\" x=\"{x}\" y=\"0\" width=\"{width}\" height=\"14\"/>"
+        ));
+        x += width;
+    }
+    let (accepted, refused, to_check) = (
+        metrics.evidence_accepted,
+        metrics.evidence_refused,
+        metrics.evidence_to_check,
+    );
+    format!(
+        "<figure class=\"bar\" id=\"barra-evidencias\"><figcaption>{accepted} de {total} evidências conferidas</figcaption><svg role=\"img\" aria-label=\"Evidências: {accepted} conferidas, {refused} recusadas, {to_check} a conferir\" viewBox=\"0 0 1000 14\" preserveAspectRatio=\"none\">{rects}</svg>{}</figure>",
+        marks_html(
+            "ul",
+            &[
+                format!("{accepted} conferidas"),
+                format!("{refused} recusadas"),
+                format!("{to_check} a conferir"),
+            ]
+        )
+    )
+}
+
+/// Bloco "Como foi executado": tarefas e ondas, retrabalho e volume.
+fn execution_html(metrics: &SpecMetrics) -> String {
+    let mut items = vec![if metrics.waves == 0 {
+        plural(metrics.tasks, "tarefa", "tarefas")
+    } else {
+        format!(
+            "{} em {}",
+            plural(metrics.tasks, "tarefa", "tarefas"),
+            plural(metrics.waves, "onda", "ondas")
+        )
+    }];
+    let lines = metrics_lines(metrics);
+    for prefix in ["- Retrabalho: ", "- Volume: "] {
+        items.extend(
+            lines
+                .iter()
+                .find_map(|line| line.strip_prefix(prefix))
+                .map(str::to_string),
+        );
+    }
+    let items: String = items
+        .iter()
+        .map(|item| format!("<li>{}</li>\n", html_escape(item)))
+        .collect();
+    format!("<ul class=\"facts-list\">\n{items}</ul>")
+}
+
+/// Primeira linha de prosa de uma seção, em HTML de uma linha, dentro do elemento dado (vazio sem texto).
+fn first_line_html(part: &str, title: &str, wrap: impl Fn(&str) -> String) -> String {
+    let section = section_of(part, title);
+    let first = prose_lines(&section).next();
+    first.map_or(String::new(), |line| wrap(&inline_html(line)))
+}
+
 // --- Conteúdo ---
 
 impl Finalization {
@@ -1618,7 +1923,11 @@ fn study_errors(content: &str, requirements: &[String]) -> Vec<String> {
             }
         }
     }
-    for line in prose_lines(&content_part(content, "Executivo")) {
+    let executive = content_part(content, "Executivo");
+    if executive.lines().any(|line| line == "## Resultado") {
+        errors.extend(decision_errors(&executive));
+    }
+    for line in prose_lines(&executive) {
         if line.contains('`') {
             errors.push(format!(
                 "código no executivo (caminho, comando ou função): {line}"
@@ -2573,6 +2882,7 @@ impl Finalization {
             .iter()
             .filter(|delivery| matches!(delivery, Delivery::Entry(_)))
             .count();
+        let metrics = self.metrics()?;
         let mut values = self.header_values(&header, "Resumo executivo", tokens, errors);
         values.extend([
             ("LEDE", section_html(&part, "Panorama")),
@@ -2600,6 +2910,23 @@ impl Finalization {
             ("BEFORE_AFTER", section_html(&part, "Antes e depois")),
             ("NEXT", section_html(&part, "Próximos passos")),
             ("RISKS", section_html(&part, "Riscos e limitações")),
+            ("STATUS_BADGE", badge_html(&metrics)),
+            (
+                "RESULT",
+                first_line_html(&part, "Resultado", |text| {
+                    format!("<p class=\"result\">{text}</p>")
+                }),
+            ),
+            (
+                "DECISION",
+                first_line_html(&part, "Decisão pedida", |text| {
+                    format!("<p class=\"ask\"><b>Decisão pedida</b>{text}</p>")
+                }),
+            ),
+            ("CARDS", captured(&cards_html(&metrics, &part))),
+            ("CYCLE_BAR", cycle_bar_html(&metrics)),
+            ("EVIDENCE_BAR", evidence_bar_html(&metrics)),
+            ("EXECUTION", execution_html(&metrics)),
             ("INDICATORS", captured(&self.indicators_html()?)),
             ("TIMELINE", captured(&self.timeline_html()?)),
         ]);

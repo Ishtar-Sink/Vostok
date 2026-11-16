@@ -938,3 +938,317 @@ fn chat_aval_archive_without_aval_file() {
     assert!(!archived.join("pedidos").exists());
     assert!(!project.harness().join("work/avais").exists());
 }
+
+// --- Métricas da finalização (SPEC-055) ---
+
+const CYCLE: &str = "created_at: 2026-11-13T22:29:56Z\napproved_at: 2026-11-13T22:37:19Z\nstatus_history: 2026-11-13T22:37:19Z approved; 2026-11-13T22:49:59Z planned; 2026-11-14T00:26:44Z implemented\n";
+
+fn write_metrics_spec(project: &Project, frontmatter: &str) {
+    let refined = project.harness().join("work/specs/refined");
+    fs::create_dir_all(&refined).unwrap();
+    fs::write(
+        refined.join("SPEC-001-exemplo.md"),
+        format!("---\nid: SPEC-001\ntitle: Exemplo\nstatus: implemented\n{frontmatter}---\n\n# Exemplo\n\n## Critérios de aceite\n\n- [ ] CA-01: Um.\n- [ ] CA-02: Dois.\n"),
+    )
+    .unwrap();
+}
+
+fn metrics_task(
+    project: &Project,
+    id: &str,
+    wave: u32,
+    evidences: &[&str],
+    rows: &str,
+    reviews: &str,
+) -> PathBuf {
+    let folder = write_folder_task(project, id);
+    fs::write(
+        folder.join("estado.yml"),
+        format!("id: {id}\ntitle: Tarefa em pasta\nstatus: done\nwave: {wave}\nattempts: 0\n"),
+    )
+    .unwrap();
+    let mut verification = String::from(
+        "### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n",
+    );
+    for name in evidences {
+        verification.push_str(&format!("- `{name}` (automática): `echo x`\n"));
+        fs::write(folder.join("evidencias").join(name), "x\n").unwrap();
+    }
+    fs::write(folder.join("verificacao.md"), verification).unwrap();
+    if !evidences.contains(&"saida.txt") {
+        fs::remove_file(folder.join("evidencias/saida.txt")).unwrap();
+    }
+    fs::write(
+        folder.join("registro.md"),
+        format!("## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n| 1 | 2026-11-13 | conclusão | done | ok |\n{rows}"),
+    )
+    .unwrap();
+    if !reviews.is_empty() {
+        fs::write(
+            folder.join("conferencias.md"),
+            format!("| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |\n|---|---|---|---|---|---|---|\n{reviews}"),
+        )
+        .unwrap();
+    }
+    folder
+}
+
+fn coverage(project: &Project, rows: &str) {
+    project
+        .vostok()
+        .args(["finalize", "create", "SPEC-001"])
+        .assert()
+        .success();
+    set_section(
+        &finalize_content_path(project),
+        "Mapa de cobertura",
+        &format!("| ID | O que foi verificado | Evidência |\n|---|---|---|\n{rows}"),
+    );
+}
+
+fn metrics_output(project: &Project) -> String {
+    let output = project
+        .vostok()
+        .args(["finalize", "sources", "SPEC-001"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stdout).unwrap()
+}
+
+fn metrics_block(project: &Project) -> String {
+    let out = metrics_output(project);
+    let mut lines = out.lines().skip_while(|line| *line != "## Métricas");
+    let mut block = vec![lines.next().expect(&out).to_string()];
+    block.push(lines.next().unwrap_or("").to_string());
+    block.extend(
+        lines
+            .take_while(|line| !line.is_empty())
+            .map(str::to_string),
+    );
+    block.join("\n")
+}
+
+const GREEN_REVIEWS_1: &str = "| EV-01 | saida.txt | conferida | aaaa | 2026-11-13T23:00:00Z | painel |  |\n| EV-02 | tela.png | conferida | bbbb | 2026-11-13T23:01:00Z | painel |  |\n";
+const GREEN_REVIEWS_2: &str =
+    "| EV-01 | fluxo.webm | conferida | cccc | 2026-11-13T23:02:00Z | painel |  |\n";
+const MET_ALL: &str =
+    "| CA-01 | Atendido: um | TASK-01 / saida.txt |\n| CA-02 | Atendido: dois | TASK-02 / fluxo.webm |\n";
+
+fn green_project_with(task1_rows: &str, task1_attempts: u32, map: &str) -> Project {
+    let project = Project::new();
+    write_metrics_spec(&project, CYCLE);
+    let folder = metrics_task(
+        &project,
+        "TASK-01",
+        1,
+        &["saida.txt", "tela.png"],
+        &format!("| 2 | 2026-11-13 | ajuste | in_progress | passo 2 refeito |\n{task1_rows}"),
+        GREEN_REVIEWS_1,
+    );
+    fs::write(
+        folder.join("estado.yml"),
+        format!("id: TASK-01\ntitle: Tarefa em pasta\nstatus: done\nwave: 1\nattempts: {task1_attempts}\n"),
+    )
+    .unwrap();
+    metrics_task(&project, "TASK-02", 2, &["fluxo.webm"], "", GREEN_REVIEWS_2);
+    coverage(&project, map);
+    project
+}
+
+fn green_project() -> Project {
+    green_project_with("", 0, MET_ALL)
+}
+
+#[test]
+fn metrics_sources_prints_the_block_in_the_contract_format() {
+    let project = green_project();
+    let expected = [
+        "## Métricas",
+        "",
+        "- Ciclo: criada 2026-11-13 22:29, aprovada 22:37, implementada 2026-11-14 00:26",
+        "- Da aprovação à implementação: 1 h 49 min",
+        "- Tarefas: 2 em 2 ondas",
+        "- Retrabalho: 1 ajuste em execução, 0 tentativas extras, 0 bloqueios, 0 recusas",
+        "- Critérios de aceite: 2 de 2 atendidos",
+        "- Evidências: 3 (1 print, 1 texto, 1 vídeo); 3 conferidas, 0 recusadas",
+        "- Volume: fora de um repositório git",
+        "- Situação: verde",
+    ]
+    .join("\n");
+    assert_eq!(metrics_block(&project), expected);
+    let out = metrics_output(&project);
+    let spec = out.find("## Spec").unwrap();
+    let metrics = out.find("## Métricas").unwrap();
+    let tasks = out.find("## Tarefas").unwrap();
+    assert!(spec < metrics && metrics < tasks, "{out}");
+}
+
+#[test]
+fn metrics_blocked_and_resumed_task_is_amber() {
+    let project = green_project_with(
+        "| 3 | 2026-11-13 | testes | blocked | 2 falhas |\n| 4 | 2026-11-13 | retomada | validating | decisão do usuário |\n",
+        2,
+        MET_ALL,
+    );
+    let block = metrics_block(&project);
+    assert!(
+        block.contains(
+            "- Retrabalho: 1 ajuste em execução, 2 tentativas extras, 1 bloqueio, 0 recusas"
+        ),
+        "{block}"
+    );
+    assert!(block.contains("- Situação: âmbar"), "{block}");
+}
+
+#[test]
+fn metrics_refused_evidence_is_amber() {
+    let project = green_project_with(
+        "| 3 | 2026-11-13 | conferência | usuário | EV-02 recusada no chat |\n",
+        0,
+        MET_ALL,
+    );
+    let folder = project.harness().join("work/tasks/SPEC-001/TASK-02");
+    let record = folder.join("registro.md");
+    let mut text = fs::read_to_string(&record).unwrap();
+    text.push_str(
+        "| 2 | 2026-11-12 | rejeição | blocked | evidência fluxo.webm rejeitada pelo usuário |\n",
+    );
+    fs::write(&record, text).unwrap();
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("0 tentativas extras, 1 bloqueio, 2 recusas"),
+        "{block}"
+    );
+    assert!(block.contains("- Situação: âmbar"), "{block}");
+}
+
+#[test]
+fn metrics_unmet_criterion_is_red() {
+    let project = green_project_with(
+        "| 3 | 2026-11-13 | testes | blocked | 2 falhas |\n",
+        0,
+        "| CA-01 | Atendido: um | x |\n| CA-02 | Não atendido: faltou o vídeo | x |\n",
+    );
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Critérios de aceite: 1 de 2 atendidos, 1 não atendido"),
+        "{block}"
+    );
+    assert!(block.contains("- Situação: vermelho"), "{block}");
+}
+
+#[test]
+fn metrics_partial_criterion_is_amber() {
+    let project = green_project_with(
+        "",
+        0,
+        "| CA-01 | Atendido: um | x |\n| CA-02 | Parcial: só no tema claro | x |\n",
+    );
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Critérios de aceite: 1 de 2 atendidos, 1 parcial"),
+        "{block}"
+    );
+    assert!(block.contains("- Situação: âmbar"), "{block}");
+}
+
+#[test]
+fn metrics_without_coverage_map_counts_criteria_to_check() {
+    let project = Project::new();
+    write_metrics_spec(&project, CYCLE);
+    metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", "");
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Critérios de aceite: 2 a conferir no mapa de cobertura"),
+        "{block}"
+    );
+    assert!(block.contains("- Situação: âmbar"), "{block}");
+
+    coverage(&project, "| CA-01 | Atendido: um | x |\n");
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Critérios de aceite: 1 de 2 atendidos, 1 a conferir"),
+        "{block}"
+    );
+}
+
+#[test]
+fn metrics_cycle_without_history_shows_only_existing_dates() {
+    let project = Project::new();
+    write_metrics_spec(&project, "approved_at: 2026-11-13T22:37:19Z\n");
+    metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", "");
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Ciclo: aprovada 2026-11-13 22:37\n"),
+        "{block}"
+    );
+    assert!(
+        block.contains("- Da aprovação à implementação: sem registro de hora"),
+        "{block}"
+    );
+
+    let project = Project::new();
+    write_metrics_spec(&project, "");
+    metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", "");
+    let block = metrics_block(&project);
+    assert!(block.contains("- Ciclo: sem datas registradas"), "{block}");
+}
+
+#[test]
+fn metrics_tasks_without_wave_and_evidence_to_check() {
+    let project = Project::new();
+    write_metrics_spec(&project, CYCLE);
+    let folder = metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", "");
+    fs::write(
+        folder.join("estado.yml"),
+        "id: TASK-01\ntitle: Tarefa em pasta\nstatus: done\n",
+    )
+    .unwrap();
+    let block = metrics_block(&project);
+    assert!(block.contains("- Tarefas: 1\n"), "{block}");
+    assert!(
+        block.contains("- Evidências: 1 (1 texto); 0 conferidas, 0 recusadas, 1 a conferir"),
+        "{block}"
+    );
+}
+
+#[test]
+fn metrics_volume_counts_commits_files_and_lines() {
+    let project = green_project();
+    let git = |dates: &str, args: &[&str]| {
+        let status = std::process::Command::new("git")
+            .arg("-C")
+            .arg(project.root())
+            .args(["-c", "user.name=v", "-c", "user.email=v@v"])
+            .args(args)
+            .env("GIT_AUTHOR_DATE", dates)
+            .env("GIT_COMMITTER_DATE", dates)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    };
+    git("2026-11-13T22:00:00Z", &["init", "-q"]);
+    git("2026-11-13T22:00:00Z", &["add", "-A"]);
+    git("2026-11-13T22:00:00Z", &["commit", "-q", "-m", "base"]);
+    fs::create_dir_all(project.root().join("src")).unwrap();
+    fs::write(project.root().join("src/novo.rs"), "a\nb\nc\n").unwrap();
+    git("2026-11-13T23:00:00Z", &["add", "-A"]);
+    git("2026-11-13T23:00:00Z", &["commit", "-q", "-m", "novo"]);
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("- Volume: 1 commit, 1 arquivo, +3 / -0 linhas"),
+        "{block}"
+    );
+}
+
+#[test]
+fn metrics_legacy_content_template_keeps_sources_without_the_block() {
+    let project = green_project();
+    fs::write(
+        project.harness().join("templates/finalize/content.md"),
+        "# Executivo\n\n## Em resumo\n\nTexto.\n",
+    )
+    .unwrap();
+    assert!(!metrics_output(&project).contains("## Métricas"));
+}

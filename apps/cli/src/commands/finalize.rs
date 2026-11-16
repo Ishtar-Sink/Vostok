@@ -612,6 +612,12 @@ impl Finalization {
     fn sources(&self) -> Result<()> {
         let mut out = String::new();
         self.sources_spec(&mut out)?;
+        if self.study_model() {
+            out.push_str("\n## Métricas\n\n");
+            for line in metrics_lines(&self.metrics()?) {
+                push_line(&mut out, &line);
+            }
+        }
         out.push('\n');
         self.sources_tasks(&mut out)?;
         out.push('\n');
@@ -861,6 +867,461 @@ fn memory_heading(line: &str) -> Option<(&str, &str)> {
     let digits = after.bytes().take_while(u8::is_ascii_digit).count();
     let title = after[digits..].strip_prefix(": ")?;
     (letters > 0 && digits > 0).then(|| (&rest[..letters + 1 + digits], title))
+}
+
+// --- Métricas ---
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Situation {
+    Green,
+    Amber,
+    Red,
+}
+
+impl Situation {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Green => "verde",
+            Self::Amber => "âmbar",
+            Self::Red => "vermelho",
+        }
+    }
+
+    #[allow(dead_code)]
+    fn class(self) -> &'static str {
+        match self {
+            Self::Green => "green",
+            Self::Amber => "amber",
+            Self::Red => "red",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CriterionResult {
+    Met,
+    Partial,
+    NotMet,
+    Pending,
+}
+
+struct CycleMark {
+    label: &'static str,
+    seconds: i64,
+}
+
+enum Volume {
+    OutsideGit,
+    NoApproval,
+    Counted {
+        commits: usize,
+        files: Option<usize>,
+        added: usize,
+        removed: usize,
+    },
+}
+
+struct SpecMetrics {
+    cycle: Vec<CycleMark>,
+    approval_to_implementation: Option<i64>,
+    tasks: usize,
+    waves: usize,
+    adjustments: usize,
+    extra_attempts: usize,
+    blocks: usize,
+    refusals: usize,
+    criteria_total: usize,
+    criteria: Vec<CriterionResult>,
+    coverage_found: bool,
+    evidence_texts: usize,
+    evidence_prints: usize,
+    evidence_videos: usize,
+    evidence_accepted: usize,
+    evidence_refused: usize,
+    evidence_to_check: usize,
+    volume: Volume,
+    situation: Situation,
+}
+
+/// Última data de um status no histórico `<data> <status>; ...` da spec.
+fn status_time(history: &str, status: &str) -> Option<i64> {
+    history
+        .split(';')
+        .filter_map(|entry| {
+            let (date, name) = entry.trim().split_once(' ')?;
+            (name.trim() == status).then(|| seconds_of(date))?
+        })
+        .next_back()
+}
+
+/// IDs `CA-NN` dos critérios de aceite da spec: linhas `- [ ] CA-NN:` ou `- [x] CA-NN:`.
+fn criterion_ids(spec: &str) -> Vec<String> {
+    spec.lines()
+        .filter_map(|line| {
+            let rest = line
+                .strip_prefix("- [ ] ")
+                .or_else(|| line.strip_prefix("- [x] "))?;
+            let (id, _) = rest.split_once(':')?;
+            let number = id.strip_prefix("CA-")?;
+            (!number.is_empty() && number.bytes().all(|b| b.is_ascii_digit()))
+                .then(|| id.to_string())
+        })
+        .collect()
+}
+
+fn criterion_result(text: &str) -> CriterionResult {
+    let text = text.trim().to_lowercase();
+    if text.starts_with("não atendido") {
+        CriterionResult::NotMet
+    } else if text.starts_with("parcial") {
+        CriterionResult::Partial
+    } else if text.starts_with("atendido") {
+        CriterionResult::Met
+    } else {
+        CriterionResult::Pending
+    }
+}
+
+impl Finalization {
+    /// Números da finalização, calculados das fontes sem estimar nada (RN-03).
+    fn metrics(&self) -> Result<SpecMetrics> {
+        let history = frontmatter_get(&self.spec, "status_history").unwrap_or_default();
+        let field_time = |key: &str| {
+            frontmatter_get(&self.spec, key)
+                .ok()
+                .and_then(|value| seconds_of(&value))
+        };
+        let approved = status_time(&history, "approved").or_else(|| {
+            let value = self.approved_at(&self.spec);
+            seconds_of(&value)
+        });
+        let implemented = status_time(&history, "implemented");
+        let marks = [
+            ("criada", field_time("created_at")),
+            ("aprovada", approved),
+            ("planejada", status_time(&history, "planned")),
+            ("implementada", implemented),
+            ("arquivada", status_time(&history, "archived")),
+        ];
+        let cycle = marks
+            .into_iter()
+            .filter_map(|(label, seconds)| {
+                Some(CycleMark {
+                    label,
+                    seconds: seconds?,
+                })
+            })
+            .collect();
+        let approval_to_implementation = approved.zip(implemented).map(|(from, to)| to - from);
+
+        let record = self.task_setting("record_section")?;
+        let (mut adjustments, mut extra_attempts, mut blocks, mut refusals) = (0, 0, 0, 0);
+        let mut waves: Vec<String> = Vec::new();
+        let (mut texts, mut prints, mut videos) = (0, 0, 0);
+        let (mut accepted, mut refused, mut to_check) = (0, 0, 0);
+        let mut regression_accepted = false;
+        let config = self.documents_config();
+        for task in &self.tasks {
+            if let Some(wave) = task.field("wave").filter(|wave| !wave.is_empty()) {
+                if !waves.contains(&wave) {
+                    waves.push(wave);
+                }
+            }
+            extra_attempts += task
+                .field("attempts")
+                .map_or(0, |value| leading_number(&value)) as usize;
+            for line in markdown_section(&task.content, &record)
+                .unwrap_or_default()
+                .lines()
+                .filter(|line| is_numbered_row(line))
+            {
+                let cells: Vec<&str> = line.split('|').collect();
+                let cell = |index: usize| awk_trim(cells.get(index).copied().unwrap_or(""));
+                let (step, result, detail) = (cell(3), cell(4), cell(5));
+                if step == "ajuste" {
+                    adjustments += 1;
+                }
+                if result == "blocked" {
+                    blocks += 1;
+                }
+                if step == "rejeição" || (step == "conferência" && detail.contains(" recusada"))
+                {
+                    refusals += 1;
+                }
+            }
+            let mut states: HashMap<String, String> = HashMap::new();
+            let reviews = fs::read_to_string(task.path.join("conferencias.md")).unwrap_or_default();
+            for line in reviews.lines() {
+                let cells: Vec<&str> = line.split('|').collect();
+                if cells.len() > 3 {
+                    states.insert(
+                        awk_trim(cells[2]).to_string(),
+                        awk_trim(cells[3]).to_string(),
+                    );
+                }
+            }
+            for (name, _) in self.evidence_items(task)? {
+                match media_type(&config, &name, &mut String::new()) {
+                    MediaType::Image => prints += 1,
+                    MediaType::Video => videos += 1,
+                    _ => texts += 1,
+                }
+                match states.get(&name).map(String::as_str) {
+                    Some("conferida") => accepted += 1,
+                    Some("recusada") => refused += 1,
+                    _ => to_check += 1,
+                }
+            }
+            let evidence_dir = self.task_evidence_dir(task)?;
+            if !accepted_regressions(&evidence_dir.join("validation/regression")).is_empty() {
+                regression_accepted = true;
+            }
+        }
+
+        let ids = criterion_ids(&fs::read_to_string(&self.spec).unwrap_or_default());
+        let content = fs::read_to_string(self.content_path()?).ok();
+        let coverage = content
+            .as_deref()
+            .map(|content| section_of(&content_part(content, "Evidências"), COVERAGE_SECTION))
+            .unwrap_or_default();
+        let criteria: Vec<CriterionResult> = ids
+            .iter()
+            .map(|id| {
+                coverage
+                    .lines()
+                    .find_map(|line| {
+                        let cells: Vec<&str> = line.split('|').collect();
+                        (awk_trim(cells.get(1).copied().unwrap_or("")) == id)
+                            .then(|| criterion_result(cells.get(2).copied().unwrap_or("")))
+                    })
+                    .unwrap_or(CriterionResult::Pending)
+            })
+            .collect();
+
+        let volume = self.volume()?;
+        let situation = if criteria.contains(&CriterionResult::NotMet) {
+            Situation::Red
+        } else if blocks > 0
+            || refusals > 0
+            || regression_accepted
+            || criteria
+                .iter()
+                .any(|c| matches!(c, CriterionResult::Partial | CriterionResult::Pending))
+        {
+            Situation::Amber
+        } else {
+            Situation::Green
+        };
+        Ok(SpecMetrics {
+            cycle,
+            approval_to_implementation,
+            tasks: self.tasks.len(),
+            waves: waves.len(),
+            adjustments,
+            extra_attempts,
+            blocks,
+            refusals,
+            criteria_total: ids.len(),
+            criteria,
+            coverage_found: content.is_some(),
+            evidence_texts: texts,
+            evidence_prints: prints,
+            evidence_videos: videos,
+            evidence_accepted: accepted,
+            evidence_refused: refused,
+            evidence_to_check: to_check,
+            volume,
+            situation,
+        })
+    }
+
+    /// Commits, arquivos e linhas desde a aprovação da spec.
+    fn volume(&self) -> Result<Volume> {
+        if !self.inside_git() {
+            return Ok(Volume::OutsideGit);
+        }
+        if self.approved_at(&self.spec).is_empty() {
+            return Ok(Volume::NoApproval);
+        }
+        let commits = self
+            .commit_lines()?
+            .iter()
+            .filter(|line| commit_line(line).is_some())
+            .count();
+        let Ok(base) = self.diff_base() else {
+            return Ok(Volume::Counted {
+                commits,
+                files: None,
+                added: 0,
+                removed: 0,
+            });
+        };
+        let mut paths: Vec<String> = Vec::new();
+        for (_, path) in self.changed_items()? {
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+        let mut args = vec![
+            "-c",
+            "core.quotepath=off",
+            "diff",
+            "--numstat",
+            "--no-color",
+            "--no-ext-diff",
+            base.as_str(),
+            "--",
+        ];
+        args.extend(paths.iter().map(String::as_str));
+        let (mut files, mut added, mut removed) = (0, 0, 0);
+        for line in self.git(&args).unwrap_or_default().lines() {
+            let mut cells = line.split('\t');
+            let (Some(plus), Some(minus)) = (cells.next(), cells.next()) else {
+                continue;
+            };
+            files += 1;
+            added += plus.parse::<usize>().unwrap_or(0);
+            removed += minus.parse::<usize>().unwrap_or(0);
+        }
+        Ok(Volume::Counted {
+            commits,
+            files: Some(files),
+            added,
+            removed,
+        })
+    }
+}
+
+/// `1 ajuste`, `2 ajustes`.
+fn plural(count: usize, one: &str, many: &str) -> String {
+    format!("{count} {}", if count == 1 { one } else { many })
+}
+
+/// Linhas do bloco "## Métricas", no formato do contrato.
+fn metrics_lines(metrics: &SpecMetrics) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut marks: Vec<String> = Vec::new();
+    let mut previous_day = String::new();
+    for mark in metrics.cycle.iter().filter(|m| m.label != "planejada") {
+        let day = date_of(mark.seconds);
+        let hour = hour_of(mark.seconds);
+        marks.push(if day == previous_day {
+            format!("{} {hour}", mark.label)
+        } else {
+            format!("{} {day} {hour}", mark.label)
+        });
+        previous_day = day;
+    }
+    lines.push(if marks.is_empty() {
+        "- Ciclo: sem datas registradas".to_string()
+    } else {
+        format!("- Ciclo: {}", marks.join(", "))
+    });
+    lines.push(format!(
+        "- Da aprovação à implementação: {}",
+        metrics
+            .approval_to_implementation
+            .map_or("sem registro de hora".to_string(), duration_text)
+    ));
+    lines.push(if metrics.waves == 0 {
+        format!("- Tarefas: {}", metrics.tasks)
+    } else {
+        format!(
+            "- Tarefas: {} em {}",
+            metrics.tasks,
+            plural(metrics.waves, "onda", "ondas")
+        )
+    });
+    lines.push(format!(
+        "- Retrabalho: {} em execução, {}, {}, {}",
+        plural(metrics.adjustments, "ajuste", "ajustes"),
+        plural(
+            metrics.extra_attempts,
+            "tentativa extra",
+            "tentativas extras"
+        ),
+        plural(metrics.blocks, "bloqueio", "bloqueios"),
+        plural(metrics.refusals, "recusa", "recusas"),
+    ));
+    lines.push(if metrics.criteria_total == 0 {
+        "- Critérios de aceite: nenhum na spec".to_string()
+    } else if !metrics.coverage_found {
+        format!(
+            "- Critérios de aceite: {} a conferir no mapa de cobertura",
+            metrics.criteria_total
+        )
+    } else {
+        let count =
+            |wanted: CriterionResult| metrics.criteria.iter().filter(|c| **c == wanted).count();
+        let mut text = format!(
+            "- Critérios de aceite: {} de {} atendidos",
+            count(CriterionResult::Met),
+            metrics.criteria_total
+        );
+        let partial = count(CriterionResult::Partial);
+        if partial > 0 {
+            text.push_str(&format!(", {}", plural(partial, "parcial", "parciais")));
+        }
+        let not_met = count(CriterionResult::NotMet);
+        if not_met > 0 {
+            text.push_str(&format!(
+                ", {}",
+                plural(not_met, "não atendido", "não atendidos")
+            ));
+        }
+        let pending = count(CriterionResult::Pending);
+        if pending > 0 {
+            text.push_str(&format!(", {pending} a conferir"));
+        }
+        text
+    });
+    let total = metrics.evidence_texts + metrics.evidence_prints + metrics.evidence_videos;
+    lines.push(if total == 0 {
+        "- Evidências: nenhuma".to_string()
+    } else {
+        let kinds: Vec<String> = [
+            plural(metrics.evidence_prints, "print", "prints"),
+            plural(metrics.evidence_texts, "texto", "textos"),
+            plural(metrics.evidence_videos, "vídeo", "vídeos"),
+        ]
+        .into_iter()
+        .filter(|kind| !kind.starts_with("0 "))
+        .collect();
+        let mut text = format!(
+            "- Evidências: {total} ({}); {} conferidas, {} recusadas",
+            kinds.join(", "),
+            metrics.evidence_accepted,
+            metrics.evidence_refused
+        );
+        if metrics.evidence_to_check > 0 {
+            text.push_str(&format!(", {} a conferir", metrics.evidence_to_check));
+        }
+        text
+    });
+    lines.push(match &metrics.volume {
+        Volume::OutsideGit => "- Volume: fora de um repositório git".to_string(),
+        Volume::NoApproval => "- Volume: sem data de aprovação".to_string(),
+        Volume::Counted {
+            commits,
+            files: Some(files),
+            added,
+            removed,
+        } => format!(
+            "- Volume: {}, {}, +{added} / -{removed} linhas",
+            plural(*commits, "commit", "commits"),
+            plural(*files, "arquivo", "arquivos")
+        ),
+        Volume::Counted {
+            commits,
+            files: None,
+            ..
+        } => format!(
+            "- Volume: {}; sem base de comparação para arquivos e linhas",
+            plural(*commits, "commit", "commits")
+        ),
+    });
+    lines.push(format!("- Situação: {}", metrics.situation.label()));
+    lines
 }
 
 // --- Conteúdo ---
@@ -3317,6 +3778,70 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
+/// Dias desde 1970-01-01 de uma data civil; inverso de `civil_from_days`.
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let year = year - i64::from(month <= 2);
+    let era = year.div_euclid(400);
+    let year_of_era = year.rem_euclid(400);
+    let month_index = if month > 2 { month - 3 } else { month + 9 };
+    let day_of_year = (153 * month_index + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
+/// Segundos desde 1970-01-01 de um `AAAA-MM-DDTHH:MM:SSZ`; `None` em qualquer outro formato.
+fn seconds_of(text: &str) -> Option<i64> {
+    let bytes = text.as_bytes();
+    if bytes.len() != 20 {
+        return None;
+    }
+    let separators = [
+        (4, b'-'),
+        (7, b'-'),
+        (10, b'T'),
+        (13, b':'),
+        (16, b':'),
+        (19, b'Z'),
+    ];
+    if separators.iter().any(|&(at, byte)| bytes[at] != byte) {
+        return None;
+    }
+    let number = |from: usize, to: usize| -> Option<i64> {
+        let part = &text[from..to];
+        part.bytes()
+            .all(|b| b.is_ascii_digit())
+            .then(|| part.parse().ok())
+            .flatten()
+    };
+    let (year, month, day) = (number(0, 4)?, number(5, 7)?, number(8, 10)?);
+    let (hour, minute, second) = (number(11, 13)?, number(14, 16)?, number(17, 19)?);
+    if !(1..=12).contains(&month)
+        || !(1..=31).contains(&day)
+        || hour > 23
+        || minute > 59
+        || second > 60
+    {
+        return None;
+    }
+    Some(days_from_civil(year, month, day) * 86_400 + hour * 3600 + minute * 60 + second)
+}
+
+/// Hora do dia em UTC, `HH:MM`.
+fn hour_of(seconds: i64) -> String {
+    let of_day = seconds.rem_euclid(86_400);
+    format!("{:02}:{:02}", of_day / 3600, of_day / 60 % 60)
+}
+
+/// Duração em minutos ou em horas e minutos: `49 min`, `1 h 49 min`, `26 h 5 min`.
+fn duration_text(seconds: i64) -> String {
+    let minutes = seconds.max(0) / 60;
+    if minutes < 60 {
+        format!("{minutes} min")
+    } else {
+        format!("{} h {} min", minutes / 60, minutes % 60)
+    }
+}
+
 fn date_of(seconds: i64) -> String {
     let (year, month, day) = civil_from_days(seconds.div_euclid(86_400));
     format!("{year:04}-{month:02}-{day:02}")
@@ -3414,6 +3939,25 @@ mod tests {
         assert_eq!(
             delivery_errors("texto solto\n"),
             ["entregas sem nenhuma entrega: use um \"### \" por entrega"]
+        );
+    }
+
+    #[test]
+    fn duration_text_uses_hours_and_minutes() {
+        assert_eq!(duration_text(49 * 60), "49 min");
+        assert_eq!(duration_text(6565), "1 h 49 min");
+        assert_eq!(duration_text(26 * 3600 + 300), "26 h 5 min");
+        assert_eq!(duration_text(30), "0 min");
+    }
+
+    #[test]
+    fn seconds_of_parses_utc_datetimes() {
+        assert_eq!(seconds_of("1970-01-01T00:01:00Z"), Some(60));
+        assert_eq!(seconds_of("2026-11-13"), None);
+        assert_eq!(seconds_of("x"), None);
+        assert_eq!(
+            date_of(seconds_of("2026-11-14T00:26:44Z").unwrap()),
+            "2026-11-14"
         );
     }
 }

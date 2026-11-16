@@ -278,7 +278,7 @@ task_evidence_dir: evidencias
 task_folder_template_dir: task
 
 # Tipos de evidência que exigem aval do usuário. Ausente: todos. Lista vazia: nenhum.
-evidence_review_kinds: [automática, "automática, da verificação", diff, manual, print]
+evidence_review_kinds: [automática, "automática, da verificação", diff, print]
 
 evidence_title_field: Título
 

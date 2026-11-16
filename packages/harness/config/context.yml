@@ -16,15 +16,23 @@ required:
 # Skills sem entrada carregam só o contexto obrigatório.
 skills:
   adjust-plan:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/tasks.yml
     - skills/default/plan-tasks/SKILL.md
   adjust-spec:
+    - rules/agent/writing.md
+    - context/glossario.md
     - rules/project/naming-convention.md
     - skills/default/refine-spec/references/sections.md
   adjust-task:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/tasks.yml
     - skills/default/approve-plan/SKILL.md
   approve-plan:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/tasks.yml
     - rules/project/naming-convention.md
   approve-task:
@@ -36,13 +44,21 @@ skills:
     - config/tasks.yml
     - rules/project/naming-convention.md
   finalize-spec:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/specs.yml
     - config/documents.yml
   finish-task:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/tasks.yml
   plan-tasks:
+    - rules/agent/writing.md
+    - context/glossario.md
     - config/tasks.yml
   refine-spec:
+    - rules/agent/writing.md
+    - context/glossario.md
     - rules/project/naming-convention.md
   init-harness:
     - rules/project/naming-convention.md

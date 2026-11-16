@@ -4,9 +4,9 @@ description: Conclusão de uma tarefa que alterou arquivos ou executou um fluxo,
 usage: |
   ANTES DE RESPONDER: execute `vostok commit check` ([agent/boundaries-04]). Se ele recusar, não use este
     template: responda com `blocker`, com os commits listados pelo comando.
-  SUMMARY: o resultado em uma frase, em prosa.
-  CHANGES: lista `- caminho: o que mudou`, um item por arquivo ou grupo de arquivos.
-  VERIFICATION: lista "- comando: resultado", inclusive o do `vostok commit check`, e um último item com o que não foi verificado.
+  SUMMARY: o efeito para o usuário em uma ou duas frases, em prosa: o que muda para quem usa, não o que foi editado.
+  CHANGES: o que mudou, um efeito por linha, do ponto de vista de quem usa. Sem lista de arquivos aqui.
+  VERIFICATION: lista "- comando: resultado", inclusive o do `vostok commit check`; depois um item com o que não foi verificado; por último, quando importar, uma linha `Arquivos: caminho, caminho` com o que foi alterado.
   TASK_STATUS: obrigatória nas respostas sobre tarefas (aprovar o plano, aprovar, executar, ajustar e finalizar tarefa): a saída de `vostok task status <SPEC_ID>`, colada sem alteração ([agent/responses-07]). Nas demais respostas, omita a seção.
   MEMORY_RECORDS: opcional. Entradas criadas ou alteradas na memória, `- ID: título`. Sem entradas, omita a seção.
   PENDING: opcional. O que ficou em aberto. Sem pendências, omita a seção.

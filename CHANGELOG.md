@@ -2,6 +2,17 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.3] - 2026-11-16
+
+### Melhorias
+
+- O agente segue uma regra de escrita para pessoas e um glossário dos termos do harness: specs, tarefas, evidências e respostas abrem pelo resultado, com frases curtas e sem siglas no texto corrido. A resposta de conclusão começa pelo efeito para quem pediu. (SPEC-055)
+- A spec refinada traz a razão de cada decisão, com a origem numa coluna própria, e o estado atual começa pelo que o usuário vê hoje. Os critérios das tarefas dizem em palavras o que fica comprovado, e o resumo de cada tarefa abre pelo resultado. (SPEC-055)
+- As evidências aceitam os campos opcionais Mostra, Cobre, Onde olhar e Reproduzir; as tarefas no formato atual continuam válidas, e o `vostok update` acrescenta os campos aos projetos instalados. (SPEC-055)
+- A janela de conferência do painel abre pelo que a evidência mostra, onde olhar e o que seria falha, sem blocos "Não se aplica"; o log mostra o trecho esperado em verde e a falha em vermelho, e os tempos citados num vídeo levam ao momento com um clique. (SPEC-055)
+- A finalização calcula as métricas da spec (ciclo com hora, tarefas, retrabalho, critérios, evidências e volume) e a situação em verde, âmbar ou vermelho. O executivo abre por essa situação, uma frase de resultado, a decisão pedida, quatro cartões e as barras do ciclo e das evidências. (SPEC-055)
+- No documento de evidências, cada peça abre pelo título dado na tarefa, com o que mostra, onde olhar, o que seria falha e o comando real que a gerou. (SPEC-055)
+
 ## [0.6.2] - 2026-11-13
 
 ### Recursos

@@ -1093,6 +1093,7 @@ impl Finalization {
             extra_attempts += task
                 .field("attempts")
                 .map_or(0, |value| leading_number(&value)) as usize;
+            let mut record_reviews: Vec<String> = Vec::new();
             for line in markdown_section(&task.content, &record)
                 .unwrap_or_default()
                 .lines()
@@ -1111,9 +1112,16 @@ impl Finalization {
                 {
                     refusals += 1;
                 }
+                if step == "conferência" {
+                    record_reviews.push(detail.to_string());
+                }
             }
             let mut states: HashMap<String, String> = HashMap::new();
-            let reviews = fs::read_to_string(task.path.join("conferencias.md")).unwrap_or_default();
+            let reviews_file = task.path.join("conferencias.md");
+            if !reviews_file.is_file() {
+                states = legacy_review_states(&record_reviews, &self.evidence_items(task)?);
+            }
+            let reviews = fs::read_to_string(reviews_file).unwrap_or_default();
             for line in reviews.lines() {
                 let cells: Vec<&str> = line.split('|').collect();
                 if cells.len() > 3 {
@@ -2698,6 +2706,25 @@ fn proof_html(content: &str, heading: &str) -> String {
         return String::new();
     }
     format!("    <p><b>{EVIDENCE_PROOF}</b>{}</p>", inline_html(&proof))
+}
+
+/// Estado de cada evidência pelas linhas "conferência" do registro, na tarefa sem `conferencias.md`:
+/// a última linha que cita "<nome> conferida" ou "<nome> recusada" vale.
+fn legacy_review_states(
+    details: &[String],
+    evidences: &[(String, String)],
+) -> HashMap<String, String> {
+    let mut states = HashMap::new();
+    for detail in details {
+        for (name, _) in evidences {
+            for state in ["conferida", "recusada"] {
+                if detail.contains(&format!("{name} {state}")) {
+                    states.insert(name.clone(), state.to_string());
+                }
+            }
+        }
+    }
+    states
 }
 
 /// Parágrafo `<p><b>rótulo</b>texto</p>` de um campo da evidência; vazio sem o texto.
@@ -4312,6 +4339,27 @@ fn utc_datetime() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_review_states_keep_the_last_decision_of_each_evidence() {
+        let evidences = vec![
+            ("saida.txt".to_string(), "automática".to_string()),
+            ("tela.png".to_string(), "print".to_string()),
+            ("outra.txt".to_string(), "automática".to_string()),
+        ];
+        let details = vec![
+            "EV-01 saida.txt recusada pelo usuário: motivo".to_string(),
+            "EV-01 saida.txt conferida pelo usuário (sha256 abc)".to_string(),
+            "EV-02 tela.png recusada pelo usuário: cortada".to_string(),
+        ];
+        let states = legacy_review_states(&details, &evidences);
+        assert_eq!(
+            states.get("saida.txt").map(String::as_str),
+            Some("conferida")
+        );
+        assert_eq!(states.get("tela.png").map(String::as_str), Some("recusada"));
+        assert_eq!(states.get("outra.txt"), None);
+    }
 
     #[test]
     fn civil_dates_follow_the_calendar() {

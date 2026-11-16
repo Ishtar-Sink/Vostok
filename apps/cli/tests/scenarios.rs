@@ -501,8 +501,43 @@ fn normalize(text: &str, root: &std::path::Path) -> String {
     let text = drop_migration_rows(&text);
     let text = drop_sources_documents(&text);
     replace_commit_header(&replace_review_hashes(&replace_hashes(&replace_dates(
-        &text,
+        &replace_cycle_hours(&text),
     ))))
+}
+
+/// Troca por `<HORA>` as horas (`hh:mm`) da linha "- Ciclo:" das métricas da finalização, que mudam a
+/// cada execução.
+fn replace_cycle_hours(text: &str) -> String {
+    text.lines()
+        .map(|line| match line.strip_prefix("- Ciclo: ") {
+            Some(rest) => format!("- Ciclo: {}", hours_replaced(rest)),
+            None => line.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + if text.ends_with('\n') { "\n" } else { "" }
+}
+
+fn hours_replaced(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::new();
+    let mut index = 0;
+    while index < chars.len() {
+        let hour = chars.len() >= index + 5
+            && chars[index].is_ascii_digit()
+            && chars[index + 1].is_ascii_digit()
+            && chars[index + 2] == ':'
+            && chars[index + 3].is_ascii_digit()
+            && chars[index + 4].is_ascii_digit();
+        if hour {
+            out.push_str("<HORA>");
+            index += 5;
+        } else {
+            out.push(chars[index]);
+            index += 1;
+        }
+    }
+    out
 }
 
 /// A linha de conferência do registro mudou com a SPEC-051: a tarefa em pasta grava só

@@ -93,6 +93,17 @@ exit: 0
 - **Arquivo:** `vostok/work/specs/refined/SPEC-001-exemplo.md`
 - **Aprovada em:** sem data de aprovação
 
+## Métricas
+
+- Ciclo: implementada <DATA> <HORA>
+- Da aprovação à implementação: sem registro de hora
+- Tarefas: 2 em 1 onda
+- Retrabalho: 0 ajustes em execução, 0 tentativas extras, 0 bloqueios, 0 recusas
+- Critérios de aceite: nenhum na spec
+- Evidências: 1 (1 texto); 1 conferidas, 0 recusadas
+- Volume: fora de um repositório git
+- Situação: verde
+
 ## Tarefas
 
 ### TASK-01: Tarefa TASK-01

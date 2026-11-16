@@ -7,9 +7,18 @@ export interface EvidenceNotes {
   expect?: string;
   excerpt?: string;
   failure?: string;
+  shows?: string;
+  covers?: string;
+  whereToLook?: string;
+  reproduce?: string;
 }
 
-const NOTE_FIELDS: Record<string, keyof EvidenceNotes> = { Título: 'title', Prova: 'proof', Espera: 'expect', Trecho: 'excerpt', Falha: 'failure' };
+const NOTE_FIELDS: Record<string, keyof EvidenceNotes> = { Título: 'title', Prova: 'proof', Espera: 'expect', Trecho: 'excerpt', Falha: 'failure',
+  Mostra: 'shows',
+  Cobre: 'covers',
+  'Onde olhar': 'whereToLook',
+  Reproduzir: 'reproduce',
+};
 
 /** Lê os subitens de cada evidência na seção `### Evidências` da verificação; o painel só mostra o que a tarefa escreveu. */
 export function evidenceNotes(verification: string): Map<string, EvidenceNotes> {
@@ -29,7 +38,7 @@ export function evidenceNotes(verification: string): Map<string, EvidenceNotes> 
       notes.set(opened[1], current);
       continue;
     }
-    const field = line.match(/^\s{2,}- (Título|Prova|Espera|Trecho|Falha):\s*(.*)$/);
+    const field = line.match(/^\s{2,}- (Título|Prova|Espera|Trecho|Falha|Mostra|Cobre|Onde olhar|Reproduzir):\s*(.*)$/);
     if (field && current) current[NOTE_FIELDS[field[1]]] = field[2];
   }
   return notes;

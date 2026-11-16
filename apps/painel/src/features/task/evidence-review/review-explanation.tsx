@@ -5,7 +5,7 @@ import { Badge } from '../../../ui/badge/badge';
 import { CheckList } from '../../../ui/check-list/check-list';
 import { CopyButton } from '../../../ui/copy-button/copy-button';
 import type { EvidenceEntry } from '../evidence-list/evidence-items';
-import { isVisual, notApplicable, type SnippetCheck } from './snippet-checks';
+import { isVisual, type SnippetCheck } from './snippet-checks';
 import styles from './evidence-review.module.css';
 
 export type CheckField = 'excerpt' | 'failure';
@@ -18,6 +18,8 @@ export interface ReviewExplanationProps {
   active: { field: CheckField; id: string } | null;
   onSelect: (field: CheckField, check: SnippetCheck) => void;
   copied: { text: string; ok: boolean };
+  /** Leva o vídeo aberto ao tempo, em segundos. */
+  onSeek: (seconds: number) => void;
 }
 
 const FIELD = {
@@ -42,38 +44,34 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function NotApplicable({ reason }: { reason: string }) {
-  return (
-    <div className={styles.na}>
-      <strong>Não se aplica.</strong> {reason}
-    </div>
-  );
+const TIME = /(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)/g;
+
+/** Divide o texto nos tempos `m:ss`, que viram `{ label, seconds }`; o resto fica como texto. */
+export function timeParts(text: string): (string | { label: string; seconds: number })[] {
+  const parts: (string | { label: string; seconds: number })[] = [];
+  let last = 0;
+  for (const match of text.matchAll(TIME)) {
+    const start = match.index ?? 0;
+    if (start > last) parts.push(text.slice(last, start));
+    parts.push({ label: match[0], seconds: Number(match[1]) * 60 + Number(match[2]) });
+    last = start + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
 
-/** Explicação da evidência, na ordem do RF-08: o que prova, como foi feita, como reproduzir, o que conferir e a decisão. */
-export function ReviewExplanation({ entry, checks, logNote, active, onSelect, copied }: ReviewExplanationProps) {
+/** Explicação da evidência, na ordem da conferência: o que mostra, onde olhar, a falha e, recolhido, o resto. */
+export function ReviewExplanation({ entry, checks, logNote, active, onSelect, copied, onSeek }: ReviewExplanationProps) {
   const { notes, review } = entry;
   const visual = isVisual(entry.kindLabel);
+  const video = entry.kindLabel === 'Vídeo';
 
-  function checkBlock(field: CheckField) {
+  function checkList(field: CheckField) {
     const { title, legend } = FIELD[field];
     const items = checks[field];
-    if (visual || items.length === 0) {
-      return (
-        <Block title={title}>
-          <NotApplicable reason={notApplicable(field, entry.kindLabel)} />
-        </Block>
-      );
-    }
-    if (logNote) {
-      return (
-        <Block title={title}>
-          <p className={styles.note}>{logNote}</p>
-        </Block>
-      );
-    }
+    if (logNote) return <p className={styles.note}>{logNote}</p>;
     return (
-      <Block title={title}>
+      <>
         <CheckList
           label={title}
           items={items}
@@ -85,50 +83,112 @@ export function ReviewExplanation({ entry, checks, logNote, active, onSelect, co
           }}
         />
         <p className={styles.legend}>{legend}</p>
-      </Block>
+      </>
     );
   }
 
+  const failureChecks = () => checkList('failure');
+
+  function checkBlock(field: CheckField) {
+    if (checks[field].length === 0) return null;
+    return <Block title={FIELD[field].title}>{checkList(field)}</Block>;
+  }
+
   const date = review?.reviewed_at ? formatDateTime(review.reviewed_at) : '—';
+  const where = notes.whereToLook ?? (visual ? notes.excerpt : undefined);
+  const shows = notes.shows ?? notes.proof;
+  const reproduce = (notes.reproduce ?? review?.reproduce)?.replace(/^`+|`+$/g, '').trim();
+  const covers = (notes.covers ?? '').split(',').map((id) => id.trim()).filter(Boolean);
+  const hasHow = Boolean(review?.tool || entry.kind || review?.how);
 
   return (
     <>
-      <Block title="O que prova">
-        {notes.proof ? <Markdown source={notes.proof} /> : <p className={styles.note}>O planejamento não descreveu o que esta evidência prova.</p>}
+      <Block title="O que mostra">
+        {shows ? <Markdown source={shows} /> : <p className={styles.note}>O planejamento não descreveu o que esta evidência mostra.</p>}
       </Block>
-      <Block title="Como foi feita">
-        <div className={styles.tool}>
-          <TerminalIcon />
-          <span>{review?.tool || '—'}</span>
-          {entry.kind ? <Badge tone="neutral">{entry.kind}</Badge> : null}
-        </div>
-        {review?.how ? <p className={styles.note}>{review.how}</p> : null}
-        <p className={styles.derived}>{review?.how ? 'Derivado do tipo e do comando. A frase vem do subitem "Como:".' : 'Derivado do tipo e do comando.'}</p>
-      </Block>
-      <Block title="Como reproduzir">
-        {review?.reproduce ? (
-          <div className={styles.command}>
-            <code>{review.reproduce}</code>
-            <CopyButton text={review.reproduce} label="Copiar comando" />
-          </div>
-        ) : (
-          <p className={styles.note}>Anexada pelo usuário; não há comando.</p>
-        )}
-      </Block>
-      {visual ? (
-        <Block title="Como ler">
-          <div className={styles.read}>
-            <strong>O que olhar:</strong>
-            {notes.excerpt ? <Markdown source={notes.excerpt} /> : <p>—</p>}
-          </div>
-          <div className={styles.read}>
-            <strong>Sinal de falha:</strong>
-            {notes.failure ? <Markdown source={notes.failure} /> : <p>—</p>}
-          </div>
+      {where ? (
+        <Block title="Onde olhar">
+          {video ? (
+            <p className={styles.note}>
+              {timeParts(where).map((part, index) =>
+                typeof part === 'string' ? (
+                  part
+                ) : (
+                  <button key={index} type="button" className={styles.time} onClick={() => onSeek(part.seconds)}>
+                    {part.label}
+                  </button>
+                ),
+              )}
+            </p>
+          ) : (
+            <Markdown source={where} />
+          )}
         </Block>
       ) : null}
-      {checkBlock('excerpt')}
-      {checkBlock('failure')}
+      {visual ? (
+        notes.failure ? (
+          <Block title="Falha">
+            <Markdown source={notes.failure} />
+          </Block>
+        ) : null
+      ) : (
+        <>
+          {checkBlock('excerpt')}
+          {notes.failure || checks.failure.length > 0 ? (
+            <Block title={FIELD.failure.title}>
+              {notes.failure ? <Markdown source={notes.failure} /> : null}
+              {checks.failure.length > 0 ? failureChecks() : null}
+            </Block>
+          ) : null}
+        </>
+      )}
+      {shows && notes.proof && notes.shows ? (
+        <details className={styles.fold}>
+          <summary>Prova</summary>
+          <div>
+            <Markdown source={notes.proof} />
+          </div>
+        </details>
+      ) : null}
+      {hasHow ? (
+        <details className={styles.fold}>
+          <summary>Como foi feita</summary>
+          <div>
+            <div className={styles.tool}>
+              <TerminalIcon />
+              <span>{review?.tool || '—'}</span>
+              {entry.kind ? <Badge tone="neutral">{entry.kind}</Badge> : null}
+            </div>
+            {review?.how ? <p className={styles.note}>{review.how}</p> : null}
+            <p className={styles.derived}>{review?.how ? 'Derivado do tipo e do comando. A frase vem do subitem "Como:".' : 'Derivado do tipo e do comando.'}</p>
+          </div>
+        </details>
+      ) : null}
+      {reproduce ? (
+        <details className={styles.fold}>
+          <summary>Reproduzir</summary>
+          <div>
+            <div className={styles.command}>
+              <code>{reproduce}</code>
+              <CopyButton text={reproduce} label="Copiar comando" />
+            </div>
+          </div>
+        </details>
+      ) : null}
+      {covers.length > 0 ? (
+        <details className={styles.fold}>
+          <summary>Cobre</summary>
+          <div>
+            <ul className={styles.tags}>
+              {covers.map((id) => (
+                <li key={id}>
+                  <Badge tone="neutral">{id}</Badge>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
+      ) : null}
       <p role="status" className={styles.copied} data-ok={copied.ok}>
         {copied.text}
       </p>

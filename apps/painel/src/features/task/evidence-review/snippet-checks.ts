@@ -41,15 +41,3 @@ export function checksOf(log: string, snippets: string[], expectFound: boolean):
 }
 
 export const isVisual = (label: string) => label === 'Print' || label === 'Vídeo';
-
-/** Por que o Trecho ou a Falha não têm textos para conferir. */
-export function notApplicable(field: 'excerpt' | 'failure', label: string): string {
-  if (isVisual(label)) {
-    return field === 'excerpt'
-      ? 'Prints e vídeos não têm texto para procurar: confira olhando, como diz "Como ler".'
-      : 'Prints e vídeos não têm texto para procurar: a falha é o que "Como ler" descreve não aparecer.';
-  }
-  if (field === 'excerpt') return 'O planejamento não definiu um texto esperado para esta evidência.';
-  if (label === 'Diff') return 'Num diff, a falha é a mudança esperada não aparecer, e o Trecho esperado já confere isso.';
-  return 'O planejamento não definiu sinais de falha para esta evidência.';
-}

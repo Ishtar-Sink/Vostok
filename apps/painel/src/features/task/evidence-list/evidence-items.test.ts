@@ -37,6 +37,29 @@ describe('evidenceNotes', () => {
     });
   });
 
+  it('lê Mostra, Cobre, Onde olhar e Reproduzir de cada evidência', () => {
+    const notes = evidenceNotes(
+      verification([
+        '- `saida.txt` (automática, da verificação)',
+        '  - Mostra: o quadro aparece',
+        '  - Cobre: RF-13, CT-11',
+        '  - Onde olhar: no centro, aos 0:05',
+        '  - Reproduzir: `pnpm test`',
+      ]),
+    );
+    expect(notes.get('saida.txt')).toEqual({ shows: 'o quadro aparece', covers: 'RF-13, CT-11', whereToLook: 'no centro, aos 0:05', reproduce: '`pnpm test`' });
+  });
+
+  it('mantém Prova e Trecho quando a evidência não tem os campos novos', () => {
+    const note = evidenceNotes(verification(['- `saida.txt` (automática, da verificação)', '  - Prova: p', '  - Trecho: t'])).get('saida.txt');
+    expect(note?.shows).toBeUndefined();
+    expect(note?.covers).toBeUndefined();
+    expect(note?.whereToLook).toBeUndefined();
+    expect(note?.reproduce).toBeUndefined();
+    expect(note?.proof).toBe('p');
+    expect(note?.excerpt).toBe('t');
+  });
+
   it('ignora os subitens fora da seção Evidências', () => {
     const notes = evidenceNotes(['## V', '- `fora.txt` (automática): `x`', '  - Título: Fora', '', verification(['- `dentro.txt` (automática): `y`'])].join('\n'));
     expect(notes.has('fora.txt')).toBe(false);

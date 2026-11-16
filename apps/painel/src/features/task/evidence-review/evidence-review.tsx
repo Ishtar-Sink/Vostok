@@ -113,6 +113,21 @@ export function EvidenceReview({ spec, task, taskStatus, entries, current, onNav
         ? 'Lendo o log…'
         : '';
 
+  const marks = useMemo(() => {
+    const map = new Map<number, 'good' | 'bad'>();
+    for (const check of checks.excerpt) if (check.tone === 'good') for (const line of check.lines) map.set(line, 'good');
+    // a falha vence quando a mesma linha é trecho e falha
+    for (const check of checks.failure) if (check.tone === 'bad') for (const line of check.lines) map.set(line, 'bad');
+    return map;
+  }, [checks]);
+
+  function seek(seconds: number) {
+    const video = document.querySelector<HTMLVideoElement>('dialog[open] video');
+    if (!video) return;
+    video.currentTime = seconds;
+    if (window.matchMedia?.(MOBILE)?.matches) setPane('main');
+  }
+
   const hits = useMemo(() => {
     const check = active ? checks[active.field].find((item) => item.id === active.id) : undefined;
     return new Set(check?.lines ?? []);
@@ -168,8 +183,8 @@ export function EvidenceReview({ spec, task, taskStatus, entries, current, onNav
       pane={pane}
       onPaneChange={setPane}
       onKeyDown={onKeys}
-      side={<ReviewExplanation entry={current} checks={checks} logNote={logNote} active={active} onSelect={select} copied={message} />}
-      main={<EvidenceViewer entry={current} text={text} hits={hits} version={reload} />}
+      side={<ReviewExplanation key={current.name} onSeek={seek} entry={current} checks={checks} logNote={logNote} active={active} onSelect={select} copied={message} />}
+      main={<EvidenceViewer entry={current} text={text} hits={hits} marks={marks} version={reload} />}
       footer={
         <>
           <nav aria-label="Navegar entre as evidências" className={styles.nav}>

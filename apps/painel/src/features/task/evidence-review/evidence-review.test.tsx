@@ -70,13 +70,12 @@ const sectionTitles = () => within(explanation()).getAllByRole('heading', { leve
 const checks = (name: string) => within(screen.getByRole('list', { name })).getAllByRole('button');
 
 describe('EvidenceReview', () => {
-  it('abre com a explicação na ordem do RF-08 e o log à direita', async () => {
+  it('mostra a Conferência e a Recusa depois dos blocos da explicação', async () => {
     mockFiles();
     open(entry());
     const dialog = screen.getByRole('dialog', { name: 'Testes do quadro passam' });
     expect(within(dialog).getByText('EV-01')).toBeTruthy();
     expect(within(dialog).getByText('A conferir')).toBeTruthy();
-    expect(sectionTitles()).toEqual(['O que prova', 'Como foi feita', 'Como reproduzir', 'Trecho esperado', 'Sinais de falha']);
     expect(await within(evidence()).findByText('test b ... ok')).toBeTruthy();
     cleanup();
 
@@ -92,17 +91,118 @@ describe('EvidenceReview', () => {
     expect(within(explanation()).getByText(/Motivo: “falta o total”/)).toBeTruthy();
   });
 
-  it('mostra Como ler antes do Trecho no print e no vídeo', () => {
+  it('abre por O que mostra, Onde olhar e Falha, com o resto recolhido', () => {
     mockFiles();
-    for (const [name, kindLabel] of [['tela.png', 'Print'], ['a.webm', 'Vídeo']]) {
-      open(entry({ name, kind: 'print', kindLabel, notes: { excerpt: 'o quadro de teste colorido', failure: 'a tela em branco' } }));
-      const titles = sectionTitles();
-      expect(titles.indexOf('Como ler')).toBeGreaterThan(-1);
-      expect(titles.indexOf('Como ler')).toBeLessThan(titles.indexOf('Trecho esperado'));
-      expect(within(explanation()).getByText('o quadro de teste colorido')).toBeTruthy();
-      expect(within(explanation()).getByText('a tela em branco')).toBeTruthy();
-      cleanup();
+    open(entry({ notes: { shows: 'o resumo dos testes', whereToLook: 'nas linhas do resumo', covers: 'RF-13, CT-11', reproduce: '`pnpm exec vitest run`', excerpt: '`test a ... ok`', failure: 'se aparecer `FAILED`, então o teste quebrou' } }));
+    expect(sectionTitles()).toEqual(['O que mostra', 'Onde olhar', 'Trecho esperado', 'Sinais de falha']);
+    for (const title of ['Como foi feita', 'Reproduzir', 'Cobre']) {
+      const details = within(explanation()).getByText(title, { selector: 'summary' }).closest('details');
+      expect(details).toBeTruthy();
+      expect(details?.hasAttribute('open')).toBe(false);
     }
+    expect(within(explanation()).getByText('pnpm exec vitest run')).toBeTruthy();
+    expect(within(explanation()).getByText('RF-13')).toBeTruthy();
+    expect(within(explanation()).getByText('CT-11')).toBeTruthy();
+  });
+
+  it('mostra Mostra e deixa a Prova recolhida quando as duas existem', () => {
+    mockFiles();
+    open(entry({ notes: { shows: 'o que aparece', proof: 'a prova longa' } }));
+    expect(within(explanation()).getByText('o que aparece')).toBeTruthy();
+    const details = within(explanation()).getByText('Prova', { selector: 'summary' }).closest('details');
+    expect(details?.hasAttribute('open')).toBe(false);
+    expect(details?.textContent).toContain('a prova longa');
+  });
+
+  it('abre pela Prova e pelo Trecho no formato atual', () => {
+    mockFiles();
+    open(entry());
+    expect(sectionTitles()).toEqual(['O que mostra', 'Trecho esperado', 'Sinais de falha']);
+    expect(within(explanation()).getByText('Os testes do quadro passam.')).toBeTruthy();
+    expect(within(explanation()).queryByText('Prova', { selector: 'summary' })).toBeNull();
+  });
+
+  it('não mostra Não se aplica no print, no vídeo nem no diff', () => {
+    mockFiles();
+    open(entry({ name: 'tela.png', kind: 'print', kindLabel: 'Print', notes: { shows: 'a tela', whereToLook: 'no centro', failure: 'a tela em branco' } }));
+    expect(sectionTitles()).toEqual(['O que mostra', 'Onde olhar', 'Falha']);
+    expect(explanation().textContent).not.toContain('Não se aplica');
+    cleanup();
+    open(entry({ name: 'a.webm', kind: 'print', kindLabel: 'Vídeo', notes: { shows: 'o vídeo', failure: 'sem imagem' } }));
+    expect(explanation().textContent).not.toContain('Não se aplica');
+    cleanup();
+    mockFiles('+linha nova');
+    open(entry({ name: 'a.diff', kind: 'diff', kindLabel: 'Diff', notes: { excerpt: 'a linha `+linha nova`', failure: '' } }));
+    expect(explanation().textContent).not.toContain('Não se aplica');
+  });
+
+  it('mostra o Trecho do print como Onde olhar quando a tarefa não o escreveu', () => {
+    mockFiles();
+    open(entry({ name: 'tela.png', kind: 'print', kindLabel: 'Print', notes: { excerpt: 'o quadro de teste', failure: 'a tela em branco' } }));
+    const block = (title: string) => within(explanation()).getByRole('heading', { name: title }).closest('section') as HTMLElement;
+    expect(within(block('Onde olhar')).getByText('o quadro de teste')).toBeTruthy();
+    expect(within(block('Falha')).getByText('a tela em branco')).toBeTruthy();
+  });
+
+  it('recolhe Como foi feita, Reproduzir e Cobre e abre ao clicar', () => {
+    mockFiles();
+    open(entry({ review: { how: 'roda os testes' }, notes: { shows: 'x', covers: 'RF-01' } }));
+    for (const title of ['Como foi feita', 'Reproduzir', 'Cobre']) {
+      const summary = within(explanation()).getByText(title, { selector: 'summary' });
+      const details = summary.closest('details') as HTMLDetailsElement;
+      expect(details.open).toBe(false);
+      fireEvent.click(summary);
+      expect(details.open).toBe(true);
+    }
+    cleanup();
+    open(entry({ review: { reproduce: '' }, notes: { shows: 'x' } }));
+    expect(within(explanation()).queryByText('Reproduzir', { selector: 'summary' })).toBeNull();
+    expect(within(explanation()).queryByText('Cobre', { selector: 'summary' })).toBeNull();
+  });
+
+  it('pinta o trecho de verde e a falha de vermelho no log', async () => {
+    mockFiles();
+    const { container } = open(entry());
+    await screen.findByText('apareceu · 1 linha');
+    const lines = (cls: string) => [...container.querySelectorAll(`.${cls}`)].map((line) => line.getAttribute('data-line'));
+    expect(lines(styles.good)).toEqual(['4']);
+    expect(lines(styles.bad)).toEqual(['7', '8']);
+  });
+
+  it('pinta de vermelho a linha que é trecho e falha ao mesmo tempo', async () => {
+    mockFiles('$ c\n# data: d\n# commit: c\n# código de saída: 0\nresultado: ok FAILED');
+    const { container } = open(entry({ notes: { excerpt: '`resultado: ok`', failure: '`FAILED`' } }));
+    await waitFor(() => expect(container.querySelectorAll(`.${styles.bad}`)).toHaveLength(1));
+    expect(container.querySelector(`.${styles.bad}`)?.getAttribute('data-line')).toBe('4');
+    expect(container.querySelectorAll(`.${styles.good}`)).toHaveLength(0);
+  });
+
+  it('não pinta o trecho que não apareceu nem a falha ausente', async () => {
+    mockFiles();
+    const { container } = open(entry({ notes: { excerpt: '`nada`', failure: '`panicked`' } }));
+    await within(evidence()).findByText('test b ... ok');
+    expect(container.querySelectorAll(`.${styles.good}`)).toHaveLength(0);
+    expect(container.querySelectorAll(`.${styles.bad}`)).toHaveLength(0);
+  });
+
+  it('leva o vídeo ao tempo clicado no Onde olhar', () => {
+    mockFiles();
+    const { container } = open(entry({ name: 'a.webm', kind: 'print', kindLabel: 'Vídeo', notes: { shows: 'o vídeo', whereToLook: 'aos 0:05 abre a janela e aos 1:10 aparece o aviso' } }));
+    const video = container.querySelector('video') as HTMLVideoElement;
+    fireEvent.click(screen.getByRole('button', { name: '0:05' }));
+    expect(video.currentTime).toBe(5);
+    fireEvent.click(screen.getByRole('button', { name: '1:10' }));
+    expect(video.currentTime).toBe(70);
+  });
+
+  it('deixa sem link o tempo fora do formato m:ss e o texto fora de vídeo', () => {
+    mockFiles();
+    open(entry({ name: 'a.webm', kind: 'print', kindLabel: 'Vídeo', notes: { shows: 'v', whereToLook: 'perto de 5 segundos e em 0:5' } }));
+    expect(within(explanation()).queryAllByRole('button', { name: /^\d+:\d+$/ })).toHaveLength(0);
+    expect(within(explanation()).getByText('perto de 5 segundos e em 0:5')).toBeTruthy();
+    cleanup();
+    open(entry({ name: 'tela.png', kind: 'print', kindLabel: 'Print', notes: { shows: 'p', whereToLook: 'aos 0:05' } }));
+    expect(within(explanation()).queryAllByRole('button', { name: /^\d+:\d+$/ })).toHaveLength(0);
   });
 
   it('mostra a ferramenta, o tipo, a frase do Como e o comando com cópia', () => {
@@ -167,20 +267,6 @@ describe('EvidenceReview', () => {
       return [...container.querySelectorAll(`.${styles.hit} .${styles.lineNumber}`)].map((number) => number.textContent);
     });
     expect(numbers).toEqual([['83'], ['86'], ['87'], ['90']]);
-  });
-
-  it('mostra Não se aplica com o motivo no print e na Falha vazia do diff', () => {
-    mockFiles();
-    open(entry({ name: 'tela.png', kind: 'print', kindLabel: 'Print', notes: { excerpt: 'o quadro', failure: 'tela branca' } }));
-    expect(within(explanation()).getAllByText('Não se aplica.')).toHaveLength(2);
-    expect(within(explanation()).getByText('Prints e vídeos não têm texto para procurar: confira olhando, como diz "Como ler".')).toBeTruthy();
-    expect(within(explanation()).getByText('Prints e vídeos não têm texto para procurar: a falha é o que "Como ler" descreve não aparecer.')).toBeTruthy();
-    cleanup();
-
-    mockFiles('+linha nova');
-    open(entry({ name: 'a.diff', kind: 'diff', kindLabel: 'Diff', notes: { excerpt: 'a linha `+linha nova`', failure: '' } }));
-    expect(within(explanation()).getAllByText('Não se aplica.')).toHaveLength(1);
-    expect(within(explanation()).getByText('Num diff, a falha é a mudança esperada não aparecer, e o Trecho esperado já confere isso.')).toBeTruthy();
   });
 
   it('navega só pelas evidências recebidas com os botões e as setas', () => {

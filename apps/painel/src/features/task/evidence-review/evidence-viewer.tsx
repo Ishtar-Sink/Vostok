@@ -31,7 +31,7 @@ function diffKind(line: string): 'add' | 'del' | undefined {
   return undefined;
 }
 
-function LogLines({ text, hits, diff }: { text: string; hits: Set<number>; diff: boolean }) {
+function LogLines({ text, hits, diff, marks }: { text: string; hits: Set<number>; diff: boolean; marks: Map<number, 'good' | 'bad'> }) {
   const preRef = useRef<HTMLPreElement>(null);
   const first = hits.size > 0 ? Math.min(...hits) : null;
 
@@ -50,7 +50,7 @@ function LogLines({ text, hits, diff }: { text: string; hits: Set<number>; diff:
             key={index}
             data-line={index}
             data-head={head ? '' : undefined}
-            className={[styles.line, hits.has(index) ? styles.hit : ''].filter(Boolean).join(' ')}
+            className={[styles.line, marks.get(index) === 'good' ? styles.good : marks.get(index) === 'bad' ? styles.bad : '', hits.has(index) ? styles.hit : ''].filter(Boolean).join(' ')}
           >
             <span className={styles.lineNumber} aria-hidden="true">
               {index + 1}
@@ -66,7 +66,7 @@ function LogLines({ text, hits, diff }: { text: string; hits: Set<number>; diff:
 }
 
 /** A evidência aberta no lado direito do modal: imagem, vídeo, log numerado ou o link de baixar. */
-export function EvidenceViewer({ entry, text, hits, version = 0 }: { entry: EvidenceEntry; text: TextState; hits: Set<number>; version?: number }) {
+export function EvidenceViewer({ entry, text, hits, marks = new Map(), version = 0 }: { entry: EvidenceEntry; text: TextState; hits: Set<number>; marks?: Map<number, 'good' | 'bad'>; version?: number }) {
   const { file, manual, name } = entry;
   const exitCode = text.value ? EXIT_CODE.exec(text.value.split('\n', 4)[3] ?? '')?.[1] : undefined;
   const reviewedAt = entry.review?.reviewed_at;
@@ -108,7 +108,7 @@ export function EvidenceViewer({ entry, text, hits, version = 0 }: { entry: Evid
         ) : text.value === null ? (
           <p className={styles.missing}>Carregando…</p>
         ) : (
-          <LogLines text={text.value} hits={hits} diff={entry.kindLabel === 'Diff'} />
+          <LogLines text={text.value} hits={hits} marks={marks} diff={entry.kindLabel === 'Diff'} />
         )}
         {text.total !== null ? (
           <p className={styles.partial} role="status">

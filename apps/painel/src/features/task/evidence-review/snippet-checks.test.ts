@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checksOf, notApplicable, snippetsOf } from './snippet-checks';
+import { checksOf, snippetsOf } from './snippet-checks';
 
 const LOG = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest a ... ok\ntest b ... ok\n0 failed\nFAILED x\nFAILED y';
 
@@ -37,17 +37,5 @@ describe('checksOf', () => {
     expect(escaped).toEqual({ id: '1', label: 'origem \\', result: 'não dá para buscar: crase dentro do texto', tone: 'bad', lines: [] });
     expect(times.result).toBe('não apareceu');
     expect(found.result).toBe('apareceu · 1 linha');
-  });
-});
-
-describe('notApplicable', () => {
-  it('explica o print e o vídeo, o Trecho vazio, a Falha vazia e o diff', () => {
-    const visualExcerpt = 'Prints e vídeos não têm texto para procurar: confira olhando, como diz "Como ler".';
-    expect(notApplicable('excerpt', 'Print')).toBe(visualExcerpt);
-    expect(notApplicable('excerpt', 'Vídeo')).toBe(visualExcerpt);
-    expect(notApplicable('failure', 'Print')).toBe('Prints e vídeos não têm texto para procurar: a falha é o que "Como ler" descreve não aparecer.');
-    expect(notApplicable('excerpt', 'Log')).toBe('O planejamento não definiu um texto esperado para esta evidência.');
-    expect(notApplicable('failure', 'Diff')).toBe('Num diff, a falha é a mudança esperada não aparecer, e o Trecho esperado já confere isso.');
-    expect(notApplicable('failure', 'Log')).toBe('O planejamento não definiu sinais de falha para esta evidência.');
   });
 });

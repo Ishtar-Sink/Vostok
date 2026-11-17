@@ -102,7 +102,7 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
-Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, resultado na primeira frase e sem termos do harness, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
+Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, resultado na primeira frase e sem termos do harness, regra approve-plan-07) e `#{TASK_TECHNICAL}` (na **Forma do técnico**, com a abordagem, as decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
 
 **Execução** (para o agente):
 
@@ -148,6 +148,41 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 
 - **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: o resultado na primeira frase, depois o benefício, o risco e o que a tarefa bloqueia ou desbloqueia. Não cite o perfil de execução nem termos do harness (onda, baseline, Coordenador), nem arquivos ou comandos.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.
+
+**Forma do técnico:** o técnico abre com a frase e o panorama em prosa, e detalha o resto em tabelas; use este modelo:
+
+```markdown
+**Em uma frase**
+
+Uma frase com o que a tarefa faz.
+
+**Como funciona**
+
+Dois ou três parágrafos curtos, sem código, com o panorama: o que acontece, em que ordem e por quê.
+
+**O que muda**
+
+| Onde | O que muda | Por quê |
+|---|---|---|
+| `caminho`, função | O que muda nesse ponto | Motivo, com os IDs da spec |
+
+**Decisões**
+
+| Decisão | Descartado | Motivo |
+|---|---|---|
+| O que foi escolhido | A alternativa descartada | Por que ela foi descartada |
+
+**Riscos**
+
+- Um risco por item, com o que o cobre.
+
+**Referências**
+
+Os IDs da spec cobertos e os arquivos em comum com tarefas da mesma onda.
+```
+
+Sem passos encadeados por ponto e vírgula e sem blocos de código no meio da abordagem.
+
 - **`#{TASK_CARD_DESCRIPTION}`:** uma ou duas frases sobre o que a tarefa entrega, pronta para o card.
 - **`#{TASK_CARD_CRITERIA}`:** checklist de critérios de aceite, cada item como `  - [ ] critério`, indentado sob "Critérios de aceite".
 

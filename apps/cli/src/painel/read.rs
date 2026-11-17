@@ -811,7 +811,13 @@ fn task_summary(dir: &Path, harness: &Harness, waves: &BTreeMap<String, usize>) 
             (key.to_string(), value)
         })
         .collect();
-    json_object(&pairs)
+    let pending_reviews = crate::commands::task::evidence_review_states(&harness.root, dir)
+        .iter()
+        .filter(|review| review.status == "a conferir")
+        .count();
+    let object = json_object(&pairs);
+    let fields = object.strip_suffix('}').unwrap_or(&object);
+    format!("{fields},\"pending_reviews\":{pending_reviews}}}")
 }
 
 /// Pares `chave: valor` de um grupo de primeiro nível, com as aspas e os comentários removidos.

@@ -1367,3 +1367,72 @@ fn configuracoes_somente_get_e_post_na_rota() {
     let unknown = get_raw(painel.address, "/api/configuracoes/geral", None);
     assert!(unknown.status().contains(" 404 "), "{}", unknown.head);
 }
+
+// --- Evidências a conferir no resumo (SPEC-054) ---
+
+/// A visão só lista as tarefas das specs com arquivo: grava a SPEC-001 refinada.
+fn with_spec(project: &common::Project) {
+    let refined = project.root().join("vostok/work/specs/refined");
+    fs::create_dir_all(&refined).unwrap();
+    fs::write(
+        refined.join("SPEC-001-tarefa.md"),
+        "---\nid: SPEC-001\ntitle: \"Tarefa\"\ntype: feature\nstatus: planned\n---\n\n# Tarefa\n",
+    )
+    .unwrap();
+}
+
+fn overview_text(painel: &Running) -> String {
+    body_text(&get_raw(painel.address, "/api/visao", None))
+}
+
+fn accept_ev01(painel: &Running) -> String {
+    let token = page_token(painel.address);
+    let response = post(
+        painel.address,
+        &format!("{REVIEW_ROUTE}/aceitar"),
+        &trusted(painel.address, "127.0.0.1", &token),
+        r#"{"texto": "bate com o log"}"#,
+    );
+    let body = body_text(&response);
+    assert!(
+        response.status().contains(" 200 "),
+        "{} {body}",
+        response.head
+    );
+    body
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn pendentes_resumo_conta_as_evidencias_a_conferir() {
+    let project = writable_project();
+    with_spec(&project);
+    let painel = start(project.root());
+    let overview = overview_text(&painel);
+    assert!(overview.contains(r#""pending_reviews":1"#), "{overview}");
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn pendentes_resumo_zera_depois_da_conferencia() {
+    let project = writable_project();
+    with_spec(&project);
+    let painel = start(project.root());
+    accept_ev01(&painel);
+    let overview = overview_text(&painel);
+    assert!(overview.contains(r#""pending_reviews":0"#), "{overview}");
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn pendentes_conferencia_pelo_painel_deixa_pronta() {
+    let project = writable_project();
+    project
+        .vostok()
+        .args(["task", "evidence", "SPEC-001", "TASK-01", "--antecipada"])
+        .assert()
+        .success();
+    let painel = start(project.root());
+    let body = accept_ev01(&painel);
+    assert!(body.contains(r#""task_status":"executed""#), "{body}");
+}

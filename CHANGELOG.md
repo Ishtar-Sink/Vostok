@@ -2,6 +2,24 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.7] - 2026-11-17
+
+### Correções
+
+- Uma evidência recusada e depois trocada ou removida num ajuste não trava mais a conclusão da tarefa: a recusa sai no ajuste e em toda geração de evidências, e o `vostok task finish` não a conta. Uma tarefa já travada destrava com `vostok task evidence <SPEC> <TASK>` seguido do `finish`, depois de instalar esta versão e rodar `vostok update`. (SPEC-061, issue #19)
+- A mensagem do `finish` sobre uma recusa indica o `--antecipada` só com a tarefa em execução, e `vostok task evidence <SPEC> <TASK>` nos demais status. (SPEC-061, issue #19)
+- A conferência de uma evidência que saiu da tarefa fica no `conferencias.md` com o ID `-` e o estado `removida`, e o ID atual aponta só para a evidência nova. O painel a mostra como "a conferir". (SPEC-061, issue #19)
+
+### Recursos
+
+- O comando novo `vostok task mark-criteria <SPEC_ID> <TASK_ID> <N...>` marca os critérios de conclusão pelo número sem contar como edição manual; a skill `finish-task` passa a usá-lo. (SPEC-061)
+
+### Melhorias
+
+- A tarefa iniciada fica na fila (`queued`) depois do baseline e só entra em execução com `vostok task begin`; a skill de execução roda o `begin` na sessão e em cada subagente. (SPEC-054)
+- A geração antecipada de evidências deixa a tarefa em `awaiting_review` até a última conferência, pelo chat ou pelo painel, que a leva a `executed`; uma recusa a devolve a `in_progress`. (SPEC-054)
+- O quadro do painel ganhou as raias "Na fila" e "Aguardando conferência", e cada tarefa mostra o selo "N a conferir" com link para a conferência. (SPEC-054)
+
 ## [0.6.6] - 2026-11-17
 
 ### Recursos

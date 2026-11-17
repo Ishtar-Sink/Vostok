@@ -289,3 +289,6 @@ evidence_review_kinds: [automática, "automática, da verificação", diff, prin
 evidence_title_field: Título
 
 evidence_title_max: 60
+
+# O que a impressão da rodada da Verificação compara para reaproveitá-la: mudar (arquivos de "Mudar"), arvore (árvore do projeto, sem a pasta de trabalho do harness) ou nunca (sem reaproveitamento).
+verification_reuse: mudar

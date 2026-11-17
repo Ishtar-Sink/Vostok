@@ -97,6 +97,8 @@ vostok task tests <SPEC_ID> <TASK_ID>
 
 O `vostok task tests` executa o bloco `bash` de "Verificação" a partir da raiz do projeto e para no primeiro comando com falha. Se o comando recusar por tarefa sem baseline, ele mostra `vostok task baseline <SPEC_ID> <TASK_ID>`; isso só ocorre em tarefa iniciada antes da correção que coleta o baseline no `start`. Rode o comando mostrado; se ele recusar porque um caminho `criar` de "Mudar" já existe, **PARE** e responda com o template `blocker`. Se os testes falharem:
 
+O `tests` reaproveita a última rodada que passou (do `check` ou do `tests`) quando a impressão bate, grava `passed` e registra "testes reaproveitados da rodada de <horário>"; `vostok task tests <SPEC_ID> <TASK_ID> --forcar` roda a Verificação mesmo assim. Um arquivo lido pela Verificação fora de "Mudar" não invalida a rodada no modo `mudar`, e `verification_reuse: arvore` cobre esse caso. A regressão roda sempre. Na resposta, a Verificação diz se os testes rodaram ou foram reaproveitados, com o horário da rodada.
+
 1. Busque o erro na memória (`vostok memory search issue <trecho estável da mensagem>`), conforme [agent/anti-loop-01].
 2. Corrija o código e execute `vostok task tests` de novo.
 3. Se não houver o que corrigir no código da tarefa (a falha depende do ambiente ou da própria "Verificação"), execute `vostok task tests` de novo mesmo assim, até o comando bloquear a tarefa. Não pare antes: só uma tarefa bloqueada recebe a decisão do usuário pelo `vostok task resume`.

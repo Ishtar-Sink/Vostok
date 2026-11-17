@@ -2,6 +2,18 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.9] - 2026-11-17
+
+### Recursos
+
+- O comando novo `vostok plan extend <SPEC_ID>` cria o plano de extensão de uma spec `planned`: só com os IDs que nenhuma tarefa cobre e os mudados cobertos só por tarefas concluídas, com as tarefas novas numeradas depois da última e a primeira onda depois da maior existente. O plano passa pelo `score`, pelo `validate` e pela aprovação como o inicial, e a aprovação cria só as tarefas novas, sem alterar as existentes. (SPEC-058, issue #15)
+- A reaprovação de uma spec ajustada grava em `extend_ids` os IDs mudados cobertos só por tarefas concluídas e indica `vostok plan extend` quando há IDs que pedem tarefa nova. (SPEC-058)
+
+### Melhorias
+
+- O `vostok plan create` numa spec `planned` indica o `vostok plan extend`. (SPEC-058)
+- As skills `approve-spec`, `plan-tasks`, `adjust-plan` e `approve-plan` tratam o plano de extensão. (SPEC-058)
+
 ## [0.6.8] - 2026-11-17
 
 ### Correções

@@ -579,6 +579,21 @@ fn cb03_update_recreates_deleted_binary_file_without_local() {
 }
 
 #[test]
+fn ct07_update_brings_the_evidence_rule() {
+    let workspace = installed("codex");
+    let rule = "vostok/rules/agent/evidence.md";
+    fs::remove_file(workspace.path(rule)).unwrap();
+
+    let out = workspace.update();
+
+    assert!(out.contains(rule), "{out}");
+    assert_eq!(
+        workspace.read(rule),
+        workspace.embedded("rules/agent/evidence.md")
+    );
+}
+
+#[test]
 fn cb04_update_with_the_same_binary_changes_nothing() {
     let workspace = installed("claude-code,codex,cursor");
     let before = tree(workspace.root());

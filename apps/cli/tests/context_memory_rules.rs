@@ -309,6 +309,25 @@ fn ct06_context_load_persona_prints_the_required_context_and_the_persona() {
 }
 
 #[test]
+fn ct07_context_load_prints_the_evidence_rule() {
+    let project = Project::new();
+    let output = project
+        .vostok()
+        .args(["context", "load"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("UTF-8");
+    assert!(
+        text.contains("--- arquivo: rules/agent/evidence.md ---"),
+        "{text}"
+    );
+    assert!(text.contains("[agent/evidence-02]"), "{text}");
+}
+
+#[test]
 fn ct06_context_load_rejects_an_unknown_persona() {
     let project = Project::new();
     let output = project

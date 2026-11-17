@@ -15,10 +15,10 @@ use clap::Subcommand;
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{
-    config_get, config_list, evidence_subitem, evidence_subitem_errors, find_lines,
-    frontmatter_get, frontmatter_lines, frontmatter_set, is_indented, markdown_section,
-    markdown_subsection, render, sha256_hex, snippets_of, template_leftovers, unsearchable,
-    yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD,
+    condition_near, config_get, config_list, evidence_subitem, evidence_subitem_errors,
+    excerpt_holding, find_lines, frontmatter_get, frontmatter_lines, frontmatter_set, is_indented,
+    markdown_section, markdown_subsection, render, sha256_hex, snippets_of, template_leftovers,
+    unsearchable, yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD,
 };
 
 #[derive(Debug, Subcommand)]
@@ -1411,6 +1411,9 @@ impl Tasks {
         );
         println!("Tarefa {task} válida: {}", file.display());
         self.print_dashdash_warnings(&file)?;
+        for warning in falha_problems(&self.evidence_entries(&TaskDoc::at(&file).text()?)?).1 {
+            println!("{warning}");
+        }
         self.print_baseline_failures(&file)
     }
 
@@ -4833,6 +4836,13 @@ impl Tasks {
                 errors.push(format!("'{sub}' com item fora do formato: {item} (use: - `arquivo` ({automatic}): `comando`, - `arquivo` ({}), - `arquivo` ({}): `caminho`, - `arquivo` ({}): `comando` ou - `arquivo` ({manual}): descrição)", kinds.from_verify, kinds.diff, kinds.print));
             }
         }
+        let entries = parse_evidence_entries(&text, &self.evidence_from_verify());
+        errors.extend(
+            falha_problems(&entries)
+                .0
+                .into_iter()
+                .map(|problem| format!("'{sub}' com {problem}")),
+        );
         let block = verify_block(&self.subsection(content, "verify_subsection")?);
         let items = change_items(&self.subsection(content, "change_subsection")?);
         let created = created_of(&items);
@@ -8039,6 +8049,28 @@ pub(crate) fn snippet_warnings(
         lines.extend(found);
     }
     lines
+}
+
+/// Erros e avisos da `Falha` de cada evidência: o texto que já está no `Trecho` recusa; a condição
+/// sobre o valor só avisa.
+pub(crate) fn falha_problems(entries: &[EvidenceEntry]) -> (Vec<String>, Vec<String>) {
+    let (mut errors, mut warnings) = (Vec::new(), Vec::new());
+    for (index, entry) in entries.iter().enumerate() {
+        let trecho = entry.fields.get("Trecho").map_or("", String::as_str);
+        let falha = entry.fields.get("Falha").map_or("", String::as_str);
+        let id = format!("{} {}", evidence_id(index), entry.name);
+        for text in snippets_of(falha) {
+            if !unsearchable(&text).is_empty() {
+                continue;
+            }
+            if let Some(excerpt) = excerpt_holding(trecho, &text) {
+                errors.push(format!("{id}: a Falha cita `{text}`, que está no Trecho (`{excerpt}`); o Trecho passando faz a Falha sempre acusar"));
+            } else if let Some(word) = condition_near(falha, &text) {
+                warnings.push(format!("{id}: a Falha tem condição junto de `{text}` (\"{word}\"); escreva entre crases o valor errado literal ou deixe a condição fora das crases"));
+            }
+        }
+    }
+    (errors, warnings)
 }
 
 pub(crate) struct EvidenceEntry {

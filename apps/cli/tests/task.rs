@@ -7379,3 +7379,94 @@ fn busca_adjust_validate_sem_baseline_nao_avisa() {
     let output = success_stdout(&mut nested(&project, "adjust", "validate"));
     assert!(!output.contains("Falha que já aparece"), "{output}");
 }
+
+// --- Falha contraditória e com condição (SPEC-059) ---
+
+fn falha_item(snippet: &str, failure: &str) -> String {
+    searched_item("saida.txt", "automática", "echo ok", snippet, failure)
+}
+
+fn without_evidence_fields(project: &Project) {
+    let path = "vostok/config/tasks.yml";
+    let mut skipping = false;
+    let content: String = read(project, path)
+        .lines()
+        .filter(|line| {
+            if line.starts_with("evidence_fields:") {
+                skipping = true;
+                return false;
+            }
+            if skipping && line.starts_with("  - ") {
+                return false;
+            }
+            skipping = false;
+            true
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(project, path, &content);
+}
+
+#[test]
+fn falha_adjust_validate_recusa_falha_contida_no_trecho() {
+    let evidence = falha_item(
+        "`mp4_referencia=152`",
+        "se `mp4_referencia` diferente de 152",
+    );
+    let project = folder_with_evidence(false, &evidence);
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        stderr.contains("a Falha cita `mp4_referencia`, que está no Trecho (`mp4_referencia=152`)"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn falha_adjust_validate_recusa_ausencia_do_trecho() {
+    let evidence = falha_item("`resultado=ok`", "sem `resultado=ok`");
+    let project = folder_with_evidence(false, &evidence);
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(stderr.contains("que está no Trecho"), "{stderr}");
+}
+
+#[test]
+fn falha_adjust_validate_avisa_condicao() {
+    let evidence = falha_item("`ok`", "se `rm_na_referencia` for maior que 0");
+    let project = folder_with_evidence(false, &evidence);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        output.contains("a Falha tem condição junto de `rm_na_referencia` (\"maior que\")"),
+        "{output}"
+    );
+}
+
+#[test]
+fn falha_adjust_validate_valor_literal_passa_sem_aviso() {
+    let evidence = falha_item("`ok`", "se aparecer `rm_na_referencia=1`");
+    let project = folder_with_evidence(false, &evidence);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(!output.contains("a Falha"), "{output}");
+}
+
+#[test]
+fn falha_arquivo_unico_tambem_recusa() {
+    let evidence = falha_item(
+        "`mp4_referencia=152`",
+        "se `mp4_referencia` diferente de 152",
+    );
+    let project = task_with_evidence("pending", &evidence);
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(stderr.contains("que está no Trecho"), "{stderr}");
+}
+
+#[test]
+fn falha_sem_trecho_so_avisa_condicao() {
+    let evidence = "- `saida.txt` (automática): `echo ok`\n  - Prova: o comando roda.\n  - Falha: se `x` diferente de 1";
+    let project = task_with_evidence("pending", evidence);
+    without_evidence_fields(&project);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        output.contains("a Falha tem condição junto de `x` (\"diferente de\")"),
+        "{output}"
+    );
+}

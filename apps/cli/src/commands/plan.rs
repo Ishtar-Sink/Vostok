@@ -13,10 +13,10 @@ use clap::Subcommand;
 use super::task::{
     before_section, created_of, dashdash_commands, dashdash_warning, delivery_errors,
     evidence_item, evidence_name_problem, evidence_rule_errors, evidence_title_errors,
-    expected_change, init_layout, is_task_folder, layout, new_folders, new_kind_name,
-    normalized_evidence_name, parse_evidence_entries, snippet_warnings, task_entries,
-    task_template_dir, verify_block, EvidenceKinds, TaskDoc, Which, EVIDENCE_REQUIRES,
-    EVIDENCE_TIMEOUT,
+    expected_change, falha_problems, init_layout, is_task_folder, layout, new_folders,
+    new_kind_name, normalized_evidence_name, parse_evidence_entries, snippet_warnings,
+    task_entries, task_template_dir, verify_block, EvidenceKinds, TaskDoc, Which,
+    EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -1131,6 +1131,19 @@ impl Workspace {
             for command in dashdash_commands(&self.verification(&task_text(&file)?)?) {
                 println!("{}", dashdash_warning(&task, &command));
             }
+            let text = markdown_subsection(
+                &task_text(&file)?,
+                &self.task_setting("execution_section")?,
+                &self.task_setting("evidence_subsection")?,
+            )
+            .unwrap_or_default();
+            let from_verify = self
+                .task_setting("evidence_from_verify")
+                .unwrap_or_default();
+            let entries = parse_evidence_entries(&text, &from_verify);
+            for warning in falha_problems(&entries).1 {
+                println!("{task}: {warning}");
+            }
             self.print_baseline_failures(&file)?;
         }
         Ok(())
@@ -1622,6 +1635,16 @@ impl Workspace {
         ));
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));
+        let from_verify = self
+            .task_setting("evidence_from_verify")
+            .unwrap_or_default();
+        let entries = parse_evidence_entries(&text, &from_verify);
+        errors.extend(
+            falha_problems(&entries)
+                .0
+                .into_iter()
+                .map(|problem| format!("'{sub}' com {problem}")),
+        );
         if let Some((field, max)) = self.evidence_title() {
             errors.extend(evidence_title_errors(&text, &sub, &field, max));
         }

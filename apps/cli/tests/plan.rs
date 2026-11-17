@@ -1942,3 +1942,38 @@ fn approve_validate_busca_sem_baseline_nao_avisa() {
     assert!(ok, "{text}");
     assert!(!text.contains("Falha que já aparece"), "{text}");
 }
+
+// --- Falha contraditória e com condição (SPEC-059) ---
+
+fn folder_task_with_failure(trecho: &str, falha: &str) -> Project {
+    let project = created_folder_task();
+    fill_folder_task(&project);
+    write_file(
+        &project,
+        &format!("{TASK_FOLDER}/verificacao.md"),
+        &format!("### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `echo ok`\n  - Título: Saída do comando.\n  - Prova: o comando roda.\n  - Trecho: {trecho}\n  - Falha: {falha}\n"),
+    );
+    project
+}
+
+#[test]
+fn approve_validate_falha_recusa_contradicao() {
+    let project = folder_task_with_failure(
+        "`mp4_referencia=152`",
+        "se `mp4_referencia` diferente de 152",
+    );
+    let (ok, text) = approve_validate(&project);
+    assert!(!ok, "{text}");
+    assert!(text.contains("que está no Trecho"), "{text}");
+}
+
+#[test]
+fn approve_validate_falha_avisa_condicao() {
+    let project = folder_task_with_failure("`ok`", "se `rm_na_referencia` for maior que 0");
+    let (ok, text) = approve_validate(&project);
+    assert!(ok, "{text}");
+    assert!(
+        text.contains("TASK-01: EV-01 saida.txt: a Falha tem condição junto de `rm_na_referencia` (\"maior que\")"),
+        "{text}"
+    );
+}

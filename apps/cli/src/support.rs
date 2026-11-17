@@ -744,6 +744,66 @@ pub fn snippets_of(value: &str) -> Vec<String> {
     texts
 }
 
+pub const FAILURE_IN_EXCERPT: &str = "está no Trecho";
+pub const FAILURE_CONDITION: &str = "condição sobre o valor";
+
+const CONDITION_WORDS: [&str; 8] = [
+    "diferente de",
+    "maior que",
+    "menor que",
+    "acima de",
+    "abaixo de",
+    "outro",
+    "outra",
+    "sem",
+];
+
+/// Primeiro texto do Trecho que contém o texto da Falha, pela mesma busca do log.
+pub fn excerpt_holding(trecho: &str, text: &str) -> Option<String> {
+    snippets_of(trecho)
+        .into_iter()
+        .find(|excerpt| !find_lines(excerpt, text).is_empty())
+}
+
+/// Palavra de condição junto do texto na Falha, na mesma oração: as três últimas palavras de antes
+/// ou as três primeiras de depois.
+pub fn condition_near(falha: &str, text: &str) -> Option<&'static str> {
+    let quoted = format!("`{text}`");
+    let is_break = |c: char| matches!(c, ';' | '.' | ',' | '`');
+    falha.match_indices(&quoted).find_map(|(start, _)| {
+        let before = &falha[..start];
+        let before = &before[before.rfind(is_break).map_or(0, |i| i + 1)..];
+        let after = &falha[start + quoted.len()..];
+        let after = &after[..after.find(is_break).unwrap_or(after.len())];
+        let last: Vec<&str> = before.split_whitespace().rev().take(3).collect();
+        let last: Vec<&str> = last.into_iter().rev().collect();
+        let first: Vec<&str> = after.split_whitespace().take(3).collect();
+        condition_word(&last.join(" ")).or_else(|| condition_word(&first.join(" ")))
+    })
+}
+
+fn condition_word(clause: &str) -> Option<&'static str> {
+    let lower = clause.to_lowercase();
+    CONDITION_WORDS.into_iter().find(|word| {
+        lower.match_indices(word).any(|(at, _)| {
+            let before = lower[..at].chars().next_back();
+            let after = lower[at + word.len()..].chars().next();
+            !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+        })
+    })
+}
+
+/// Motivo de um texto da Falha ser suspeito: já está no Trecho ou vem com condição sobre o valor.
+pub fn failure_reason(trecho: &str, falha: &str, text: &str) -> &'static str {
+    if excerpt_holding(trecho, text).is_some() {
+        FAILURE_IN_EXCERPT
+    } else if condition_near(falha, text).is_some() {
+        FAILURE_CONDITION
+    } else {
+        ""
+    }
+}
+
 /// Motivo de um texto não ser buscado, ou vazio quando dá para buscar.
 pub fn unsearchable(snippet: &str) -> &'static str {
     // a barra na ponta é o que sobra de uma crase escapada, que cortou o texto no meio
@@ -1031,5 +1091,61 @@ mod snippet_tests {
         assert_eq!(find_lines(&log, "ok"), vec![4]);
         assert!(find_lines(&log, "cmd").is_empty());
         assert!(find_lines(&log, "32m").is_empty());
+    }
+}
+
+#[cfg(test)]
+mod falha_tests {
+    use super::*;
+
+    #[test]
+    fn falha_reason_nome_contido_no_trecho() {
+        let reason = failure_reason(
+            "`mp4_referencia=152`",
+            "se `mp4_referencia` diferente de 152",
+            "mp4_referencia",
+        );
+        assert_eq!(reason, FAILURE_IN_EXCERPT);
+    }
+
+    #[test]
+    fn falha_reason_ausencia_repete_o_trecho() {
+        let reason = failure_reason("`resultado=ok`", "sem `resultado=ok`", "resultado=ok");
+        assert_eq!(reason, FAILURE_IN_EXCERPT);
+    }
+
+    #[test]
+    fn falha_reason_texto_maior_que_o_trecho_nao_e_contradicao() {
+        assert_eq!(failure_reason("`rc`", "se aparecer `rc=1`", "rc=1"), "");
+    }
+
+    #[test]
+    fn falha_reason_condicao_depois() {
+        let falha = "se `rm_na_referencia` for maior que 0";
+        assert_eq!(
+            failure_reason("", falha, "rm_na_referencia"),
+            FAILURE_CONDITION
+        );
+    }
+
+    #[test]
+    fn falha_reason_condicao_antes() {
+        let falha = "outra versão em `versao_instalada`";
+        assert_eq!(
+            failure_reason("", falha, "versao_instalada"),
+            FAILURE_CONDITION
+        );
+    }
+
+    #[test]
+    fn falha_reason_condicao_em_outra_oracao_nao_conta() {
+        let falha = "se aparecer `FAILED`; sem isso, tudo certo";
+        assert_eq!(failure_reason("", falha, "FAILED"), "");
+    }
+
+    #[test]
+    fn falha_reason_valor_literal_passa() {
+        let falha = "se aparecer `rm_na_referencia=1`";
+        assert_eq!(failure_reason("", falha, "rm_na_referencia=1"), "");
     }
 }

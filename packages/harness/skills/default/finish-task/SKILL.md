@@ -37,7 +37,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 [finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
 [finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
 [finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
-[finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
+[finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido, salvo no lote da skill `review-evidence`, que segue estes passos para cada tarefa aceita. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
 [finish-task-09]: A conferência de qualquer evidência, de qualquer tipo, é sempre do usuário, nunca do agente. Execute `--reviewed`, `--rejected --motivo` ou `--undo --motivo` só com o aceite ou a rejeição explícitos dele no chat, e só para as tarefas que ele citou (RN-01). A conferência, a recusa ou a retirada feita pelo usuário no painel já é dele e vale sem nova confirmação no chat (DEC-006).
 [finish-task-10]: Execute `vostok task baseline <SPEC_ID> <TASK_ID> --recoletar --motivo "<decisão do usuário>"` só com a decisão explícita do usuário no chat, citando-a no motivo. Ofereça a recoleta como opção, nunca a rode por conta própria nem a use para esconder uma regressão.
 

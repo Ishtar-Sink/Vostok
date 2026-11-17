@@ -1151,17 +1151,24 @@ mod falha_tests {
 
     #[test]
     fn falha_shared_cases_match_the_painel() {
-        let cases: serde_json::Value =
-            serde_json::from_str(include_str!("../../painel/src/features/task/snippet-cases.json"))
-                .unwrap();
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../painel/src/features/task/snippet-cases.json"
+        ))
+        .unwrap();
         let mut checked = 0;
         for case in cases.as_array().unwrap() {
-            let Some(falha) = case["falha"].as_str() else { continue };
+            let Some(falha) = case["falha"].as_str() else {
+                continue;
+            };
             let name = case["name"].as_str().unwrap();
             let trecho = case["trecho"].as_str().unwrap();
             let snippet = case["snippet"].as_str().unwrap();
             let expected = case["failure"].as_str().unwrap();
-            assert_eq!(failure_reason(trecho, falha, snippet), expected, "caso: {name}");
+            assert_eq!(
+                failure_reason(trecho, falha, snippet),
+                expected,
+                "caso: {name}"
+            );
             checked += 1;
         }
         assert!(checked > 0);

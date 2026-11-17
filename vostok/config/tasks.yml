@@ -15,6 +15,8 @@ status:
   blocked: blocked
   done: done
   executed: executed
+  queued: queued
+  awaiting_review: awaiting_review
 
 # Máximo de falhas nos testes antes de a tarefa ficar bloqueada ([agent/anti-loop-02]).
 max_attempts: 2

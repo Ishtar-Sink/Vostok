@@ -19,7 +19,7 @@ Esta skill atua como QA, carregada no passo 1 pelo `vostok context load`. Na cor
 
 ## Termos
 
-- **Lote:** as tarefas tratadas neste pedido. Sem citação, as da spec em execução com status `in_progress`, `executed` ou `validating`. Com citação, só as tarefas ou as specs citadas.
+- **Lote:** as tarefas tratadas neste pedido. Sem citação, as da spec em execução com status `in_progress`, `awaiting_review`, `executed` ou `validating`. Com citação, só as tarefas ou as specs citadas.
 - **Aceita:** tarefa do lote com todas as evidências que exigem aval conferidas, no painel ou no chat.
 - **Recusada:** tarefa do lote com alguma evidência recusada.
 - **Sem decisão:** tarefa do lote com alguma evidência ainda a conferir.
@@ -78,7 +78,7 @@ Com a tabela do passo 2, separe as tarefas do lote:
 - **Aceita:** coluna "A conferir" e coluna "Recusadas" com `-`.
 - **Recusada:** coluna "Recusadas" com algum item. Uma tarefa com recusa e evidência a conferir é recusada e também entra na pergunta do passo 4 (CB-02).
 - **Sem decisão:** coluna "A conferir" com algum item e "Recusadas" com `-`.
-- **Fora do lote:** tarefa citada com status fora de `in_progress`, `executed` e `validating`. Não a trate e cite-a na resposta com o status (CB-01).
+- **Fora do lote:** tarefa citada com status fora de `in_progress`, `awaiting_review`, `executed` e `validating`. Não a trate e cite-a na resposta com o status (CB-01).
 
 ### 4. Perguntar pelo que ficou sem decisão
 

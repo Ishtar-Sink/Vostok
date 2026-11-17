@@ -19,7 +19,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 
 ## Termos
 
-- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `executed`, `validating` ou `blocked`.
+- **Tarefa:** o arquivo `vostok/work/tasks/<SPEC_ID>/<TASK_ID>.md`, com status `in_progress`, `awaiting_review`, `executed`, `validating` ou `blocked`.
 - **Tentativa:** uma execução de `vostok task tests` com falha. Ao atingir `max_attempts` (`config/tasks.yml`), a tarefa fica `blocked`.
 - **Regressão:** um comando de "Baseline" com código de saída ou saída diferente do baseline coletado no início.
 - **Bloqueada:** tarefa com status `blocked`. Bloqueada por falha (testes ou regressão) só volta com `vostok task resume` ou com a recoleta do baseline, depois de uma decisão do usuário; bloqueada por dependência (`waiting_on`) volta a `approved` quando a dependência é concluída.
@@ -35,7 +35,7 @@ Esta skill atua como QA, carregada(s) no passo 1 pelo `vostok context load`. Ao 
 [finish-task-03]: Execute `vostok task resume` só com uma decisão do usuário dada numa mensagem dele, e registre essa decisão no comando. Aceite uma diferença de regressão (`--accept-regression`) só para os comandos que o usuário aceitou explicitamente, pelo número mostrado no bloqueio.
 [finish-task-04]: Corrija falhas de testes no código da tarefa, nunca na "Verificação", no "Baseline" ou nos testes que comprovam a tarefa. Mudar o que comprova a tarefa é um ajuste (skill `adjust-task`), a pedido do usuário.
 [finish-task-05]: Não faça commit nem stage ([agent/boundaries-01], [agent/boundaries-02]).
-[finish-task-06]: Marque `[x]` num critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
+[finish-task-06]: Marque com `vostok task mark-criteria` um critério de conclusão só depois de conferir a comprovação dele. Nunca marque para destravar o `vostok task finish`.
 [finish-task-07]: Nunca crie nem edite o arquivo de uma evidência manual. Ele é anexado pelo usuário.
 [finish-task-08]: Só finalize a pedido do usuário, uma tarefa por pedido, salvo no lote da skill `review-evidence`, que segue estes passos para cada tarefa aceita. Ao terminar a implementação, a skill `execute-task` não finaliza por conta própria.
 [finish-task-09]: A conferência de qualquer evidência, de qualquer tipo, é sempre do usuário, nunca do agente. Execute `--reviewed`, `--rejected --motivo` ou `--undo --motivo` só com o aceite ou a rejeição explícitos dele no chat, e só para as tarefas que ele citou (RN-01). A conferência, a recusa ou a retirada feita pelo usuário no painel já é dele e vale sem nova confirmação no chat (DEC-006).
@@ -69,7 +69,7 @@ vostok context load --skill finish-task --persona qa
 
 ### 2. Identificar a tarefa
 
-Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `executed`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
+Procure a tarefa citada com Glob (`vostok/work/tasks/*/TASK-06.md`); sem citação, use a única com status `in_progress`, `awaiting_review`, `executed`, `validating` ou `blocked`; havendo mais de uma, pergunte qual com o template `question`.
 
 Tarefa `blocked` com decisão do usuário nesta mensagem: aplique o que ele definiu (correção, ajuste ou aceite da diferença) e execute:
 
@@ -150,7 +150,7 @@ O `vostok task finish` recusa a conclusão enquanto faltar o guia, uma entrada o
 
 ### 7. Conferir os critérios de conclusão
 
-Para cada critério de "Concluída quando" (`criterios.md` na tarefa em pasta), faça a comprovação descrita em "Como comprovar". Marque `[x]` só nos comprovados. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.
+Para cada critério de "Concluída quando" (`criterios.md` na tarefa em pasta), faça a comprovação descrita em "Como comprovar". Marque só os comprovados com `vostok task mark-criteria <SPEC_ID> <TASK_ID> <N...>`, pelo número do critério, sem editar o arquivo. Um critério que depende de algo que esta execução não alcança (por exemplo, um cenário de outra tarefa) fica sem marcar: **PARE** e responda com o template `blocker`, citando o critério.
 
 Espera de outra tarefa (`vostok task closes-after`): quando uma evidência ou um critério desta tarefa só se comprova depois de outra tarefa (por exemplo, o print de uma tela com um dado que só outra tarefa entrega, como no DT-018), não é falha desta tarefa: não marque o critério nem mude a evidência. No `blocker`, cite o critério ou a evidência e a tarefa que o entrega, e ofereça acrescentá-la à espera de fechamento. Com a decisão do usuário, execute `vostok task closes-after add <SPEC_ID> <TASK_ID> <TAREFA> --motivo "<motivo>"`, com a decisão dele no motivo: a linha `ajuste` vai para o registro, as conferências de evidência com saída igual continuam valendo e o `vostok task finish` recusa com a espera de fechamento até a tarefa citada estar `done`. Quando a espera deixar de ser necessária, com a decisão do usuário, execute `vostok task closes-after remove <SPEC_ID> <TASK_ID> <TAREFA> --motivo "<motivo>"`.
 

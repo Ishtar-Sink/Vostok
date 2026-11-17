@@ -26,6 +26,8 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 - **Registro:** o `registro.md` da tarefa em pasta (no formato antigo, a seção "Registro de execução"), com uma linha por etapa, escrito só pelos comandos. `estado.yml`, `registro.md` e `README.md` nunca são editados à mão.
 - **Onda:** as tarefas da spec com o mesmo `wave`, mostrado pelo `vostok task status`; podem rodar em paralelo.
 - **Perfil e modelo:** o bloco "Modelo" do `vostok task load`: perfil, descrição e apelido de reserva da ferramenta em uso.
+- **Na fila:** tarefa `queued`, com o baseline coletado pelo `vostok task start`, à espera de começar; só o `vostok task begin` a põe em `in_progress`.
+- **Aguardando conferência:** tarefa `awaiting_review`, com evidência a conferir pelo usuário; com tudo conferido, fica `executed`.
 - **Arquivos em comum:** caminhos que aparecem em "Mudar" de mais de uma tarefa da onda.
 
 ## Regras
@@ -126,7 +128,9 @@ Para iniciar cada tarefa:
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
 ```
 
-O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. O `start` deixa a tarefa na fila (`queued`). Cada tarefa roda `vostok task begin <SPEC_ID> <TASK_ID>` quando começa de fato: na própria sessão, antes do `vostok task brief`, e no subagente, como primeiro passo do pedido.
+
+Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
 
 | Recusa | Como resolver |
 |---|---|
@@ -151,7 +155,7 @@ Depois que todas as tarefas da onda voltaram (inclusive as de subagentes), execu
 vostok task evidence <SPEC_ID> <TASK_ID> --antecipada
 ```
 
-O comando gera as evidências de tarefa `in_progress` ou `executed` sem mudar `tests_result`, `regression_result`, `evidence_result` nem `attempts` e, sem erro, deixa a tarefa `executed` (Pronta para finalizar), mesmo com evidências a conferir. Lista cada uma que exige aval e ainda não tem conferência válida, e as manuais sem arquivo, como `- EV-NN arquivo (caminho)`. Evidência com conferência válida, feita depois do último ajuste ou retomada, é mantida e não é gerada de novo (SPEC-046). Depois de um ajuste ou de uma retomada, a evidência é gerada de novo e a conferência continua valendo se o conteúdo for igual: nos logs, o hash ignora o cabeçalho de data e commit e as linhas de `regression_ignore`; prints e vídeos só mantêm a conferência com bytes iguais. A saída lista `Conferências mantidas (hash igual): …; a conferir de novo (mudou): …`.
+O comando gera as evidências de tarefa `in_progress` ou `executed` sem mudar `tests_result`, `regression_result`, `evidence_result` nem `attempts` e, sem erro, deixa a tarefa `awaiting_review` (Aguardando conferência) quando há evidência a conferir e `executed` (Pronta para finalizar) quando não há. A última conferência, no chat ou no painel, leva a tarefa a `executed`. Lista cada uma que exige aval e ainda não tem conferência válida, e as manuais sem arquivo, como `- EV-NN arquivo (caminho)`. Evidência com conferência válida, feita depois do último ajuste ou retomada, é mantida e não é gerada de novo (SPEC-046). Depois de um ajuste ou de uma retomada, a evidência é gerada de novo e a conferência continua valendo se o conteúdo for igual: nos logs, o hash ignora o cabeçalho de data e commit e as linhas de `regression_ignore`; prints e vídeos só mantêm a conferência com bytes iguais. A saída lista `Conferências mantidas (hash igual): …; a conferir de novo (mudou): …`.
 
 O usuário também confere, recusa e retira a conferência pelo painel, sem o agente (DEC-006): essas decisões ficam no `conferencias.md` da tarefa, com a origem `painel`, valem como as do chat e o `vostok task evidence` as considera. A lista do `--antecipada` traz só as evidências que ainda pedem conferência: pergunte só por elas e nunca registre `--reviewed` ou `--rejected` numa evidência que o painel já conferiu ou recusou (RF-23).
 
@@ -169,7 +173,7 @@ Nenhuma evidência a conferir: não pergunte e diga isso na resposta (FA-03). Ev
 
 Execute `vostok commit check` e responda com o template `completion`:
 
-- **Resumo:** as tarefas foram implementadas e ficaram `executed`.
+- **Resumo:** as tarefas foram implementadas e ficaram `awaiting_review` ou `executed`.
 - **O que foi feito:** uma linha por tarefa (ID, persona, modelo, resultado), os avisos de sequência do passo 4 e as tarefas da onda que ficaram fora.
 - **Verificação:** o que foi feito nesta execução, com as linhas do "Registro de execução" de cada tarefa (início e baseline), e o que não foi verificado: as evidências geradas pelo `--antecipada`, as conferidas e as rejeitadas; os testes, a regressão e a validação ficam para a `finish-task`.
 - **Status das tarefas:** a saída de `vostok task status <SPEC_ID>`.
@@ -202,7 +206,7 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 ```markdown
 Você é o subagente da tarefa <TASK_ID> da <SPEC_ID>, com a persona <persona> e o modelo <MODELO>.
 
-1. Rode `vostok task brief <SPEC_ID> <TASK_ID>` e siga o que ele imprime.
-2. A tarefa já foi iniciada e o baseline já foi coletado: não rode `vostok context load`, `vostok task start` nem `vostok task baseline`, e não leia a skill `execute-task`.
+1. Rode `vostok task begin <SPEC_ID> <TASK_ID>` e depois `vostok task brief <SPEC_ID> <TASK_ID>`, e siga o que ele imprime.
+2. A tarefa já foi iniciada e está na fila, e o baseline já foi coletado: não rode `vostok context load`, `vostok task start` nem `vostok task baseline`, e não leia a skill `execute-task`.
 3. Devolva o bloco de até 5 linhas do briefing (Resultado, Arquivos, Verificação, Em aberto); se precisar parar, devolva a mensagem no template `blocker` ou `question`.
 ```

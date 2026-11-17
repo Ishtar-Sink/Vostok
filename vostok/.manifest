@@ -1,4 +1,4 @@
-version: 0.6.5
+version: 0.6.6
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -29,14 +29,15 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/customize-documents/SKILL.md: fc4be6a890d245e758e2ecb5dec2888cdbfd39e5091877aec57c1684ddf95c0e
-  skills/default/execute-task/SKILL.md: 27aedd7abc93009be3ad46726f192269a4562fa4821cea29626de12fb67c49b8
+  skills/default/execute-task/SKILL.md: 56cd2913e96ed917ac3158da0c5f4869203189652fcce09f82ba004af8c58fe5
   skills/default/finalize-spec/SKILL.md: 12a684dad2337205709e5595058acc206a4a03eef66506e40e1086b4248b9e1d
-  skills/default/finish-task/SKILL.md: 664e8b979be28334c1bd312356ca95c89acf271e5484b326bfcfda637facc53f
+  skills/default/finish-task/SKILL.md: ac3bbada2e997110cc2f718c60f87accb3cc85629a2d6fdf2db1b99ba6f8062c
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
   skills/default/plan-tasks/SKILL.md: e21c812010b8ad7cd4bc92042f2b240b8a8d502e1d34d7f996c9fda5ad29fd73
   skills/default/refine-spec/SKILL.md: e540c92e04e9c3901c85a9acda2e61cceb3a3c9eb81d6c2924a0a01b57d88cbc
   skills/default/refine-spec/references/sections.md: 0fc4f0f0e62395db2a835c1db2fe2abff7b10e981870b73926545e43baaf3eb9
   skills/default/report-harness-bug/SKILL.md: 99d9f81600f39e3938adc61be5a4956f9a211e8aa75e1dc77e5aafe856f6878b
+  skills/default/review-evidence/SKILL.md: d3e3ee38ea11c7c77906001070f2c4a044f6a902f11b528b7a1c7a9d2306a622
   skills/default/suggest-harness-feature/SKILL.md: 13ce5662b39c639f116f4949e576c9fd96a542848031f6000d2967d1ac66bff4
   skills/default/suggest-harness-improvement/SKILL.md: d686b0bc388b3606e19b3bd568faa6714b84e1efd70bab7f13fe133a7d66ad4e
   skills/default/validate-harness-bug/SKILL.md: e802ea98d5434d2bb3d0b832c3119c948db649dfc3c62e5e0372e1ee1f419671

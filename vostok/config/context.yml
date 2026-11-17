@@ -84,3 +84,7 @@ skills:
   triage-harness-issue: []
   customize-documents:
     - config/documents.yml
+  review-evidence:
+    - rules/agent/writing.md
+    - context/glossario.md
+    - config/tasks.yml

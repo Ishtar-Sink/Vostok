@@ -17,7 +17,7 @@ fn ct01_version_is_0_1_0() {
         .arg("--version")
         .assert()
         .success()
-        .stdout("vostok 0.6.5\n");
+        .stdout("vostok 0.6.6\n");
 }
 
 #[test]
@@ -83,7 +83,7 @@ fn shell_script_mentions(text: &str) -> Vec<usize> {
         .collect()
 }
 
-const SKILL_PERSONAS: [(&str, &str); 8] = [
+const SKILL_PERSONAS: [(&str, &str); 9] = [
     ("refine-spec", "--persona planejador"),
     ("adjust-spec", "--persona planejador"),
     ("plan-tasks", "--persona planejador"),
@@ -98,6 +98,7 @@ const SKILL_PERSONAS: [(&str, &str); 8] = [
     ),
     ("execute-task", "--persona desenvolvedor"),
     ("finish-task", "--persona qa"),
+    ("review-evidence", "--persona qa"),
 ];
 
 #[test]
@@ -157,7 +158,7 @@ fn ct13_skills_and_skill_templates_call_vostok() {
         .iter()
         .filter(|file| file.starts_with("skills/default/") && file.ends_with("/SKILL.md"))
         .collect();
-    assert_eq!(skills.len(), 21, "skills padrão embutidas: {skills:?}");
+    assert_eq!(skills.len(), 22, "skills padrão embutidas: {skills:?}");
     let templates: Vec<&String> = files
         .iter()
         .filter(|file| file.starts_with("templates/skill/") && file.ends_with(".md"))

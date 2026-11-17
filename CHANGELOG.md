@@ -2,6 +2,15 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.4] - 2026-11-17
+
+### Melhorias
+
+- Um ajuste numa tarefa em execução mantém o resultado dos testes e da regressão quando a Verificação, o Baseline e os arquivos da tarefa não mudaram; se o código mudar depois dos testes, a finalização pede os testes de novo. (SPEC-057, issue #17)
+- O ajuste diz, por evidência, se a conferência cai ou fica: cai quando o comando ou o tipo mudou, fica se a saída não mudar. A conferência mantida depois de um Trecho ou uma Falha trocados ganha a marca "conferida sob o trecho anterior", também no painel. (SPEC-057, issue #16)
+- A CLI procura os textos do Trecho e da Falha com a mesma regra do painel, garantida por uma tabela de casos comum. O `vostok task evidence --antecipada` avisa o trecho que não apareceu e a falha que apareceu, e o `vostok task adjust validate` e o `vostok plan approve validate` avisam a falha que já aparece no baseline, sem recusar. (SPEC-057, issue #16)
+- As skills de ajuste e de aprovação do plano descrevem o que um ajuste mantém e a regra da busca no Trecho. (SPEC-057, issue #16)
+
 ## [0.6.3] - 2026-11-16
 
 ### Melhorias

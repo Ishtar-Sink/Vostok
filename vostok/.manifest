@@ -1,4 +1,4 @@
-version: 0.6.8
+version: 0.6.9
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -18,13 +18,13 @@ files:
   rules/agent/rule-suggestions.md: 5170f5242eabc020d73d1adb86e8f30301f05006ab859b29300284d2b25a45c8
   rules/agent/template-usage.md: 5d0049d44b4ddf6c04bc0f22d85dd759e8871413adb13d12afbddc59d0782d6d
   rules/agent/writing.md: ae726a4bda0ce4d8f772a06d97741ad4d7b441641ba3fecfa85a12841080f2fc
-  skills/default/adjust-plan/SKILL.md: 493082786ecbaa6bf27ce9f1a796070c6a55058222fd599b61386eb2bb301057
+  skills/default/adjust-plan/SKILL.md: 62c6518204673dd34f68b1277082520aa033e1cc263fe68046b8f0b3495799e6
   skills/default/adjust-rules/SKILL.md: c7641a99c2758b90d635834eb3600691e7ec1e855a4f5cf2003bc8aecb98ad94
   skills/default/adjust-spec/SKILL.md: 345ec608437ec02865b4c622873e4af85e16e7b342403a71a1acd1aa218db804
   skills/default/adjust-task/SKILL.md: 7810b61f723e8222548025e6b21737ffc432f5a08adaeb7c6b914fa516efb80c
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: fbf5f7001cb17d6598517ad738825bc7529af53b153e974eba61619cb6abbcb8
-  skills/default/approve-spec/SKILL.md: 7748150e33d308d71b5bceaaecbc820eff51052e3d2ee075f4d588b9eed5617c
+  skills/default/approve-plan/SKILL.md: 07aaa1e54f78fd288049d6116a535e82cbc3ada86c73b83e0bd64aab6615e5b5
+  skills/default/approve-spec/SKILL.md: 80dd53b384c95655b8d761e5804e2518c46ca8917f4ffc793c0f5f82c9013547
   skills/default/approve-task/SKILL.md: aa60060ebd981c4cb1696e82fe7bc50905f8da8a9d1ccd9dde18ec9f0d176dab
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
@@ -33,7 +33,7 @@ files:
   skills/default/finalize-spec/SKILL.md: 12a684dad2337205709e5595058acc206a4a03eef66506e40e1086b4248b9e1d
   skills/default/finish-task/SKILL.md: b7dba093b68952ab64f67373240dffd971cab701ad54013ba820ce4415e1bbaa
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
-  skills/default/plan-tasks/SKILL.md: e21c812010b8ad7cd4bc92042f2b240b8a8d502e1d34d7f996c9fda5ad29fd73
+  skills/default/plan-tasks/SKILL.md: 3c180569a1518661d4c28e73c6067d4791d3cb36830341fd862e41c87b705345
   skills/default/refine-spec/SKILL.md: e540c92e04e9c3901c85a9acda2e61cceb3a3c9eb81d6c2924a0a01b57d88cbc
   skills/default/refine-spec/references/sections.md: 0fc4f0f0e62395db2a835c1db2fe2abff7b10e981870b73926545e43baaf3eb9
   skills/default/report-harness-bug/SKILL.md: 99d9f81600f39e3938adc61be5a4956f9a211e8aa75e1dc77e5aafe856f6878b

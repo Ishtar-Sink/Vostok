@@ -19,6 +19,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 ## Termos
 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`, criado pela skill `plan-tasks`. É o único que esta skill edita.
+- **Plano de extensão:** plano com `extends: true` no front-matter, de uma spec `planned`; é ajustado como o plano inicial, mas cobre só os IDs de `cover_ids`, mantém a numeração a partir de `first_task` e não muda as tarefas existentes, que podem ser citadas em "Dependências".
 - **Plano desatualizado:** plano com `spec_hash` diferente do `approved_hash` da spec. Não é ajustado: é recriado pela `plan-tasks`.
 - **Pedido:** a mensagem do usuário com um ou mais ajustes.
 - **Ajuste:** uma mudança pedida, com um único alvo e uma única ação. Um pedido pode ter vários ajustes.
@@ -81,6 +82,8 @@ Nos demais casos:
 
 1. Nenhum plano: **PARE** e informe que não há plano de tarefas para ajustar.
 2. Mais de um: **PARE** e pergunte qual ajustar, com o template `question`, com uma opção por plano (ID e título da spec). Aceite também resposta livre. Não edite nada antes da resposta.
+
+O plano de extensão também é identificado pelo ID da spec.
 
 Spec citada sem plano: **PARE** e informe que ela não tem plano; o plano é criado pela skill `plan-tasks`.
 

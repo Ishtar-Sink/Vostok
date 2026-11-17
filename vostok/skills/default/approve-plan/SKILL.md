@@ -20,6 +20,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 ## Termos
 
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido pelo comando depois da aprovação.
+- **Plano de extensão:** o plano de uma spec `planned` com as tarefas novas, criado por `vostok plan extend <SPEC_ID>`, com os IDs sem tarefa e os de `extend_ids`, numeradas depois da última tarefa e com a primeira onda depois da maior existente (`first_task` e `first_wave` no front-matter). A aprovação cria e detalha só as tarefas novas.
 - **Tarefa:** a pasta `vostok/work/tasks/<SPEC_ID>/TASK-NN/`, criada pelo comando a partir do plano, com `execucao.md` (Ler, Mudar, Passos), `verificacao.md` (Baseline, Verificação, Evidências), `criterios.md` (Concluída quando), `executivo.md`, `tecnico.md`, `estado.yml`, `registro.md`, o `README.md` gerado e a subpasta `evidencias/`. Specs planejadas antes têm o arquivo único `TASK-NN.md`; `vostok task migrate <SPEC_ID>` as converte.
 - **Execução:** a seção da tarefa lida pelo agente que a executa (`vostok task load`): "Ler", "Mudar", "Passos", "Baseline", "Verificação", "Evidências" e "Concluída quando".
 - **Descrição:** o que é para leitura humana: `executivo.md` e `tecnico.md`, escritos no detalhamento com o que a tarefa vai fazer e enriquecidos na finalização (skill `finish-task`), e o card, gerado pelo `vostok` no `README.md`. No formato antigo, a seção "Descrição" do arquivo único.
@@ -81,7 +82,7 @@ Nos demais casos:
 
 ### 3. Criar as tarefas
 
-Se a pasta `vostok/work/tasks/<SPEC_ID>/` já existe e o plano também, uma aprovação anterior foi interrompida: não execute o `vostok plan approve create-tasks` e vá para o passo 4 com as tarefas existentes.
+Se o plano não é de extensão e a pasta `vostok/work/tasks/<SPEC_ID>/` já existe, ou se é de extensão e a pasta de alguma tarefa dele já existe, uma aprovação anterior foi interrompida: não execute o `vostok plan approve create-tasks` e vá para o passo 4 com as tarefas existentes do plano.
 
 Senão, execute:
 
@@ -99,6 +100,8 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 | Problema de validação do plano | Ajustar o plano com a skill `adjust-plan`. |
 
 ### 4. Detalhar as tarefas
+
+Num plano de extensão, detalhe só as tarefas do plano; as existentes não são lidas para mudança.
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
@@ -204,7 +207,7 @@ Execute:
 vostok plan approve mark-planned <SPEC_ID>
 ```
 
-O comando valida de novo, muda o status da spec para `planned` e remove o plano. Se ele falhar, volte ao passo 5.
+O comando valida de novo, muda o status da spec para `planned` e remove o plano. Num plano de extensão, o comando mantém a spec `planned`, limpa `extend_ids` e remove o plano. Se ele falhar, volte ao passo 5.
 
 ### 7. Responder ao usuário
 

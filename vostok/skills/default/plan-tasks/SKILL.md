@@ -23,6 +23,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 - **Plano:** o arquivo `vostok/work/plans/<SPEC_ID>.md`. É removido quando aprovado pela skill `approve-plan`.
 - **Plano atualizado:** plano com `spec_hash` igual ao `approved_hash` da spec. Com hash diferente, o plano está **desatualizado** e é recriado.
 - **Tarefa:** uma unidade de trabalho entregável sozinha, com ID `TASK-NN` sequencial a partir de `TASK-01`.
+- **Plano de extensão:** o plano de uma spec `planned` com as tarefas novas, criado por `vostok plan extend <SPEC_ID>`, com os IDs sem tarefa e os de `extend_ids`, numeradas depois da última tarefa e com a primeira onda depois da maior existente (`first_task` e `first_wave` no front-matter).
 - **Fatos de esforço:** o que se sabe sobre a tarefa: arquivos a criar e a alterar, que o `vostok plan score` calcula pelos componentes da tarefa, e se ela muda um contrato público, depende de inferência ou cobre um risco alto, que o agente informa.
 - **Perfil:** o que a tarefa exige do modelo (`mecanica`, `padrao` ou `julgamento`), calculado pelo comando a partir dos fatos, pelo que a tarefa faz. Nunca indica um modelo.
 - **Persona:** o nome da persona que executa a tarefa, como `desenvolvedor`, ou `-`.
@@ -80,7 +81,7 @@ Nos demais casos:
 1. Nenhuma candidata: **PARE** e informe que não há specs aprovadas sem plano atualizado.
 2. Mais de uma: **PARE** e pergunte qual planejar, com o template `question`, com uma opção por candidata (ID e título). Aceite também resposta livre. Não crie nada antes da resposta.
 
-Spec citada com outro status: **PARE** e informe o status atual. `draft` ou `refined` precisam ser refinadas e aprovadas antes; `planned` já tem tarefas, e mudá-la exige um novo ciclo.
+Spec citada com outro status: **PARE** e informe o status atual. `draft` ou `refined` precisam ser refinadas e aprovadas antes; `planned` já tem tarefas: crie o plano de extensão (passo 3) quando o pedido é acrescentar tarefas ou a reaprovação indicou `vostok plan extend`.
 
 Spec citada com plano atualizado: **PARE** e informe que o plano já existe, com o caminho, sem alterá-lo. Não inicie um ajuste ([plan-tasks-02]).
 
@@ -91,6 +92,8 @@ Execute:
 ```bash
 vostok plan create <SPEC_ID>
 ```
+
+Numa spec `planned`, execute `vostok plan extend <SPEC_ID>` no lugar do `create`; ele imprime os IDs a cobrir, a próxima tarefa e a primeira onda. No passo 4, numere as tarefas a partir de `first_task`, cubra só os IDs impressos e use em "Dependências" as tarefas existentes que forem necessárias.
 
 O comando cria o plano a partir do template e recusa specs que não estão aprovadas ou que mudaram depois da aprovação. Um plano desatualizado é recriado com aviso; informe o aviso ao usuário no passo 7. Se o comando recusar, **PARE** e responda com o template `blocker`, com a mensagem do comando.
 

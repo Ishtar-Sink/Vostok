@@ -76,5 +76,6 @@ approved_hash preenchido: true
 baseline/01.out
 baseline/verificacao.md
 validation/regression/01.out
+validation/run.yml
 validation/tests.out
 

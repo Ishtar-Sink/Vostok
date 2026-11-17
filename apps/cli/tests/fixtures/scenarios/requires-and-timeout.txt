@@ -73,5 +73,6 @@ baseline/verificacao.md
 esperada.txt
 lenta.txt
 validation/regression/01.out
+validation/run.yml
 validation/tests.out
 

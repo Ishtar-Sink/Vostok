@@ -41,7 +41,7 @@ Tarefa TASK-01 retomada: status 'validating', diferença aceita. Execute vostok 
 $ vostok task tests SPEC-001 TASK-01
 exit: 0
 --- stdout
-Testes de TASK-01 passaram. Saída: <EVIDENCIAS>/validation/tests.out
+Testes de TASK-01 reaproveitados da rodada de <DATA> (Verificação, Baseline e Mudar iguais).
 
 $ vostok task regression SPEC-001 TASK-01
 exit: 0
@@ -73,7 +73,7 @@ approved_hash preenchido: true
 | 3 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
 | 4 | <DATA> | regressão | failed | comandos diferentes do baseline; bloqueada |
 | 5 | <DATA> | retomada | validating | decisão do usuário: diferença esperada; aceito(s): 1 |
-| 6 | <DATA> | testes | passed | Verificação sem falhas; saída em validation/tests.out |
+| 6 | <DATA> | testes | passed | testes reaproveitados da rodada de <DATA> (Verificação, Baseline e Mudar iguais) |
 | 7 | <DATA> | regressão | passed | 0 igual(is) ao baseline, 1 aceito(s) pelo usuário |
 | 8 | <DATA> | evidências | passed | Não se aplica. |
 | 9 | <DATA> | conclusão | done | testes, regressão e evidências passed; critérios de conclusão marcados |
@@ -84,5 +84,6 @@ baseline/verificacao.md
 validation/regression/01.out
 validation/regression/accepted
 validation/regression/accepted-01.diff
+validation/run.yml
 validation/tests.out
 

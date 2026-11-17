@@ -62,5 +62,6 @@ baseline/evidence/saida.txt
 baseline/verificacao.md
 saida.txt
 validation/regression/01.out
+validation/run.yml
 validation/tests.out
 

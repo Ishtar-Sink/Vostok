@@ -194,6 +194,7 @@ baseline/evidence/saida.txt
 baseline/verificacao.md
 saida.txt
 validation/regression/01.out
+validation/run.yml
 validation/tests.out
 
 ## estado TASK-02
@@ -216,5 +217,6 @@ approved_hash preenchido: true
 baseline/01.out
 baseline/verificacao.md
 validation/regression/01.out
+validation/run.yml
 validation/tests.out
 

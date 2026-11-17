@@ -111,6 +111,9 @@ pub enum TaskCommand {
     Tests {
         spec_id: Option<String>,
         task_id: Option<String>,
+        /// Roda a Verificação mesmo com rodada válida.
+        #[arg(long)]
+        forcar: bool,
     },
     /// Compara com o baseline.
     Regression {
@@ -418,9 +421,13 @@ pub fn run(command: TaskCommand) -> Result<()> {
             let (spec, task) = given(spec_id, task_id, BRIEF_USAGE)?;
             tasks.check(&spec, &task)
         }
-        TaskCommand::Tests { spec_id, task_id } => {
+        TaskCommand::Tests {
+            spec_id,
+            task_id,
+            forcar,
+        } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
-            tasks.tests(&spec, &task)
+            tasks.tests(&spec, &task, forcar)
         }
         TaskCommand::Regression { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
@@ -2155,6 +2162,67 @@ impl Tasks {
         Ok(true)
     }
 
+    /// A última rodada que passou, quando a impressão dela é igual à calculada agora (RN-01).
+    fn valid_run(&self, file: &Path) -> Result<Option<ValidRun>> {
+        let reuse = self.verification_reuse();
+        if reuse == VerificationReuse::Nunca {
+            return Ok(None);
+        }
+        let Ok(record) = fs::read_to_string(self.run_record_path(file)?) else {
+            return Ok(None);
+        };
+        let field = |key: &str| {
+            record
+                .lines()
+                .find_map(|line| line.strip_prefix(&format!("{key}: ")))
+                .unwrap_or_default()
+                .trim()
+                .to_string()
+        };
+        if field("exit_code") != "0" || field("reuse") != reuse.as_str() {
+            return Ok(None);
+        }
+        if field("checks_hash") != self.checks_hash(&TaskDoc::at(file).text()?)?
+            || field("code_hash") != self.run_code_hash(file, reuse)?
+        {
+            return Ok(None);
+        }
+        Ok(Some(ValidRun {
+            source: field("source"),
+            at: field("at"),
+            compared: match reuse {
+                VerificationReuse::Arvore => "árvore",
+                _ => "Mudar",
+            },
+        }))
+    }
+
+    /// Grava o resultado da rodada válida como o de testes que passaram, sem rodar a Verificação
+    /// nem contar tentativa (RF-04, RN-04).
+    fn reuse_run(&self, file: &Path, task: &str, run: &ValidRun) -> Result<()> {
+        let validation = self.evidence_dir(file)?.join("validation");
+        let source = validation.join(format!("{}.out", run.source));
+        let target = validation.join("tests.out");
+        if source != target && source.is_file() {
+            fs::copy(&source, &target)?;
+        }
+        TaskDoc::at(file).set("status", &self.status.validating)?;
+        TaskDoc::at(file).set("tests_result", "passed")?;
+        let checks = self.checks_hash(&TaskDoc::at(file).text()?)?;
+        TaskDoc::at(file).put("tests_code_hash", &self.code_fingerprint(file)?)?;
+        TaskDoc::at(file).put("tests_checks_hash", &checks)?;
+        let detail = format!(
+            "testes reaproveitados da rodada de {} (Verificação, Baseline e {} iguais)",
+            run.at, run.compared
+        );
+        self.record_step(file, "testes", "passed", &detail)?;
+        println!(
+            "Testes de {task} reaproveitados da rodada de {} (Verificação, Baseline e {} iguais).",
+            run.at, run.compared
+        );
+        Ok(())
+    }
+
     fn forget_run(&self, file: &Path) -> Result<()> {
         let path = self.run_record_path(file)?;
         if path.exists() {
@@ -2649,7 +2717,7 @@ impl Tasks {
         bail!("a verificação de {task} falhou; corrija e rode de novo")
     }
 
-    fn tests(&self, spec: &str, task: &str) -> Result<()> {
+    fn tests(&self, spec: &str, task: &str, force: bool) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
         if !self.evidence_dir(&file)?.join("baseline").is_dir() {
@@ -2662,6 +2730,11 @@ impl Tasks {
                 "a tarefa {task} não tem um bloco `bash` em '{}'",
                 self.cfg("verify_subsection")?
             );
+        }
+        if !force {
+            if let Some(run) = self.valid_run(&file)? {
+                return self.reuse_run(&file, task, &run);
+            }
         }
         let block = self.block_recording_labels(&file, &block)?;
         let (code, output_path) = self.run_verification(&file, &block, "tests.out")?;
@@ -3331,6 +3404,11 @@ impl Tasks {
         let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
         let rows = self.record_rows(content)?;
         let reviews = self.reviews(file, content)?;
+        let run_outputs = if ahead && self.valid_run(file)?.is_some() {
+            Some(self.verify_dir(file)?)
+        } else {
+            None
+        };
         for (index, item) in items.iter().enumerate() {
             if let Some(name) = evidence_name(item, &from_verify) {
                 match self.review_kept(&rows, &reviews, dir, &evidence_id(index), name)? {
@@ -3355,6 +3433,18 @@ impl Tasks {
                     bail!("nome de evidência inválido: '{name}'");
                 }
                 let command = labeled.get(name).map_or("", String::as_str);
+                let recorded = run_outputs
+                    .as_ref()
+                    .map(|dir| dir.join(name))
+                    .filter(|path| path.is_file());
+                if let (true, Some(recorded)) = (ahead, recorded) {
+                    let output = fs::read(&recorded)?;
+                    let mut log = log_header(command, 0, &root);
+                    log.extend_from_slice(&output);
+                    fs::write(dir.join(name), log)?;
+                    outputs.push((name.to_string(), output));
+                    continue;
+                }
                 if ahead {
                     self.run_labeled_ahead(
                         name,
@@ -6242,6 +6332,14 @@ enum TestedCode {
     ChecksChanged,
     CodeChanged,
     Same,
+}
+
+/// Rodada gravada em `validation/run.yml` cuja impressão bate com a atual.
+struct ValidRun {
+    source: String,
+    at: String,
+    /// O que entrou na impressão do código, para a mensagem: "Mudar" ou "árvore".
+    compared: &'static str,
 }
 
 /// O que a impressão da rodada da Verificação compara (`verification_reuse`).

@@ -551,7 +551,7 @@ const CLI_ONLY_FIELDS: &[&str] = &[
 
 /// Cópia da Verificação que só a CLI grava no baseline (SPEC-057), ausente nos scripts bash.
 fn is_cli_only_file(path: &str) -> bool {
-    path.ends_with("/baseline/verificacao.md")
+    path.ends_with("/baseline/verificacao.md") || path.ends_with("/validation/run.yml")
 }
 
 // --- Reprodução ---

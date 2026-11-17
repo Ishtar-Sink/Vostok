@@ -2533,6 +2533,197 @@ fn rodada_grava_valor_invalido_vale_mudar() {
     assert_eq!(run_field(&project, "reuse").as_deref(), Some("mudar"));
 }
 
+/// Acrescenta a subseção "Mudar" com `valor.txt`, para o arquivo entrar na impressão da rodada.
+fn with_change_list(project: &Project) {
+    let content = read(project, TASK_PATH).replace(
+        "### Baseline",
+        "### Mudar\n\n- `valor.txt` (alterar): valor lido\n\n### Baseline",
+    );
+    write(project, TASK_PATH, &content);
+}
+
+/// Tarefa cujo comando rotulado grava o contador: conta as vezes que o `--antecipada` roda o rótulo.
+fn marked_label_task() -> Project {
+    labeled_task(
+        "# evidência: saida.txt\necho rodou >> contador.txt && echo um",
+        &from_verify("saida.txt"),
+    )
+}
+
+fn tests_stdout(project: &Project, extra: &[&str]) -> String {
+    let mut args = vec!["tests"];
+    args.extend_from_slice(extra);
+    success_stdout(&mut task(project, &args))
+}
+
+#[test]
+fn rodada_reaproveita_no_antecipada() {
+    let project = marked_label_task();
+    task(&project, &["check"]).assert().success();
+    success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), 1);
+    let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(output.contains("um"), "{output}");
+}
+
+#[test]
+fn rodada_reaproveita_no_tests() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    let stdout = tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 1);
+    assert!(
+        stdout.contains("Testes de TASK-01 reaproveitados da rodada de "),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("(Verificação, Baseline e Mudar iguais)."),
+        "{stdout}"
+    );
+    let content = read(&project, TASK_PATH);
+    assert!(content.contains("tests_result: passed"), "{content}");
+    assert!(content.contains("attempts: 0"), "{content}");
+    assert!(
+        content.contains("testes reaproveitados da rodada de "),
+        "{content}"
+    );
+    let output = read(&project, &format!("{EVIDENCE_DIR}/validation/tests.out"));
+    assert!(output.contains("um"), "{output}");
+}
+
+#[test]
+fn rodada_reaproveita_nao_com_mudar_alterado() {
+    let project = run_task();
+    with_change_list(&project);
+    task(&project, &["check"]).assert().success();
+    write(&project, "valor.txt", "b\n");
+    tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 2);
+}
+
+#[test]
+fn rodada_reaproveita_nao_com_verificacao_alterada() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    replace_run_verification(&project, &format!("{RUN_VERIFICATION}\necho outra"));
+    tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 2);
+
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    let content =
+        read(&project, TASK_PATH).replace("- `cat valor.txt`", "- `cat valor.txt` # outro");
+    write(&project, TASK_PATH, &content);
+    tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 2);
+}
+
+#[test]
+fn rodada_reaproveita_com_evidencias_alteradas() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    let content = read(&project, TASK_PATH).replace(
+        "  - Falha: saída ausente.",
+        "  - Falha: saída ausente.\n  - Título: Saída do comando",
+    );
+    write(&project, TASK_PATH, &content);
+    let stdout = tests_stdout(&project, &[]);
+    assert!(stdout.contains("reaproveitados"), "{stdout}");
+    assert_eq!(counter_lines(&project), 1);
+}
+
+#[test]
+fn rodada_reaproveita_nao_com_forcar() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    tests_stdout(&project, &["--forcar"]);
+    assert_eq!(counter_lines(&project), 2);
+    assert_eq!(run_field(&project, "source").as_deref(), Some("tests"));
+}
+
+#[test]
+fn rodada_reaproveita_nao_com_nunca() {
+    let project = run_task();
+    set_config(&project, "verification_reuse", "nunca");
+    task(&project, &["check"]).assert().success();
+    tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 2);
+}
+
+fn tree_task() -> Project {
+    let project = labeled_task("# evidência: saida.txt\necho um", &from_verify("saida.txt"));
+    set_config(&project, "verification_reuse", "arvore");
+    project
+}
+
+#[test]
+fn rodada_reaproveita_com_arvore_igual() {
+    let project = tree_task();
+    task(&project, &["check"]).assert().success();
+    let stdout = tests_stdout(&project, &[]);
+    assert!(stdout.contains("reaproveitados da rodada de "), "{stdout}");
+    assert!(
+        stdout.contains("(Verificação, Baseline e árvore iguais)."),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn rodada_reaproveita_nao_com_arvore_e_arquivo_novo() {
+    let project = tree_task();
+    task(&project, &["check"]).assert().success();
+    write(&project, "extra.txt", "novo\n");
+    let stdout = tests_stdout(&project, &[]);
+    assert!(stdout.contains("Testes de TASK-01 passaram"), "{stdout}");
+    assert!(!stdout.contains("reaproveitados"), "{stdout}");
+}
+
+#[test]
+fn rodada_reaproveita_nao_depois_de_check_que_falha() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    let failing = "echo rodou >> contador.txt\nfalse";
+    replace_run_verification(&project, failing);
+    task(&project, &["check"]).assert().failure();
+    let content = read(&project, TASK_PATH).replace(failing, RUN_VERIFICATION);
+    write(&project, TASK_PATH, &content);
+    assert!(read(&project, TASK_PATH).contains("attempts: 0"));
+    tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 3);
+}
+
+#[test]
+fn rodada_reaproveita_sem_rodada_roda_como_hoje() {
+    let project = run_task();
+    let stdout = tests_stdout(&project, &[]);
+    assert_eq!(counter_lines(&project), 1);
+    assert!(stdout.contains("Testes de TASK-01 passaram"), "{stdout}");
+}
+
+#[test]
+fn rodada_reaproveita_roda_so_o_rotulo_sem_saida() {
+    let project = marked_label_task();
+    task(&project, &["check"]).assert().success();
+    std::fs::remove_file(project.root().join(format!("{VERIFY_DIR}/saida.txt"))).unwrap();
+    success_stdout(&mut ahead(&project));
+    let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(output.contains("um"), "{output}");
+    assert_eq!(counter_lines(&project), 2);
+}
+
+#[test]
+fn rodada_reaproveita_a_do_tests() {
+    let project = marked_label_task();
+    tests_stdout(&project, &["--forcar"]);
+    assert_eq!(counter_lines(&project), 1);
+    let content = read(&project, TASK_PATH).replace("status: validating", "status: in_progress");
+    write(&project, TASK_PATH, &content);
+    success_stdout(&mut ahead(&project));
+    assert_eq!(counter_lines(&project), 1);
+    let output = read(&project, &format!("{EVIDENCE_DIR}/saida.txt"));
+    assert!(output.contains("um"), "{output}");
+}
+
 #[test]
 fn max_subagents_is_shown_and_invalid_values_warn() {
     let project = Project::new();

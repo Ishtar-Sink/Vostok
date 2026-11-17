@@ -29,5 +29,6 @@ approved_hash preenchido: false
 ## evidências TASK-01
 baseline/01.out
 baseline/verificacao.md
+validation/run.yml
 validation/tests.out
 

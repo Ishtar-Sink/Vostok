@@ -2917,14 +2917,20 @@ impl Tasks {
     }
 
     /// Gera as evidências com a tarefa em execução, sem mudar os resultados, lista o que falta o
-    /// usuário conferir e marca a tarefa como pronta para finalizar (executed).
+    /// usuário conferir e deixa a tarefa aguardando conferência ou pronta para finalizar.
     fn evidence_ahead(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
-        if status != self.status.in_progress && status != self.status.executed {
+        let running = [
+            &self.status.in_progress,
+            &self.status.awaiting_review,
+            &self.status.executed,
+        ];
+        if !running.contains(&&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; vostok task evidence --antecipada só roda com a tarefa em execução ({} ou {}); nada foi gerado",
+                "a tarefa {task} está com status '{status}'; vostok task evidence --antecipada só roda com a tarefa em execução ({}, {} ou {}); nada foi gerado",
                 self.status.in_progress,
+                self.status.awaiting_review,
                 self.status.executed
             );
         }
@@ -2940,7 +2946,7 @@ impl Tasks {
                 "0 evidências; a conferir: -",
             )?;
             println!("Evidências antecipadas de {task}: {none}");
-            return self.mark_executed(&file, task, "sem evidências a gerar");
+            return self.settle_reviews(&file, task, "sem evidências a gerar");
         }
         let generated = self.generate_evidences(&file, &content, &dir, &[], true)?;
         if !generated.failed.is_empty() {
@@ -3001,10 +3007,49 @@ impl Tasks {
             "geradas",
             &format!("{} evidências; a conferir: {listed}", entries.len()),
         )?;
-        self.mark_executed(&file, task, "evidências antecipadas geradas sem erro")
+        self.settle_reviews(&file, task, "evidências antecipadas geradas sem erro")
     }
 
-    /// Grava a tarefa como pronta para finalizar; só o `--antecipada` sem erro chega aqui.
+    /// Evidências que ainda pedem o usuário: as de `review_kinds` geradas e sem conferência válida e
+    /// as manuais sem arquivo.
+    fn pending_reviews(&self, file: &Path) -> Result<usize> {
+        let content = TaskDoc::at(file).text()?;
+        let dir = self.evidence_dir(file)?;
+        let reviews = self.reviews(file, &content)?;
+        let review_kinds = self.review_kinds();
+        let manual = self.cfg("evidence_manual")?;
+        let mut pending = 0;
+        for entry in self.evidence_entries(&content)? {
+            let path = dir.join(&entry.name);
+            let unreviewed = review_kinds.contains(&entry.kind)
+                && path.is_file()
+                && !review_is_valid(
+                    &reviews,
+                    &entry.name,
+                    &self.review_hashes(&fs::read(&path)?),
+                );
+            let missing_manual = entry.kind == manual && !path.is_file();
+            if unreviewed || missing_manual {
+                pending += 1;
+            }
+        }
+        Ok(pending)
+    }
+
+    /// Deixa a tarefa aguardando conferência quando falta o usuário conferir algo; senão, pronta
+    /// para finalizar.
+    fn settle_reviews(&self, file: &Path, task: &str, detail: &str) -> Result<()> {
+        if self.pending_reviews(file)? == 0 {
+            return self.mark_executed(file, task, detail);
+        }
+        let awaiting = &self.status.awaiting_review;
+        TaskDoc::at(file).set("status", awaiting)?;
+        self.record_step(file, "execução", awaiting, detail)?;
+        println!("Tarefa {task} aguardando conferência: status '{awaiting}'.");
+        Ok(())
+    }
+
+    /// Grava a tarefa como pronta para finalizar: nada falta conferir.
     fn mark_executed(&self, file: &Path, task: &str, detail: &str) -> Result<()> {
         let executed = &self.status.executed;
         TaskDoc::at(file).set("status", executed)?;
@@ -3411,7 +3456,30 @@ impl Tasks {
         if record.mark == ReviewMark::Rejected || rejected.len() != before {
             write_rejected(file, &rejected)?;
         }
+        self.settle_after_review(file, record.mark)?;
         Ok(record)
+    }
+
+    /// A última conferência deixa a tarefa pronta para finalizar; a retirada numa tarefa pronta a
+    /// devolve à conferência. A recusa já voltou a tarefa para `in_progress`.
+    fn settle_after_review(&self, file: &Path, mark: ReviewMark) -> Result<()> {
+        let doc = TaskDoc::at(file);
+        let status = status_of(file);
+        let (awaiting, executed) = (&self.status.awaiting_review, &self.status.executed);
+        let target = match mark {
+            ReviewMark::Accepted if status == *awaiting && self.pending_reviews(file)? == 0 => {
+                Some((executed, "última evidência conferida"))
+            }
+            ReviewMark::Withdrawn if status == *executed && self.pending_reviews(file)? > 0 => {
+                Some((awaiting, "conferência retirada"))
+            }
+            _ => None,
+        };
+        if let Some((next, detail)) = target {
+            doc.set("status", next)?;
+            self.record_step(file, "execução", next, detail)?;
+        }
+        Ok(())
     }
 
     /// Conferir, recusar ou retirar uma evidência, sem imprimir nada: o comando e o painel usam esta

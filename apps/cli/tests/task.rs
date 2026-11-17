@@ -5961,7 +5961,7 @@ fn antecipada_refused_outside_in_progress() {
         let stderr = failure_stderr(&mut ahead(&project));
         assert!(
             stderr.contains(
-                "só roda com a tarefa em execução (in_progress ou executed); nada foi gerado"
+                "só roda com a tarefa em execução (in_progress, awaiting_review ou executed); nada foi gerado"
             ),
             "{status}: {stderr}"
         );
@@ -6129,11 +6129,16 @@ fn without_executed_key(project: &Project) {
     write(project, path, &content);
 }
 
-/// Tarefa com `a.txt` no baseline, a evidência dada e o `--antecipada` já executado.
+/// Tarefa com `a.txt` no baseline, a evidência dada e o `--antecipada` já executado: aguardando
+/// conferência quando há evidência a conferir, senão pronta para finalizar.
 fn executed_task(evidence: &str) -> Project {
     let project = running_task_with_evidence(&[("a.txt", "um\n")], evidence);
     success_stdout(&mut ahead(&project));
-    assert_eq!(status(&project), "executed");
+    let status = status(&project);
+    assert!(
+        status == "awaiting_review" || status == "executed",
+        "{status}"
+    );
     project
 }
 
@@ -6188,7 +6193,7 @@ fn executed_with_pending_reviews_and_manual() {
         stdout.contains(&format!("{EVIDENCE_DIR}/notas.md")),
         "{stdout}"
     );
-    assert_eq!(status(&project), "executed");
+    assert_eq!(status(&project), "awaiting_review");
 }
 
 #[test]
@@ -6301,7 +6306,7 @@ fn executed_refuses_outside_running() {
         let stderr = failure_stderr(&mut ahead(&project));
         assert!(
             stderr.contains(
-                "só roda com a tarefa em execução (in_progress ou executed); nada foi gerado"
+                "só roda com a tarefa em execução (in_progress, awaiting_review ou executed); nada foi gerado"
             ),
             "{status}: {stderr}"
         );
@@ -6587,7 +6592,7 @@ fn two_prints() -> Project {
     let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
     write(&project, "cor.txt", "azul");
     success_stdout(&mut ahead(&project));
-    assert_eq!(status(&project), "executed");
+    assert_eq!(status(&project), "awaiting_review");
     project
 }
 
@@ -6844,7 +6849,7 @@ fn rejection_blocks_the_finish_citing_the_evidence() {
     ] {
         assert!(stderr.contains(detail), "{stderr}");
     }
-    assert_eq!(status(&project), "executed");
+    assert_eq!(status(&project), "awaiting_review");
 }
 
 #[test]
@@ -6866,10 +6871,11 @@ fn undo_withdraws_only_that_review() {
     let project = two_prints();
     reviewed(&project, "EV-01").assert().success();
     reviewed(&project, "EV-02").assert().success();
-    let kept: Vec<String> = ["attempts", "tests_result", "regression_result", "status"]
+    let kept: Vec<String> = ["attempts", "tests_result", "regression_result"]
         .iter()
         .map(|key| field(&project, key))
         .collect();
+    assert_eq!(field(&project, "status"), "executed");
     let stdout = success_stdout(&mut undo(&project, "EV-02", "engano"));
     assert!(
         stdout.contains("Conferência de EV-02 outra.png retirada: engano."),
@@ -6883,11 +6889,12 @@ fn undo_withdraws_only_that_review() {
         .find("| conferência retirada | usuário | EV-02 outra.png: \"engano\" |")
         .expect(&record);
     assert!(review < withdrawn, "{record}");
-    let after: Vec<String> = ["attempts", "tests_result", "regression_result", "status"]
+    let after: Vec<String> = ["attempts", "tests_result", "regression_result"]
         .iter()
         .map(|key| field(&project, key))
         .collect();
     assert_eq!(kept, after);
+    assert_eq!(field(&project, "status"), "awaiting_review");
     let stdout = success_stdout(&mut task(&project, &["evidence"]));
     let unreviewed = stdout
         .split("Evidências sem conferência humana")
@@ -7581,7 +7588,7 @@ fn reviews_lista_aceitas_recusadas_e_a_conferir() {
         "{stdout}"
     );
     assert!(
-        stdout.contains("| TASK-03 | executed | EV-01 | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - |"),
         "{stdout}"
     );
 }
@@ -7602,7 +7609,7 @@ fn reviews_cita_tarefa_fora_da_conferencia_com_o_status() {
         &project,
         &format!("{SPEC_FOLDER}/TASK-03/estado.yml"),
         &read(&project, &format!("{SPEC_FOLDER}/TASK-03/estado.yml"))
-            .replace("status: executed", "status: approved"),
+            .replace("status: awaiting_review", "status: approved"),
     );
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
     assert!(
@@ -7617,7 +7624,7 @@ fn reviews_sem_spec_usa_a_spec_em_execucao() {
     let stdout = success_stdout(&mut reviews_cmd(&project, &[]));
     assert!(stdout.contains("### Conferências da SPEC-001"), "{stdout}");
     assert!(
-        stdout.contains("| TASK-03 | executed | EV-01 | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - |"),
         "{stdout}"
     );
 }
@@ -7658,7 +7665,7 @@ fn reviews_lista_tarefa_em_arquivo_unico() {
         .success();
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
     assert!(
-        stdout.contains("| TASK-02 | executed | EV-01 | - | - |"),
+        stdout.contains("| TASK-02 | awaiting_review | EV-01 | - | - |"),
         "{stdout}"
     );
     assert!(!stdout.contains("| TASK-01 |"), "{stdout}");
@@ -7670,7 +7677,7 @@ fn reviews_ignora_evidencia_sem_aval() {
     with_review_kinds(&project, PRINT_ONLY_REVIEW);
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
     assert!(
-        stdout.contains("| TASK-03 | executed | - | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | - | - | - |"),
         "{stdout}"
     );
 }
@@ -7821,4 +7828,124 @@ fn fila_recomeco_volta_para_a_fila() {
     assert!(output.contains("status 'queued'"), "{output}");
     assert_eq!(state_line(&project, "status"), "queued");
     assert!(record_of(&project).contains("| recomeço | queued | baseline mantido |"));
+}
+
+// --- Aguardando conferência (SPEC-054) ---
+
+/// Tarefa em pasta iniciada e com o `begin`, com as evidências dadas e os tipos de conferência do
+/// bloco dado (vazio vale todos).
+fn conferencia_task(evidence: &str, kinds: &str) -> Project {
+    let project = folder_with_evidence(false, evidence);
+    with_review_kinds(&project, kinds);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    task(&project, &["begin"]).assert().success();
+    project
+}
+
+fn conferencia_saida() -> String {
+    automatic("saida.txt", "cat valor.txt", None)
+}
+
+fn conferencia_duas() -> String {
+    format!(
+        "{}\n{}",
+        conferencia_saida(),
+        automatic("outra.txt", "echo outra", None)
+    )
+}
+
+#[test]
+fn conferencia_status_antecipada_com_pendente_aguarda() {
+    let project = conferencia_task(&conferencia_saida(), "");
+    let output = success_stdout(&mut ahead(&project));
+    assert!(
+        output.contains("Tarefa TASK-01 aguardando conferência: status 'awaiting_review'."),
+        "{output}"
+    );
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+    assert!(
+        record_of(&project).contains("| execução | awaiting_review |"),
+        "{}",
+        record_of(&project)
+    );
+}
+
+#[test]
+fn conferencia_status_antecipada_sem_pendente_fica_pronta() {
+    let project = conferencia_task(&conferencia_saida(), "evidence_review_kinds: []\n");
+    let output = success_stdout(&mut ahead(&project));
+    assert!(output.contains("status 'executed'"), "{output}");
+    assert_eq!(state_line(&project, "status"), "executed");
+}
+
+#[test]
+fn conferencia_status_manual_sem_arquivo_aguarda() {
+    let project = conferencia_task(
+        &manual_item("notas.md", "anexar a nota."),
+        "evidence_review_kinds: []\n",
+    );
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+}
+
+#[test]
+fn conferencia_status_ultima_conferencia_fica_pronta() {
+    let project = conferencia_task(&conferencia_duas(), "");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+    reviewed(&project, "EV-01").assert().success();
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+    assert!(!record_of(&project).contains("| execução | executed |"));
+    reviewed(&project, "EV-02").assert().success();
+    assert_eq!(state_line(&project, "status"), "executed");
+    assert!(
+        record_of(&project).contains("| execução | executed | última evidência conferida |"),
+        "{}",
+        record_of(&project)
+    );
+}
+
+#[test]
+fn conferencia_status_recusa_e_nova_geracao() {
+    let project = conferencia_task(&conferencia_saida(), "");
+    success_stdout(&mut ahead(&project));
+    task(
+        &project,
+        &["evidence", "--rejected", "EV-01", "--motivo", "cor errada"],
+    )
+    .assert()
+    .success();
+    assert_eq!(state_line(&project, "status"), "in_progress");
+    write(&project, "valor.txt", "b\n");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+}
+
+#[test]
+fn conferencia_status_retirada_volta_a_aguardar() {
+    let project = conferencia_task(&conferencia_saida(), "");
+    success_stdout(&mut ahead(&project));
+    reviewed(&project, "EV-01").assert().success();
+    assert_eq!(state_line(&project, "status"), "executed");
+    undo(&project, "EV-01", "conferi a errada")
+        .assert()
+        .success();
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
+    assert!(
+        record_of(&project).contains("| execução | awaiting_review | conferência retirada |"),
+        "{}",
+        record_of(&project)
+    );
+}
+
+#[test]
+fn conferencia_status_tarefa_antiga_executed_aplica_a_regra() {
+    let project = conferencia_task(&conferencia_saida(), "");
+    set_folder_status(&project, "TASK-01", "executed");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(state_line(&project, "status"), "awaiting_review");
 }

@@ -2,6 +2,17 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.8] - 2026-11-17
+
+### Correções
+
+- O selo "N a conferir" do quadro e o `vostok task reviews` deixam de contar a evidência que ainda não foi gerada: ela aparece como "não gerada", numa coluna própria do `reviews` e numa seção própria da tela da tarefa, em cinza e sem os botões de conferência. (SPEC-062)
+- O `vostok task start` deixa a tarefa em `in_progress`, sem depender do `vostok task begin`; a opção `--fila` mantém a tarefa na fila para a onda com subagentes, que segue com o `begin`. Uma sessão que pule o `begin` não deixa mais a tarefa parada na fila do painel. (SPEC-062)
+
+### Melhorias
+
+- A skill `execute-task` usa `vostok task start --fila` só nas tarefas entregues a subagentes. (SPEC-062)
+
 ## [0.6.7] - 2026-11-17
 
 ### Correções

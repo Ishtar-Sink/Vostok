@@ -20,9 +20,9 @@ use super::task::{
 };
 use crate::harness::Harness;
 use crate::support::{
-    config_get, config_list, evidence_subitem_errors, frontmatter_get, is_indented, markdown_cell,
-    markdown_section, markdown_subsection, markdown_table_rows, render, sha256_hex,
-    template_leftovers, yaml_escape, EvidenceFields,
+    config_get, config_list, evidence_subitem_errors, frontmatter_get, frontmatter_lines,
+    is_indented, markdown_cell, markdown_section, markdown_subsection, markdown_table_rows, render,
+    sha256_hex, template_leftovers, yaml_escape, EvidenceFields,
 };
 
 #[derive(Debug, Subcommand)]
@@ -170,6 +170,14 @@ struct ExistingTask {
     id: String,
     covers: Vec<String>,
     wave: usize,
+}
+
+/// O que o plano de extensão (`extends: true`) muda na validação: as tarefas já criadas, a
+/// primeira onda das tarefas novas e os IDs que elas precisam cobrir.
+struct Extension {
+    existing: HashSet<String>,
+    first_wave: usize,
+    cover_ids: Vec<String>,
 }
 
 /// O harness do projeto e as leituras de configuração usadas pelos comandos `plan`.
@@ -458,7 +466,29 @@ impl Workspace {
 
     fn analyze(&self, plan: &str) -> Result<Vec<Finding>> {
         let columns = Columns::of(plan);
-        Ok(Analyzer::new(self.effort(columns.scale())?, columns).run(plan))
+        let extension = self.extension_of(plan)?;
+        Ok(Analyzer::new(self.effort(columns.scale())?, columns, extension).run(plan))
+    }
+
+    /// A extensão do plano; `None` no plano inicial, sem `extends: true` no front-matter.
+    fn extension_of(&self, plan: &str) -> Result<Option<Extension>> {
+        if plan_field(plan, "extends") != "true" {
+            return Ok(None);
+        }
+        let spec_id = plan_field(plan, "spec");
+        // As tarefas a partir de `first_task` são deste plano, mesmo depois de criadas.
+        let first = task_number(&plan_field(plan, "first_task")).unwrap_or(usize::MAX);
+        let existing = self
+            .existing_tasks(&spec_id)?
+            .into_iter()
+            .map(|task| task.id)
+            .filter(|id| task_number(id).is_none_or(|number| number < first))
+            .collect();
+        Ok(Some(Extension {
+            existing,
+            first_wave: plan_field(plan, "first_wave").parse().unwrap_or(1),
+            cover_ids: bracket_ids(&plan_field(plan, "cover_ids")),
+        }))
     }
 
     /// O plano com os perfis (ou níveis) calculados na coluna deles, ou os problemas que impedem o
@@ -677,12 +707,15 @@ impl Workspace {
         }
         if let Some(facts) = components {
             errors.extend(facts.problems);
-            errors.extend(
-                facts
-                    .orphans
-                    .iter()
-                    .map(|path| format!("componente da spec sem tarefa: `{path}`")),
-            );
+            // Na extensão, os componentes da spec já foram assumidos pelas tarefas existentes.
+            if self.extension_of(plan)?.is_none() {
+                errors.extend(
+                    facts
+                        .orphans
+                        .iter()
+                        .map(|path| format!("componente da spec sem tarefa: `{path}`")),
+                );
+            }
             for row in table_rows(plan, FACTS_HEADING) {
                 let cells: Vec<&str> = row.split('|').collect();
                 let id = markdown_cell(&row, 1);
@@ -720,7 +753,11 @@ impl Workspace {
             .collect();
         let ids = self.spec_ids(spec)?;
         let optional = self.optional_ids(spec)?;
-        let mut errors: Vec<String> = ids
+        let required = match self.extension_of(plan)? {
+            Some(extension) => extension.cover_ids,
+            None => ids.clone(),
+        };
+        let mut errors: Vec<String> = required
             .iter()
             .filter(|id| !id.is_empty() && !covered.contains(id))
             .map(|id| format!("{id} não é coberto por nenhuma tarefa"))
@@ -1095,7 +1132,12 @@ impl Workspace {
 
     /// Impedimentos do plano: status da spec, spec ou plano alterados e problemas de validação.
     fn plan_blockers(&self, spec_id: &str, plan: &Path, spec: &Path) -> Result<Vec<String>> {
-        let approved_status = self.spec_setting("status.approved")?;
+        let status_key = if self.extension_of(&read(plan)?)?.is_some() {
+            "status.planned"
+        } else {
+            "status.approved"
+        };
+        let approved_status = self.spec_setting(status_key)?;
         let status = field(spec, "status");
         if status != approved_status {
             return Ok(vec![format!(
@@ -1131,7 +1173,20 @@ impl Workspace {
             ));
         }
         let target = self.tasks_dir(spec_id)?;
-        if target.exists() {
+        let plan_content = read(&plan)?;
+        if self.extension_of(&plan_content)?.is_some() {
+            for task in plan_tasks(&plan_content, &self.profile_legacy()) {
+                let folder = target.join(&task.id);
+                let single = target.join(format!("{}.md", task.id));
+                if let Some(found) = [folder, single].into_iter().find(|path| path.exists()) {
+                    bail!(
+                        "a pasta da tarefa {} já existe: {}",
+                        task.id,
+                        found.display()
+                    );
+                }
+            }
+        } else if target.exists() {
             bail!(
                 "a pasta de tarefas de {spec_id} já existe: {}",
                 target.display()
@@ -1142,7 +1197,6 @@ impl Workspace {
 
         // As tarefas são montadas em memória e gravadas juntas: ou todas existem, ou nenhuma.
         let mut files = Vec::new();
-        let plan_content = read(&plan)?;
         let plan_waves = plan_waves(&plan_content);
         for task in plan_tasks(&plan_content, &self.profile_legacy()) {
             let depends = as_list(&task.depends);
@@ -1234,9 +1288,10 @@ impl Workspace {
                 &errors,
             ));
         }
+        let entries = self.approval_entries(spec_id, &read(&plan)?)?;
         let mut renames = Vec::new();
-        for file in task_entries(&self.tasks_dir(spec_id)?)? {
-            renames.extend(self.evidence_renames(&file)?.1);
+        for file in &entries {
+            renames.extend(self.evidence_renames(file)?.1);
         }
         print_renames(
             "Nomes de evidência com caminho, trocados pelo nome do arquivo no mark-planned (nada foi alterado):",
@@ -1246,7 +1301,7 @@ impl Workspace {
             "Tarefas de {spec_id} válidas: {}",
             self.tasks_dir(spec_id)?.display()
         );
-        for file in task_entries(&self.tasks_dir(spec_id)?)? {
+        for file in entries {
             let task = file_stem(&file);
             for command in dashdash_commands(&self.verification(&task_text(&file)?)?) {
                 println!("{}", dashdash_warning(&task, &command));
@@ -1306,8 +1361,9 @@ impl Workspace {
     fn mark_planned(&self, spec_id: &str) -> Result<()> {
         let plan = self.plan_to_approve(spec_id)?;
         let spec = self.find_spec(spec_id)?;
+        let plan_content = read(&plan)?;
         let mut errors = self.plan_blockers(spec_id, &plan, &spec)?;
-        errors.extend(self.tasks_errors(spec_id, &read(&plan)?)?);
+        errors.extend(self.tasks_errors(spec_id, &plan_content)?);
         if !errors.is_empty() {
             return Err(problems_message(
                 format!("o plano de {spec_id} não pode ser concluído; nada foi alterado:"),
@@ -1318,7 +1374,7 @@ impl Workspace {
         // As tarefas já estão detalhadas e validadas: o nome com caminho vira o nome do arquivo e o
         // hash passa a valer para a aprovação delas.
         let mut renames = Vec::new();
-        for file in task_entries(&self.tasks_dir(spec_id)?)? {
+        for file in self.approval_entries(spec_id, &plan_content)? {
             let (content, warnings) = self.evidence_renames(&file)?;
             if !warnings.is_empty() {
                 TaskDoc::at(&file).write_text(&content)?;
@@ -1331,6 +1387,9 @@ impl Workspace {
             &renames,
         );
         let planned = self.spec_setting("status.planned")?;
+        if self.extension_of(&plan_content)?.is_some() {
+            return self.finish_extension(spec_id, &spec, &plan, &plan_content, &planned);
+        }
         let content = read(&spec)?;
         let Some(content) = frontmatter_set(&content, "status", &planned) else {
             bail!(
@@ -1348,6 +1407,47 @@ impl Workspace {
         );
         println!("Plano removido: {}", plan.display());
         Ok(())
+    }
+
+    /// Conclui o plano de extensão: a spec segue `planned`, `extend_ids` fica vazio e o plano sai.
+    fn finish_extension(
+        &self,
+        spec_id: &str,
+        spec: &Path,
+        plan: &Path,
+        plan_content: &str,
+        planned: &str,
+    ) -> Result<()> {
+        let content = frontmatter_put(&read(spec)?, "extend_ids", "[]")?;
+        write(spec, &frontmatter_put(&content, "updated_at", &utc_now())?)?;
+        fs::remove_file(plan)
+            .with_context(|| format!("não foi possível remover {}", plan.display()))?;
+        let ids: Vec<String> = plan_tasks(plan_content, &self.profile_legacy())
+            .into_iter()
+            .map(|task| task.id)
+            .collect();
+        println!(
+            "Tarefas novas de {spec_id} aprovadas: {}; a spec segue '{planned}'.",
+            ids.join(", ")
+        );
+        println!("Plano removido: {}", plan.display());
+        Ok(())
+    }
+
+    /// Tarefas que a aprovação percorre: todas no plano inicial; só as do plano na extensão.
+    fn approval_entries(&self, spec_id: &str, plan: &str) -> Result<Vec<PathBuf>> {
+        let entries = task_entries(&self.tasks_dir(spec_id)?)?;
+        if self.extension_of(plan)?.is_none() {
+            return Ok(entries);
+        }
+        let ids: HashSet<String> = plan_tasks(plan, &self.profile_legacy())
+            .into_iter()
+            .map(|task| task.id)
+            .collect();
+        Ok(entries
+            .into_iter()
+            .filter(|file| ids.contains(&file_stem(file)))
+            .collect())
     }
 
     // --- Validação das tarefas ---
@@ -1381,9 +1481,13 @@ impl Workspace {
             let created = upstream.get(&task.id).unwrap_or(&none);
             errors.extend(self.task_errors(&file, &task.covers, created)?);
         }
+        let existing = self
+            .extension_of(plan)?
+            .map(|extension| extension.existing)
+            .unwrap_or_default();
         for file in task_entries(&dir)? {
             let name = file_stem(&file);
-            if !ids.contains(&name) {
+            if !ids.contains(&name) && !existing.contains(&name) {
                 errors.push(format!("{name}: tarefa que não existe no plano"));
             }
         }
@@ -2061,11 +2165,13 @@ struct Analyzer {
     facts: Vec<String>,
     task_facts: HashMap<String, Facts>,
     invalid: HashSet<String>,
+    extension: Option<Extension>,
 }
 
 impl Analyzer {
-    fn new(effort: Effort, columns: Columns) -> Self {
+    fn new(effort: Effort, columns: Columns, extension: Option<Extension>) -> Self {
         Self {
+            extension,
             effort,
             columns,
             findings: Vec::new(),
@@ -2212,6 +2318,9 @@ impl Analyzer {
         }
         let mut graph_ok = true;
         for id in self.order.clone() {
+            if self.is_existing(&id) {
+                self.problem(format!("{id}: a tarefa já existe na spec"));
+            }
             graph_ok &= self.check_dependencies(&id);
             graph_ok &= self.check_closes(&id);
             if !self.facts.contains(&id) {
@@ -2246,14 +2355,25 @@ impl Analyzer {
                 .map(|id| (id.clone(), self.depends[id].clone()))
                 .collect();
             let computed = waves(&tasks);
+            let offset = self
+                .extension
+                .as_ref()
+                .map_or(0, |extension| extension.first_wave.saturating_sub(1));
             for id in self.order.clone() {
                 self.findings.push(Finding::Wave {
-                    computed: computed.get(&id).copied().unwrap_or(1).to_string(),
+                    computed: (computed.get(&id).copied().unwrap_or(1) + offset).to_string(),
                     stored: self.stored_waves[&id].clone(),
                     id,
                 });
             }
         }
+    }
+
+    /// Se a tarefa já existe na spec, fora deste plano de extensão.
+    fn is_existing(&self, id: &str) -> bool {
+        self.extension
+            .as_ref()
+            .is_some_and(|extension| extension.existing.contains(id))
     }
 
     /// `false` quando a tarefa tem dependência inválida.
@@ -2263,7 +2383,7 @@ impl Analyzer {
             if dependency == id {
                 self.problem(format!("{id}: depende de si mesma"));
                 ok = false;
-            } else if !self.tasks.contains(&dependency) {
+            } else if !self.tasks.contains(&dependency) && !self.is_existing(&dependency) {
                 self.problem(format!("{id}: dependência inexistente {dependency}"));
                 ok = false;
             }
@@ -2278,7 +2398,7 @@ impl Analyzer {
             if other == id {
                 self.problem(format!("{id}: fecha depois de si mesma"));
                 ok = false;
-            } else if !self.tasks.contains(&other) {
+            } else if !self.tasks.contains(&other) && !self.is_existing(&other) {
                 self.problem(format!(
                     "{id}: \"Fecha depois de\" cita tarefa inexistente {other}"
                 ));
@@ -2578,6 +2698,22 @@ fn id_list(cell: &str) -> Vec<String> {
     text.split_whitespace().map(str::to_string).collect()
 }
 
+/// Número de um ID de tarefa (`TASK-14` dá 14); `None` sem número.
+fn task_number(id: &str) -> Option<usize> {
+    id.rsplit('-').next()?.parse().ok()
+}
+
+/// Valor de uma chave do front-matter do plano; vazio sem a chave.
+fn plan_field(plan: &str, key: &str) -> String {
+    let prefix = format!("{key}:");
+    frontmatter_lines(plan)
+        .unwrap_or_default()
+        .iter()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .map(|value| value.trim().to_string())
+        .unwrap_or_default()
+}
+
 /// IDs de uma lista em linha do front-matter (`[RF-01, RF-02]`); vazia sem valor.
 fn bracket_ids(value: &str) -> Vec<String> {
     id_list(value.trim().trim_start_matches('[').trim_end_matches(']'))
@@ -2736,7 +2872,19 @@ fn plan_waves(plan: &str) -> BTreeMap<String, usize> {
             (task.id, depends)
         })
         .collect();
+    // No plano de extensão, as ondas novas começam em `first_wave`.
+    let offset = if plan_field(plan, "extends") == "true" {
+        plan_field(plan, "first_wave")
+            .parse::<usize>()
+            .unwrap_or(1)
+            .saturating_sub(1)
+    } else {
+        0
+    };
     waves(&tasks)
+        .into_iter()
+        .map(|(id, wave)| (id, wave + offset))
+        .collect()
 }
 
 /// Caminhos de cada tarefa na seção "Componentes por tarefa", sem repetição.

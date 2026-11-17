@@ -2152,3 +2152,424 @@ fn extend_create_refuses_open_plan() {
     assert!(stderr.contains("já tem um plano atualizado"), "{stderr}");
     assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
 }
+
+// --- Validação e ondas do plano de extensão (SPEC-058) ---
+
+fn extension_row(id: &str, depends: &str, covers: &str) -> String {
+    format!(
+        "| {id} | Tarefa {id} | Faz. | tarefa | desenvolvedor | - | {depends} | - | - | {covers} |"
+    )
+}
+
+fn extension_facts(ids: &[&str]) -> String {
+    ids.iter()
+        .map(|id| format!("| {id} | - | - | não | não | não |"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn extension_components(ids: &[&str]) -> String {
+    ids.iter()
+        .map(|id| format!("| {id} | - |"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Cria o plano de extensão com `vostok plan extend` e preenche as variáveis do template.
+fn extension_plan(project: &Project, rows: &str, facts: &str, components: &str) {
+    use vostok::support::sha256_hex;
+    project
+        .vostok()
+        .args(["plan", "extend", "SPEC-001"])
+        .assert()
+        .success();
+    let path = project.root().join("vostok/work/plans/SPEC-001.md");
+    let content = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("#{PLAN_OVERVIEW}", "Tarefas novas.")
+        .replace("#{PLAN_TASKS}", rows)
+        .replace("#{PLAN_COMPONENTS}", components)
+        .replace("#{PLAN_FACTS}", facts);
+    let (front, body) = content[4..].split_once("\n---\n").unwrap();
+    let hash = sha256_hex(body.as_bytes());
+    let front: String = front
+        .lines()
+        .map(|line| {
+            if line.starts_with("content_hash:") {
+                format!("content_hash: {hash}")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&path, format!("---\n{front}\n---\n{body}")).unwrap();
+}
+
+fn extension_tasks(project: &Project, spec_body: &str, highest_wave: &str, last: usize) {
+    let owned: Vec<(String, &str, &str, String)> = (1..=last)
+        .map(|n| {
+            let covers = if n == 1 {
+                "RF-01, RF-02, CT-01, CT-02"
+            } else {
+                "RF-01"
+            };
+            let wave = if n == last { highest_wave } else { "1" };
+            (format!("TASK-{n:02}"), "done", covers, wave.to_string())
+        })
+        .collect();
+    let tasks: Vec<(&str, &str, &str, &str)> = owned
+        .iter()
+        .map(|(id, status, covers, wave)| (id.as_str(), *status, *covers, wave.as_str()))
+        .collect();
+    planned_with_tasks(project, spec_body, &tasks);
+}
+
+fn extension_wave(plan: &str, id: &str) -> String {
+    let line = tasks_section(plan)
+        .lines()
+        .find(|line| line.starts_with(&format!("| {id} |")))
+        .unwrap()
+        .to_string();
+    line.split('|').nth(9).unwrap().trim().to_string()
+}
+
+#[test]
+fn extend_validate_requires_only_the_ids_to_cover() {
+    let project = Project::new();
+    extension_tasks(&project, EXTEND_SPEC, "3", 13);
+    extension_plan(
+        &project,
+        &extension_row("TASK-14", "-", "RF-03"),
+        &extension_facts(&["TASK-14"]),
+        &extension_components(&["TASK-14"]),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+
+    let other = Project::new();
+    extension_tasks(&other, EXTEND_SPEC, "3", 13);
+    extension_plan(
+        &other,
+        &extension_row("TASK-14", "-", "CT-01"),
+        &extension_facts(&["TASK-14"]),
+        &extension_components(&["TASK-14"]),
+    );
+    let stderr = validate_stderr(&other);
+    assert!(
+        stderr.contains("RF-03 não é coberto por nenhuma tarefa"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("RF-01"), "{stderr}");
+}
+
+#[test]
+fn extend_validate_refuses_an_existing_task_id() {
+    let project = Project::new();
+    extension_tasks(&project, EXTEND_SPEC, "3", 13);
+    extension_plan(
+        &project,
+        &extension_row("TASK-03", "-", "RF-03"),
+        &extension_facts(&["TASK-03"]),
+        &extension_components(&["TASK-03"]),
+    );
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("TASK-03: a tarefa já existe na spec"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn extend_validate_accepts_a_done_dependency() {
+    let project = Project::new();
+    extension_tasks(&project, EXTEND_SPEC, "3", 13);
+    extension_plan(
+        &project,
+        &extension_row("TASK-14", "TASK-02", "RF-03"),
+        &extension_facts(&["TASK-14"]),
+        &extension_components(&["TASK-14"]),
+    );
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn extend_validate_ignores_components_of_existing_tasks() {
+    let spec = format!(
+        "{EXTEND_SPEC}\n## Componentes afetados\n\n| Caminho | Ação | Motivo |\n|---|---|---|\n| `src/a.rs` | alterar | Muda. |\n| `src/b.rs` | alterar | Muda. |\n"
+    );
+    let project = Project::new();
+    extension_tasks(&project, &spec, "3", 13);
+    extension_plan(
+        &project,
+        &extension_row("TASK-14", "-", "RF-03"),
+        &extension_facts(&["TASK-14"]),
+        "| TASK-14 | `src/a.rs` |",
+    );
+    score(&project);
+    let output = project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!text.contains("componente da spec sem tarefa"), "{text}");
+}
+
+#[test]
+fn extend_waves_start_after_the_highest_wave() {
+    let project = Project::new();
+    extension_tasks(&project, EXTEND_SPEC, "3", 13);
+    let rows = [
+        extension_row("TASK-14", "-", "RF-03"),
+        extension_row("TASK-15", "TASK-14", "RF-03"),
+        extension_row("TASK-16", "TASK-02", "RF-03"),
+    ]
+    .join("\n");
+    let ids = ["TASK-14", "TASK-15", "TASK-16"];
+    extension_plan(
+        &project,
+        &rows,
+        &extension_facts(&ids),
+        &extension_components(&ids),
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    assert_eq!(extension_wave(&plan, "TASK-14"), "4", "{plan}");
+    assert_eq!(extension_wave(&plan, "TASK-15"), "5", "{plan}");
+    assert_eq!(extension_wave(&plan, "TASK-16"), "4", "{plan}");
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn extend_waves_second_extension_continues() {
+    let project = Project::new();
+    extension_tasks(&project, EXTEND_SPEC, "5", 16);
+    extension_plan(
+        &project,
+        &extension_row("TASK-17", "-", "RF-03"),
+        &extension_facts(&["TASK-17"]),
+        &extension_components(&["TASK-17"]),
+    );
+    let plan = plan_text(&project);
+    assert!(plan.contains("\nfirst_task: TASK-17\n"), "{plan}");
+    assert!(plan.contains("\nfirst_wave: 6\n"), "{plan}");
+    score(&project);
+    assert_eq!(extension_wave(&plan_text(&project), "TASK-17"), "6");
+}
+
+// --- Aprovação do plano de extensão (SPEC-058) ---
+
+/// Preenche as variáveis dos arquivos da tarefa em pasta com um detalhamento válido.
+fn fill_extension_task(project: &Project, id: &str, covers: &str) {
+    let dir = project
+        .root()
+        .join(format!("vostok/work/tasks/SPEC-001/{id}"));
+    let values = [
+        ("TASK_READ", "- `README.md`".to_string()),
+        (
+            "TASK_CHANGE",
+            "- `novo.txt` (criar): arquivo novo.".to_string(),
+        ),
+        ("TASK_STEPS", "1. Crie o arquivo.".to_string()),
+        ("TASK_BASELINE", "- `true`".to_string()),
+        ("TASK_VERIFY", "```bash\ntrue\n```".to_string()),
+        ("TASK_EVIDENCE", "Não se aplica.".to_string()),
+        (
+            "TASK_DONE",
+            format!("- [ ] Pronto ({covers}).\n\n  > Como comprovar: ver o arquivo `novo.txt`."),
+        ),
+        ("TASK_EXECUTIVE", "Resumo.".to_string()),
+        ("TASK_TECHNICAL", "Detalhes.".to_string()),
+    ];
+    for entry in std::fs::read_dir(&dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+            continue;
+        }
+        let mut text = std::fs::read_to_string(&path).unwrap();
+        for (name, value) in &values {
+            text = text.replace(&format!("#{{{name}}}"), value);
+        }
+        std::fs::write(&path, text).unwrap();
+    }
+}
+
+fn file_hashes(dir: &std::path::Path) -> Vec<(String, String)> {
+    use vostok::support::sha256_hex;
+    let mut hashes: Vec<(String, String)> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.is_file())
+        .map(|path| {
+            (
+                path.file_name().unwrap().to_string_lossy().to_string(),
+                sha256_hex(&std::fs::read(&path).unwrap()),
+            )
+        })
+        .collect();
+    hashes.sort();
+    hashes
+}
+
+fn run_ok(project: &Project, args: &[&str]) -> String {
+    let output = project
+        .vostok()
+        .args(args)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).unwrap()
+}
+
+/// Spec planejada com TASK-01 (`done`) e TASK-02 (`approved`) e o plano de extensão com TASK-03.
+fn approvable_extension(project: &Project) {
+    planned_with_tasks(
+        project,
+        EXTEND_SPEC,
+        &[
+            ("TASK-01", "done", "RF-01, RF-02, CT-01, CT-02", "1"),
+            ("TASK-02", "approved", "RF-01", "1"),
+        ],
+    );
+    extension_plan(
+        project,
+        &extension_row("TASK-03", "TASK-01", "RF-03"),
+        &extension_facts(&["TASK-03"]),
+        &extension_components(&["TASK-03"]),
+    );
+    score(project);
+}
+
+#[test]
+fn extend_approve_creates_only_the_new_tasks() {
+    let project = Project::new();
+    approvable_extension(&project);
+    let tasks = project.root().join("vostok/work/tasks/SPEC-001");
+    let before: Vec<_> = ["TASK-01", "TASK-02"]
+        .iter()
+        .map(|id| file_hashes(&tasks.join(id)))
+        .collect();
+    run_ok(&project, &["plan", "approve", "create-tasks", "SPEC-001"]);
+    fill_extension_task(&project, "TASK-03", "RF-03");
+    run_ok(&project, &["plan", "approve", "validate", "SPEC-001"]);
+    let stdout = run_ok(&project, &["plan", "approve", "mark-planned", "SPEC-001"]);
+    assert!(
+        stdout.contains("Tarefas novas de SPEC-001 aprovadas: TASK-03; a spec segue 'planned'."),
+        "{stdout}"
+    );
+    let after: Vec<_> = ["TASK-01", "TASK-02"]
+        .iter()
+        .map(|id| file_hashes(&tasks.join(id)))
+        .collect();
+    assert_eq!(before, after);
+    let mut folders: Vec<String> = std::fs::read_dir(&tasks)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().to_string())
+        .filter(|name| name.starts_with("TASK-"))
+        .collect();
+    folders.sort();
+    assert_eq!(folders, ["TASK-01", "TASK-02", "TASK-03"]);
+    let state = std::fs::read_to_string(tasks.join("TASK-03/estado.yml")).unwrap();
+    assert!(state.contains("\nwave: 2\n"), "{state}");
+    let spec = std::fs::read_to_string(
+        project
+            .root()
+            .join("vostok/work/specs/refined/SPEC-001-exemplo.md"),
+    )
+    .unwrap();
+    assert!(spec.contains("\nstatus: planned\n"), "{spec}");
+    assert!(spec.contains("\nextend_ids: []\n"), "{spec}");
+    assert!(!project
+        .root()
+        .join("vostok/work/plans/SPEC-001.md")
+        .exists());
+}
+
+#[test]
+fn extend_approve_refuses_an_existing_task_folder() {
+    let project = Project::new();
+    approvable_extension(&project);
+    let folder = project.root().join("vostok/work/tasks/SPEC-001/TASK-03");
+    std::fs::create_dir_all(&folder).unwrap();
+    let stderr =
+        failure_stderr(
+            project
+                .vostok()
+                .args(["plan", "approve", "create-tasks", "SPEC-001"]),
+        );
+    assert!(
+        stderr.contains("a pasta da tarefa TASK-03 já existe"),
+        "{stderr}"
+    );
+    assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 0);
+}
+
+#[test]
+fn extend_approve_mark_planned_ignores_the_existing_tasks() {
+    let project = Project::new();
+    approvable_extension(&project);
+    write_file(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02/execucao.md",
+        "### Ler\n\n#{TASK_READ}\n",
+    );
+    run_ok(&project, &["plan", "approve", "create-tasks", "SPEC-001"]);
+    fill_extension_task(&project, "TASK-03", "RF-03");
+    run_ok(&project, &["plan", "approve", "validate", "SPEC-001"]);
+    run_ok(&project, &["plan", "approve", "mark-planned", "SPEC-001"]);
+    let leftover = std::fs::read_to_string(
+        project
+            .root()
+            .join("vostok/work/tasks/SPEC-001/TASK-02/execucao.md"),
+    )
+    .unwrap();
+    assert_eq!(leftover, "### Ler\n\n#{TASK_READ}\n");
+}
+
+#[test]
+fn extend_approve_initial_plan_still_refuses_existing_folder() {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "improvement",
+        LEGACY_SPEC_ONE,
+        &profile_plan(
+            &profile_row("TASK-01", "desenvolvedor", "-", "RF-01"),
+            "| TASK-01 | 0 | 2 | sim | não | não |",
+        ),
+    );
+    score(&project);
+    std::fs::create_dir_all(project.root().join("vostok/work/tasks/SPEC-001")).unwrap();
+    let stderr =
+        failure_stderr(
+            project
+                .vostok()
+                .args(["plan", "approve", "create-tasks", "SPEC-001"]),
+        );
+    assert!(
+        stderr.contains("a pasta de tarefas de SPEC-001 já existe"),
+        "{stderr}"
+    );
+}

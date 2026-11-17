@@ -5901,6 +5901,8 @@ pub(crate) struct ChangedTasks {
     pub(crate) redo: Vec<String>,
     pub(crate) adjusted: Vec<String>,
     pub(crate) done: Vec<String>,
+    pub(crate) done_only: Vec<String>,
+    pub(crate) uncovered: Vec<String>,
 }
 
 /// Trata as tarefas que cobrem os IDs mudados: `pending` e `approved` voltam a detalhar, as em
@@ -5914,9 +5916,12 @@ pub(crate) fn apply_changed_ids(
     let dir = tasks.tasks_root.join(spec);
     let mut result = ChangedTasks::default();
     if !dir.is_dir() {
+        result.uncovered = changed.to_vec();
         return Ok(result);
     }
     let prefix = format!("{}-", tasks.cfg("id.prefix")?);
+    let mut covered_by_done: Vec<&String> = Vec::new();
+    let mut covered_by_other: Vec<&String> = Vec::new();
     for file in task_entries(&dir)? {
         let id = task_id_of(&file);
         if !id.starts_with(&prefix) {
@@ -5931,6 +5936,12 @@ pub(crate) fn apply_changed_ids(
             continue;
         }
         let status = status_of(&file);
+        let bucket = if status == tasks.status.done {
+            &mut covered_by_done
+        } else {
+            &mut covered_by_other
+        };
+        bucket.extend(changed.iter().filter(|id| covered.contains(id)));
         if status == tasks.status.done {
             result.done.push(id);
         } else if status == tasks.status.pending {
@@ -5944,6 +5955,16 @@ pub(crate) fn apply_changed_ids(
             tasks.record_adjustment(&file, &origin, &summary)?;
             tasks.restart_execution(&file, &id, &summary)?;
             result.adjusted.push(id);
+        }
+    }
+    for id in changed {
+        if covered_by_other.contains(&id) {
+            continue;
+        }
+        if covered_by_done.contains(&id) {
+            result.done_only.push(id.clone());
+        } else {
+            result.uncovered.push(id.clone());
         }
     }
     Ok(result)

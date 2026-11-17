@@ -831,8 +831,8 @@ fn has_id_shape(value: &str) -> bool {
         && digits.bytes().all(|b| b.is_ascii_digit())
 }
 
-fn changed_ids_of(file: &Path) -> Vec<String> {
-    frontmatter_get(file, "changed_ids")
+fn id_list_field(file: &Path, key: &str) -> Vec<String> {
+    frontmatter_get(file, key)
         .unwrap_or_default()
         .trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace())
         .split(',')
@@ -982,7 +982,7 @@ fn record(specs: &Specs, spec_id: &str, summary: &str, ids: Option<&str>) -> Res
             errors.join("\n")
         );
     }
-    let mut changed = changed_ids_of(&refined);
+    let mut changed = id_list_field(&refined, "changed_ids");
     if let Some(ids) = &ids {
         let known = spec_item_ids(&fs::read_to_string(&refined)?);
         let unknown: Vec<&str> = ids
@@ -1328,7 +1328,7 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
         );
     }
 
-    let changed = changed_ids_of(&refined);
+    let changed = id_list_field(&refined, "changed_ids");
     if !changed.is_empty() {
         return reapprove(specs, spec_id, &refined, &changed);
     }
@@ -1374,6 +1374,15 @@ fn reapprove(specs: &Specs, spec_id: &str, refined: &Path, changed: &[String]) -
     record_status(refined, &planned)?;
     let result = crate::commands::task::apply_changed_ids(&specs.harness, spec_id, changed)?;
     frontmatter_put(refined, "changed_ids", "[]")?;
+    if !result.done_only.is_empty() {
+        let mut ids = id_list_field(refined, "extend_ids");
+        for id in &result.done_only {
+            if !ids.contains(id) {
+                ids.push(id.clone());
+            }
+        }
+        frontmatter_put(refined, "extend_ids", &format!("[{}]", ids.join(", ")))?;
+    }
     println!(
         "Spec {spec_id} aprovada de novo: status '{planned}', sem plano novo; IDs mudados: {}.",
         changed.join(", ")
@@ -1387,10 +1396,7 @@ fn reapprove(specs: &Specs, spec_id: &str, refined: &Path, changed: &[String]) -
             "Ajuste registrado nas tarefas em execução",
             &result.adjusted,
         ),
-        (
-            "Concluídas que cobrem os IDs, sem mudança (sugira uma tarefa nova num novo plano)",
-            &result.done,
-        ),
+        ("Concluídas que cobrem os IDs, sem mudança", &result.done),
     ];
     for (label, ids) in lists.iter().filter(|(_, ids)| !ids.is_empty()) {
         println!("{label}: {}", ids.join(", "));
@@ -1399,6 +1405,18 @@ fn reapprove(specs: &Specs, spec_id: &str, refined: &Path, changed: &[String]) -
         println!(
             "Nenhuma tarefa cobre os IDs mudados ({}); nenhuma é refeita.",
             changed.join(", ")
+        );
+    }
+    let needing_task: Vec<&str> = result
+        .uncovered
+        .iter()
+        .chain(&result.done_only)
+        .map(String::as_str)
+        .collect();
+    if !needing_task.is_empty() {
+        println!(
+            "IDs que pedem tarefa nova: {}; próximo passo: vostok plan extend {spec_id}",
+            needing_task.join(", ")
         );
     }
     Ok(())

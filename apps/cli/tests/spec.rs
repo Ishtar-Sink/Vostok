@@ -695,7 +695,7 @@ fn reapproval_treats_the_tasks_by_status() {
     for line in [
         "A detalhar de novo (voltaram a 'pending'; skill adjust-task): TASK-01, TASK-05",
         "Ajuste registrado nas tarefas em execução: TASK-02",
-        "Concluídas que cobrem os IDs, sem mudança (sugira uma tarefa nova num novo plano): TASK-03",
+        "Concluídas que cobrem os IDs, sem mudança: TASK-03",
     ] {
         assert!(stdout.contains(line), "{stdout}");
     }
@@ -754,4 +754,72 @@ fn reapproval_spec_without_changed_ids_goes_to_approved() {
     let content = fs::read_to_string(&file).unwrap();
     assert!(content.contains("\nstatus: approved\n"), "{content}");
     assert!(!content.contains("changed_ids:"), "{content}");
+}
+
+const EXTEND_LINE: &str =
+    "IDs que pedem tarefa nova: RF-02; próximo passo: vostok plan extend SPEC-001";
+
+#[test]
+fn extend_ids_done_only_is_recorded() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-03", "done", "RF-02");
+    let stdout = approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nextend_ids: [RF-02]\n"), "{content}");
+    assert!(stdout.contains(EXTEND_LINE), "{stdout}");
+}
+
+#[test]
+fn extend_ids_pending_task_records_none() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-01", "pending", "RF-02");
+    let stdout = approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(!content.contains("extend_ids: [RF"), "{content}");
+    assert!(!stdout.contains("vostok plan extend"), "{stdout}");
+}
+
+#[test]
+fn extend_ids_done_and_running_records_none() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-01", "done", "RF-02");
+    spec_task(&project, "TASK-02", "in_progress", "RF-02");
+    let stdout = approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(!content.contains("extend_ids: [RF"), "{content}");
+    assert!(!stdout.contains("vostok plan extend"), "{stdout}");
+}
+
+#[test]
+fn extend_ids_uncovered_id_suggests_extend() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    spec_task(&project, "TASK-01", "approved", "RF-01");
+    let stdout = approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(!content.contains("extend_ids: [RF"), "{content}");
+    assert!(stdout.contains(EXTEND_LINE), "{stdout}");
+}
+
+#[test]
+fn extend_ids_merges_with_the_previous_list() {
+    let project = Project::new();
+    let file = changed_spec(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    let edited = content.replace(
+        "changed_ids: [RF-02]",
+        "changed_ids: [RF-02]\nextend_ids: [RF-01]",
+    );
+    assert_ne!(content, edited);
+    fs::write(&file, edited).unwrap();
+    spec_task(&project, "TASK-03", "done", "RF-02");
+    approve_stdout(&project);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(
+        content.contains("\nextend_ids: [RF-01, RF-02]\n"),
+        "{content}"
+    );
 }

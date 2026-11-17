@@ -59,6 +59,7 @@ approved_hash preenchido: true
 ## evidências TASK-01
 baseline/01.out
 baseline/evidence/saida.txt
+baseline/verificacao.md
 saida.txt
 validation/regression/01.out
 validation/tests.out

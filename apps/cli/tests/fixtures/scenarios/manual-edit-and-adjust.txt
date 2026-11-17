@@ -73,4 +73,5 @@ approved_hash preenchido: true
 
 ## evidências TASK-01
 baseline/01.out
+baseline/verificacao.md
 

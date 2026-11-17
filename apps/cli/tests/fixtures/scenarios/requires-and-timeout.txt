@@ -69,6 +69,7 @@ approved_hash preenchido: true
 baseline/01.out
 baseline/evidence/esperada.txt
 baseline/evidence/lenta.txt
+baseline/verificacao.md
 esperada.txt
 lenta.txt
 validation/regression/01.out

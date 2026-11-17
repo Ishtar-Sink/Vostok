@@ -532,14 +532,26 @@ pub fn normalize(text: &str, root: &Path) -> String {
         .replace(root.to_str().unwrap(), "<ROOT>")
         .replace(GOLDEN_ROOT, "<ROOT>");
     let text = replace_volatile(&replace_tmp(&text));
-    // Os scripts bash nunca gravaram o histórico de status nem o commit do baseline, que só a CLI
-    // grava.
+    // Os scripts bash nunca gravaram o histórico de status, o commit do baseline nem as impressões
+    // dos testes (SPEC-057), que só a CLI grava.
     text.split_inclusive('\n')
         .filter(|line| {
             let line = line.trim_end_matches('\n');
-            !line.starts_with("status_history:") && !line.starts_with("baseline_commit:")
+            !CLI_ONLY_FIELDS.iter().any(|field| line.starts_with(field))
         })
         .collect()
+}
+
+const CLI_ONLY_FIELDS: &[&str] = &[
+    "status_history:",
+    "baseline_commit:",
+    "tests_code_hash:",
+    "tests_checks_hash:",
+];
+
+/// Cópia da Verificação que só a CLI grava no baseline (SPEC-057), ausente nos scripts bash.
+fn is_cli_only_file(path: &str) -> bool {
+    path.ends_with("/baseline/verificacao.md")
 }
 
 // --- Reprodução ---
@@ -627,7 +639,7 @@ fn compare_case(
     paths.sort();
     paths.dedup();
     for path in paths {
-        if is_git_internal(path) || path.starts_with("argfile-") {
+        if is_git_internal(path) || path.starts_with("argfile-") || is_cli_only_file(path) {
             continue;
         }
         if expected.get(path).is_some_and(|sha| is_recorder(sha)) {

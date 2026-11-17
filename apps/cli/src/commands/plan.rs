@@ -13,10 +13,10 @@ use clap::Subcommand;
 use super::task::{
     before_section, created_of, dashdash_commands, dashdash_warning, delivery_errors,
     evidence_item, evidence_name_problem, evidence_rule_errors, evidence_title_errors,
-    expected_change, falha_problems, init_layout, is_task_folder, layout, new_folders,
-    new_kind_name, normalized_evidence_name, parse_evidence_entries, snippet_warnings,
-    task_entries, task_template_dir, verify_block, EvidenceKinds, TaskDoc, Which,
-    EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
+    expected_change, falha_problems, grep_pipefail_commands, grep_pipefail_warning, init_layout,
+    is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name,
+    parse_evidence_entries, snippet_warnings, task_entries, task_template_dir, verify_block,
+    EvidenceKinds, TaskDoc, Which, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
 use crate::harness::Harness;
 use crate::support::{
@@ -1303,8 +1303,12 @@ impl Workspace {
         );
         for file in entries {
             let task = file_stem(&file);
-            for command in dashdash_commands(&self.verification(&task_text(&file)?)?) {
+            let verification = self.verification(&task_text(&file)?)?;
+            for command in dashdash_commands(&verification) {
                 println!("{}", dashdash_warning(&task, &command));
+            }
+            for command in grep_pipefail_commands(&verification) {
+                println!("{}", grep_pipefail_warning(&task, &command));
             }
             let text = markdown_subsection(
                 &task_text(&file)?,

@@ -605,6 +605,22 @@ impl Tasks {
         }
     }
 
+    /// `verification_reuse`: ausente (projetos antigos) vale `mudar`; inválido vale `mudar` com aviso.
+    fn verification_reuse(&self) -> VerificationReuse {
+        let Ok(value) = self.cfg("verification_reuse") else {
+            return VerificationReuse::Mudar;
+        };
+        match value.as_str() {
+            "mudar" => VerificationReuse::Mudar,
+            "arvore" => VerificationReuse::Arvore,
+            "nunca" => VerificationReuse::Nunca,
+            _ => {
+                eprintln!("Aviso: verification_reuse '{value}' inválido em config/tasks.yml; use mudar, arvore ou nunca. Vale mudar.");
+                VerificationReuse::Mudar
+            }
+        }
+    }
+
     /// Trechos de `regression_ignore`; sem a chave (projetos antigos), lista vazia.
     /// Hashes da conferência de uma evidência, com os tempos de `regression_ignore` fora do log.
     fn review_hashes(&self, bytes: &[u8]) -> ReviewHashes {
@@ -1528,6 +1544,9 @@ impl Tasks {
         for command in dashdash_commands(&block) {
             println!("{}", dashdash_warning(&task_id_of(file), &command));
         }
+        for command in grep_pipefail_commands(&block) {
+            println!("{}", grep_pipefail_warning(&task_id_of(file), &command));
+        }
         Ok(())
     }
 
@@ -2052,6 +2071,98 @@ impl Tasks {
         Ok(sha256_hex(text.as_bytes()))
     }
 
+    /// Impressão da árvore do projeto: os arquivos versionados e os não ignorados, fora da pasta de
+    /// trabalho do harness, que muda a cada comando da tarefa. Fora do git, todos os arquivos.
+    fn tree_fingerprint(&self) -> Result<String> {
+        let root = self.project_root()?;
+        let mut paths: Vec<String> = match git_text(
+            &root,
+            &[
+                "ls-files",
+                "-z",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+            ],
+        ) {
+            Some(listing) => listing
+                .split('\0')
+                .filter(|path| !path.is_empty())
+                .map(str::to_string)
+                .collect(),
+            None => {
+                let mut found = Vec::new();
+                collect_files(&root, Path::new(""), &mut found)?;
+                found
+            }
+        };
+        let work = self.work_dir_relative(&root);
+        paths.retain(|path| {
+            work.as_ref()
+                .is_none_or(|work| path != work && !path.starts_with(&format!("{work}/")))
+        });
+        paths.sort();
+        paths.dedup();
+        let mut data = Vec::new();
+        for path in paths {
+            append_fingerprint(&mut data, &root, &path)?;
+        }
+        Ok(sha256_hex(&data))
+    }
+
+    /// Pasta de trabalho do harness (a que contém as tarefas), relativa à raiz do projeto.
+    fn work_dir_relative(&self, root: &Path) -> Option<String> {
+        let work = fs::canonicalize(self.tasks_root.parent()?).ok()?;
+        let root = fs::canonicalize(root).ok()?;
+        let relative = work.strip_prefix(root).ok()?;
+        Some(relative.to_string_lossy().replace('\\', "/"))
+    }
+
+    fn run_code_hash(&self, file: &Path, reuse: VerificationReuse) -> Result<String> {
+        match reuse {
+            VerificationReuse::Arvore => self.tree_fingerprint(),
+            _ => self.code_fingerprint(file),
+        }
+    }
+
+    fn run_record_path(&self, file: &Path) -> Result<PathBuf> {
+        Ok(self.evidence_dir(file)?.join("validation/run.yml"))
+    }
+
+    /// Grava a rodada da Verificação que passou, para reaproveitamento; com `nunca`, apaga a que
+    /// houver e devolve `false`.
+    fn record_run(&self, file: &Path, source: &str) -> Result<bool> {
+        let reuse = self.verification_reuse();
+        if reuse == VerificationReuse::Nunca {
+            self.forget_run(file)?;
+            return Ok(false);
+        }
+        let root = self.project_root()?;
+        let commit =
+            git_text(&root, &["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "-".into());
+        let record = format!(
+            "source: {source}\nat: {}\nexit_code: 0\ncommit: {commit}\nreuse: {}\nchecks_hash: {}\ncode_hash: {}\n",
+            utc_now(),
+            reuse.as_str(),
+            self.checks_hash(&TaskDoc::at(file).text()?)?,
+            self.run_code_hash(file, reuse)?
+        );
+        let path = self.run_record_path(file)?;
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
+        fs::write(&path, record)?;
+        Ok(true)
+    }
+
+    fn forget_run(&self, file: &Path) -> Result<()> {
+        let path = self.run_record_path(file)?;
+        if path.exists() {
+            fs::remove_file(path)?;
+        }
+        Ok(())
+    }
+
     /// Status de execução: in_progress, executed, validating e blocked.
     fn is_running(&self, status: &str) -> bool {
         [
@@ -2516,11 +2627,20 @@ impl Tasks {
                 self.cfg("verify_subsection")?
             );
         }
+        let block = self.block_recording_labels(&file, &block)?;
         let (code, path) = self.run_verification(&file, &block, "check.out")?;
         if code == 0 {
-            println!("Verificação de {task} passou (saída em {})", path.display());
+            if self.record_run(&file, "check")? {
+                println!(
+                    "Verificação de {task} passou (saída em {}); rodada gravada para reaproveitamento.",
+                    path.display()
+                );
+            } else {
+                println!("Verificação de {task} passou (saída em {})", path.display());
+            }
             return Ok(());
         }
+        self.forget_run(&file)?;
         println!(
             "Verificação de {task} falhou (código {code}); últimas linhas ({}):",
             path.display()
@@ -2553,6 +2673,7 @@ impl Tasks {
             let checks = self.checks_hash(&TaskDoc::at(&file).text()?)?;
             TaskDoc::at(&file).put("tests_code_hash", &self.code_fingerprint(&file)?)?;
             TaskDoc::at(&file).put("tests_checks_hash", &checks)?;
+            self.record_run(&file, "tests")?;
             self.record_step(
                 &file,
                 "testes",
@@ -2566,6 +2687,7 @@ impl Tasks {
             return Ok(());
         }
 
+        self.forget_run(&file)?;
         let attempts = number_or_zero(&TaskDoc::at(&file).get("attempts").unwrap_or_default()) + 1;
         let max_attempts = number_or_zero(&self.cfg("max_attempts")?);
         TaskDoc::at(&file).set("tests_result", "failed")?;
@@ -6122,11 +6244,50 @@ enum TestedCode {
     Same,
 }
 
+/// O que a impressão da rodada da Verificação compara (`verification_reuse`).
+#[derive(Clone, Copy, PartialEq)]
+enum VerificationReuse {
+    Mudar,
+    Arvore,
+    Nunca,
+}
+
+impl VerificationReuse {
+    fn as_str(self) -> &'static str {
+        match self {
+            VerificationReuse::Mudar => "mudar",
+            VerificationReuse::Arvore => "arvore",
+            VerificationReuse::Nunca => "nunca",
+        }
+    }
+}
+
 /// Hash gravado num campo do estado; ausente ou `null` quando o campo falta.
 fn recorded_hash(doc: &TaskDoc, key: &str) -> Option<String> {
     doc.get(key)
         .ok()
         .filter(|value| !value.is_empty() && value != "null")
+}
+
+/// Arquivos de `dir`, relativos à raiz, sem a pasta `.git`.
+fn collect_files(root: &Path, dir: &Path, found: &mut Vec<String>) -> Result<()> {
+    let full = root.join(dir);
+    for entry in fs::read_dir(&full)
+        .with_context(|| format!("não foi possível ler {}", full.display()))?
+        .flatten()
+    {
+        let name = entry.file_name();
+        if name == ".git" {
+            continue;
+        }
+        let relative = dir.join(&name);
+        if entry.file_type()?.is_dir() {
+            collect_files(root, &relative, found)?;
+        } else {
+            found.push(relative.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    Ok(())
 }
 
 fn append_fingerprint(data: &mut Vec<u8>, root: &Path, relative: &str) -> Result<()> {
@@ -7056,6 +7217,29 @@ pub(super) fn evidence_title_errors(
 /// Aviso de um comando de `dashdash_commands`.
 pub(super) fn dashdash_warning(task: &str, command: &str) -> String {
     format!("Aviso: {task}: o comando '{command}' passa argumentos depois de '--' para o script; confira se o filtro é aplicado")
+}
+
+/// Comandos da "Verificação" com um `grep` que, sem ocorrência, derruba o bloco sob `pipefail`:
+/// numa substituição `$(...)` ou antes de `| wc -l`, sem `|| true`. O `grep` que só filtra a saída
+/// de outro comando fica de fora, porque vem depois do pipe.
+pub(super) fn grep_pipefail_commands(block: &str) -> Vec<String> {
+    block
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#') && !line.contains("|| true"))
+        .filter(|line| {
+            line.find("grep ").is_some_and(|at| {
+                let (before, after) = line.split_at(at);
+                after.contains('|') && (before.contains("$(") || after.contains("| wc -l"))
+            })
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+/// Aviso de um comando de `grep_pipefail_commands`.
+pub(super) fn grep_pipefail_warning(task: &str, command: &str) -> String {
+    format!("Aviso: {task}: o comando '{command}' sai com erro sob pipefail quando o grep não acha nada; acrescente '|| true' ou use 'grep -c'")
 }
 
 /// Item "- `arquivo` (print): `comando`".

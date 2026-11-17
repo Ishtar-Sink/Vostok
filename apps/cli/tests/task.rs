@@ -1123,6 +1123,22 @@ fn evidence_name_valid_is_accepted_by_the_task_validation() {
 }
 
 #[test]
+fn grep_aviso_no_ajuste() {
+    let project = task_with_evidence("pending", "- `saida.txt` (automática): `echo ok`");
+    set_verification(&project, "a=$(grep x valor.txt | wc -l)");
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(output.contains("sai com erro sob pipefail"), "{output}");
+}
+
+#[test]
+fn grep_aviso_nao_para_contagem_no_ajuste() {
+    let project = task_with_evidence("pending", "- `saida.txt` (automática): `echo ok`");
+    set_verification(&project, "grep -c x valor.txt");
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(!output.contains("sai com erro sob pipefail"), "{output}");
+}
+
+#[test]
 fn evidence_name_reserved_or_hidden_is_refused_by_the_task_validation() {
     for name in [".saida.txt", "baseline", "validation"] {
         let project = task_with_evidence("pending", &format!("- `{name}` (automática): `echo ok`"));
@@ -2403,6 +2419,118 @@ fn check_refuses_a_blocked_task() {
     write(&project, TASK_PATH, &content);
     let stderr = failure_stderr(&mut task(&project, &["check"]));
     assert!(stderr.contains("está bloqueada"), "{stderr}");
+}
+
+// --- Rodada da Verificação gravada para reaproveitamento (SPEC-065) ---
+
+const RUN_RECORD: &str = "vostok/work/tasks/SPEC-001/evidence/TASK-01/validation/run.yml";
+
+const RUN_VERIFICATION: &str = "echo rodou >> contador.txt\n# evidência: saida.txt\necho um";
+
+fn run_task() -> Project {
+    labeled_task(RUN_VERIFICATION, &from_verify("saida.txt"))
+}
+
+/// Troca a Verificação de `run_task` pelo bloco dado.
+fn replace_run_verification(project: &Project, block: &str) {
+    let content = read(project, TASK_PATH).replace(RUN_VERIFICATION, block);
+    write(project, TASK_PATH, &content);
+}
+
+fn run_field(project: &Project, key: &str) -> Option<String> {
+    read(project, RUN_RECORD)
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{key}: ")).map(str::to_string))
+}
+
+fn is_sha256(value: Option<String>) -> bool {
+    value.is_some_and(|hash| hash.len() == 64 && hash.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+#[test]
+fn rodada_grava_check_que_passa() {
+    let project = run_task();
+    let before = read(&project, TASK_PATH);
+    let stdout = success_stdout(&mut task(&project, &["check"]));
+    assert!(
+        stdout.contains("rodada gravada para reaproveitamento."),
+        "{stdout}"
+    );
+    assert_eq!(run_field(&project, "source").as_deref(), Some("check"));
+    assert_eq!(run_field(&project, "exit_code").as_deref(), Some("0"));
+    assert_eq!(run_field(&project, "reuse").as_deref(), Some("mudar"));
+    assert!(run_field(&project, "at").is_some_and(|at| !at.is_empty()));
+    assert!(run_field(&project, "commit").is_some());
+    assert!(is_sha256(run_field(&project, "checks_hash")));
+    assert!(is_sha256(run_field(&project, "code_hash")));
+    assert_eq!(read(&project, &format!("{VERIFY_DIR}/saida.txt")), "um\n");
+    assert_eq!(read(&project, TASK_PATH), before);
+}
+
+#[test]
+fn rodada_grava_tests_que_passa() {
+    let project = run_task();
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(run_field(&project, "source").as_deref(), Some("tests"));
+    assert_eq!(run_field(&project, "exit_code").as_deref(), Some("0"));
+}
+
+#[test]
+fn rodada_grava_nada_quando_falha() {
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    assert!(exists(&project, RUN_RECORD));
+    replace_run_verification(&project, "false");
+    task(&project, &["check"]).assert().failure();
+    assert!(!exists(&project, RUN_RECORD));
+
+    let project = run_task();
+    task(&project, &["check"]).assert().success();
+    replace_run_verification(&project, "false");
+    task(&project, &["tests"]).assert().failure();
+    assert!(!exists(&project, RUN_RECORD));
+}
+
+#[test]
+fn rodada_grava_nada_com_nunca() {
+    let project = run_task();
+    set_config(&project, "verification_reuse", "nunca");
+    let stdout = success_stdout(&mut task(&project, &["check"]));
+    assert!(!stdout.contains("rodada gravada"), "{stdout}");
+    assert!(!exists(&project, RUN_RECORD));
+    task(&project, &["tests"]).assert().success();
+    assert!(!exists(&project, RUN_RECORD));
+}
+
+#[test]
+fn rodada_grava_arvore() {
+    let project = labeled_task("# evidência: saida.txt\necho um", &from_verify("saida.txt"));
+    set_config(&project, "verification_reuse", "arvore");
+    task(&project, &["check"]).assert().success();
+    assert_eq!(run_field(&project, "reuse").as_deref(), Some("arvore"));
+    let before = run_field(&project, "code_hash");
+    task(&project, &["check"]).assert().success();
+    assert_eq!(run_field(&project, "code_hash"), before);
+    write(&project, "extra.txt", "novo\n");
+    task(&project, &["check"]).assert().success();
+    assert_ne!(run_field(&project, "code_hash"), before);
+}
+
+#[test]
+fn rodada_grava_valor_invalido_vale_mudar() {
+    let project = run_task();
+    set_config(&project, "verification_reuse", "talvez");
+    let output = task(&project, &["check"])
+        .assert()
+        .success()
+        .get_output()
+        .clone();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("verification_reuse 'talvez' inválido"),
+        "{stderr}"
+    );
+    assert_eq!(run_field(&project, "reuse").as_deref(), Some("mudar"));
 }
 
 #[test]

@@ -26,6 +26,9 @@ max_attempts: 2
 # Subagentes ao mesmo tempo numa onda da execute-task, de 1 a 6.
 max_subagents: 3
 
+# O que a impressão da rodada da Verificação compara para reaproveitá-la: mudar (arquivos de "Mudar"), arvore (árvore do projeto, sem a pasta de trabalho do harness) ou nunca (sem reaproveitamento).
+verification_reuse: mudar
+
 # Trechos de texto ignorados pelo vostok task regression: as linhas que contêm algum deles saem da
 # comparação com o baseline, dos dois lados (hora, duração). O `NN.diff` continua com a saída inteira.
 regression_ignore:

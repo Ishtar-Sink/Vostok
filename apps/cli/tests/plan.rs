@@ -1498,6 +1498,40 @@ fn dashdash_does_not_warn_for_cargo() {
 }
 
 #[test]
+fn grep_aviso_para_substituicao_e_wc() {
+    for command in ["a=$(grep x valor.txt | wc -l)", "grep x valor.txt | wc -l"] {
+        let project = Project::new();
+        plan_task_with(&project, command, &simple_evidence());
+        let (success, text) = approve_validate(&project);
+        assert!(success, "{command}: {text}");
+        assert!(
+            text.contains(&format!(
+                "Aviso: TASK-01: o comando '{command}' sai com erro sob pipefail quando o grep não acha nada"
+            )),
+            "{command}: {text}"
+        );
+    }
+}
+
+#[test]
+fn grep_aviso_nao_para_contagem_ou_true() {
+    for command in [
+        "n=$(grep -c x valor.txt)",
+        "a=$(grep x valor.txt | wc -l || true)",
+        "cargo test 2>&1 | grep -E ok | sort",
+    ] {
+        let project = Project::new();
+        plan_task_with(&project, command, &simple_evidence());
+        let (success, text) = approve_validate(&project);
+        assert!(success, "{command}: {text}");
+        assert!(
+            !text.contains("sai com erro sob pipefail"),
+            "{command}: {text}"
+        );
+    }
+}
+
+#[test]
 fn plan_evidence_rules_accept_the_new_kinds() {
     let project = Project::new();
     let evidence = format!(

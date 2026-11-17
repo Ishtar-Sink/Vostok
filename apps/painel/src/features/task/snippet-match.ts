@@ -39,3 +39,19 @@ export function findLines(log: string, snippet: string): number[] {
   const found = equal.length > 0 ? equal : body.filter((line) => pattern.test(line.text));
   return found.map((line) => line.index);
 }
+
+/** Textos entre crases do Trecho ou da Falha, na ordem em que aparecem. */
+export function snippetsOf(value?: string): string[] {
+  return [...(value ?? '').matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+}
+
+const ASCII_PUNCTUATION = /^[!-/:-@[-`{-~]+$/;
+
+/** Motivo de um texto não ser buscado, ou vazio quando dá para buscar. */
+export function unsearchable(snippet: string): string {
+  // a barra na ponta é o que sobra de uma crase escapada, que cortou o texto no meio
+  if (snippet.startsWith('\\') || snippet.endsWith('\\')) return 'crase dentro do texto';
+  // pontuação solta, como `+` ou `|`, acharia quase qualquer linha do log
+  if (ASCII_PUNCTUATION.test(snippet.replace(/\s+/g, ''))) return 'símbolo solto';
+  return '';
+}

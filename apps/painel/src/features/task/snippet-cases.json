@@ -1,0 +1,333 @@
+[
+  {
+    "name": "0 passed dentro de 10 passed",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)",
+    "snippet": "0 passed",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "FAILED contra resumo em minúsculas",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest result: ok. 3 passed; 0 failed; 0 ignored",
+    "snippet": "FAILED",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "prefixo dentro de palavra maior",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest busca::acha ... FAILED",
+    "snippet": "FAIL",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "singular dentro do plural",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nFound 0 errors.",
+    "snippet": "error",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "sinal de vezes colado a números",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nprint 1280×720 gravado\nzoom 2×",
+    "snippet": "×",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "ok dentro de token",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntoken da sessão gerado",
+    "snippet": "ok",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "cabeçalho: comando",
+    "log": "$ cargo test\n# data: d\n# commit: abc1234\n# código de saída: 0\ntest result: ok",
+    "snippet": "cargo test",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "cabeçalho: commit rótulo",
+    "log": "$ cargo test\n# data: d\n# commit: abc1234\n# código de saída: 0\ntest result: ok",
+    "snippet": "# commit",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "cabeçalho: hash do commit",
+    "log": "$ cargo test\n# data: d\n# commit: abc1234\n# código de saída: 0\ntest result: ok",
+    "snippet": "abc1234",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "maiúsculas diferenciadas",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTest Files  1 passed (1)",
+    "snippet": "test files",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "maiúsculas iguais",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTest Files  1 passed (1)",
+    "snippet": "Test Files",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "espaços repetidos juntados",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTest Files  1 passed (1)",
+    "snippet": "Test   Files 1 passed",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "linha igual vence",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest result: ok. 3 passed\ntest result: ok",
+    "snippet": "test result: ok",
+    "lines": [
+      5
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "sem linha igual vale a que contém",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest result: ok. 3 passed\nTests 2 passed",
+    "snippet": "passed",
+    "lines": [
+      4,
+      5
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "acento: palavra inteira",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nação concluída\nnão",
+    "snippet": "ação",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "acento: ção dentro de ação",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nação concluída\nnão",
+    "snippet": "ção",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "acento: ão dentro de não",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nação concluída\nnão",
+    "snippet": "ão",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "sinal de vezes do Vitest como palavra",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n × src/a.test.ts > busca > acha 3ms\n ✓ src/a.test.ts > busca > lê 2ms",
+    "snippet": "×",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga no começo",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed (0)\nTest Files  1 passed",
+    "snippet": "... passed",
+    "lines": [
+      4,
+      5,
+      6
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga no começo com 0",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed (0)\nTest Files  1 passed",
+    "snippet": "... 0 passed",
+    "lines": [
+      4,
+      5
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga no fim",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed (0)\nTest Files  1 passed",
+    "snippet": "Test Fi ...",
+    "lines": [
+      6
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga sem limite de palavra colado",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed (0)\nTest Files  1 passed",
+    "snippet": "... passe",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga no meio",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nTests  10 passed (10)\nTests  0 passed (0)\nTest Files  1 passed",
+    "snippet": "Tests ... 0 passed",
+    "lines": [
+      4,
+      5
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga em caractere único",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n✓ src/board.test.tsx > Board > Filtro > esconde a raia",
+    "snippet": "✓ … Board … esconde",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "partes fora de ordem",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n✓ src/board.test.tsx > Board > Filtro > esconde a raia",
+    "snippet": "esconde ... Board",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "curinga não cruza linhas",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nBarra da onda\nabre a próxima",
+    "snippet": "Barra ... abre",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "texto vazio",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nqualquer linha",
+    "snippet": "",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "texto só espaços",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nqualquer linha",
+    "snippet": "   ",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "texto só três pontos",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nqualquer linha",
+    "snippet": "...",
+    "lines": [],
+    "unsearchable": "símbolo solto"
+  },
+  {
+    "name": "texto só reticências",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nqualquer linha",
+    "snippet": "…",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "texto só curingas misturados",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nqualquer linha",
+    "snippet": " ... … ",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "ANSI: linha com cor",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n\u001b[32m✓\u001b[39m src/a.test.ts > busca > passa \u001b[2m3ms\u001b[22m\n      Tests  \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m (2)",
+    "snippet": "✓ ... > busca > passa",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "ANSI: resumo com cor",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n\u001b[32m✓\u001b[39m src/a.test.ts > busca > passa \u001b[2m3ms\u001b[22m\n      Tests  \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m (2)",
+    "snippet": "Tests 2 passed (2)",
+    "lines": [
+      5
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "ANSI: código não é texto",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n\u001b[32m✓\u001b[39m src/a.test.ts > busca > passa \u001b[2m3ms\u001b[22m\n      Tests  \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m (2)",
+    "snippet": "32m",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "log sem cabeçalho",
+    "log": "linha sem cabeçalho\nok",
+    "snippet": "ok",
+    "lines": [
+      1
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "exit= contra exit=0",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nexit=0",
+    "snippet": "exit=",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "rc contra rc=0",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nrc=0",
+    "snippet": "rc",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "ação com acento",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nação concluída",
+    "snippet": "ação",
+    "lines": [
+      4
+    ],
+    "unsearchable": ""
+  },
+  {
+    "name": "ção com acento colada",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nação concluída",
+    "snippet": "ção",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "× colado a número",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n1280×720",
+    "snippet": "×",
+    "lines": [],
+    "unsearchable": ""
+  },
+  {
+    "name": "símbolo solto +",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\na + b",
+    "snippet": "+",
+    "lines": [],
+    "unsearchable": "símbolo solto"
+  },
+  {
+    "name": "barra invertida no fim",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\na\\fim",
+    "snippet": "\\fim",
+    "lines": [],
+    "unsearchable": "crase dentro do texto"
+  }
+]

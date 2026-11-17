@@ -725,6 +725,156 @@ pub fn evidence_subitem_errors(
     errors
 }
 
+const LOG_HEADER: [&str; 4] = ["$ ", "# data:", "# commit:", "# código de saída:"];
+
+/// Textos entre crases do Trecho ou da Falha, na ordem em que aparecem.
+pub fn snippets_of(value: &str) -> Vec<String> {
+    let mut texts = Vec::new();
+    let mut rest = value;
+    while let Some(open) = rest.find('`') {
+        let after = &rest[open + 1..];
+        let Some(close) = after.find('`') else { break };
+        if close > 0 {
+            texts.push(after[..close].to_string());
+            rest = &after[close + 1..];
+        } else {
+            rest = after;
+        }
+    }
+    texts
+}
+
+/// Motivo de um texto não ser buscado, ou vazio quando dá para buscar.
+pub fn unsearchable(snippet: &str) -> &'static str {
+    // a barra na ponta é o que sobra de uma crase escapada, que cortou o texto no meio
+    if snippet.starts_with('\\') || snippet.ends_with('\\') {
+        return "crase dentro do texto";
+    }
+    let compact: String = snippet.split_whitespace().collect();
+    // pontuação solta, como `+` ou `|`, acharia quase qualquer linha do log
+    if !compact.is_empty() && compact.chars().all(|c| c.is_ascii_punctuation()) {
+        return "símbolo solto";
+    }
+    ""
+}
+
+fn strip_ansi(text: &str) -> String {
+    let mut clean = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' || chars.peek() != Some(&'[') {
+            clean.push(c);
+            continue;
+        }
+        chars.next();
+        while chars.next_if(|p| ('\x30'..='\x3f').contains(p)).is_some() {}
+        while chars.next_if(|p| ('\x20'..='\x2f').contains(p)).is_some() {}
+        chars.next_if(|p| ('\x40'..='\x7e').contains(p));
+    }
+    clean
+}
+
+fn normalize(text: &str) -> String {
+    strip_ansi(text)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn header_length(lines: &[&str]) -> usize {
+    LOG_HEADER
+        .iter()
+        .zip(lines)
+        .take_while(|(prefix, line)| line.starts_with(**prefix))
+        .count()
+}
+
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric()
+}
+
+/// Primeira posição de `part` em `text` a partir de `from` cujos vizinhos respeitam os limites de palavra pedidos.
+fn find_part(
+    text: &str,
+    part: &str,
+    from: usize,
+    word_before: bool,
+    word_after: bool,
+) -> Option<usize> {
+    let mut start = from;
+    while let Some(offset) = text[start..].find(part) {
+        let at = start + offset;
+        let end = at + part.len();
+        let before_ok = !word_before || !text[..at].chars().next_back().is_some_and(is_word_char);
+        let after_ok = !word_after || !text[end..].chars().next().is_some_and(is_word_char);
+        if before_ok && after_ok {
+            return Some(at);
+        }
+        start = at + text[at..].chars().next().map_or(1, char::len_utf8);
+    }
+    None
+}
+
+fn line_matches(text: &str, wanted: &[&str], word_before: bool, word_after: bool) -> bool {
+    let last = wanted.len() - 1;
+    let first_needs_after = last == 0 && word_after;
+    let Some(first) = find_part(text, wanted[0], 0, word_before, first_needs_after) else {
+        return false;
+    };
+    if last == 0 {
+        return true;
+    }
+    let mut cursor = first + wanted[0].len();
+    for part in &wanted[1..last] {
+        match find_part(text, part, cursor, false, false) {
+            Some(at) => cursor = at + part.len(),
+            None => return false,
+        }
+    }
+    find_part(text, wanted[last], cursor, false, word_after).is_some()
+}
+
+/// Índices das linhas do log que o texto do Trecho ou da Falha aponta, pela mesma regra do painel (RF-22).
+pub fn find_lines(log: &str, snippet: &str) -> Vec<usize> {
+    let parts: Vec<String> = snippet
+        .split("...")
+        .flat_map(|p| p.split('…'))
+        .map(normalize)
+        .collect();
+    let wanted: Vec<&str> = parts
+        .iter()
+        .map(String::as_str)
+        .filter(|p| !p.is_empty())
+        .collect();
+    if wanted.is_empty() {
+        return Vec::new();
+    }
+    let raw: Vec<&str> = log.split('\n').collect();
+    let body: Vec<(usize, String)> = raw
+        .iter()
+        .enumerate()
+        .skip(header_length(&raw))
+        .map(|(index, line)| (index, normalize(line)))
+        .collect();
+    let word_before = parts.first().is_some_and(|p| !p.is_empty());
+    let word_after = parts.last().is_some_and(|p| !p.is_empty());
+
+    if parts.len() == 1 {
+        let equal: Vec<usize> = body
+            .iter()
+            .filter(|(_, text)| text == wanted[0])
+            .map(|(i, _)| *i)
+            .collect();
+        if !equal.is_empty() {
+            return equal;
+        }
+    }
+    body.iter()
+        .filter(|(_, text)| line_matches(text, &wanted, word_before, word_after))
+        .map(|(index, _)| *index)
+        .collect()
+}
+
 #[cfg(test)]
 mod evidence_tests {
     use super::*;
@@ -835,5 +985,51 @@ mod evidence_tests {
         let errors = evidence_subitem_errors(&text, "Evidências", Some(&fields()), false);
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("desconhecido 'Onde ver'"));
+    }
+}
+
+#[cfg(test)]
+mod snippet_tests {
+    use super::*;
+
+    const CASES: &str = include_str!("../../painel/src/features/task/snippet-cases.json");
+    const HEADER: &str = "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n";
+
+    #[test]
+    fn snippet_shared_cases_match_the_painel() {
+        let cases: serde_json::Value = serde_json::from_str(CASES).unwrap();
+        let cases = cases.as_array().unwrap();
+        assert!(!cases.is_empty());
+        for case in cases {
+            let name = case["name"].as_str().unwrap();
+            let log = case["log"].as_str().unwrap();
+            let snippet = case["snippet"].as_str().unwrap();
+            let reason = case["unsearchable"].as_str().unwrap();
+            assert_eq!(unsearchable(snippet), reason, "caso: {name}");
+            if reason.is_empty() {
+                let lines: Vec<usize> = case["lines"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|line| line.as_u64().unwrap() as usize)
+                    .collect();
+                assert_eq!(find_lines(log, snippet), lines, "caso: {name}");
+            }
+        }
+    }
+
+    #[test]
+    fn snippet_snippets_of_reads_the_backtick_texts() {
+        assert_eq!(snippets_of("veja `a b` e `c`"), vec!["a b", "c"]);
+        assert!(snippets_of("sem crases").is_empty());
+        assert!(snippets_of("``").is_empty());
+    }
+
+    #[test]
+    fn snippet_header_and_ansi_are_ignored() {
+        let log = format!("{HEADER}\u{1b}[32mok\u{1b}[39m");
+        assert_eq!(find_lines(&log, "ok"), vec![4]);
+        assert!(find_lines(&log, "cmd").is_empty());
+        assert!(find_lines(&log, "32m").is_empty());
     }
 }

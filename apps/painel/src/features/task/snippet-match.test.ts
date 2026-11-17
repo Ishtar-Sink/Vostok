@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { findLines, stripAnsi } from './snippet-match';
+import { findLines, stripAnsi, unsearchable } from './snippet-match';
+import cases from './snippet-cases.json';
 
 const HEADER = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n';
 const log = (...lines: string[]) => HEADER + lines.join('\n');
@@ -131,6 +132,17 @@ describe('stripAnsi', () => {
     expect(stripAnsi('\u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m')).toBe('2 passed');
     expect(stripAnsi('sem cor')).toBe('sem cor');
   });
+});
+
+describe('tabela compartilhada', () => {
+  for (const sharedCase of cases) {
+    it(sharedCase.name, () => {
+      expect(unsearchable(sharedCase.snippet)).toBe(sharedCase.unsearchable);
+      if (sharedCase.unsearchable === '') {
+        expect(findLines(sharedCase.log, sharedCase.snippet)).toEqual(sharedCase.lines);
+      }
+    });
+  }
 });
 
 const BARRA_DA_ONDA = `$ pnpm --dir apps/painel exec vitest run src/features/task/task-page.test.tsx --reporter=verbose

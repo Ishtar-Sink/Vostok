@@ -1,25 +1,11 @@
 import type { CheckItem } from '../../../ui/check-list/check-list';
-import { findLines } from '../snippet-match';
+import { findLines, snippetsOf, unsearchable } from '../snippet-match';
+
+export { snippetsOf, unsearchable };
 
 export interface SnippetCheck extends CheckItem {
   /** Índices das linhas do log em que o texto aparece, a partir de 0. */
   lines: number[];
-}
-
-/** Textos entre crases do Trecho ou da Falha, na ordem em que aparecem. */
-export function snippetsOf(value?: string): string[] {
-  return [...(value ?? '').matchAll(/`([^`]+)`/g)].map((match) => match[1]);
-}
-
-const ASCII_PUNCTUATION = /^[!-/:-@[-`{-~]+$/;
-
-/** Motivo de um texto não ser buscado, ou vazio quando dá para buscar. */
-export function unsearchable(snippet: string): string {
-  // a barra na ponta é o que sobra de uma crase escapada, que cortou o texto no meio
-  if (snippet.startsWith('\\') || snippet.endsWith('\\')) return 'crase dentro do texto';
-  // pontuação solta, como `+` ou `|`, acharia quase qualquer linha do log
-  if (ASCII_PUNCTUATION.test(snippet.replace(/\s+/g, ''))) return 'símbolo solto';
-  return '';
 }
 
 /** Resultado de cada texto: bom quando aparece no Trecho (`expectFound`) ou quando falta na Falha. */

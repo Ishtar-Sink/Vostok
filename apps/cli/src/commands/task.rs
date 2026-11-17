@@ -33,6 +33,8 @@ pub enum TaskCommand {
     },
     /// Imprime as tabelas das tarefas e das ondas de uma spec.
     Status { spec_id: Option<String> },
+    /// Lista o estado das conferências das tarefas de uma spec.
+    Reviews { ids: Vec<String> },
     /// Confere os critérios de conclusão.
     CheckDone {
         spec_id: Option<String>,
@@ -249,6 +251,7 @@ const DEPENDS_USAGE: &str =
     "Uso: vostok task depends add|remove <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo \"texto\"";
 const CLOSES_AFTER_USAGE: &str =
     "Uso: vostok task closes-after add|remove <SPEC_ID> <TASK_ID> <TAREFA> --motivo \"texto\"";
+const REVIEWS_USAGE: &str = "Uso: vostok task reviews [SPEC_ID] [TASK_ID...]";
 const STATUS_USAGE: &str = "Uso: vostok task status <SPEC_ID>";
 const EXECUTE_USAGE: &str = "Uso: vostok task start|baseline <SPEC_ID> <TASK_ID>";
 const FINISH_USAGE: &str = "Uso: vostok task tests|regression|evidence|finish <SPEC_ID> <TASK_ID> | vostok task evidence <SPEC_ID> <TASK_ID> [--reviewed <ARQUIVO>]... [--rejected <ARQUIVO> --motivo \"motivo\"] | vostok task resume <SPEC_ID> <TASK_ID> [--accept-regression <N[,N...]>] \"decisão\"";
@@ -337,6 +340,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
             print!("{}", tasks.status_report(&spec)?);
             Ok(())
         }
+        TaskCommand::Reviews { ids } => tasks.run_reviews(&ids),
         TaskCommand::CheckDone { spec_id, task_id } => {
             let (spec, task) = filled(spec_id, task_id, CHECK_DONE_USAGE)?;
             println!("{}", tasks.check_done(&spec, &task)?);
@@ -1004,6 +1008,182 @@ impl Tasks {
         text.push_str(&format!("\n{}\n", trim_newlines(&record)));
         print!("{text}");
         Ok(())
+    }
+
+    /// Estado de conferência de cada evidência da tarefa, em pasta ou em arquivo único.
+    fn evidence_review_list(&self, file: &Path) -> Result<Vec<ReviewState>> {
+        let content = self.review_content(file)?;
+        let reviews = self.reviews(file, &content)?;
+        let review_kinds = self.review_kinds();
+        let evidence_dir = self.evidence_dir(file)?;
+        Ok(self
+            .evidence_entries(&content)?
+            .into_iter()
+            .map(|entry| {
+                let hashes = fs::read(evidence_dir.join(&entry.name))
+                    .ok()
+                    .filter(|_| is_valid_evidence_name(&entry.name))
+                    .map(|bytes| self.review_hashes(&bytes));
+                let sha256 = hashes
+                    .as_ref()
+                    .map(|hashes| hashes.current.clone())
+                    .unwrap_or_default();
+                let (status, reason, reviewed_at, origin) = match &hashes {
+                    _ if !review_kinds.contains(&entry.kind) => {
+                        ("sem aval", String::new(), String::new(), String::new())
+                    }
+                    Some(hashes) => review_status(&reviews, &entry.name, hashes),
+                    None => ("a conferir", String::new(), String::new(), String::new()),
+                };
+                ReviewState {
+                    name: entry.name,
+                    kind: entry.kind,
+                    status,
+                    reason,
+                    reviewed_at,
+                    origin,
+                    sha256,
+                }
+            })
+            .collect())
+    }
+
+    /// Texto com a verificação e o registro, as únicas partes que a conferência lê; na pasta, o
+    /// painel funciona mesmo sem os outros arquivos da tarefa.
+    fn review_content(&self, file: &Path) -> Result<String> {
+        if !is_task_folder(file) {
+            return read(file);
+        }
+        let layout = layout();
+        let verification = fs::read_to_string(file.join(&layout.verification))?;
+        let record = fs::read_to_string(file.join(&layout.record))?;
+        Ok(format!(
+            "## {}\n\n{}\n\n{}\n",
+            self.cfg("execution_section")?,
+            verification.trim_end(),
+            record
+        ))
+    }
+
+    /// Specs com ao menos uma tarefa esperando conferência, em ordem.
+    fn running_specs(&self) -> Result<Vec<String>> {
+        let mut specs = Vec::new();
+        if !self.tasks_root.is_dir() {
+            return Ok(specs);
+        }
+        for entry in fs::read_dir(&self.tasks_root)?.filter_map(|entry| entry.ok()) {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if is_spec_id(&name) && !self.reviewing_tasks(&entry.path())?.is_empty() {
+                specs.push(name);
+            }
+        }
+        specs.sort();
+        Ok(specs)
+    }
+
+    /// Tarefas da pasta da spec em execução, executadas ou em validação.
+    fn reviewing_tasks(&self, dir: &Path) -> Result<Vec<PathBuf>> {
+        Ok(task_entries(dir)?
+            .into_iter()
+            .filter(|file| self.reviewing_status(file))
+            .collect())
+    }
+
+    fn reviewing_status(&self, file: &Path) -> bool {
+        let status = status_of(file);
+        [
+            &self.status.in_progress,
+            &self.status.executed,
+            &self.status.validating,
+        ]
+        .contains(&&status)
+    }
+
+    fn run_reviews(&self, ids: &[String]) -> Result<()> {
+        let (spec, tasks) = match ids.split_first() {
+            Some((first, rest)) if is_spec_id(first) => (Some(first.clone()), rest),
+            _ => (None, ids),
+        };
+        if tasks.iter().any(|task| self.check_task_id(task).is_err()) {
+            return Err(usage(REVIEWS_USAGE));
+        }
+        let spec = match spec {
+            Some(spec) => spec,
+            None => {
+                let mut running = self.running_specs()?;
+                match running.len() {
+                    0 => {
+                        println!("Nenhuma tarefa aguardando conferência.");
+                        return Ok(());
+                    }
+                    1 => running.remove(0),
+                    _ => {
+                        eprintln!(
+                            "Mais de uma spec em execução; informe uma: {}",
+                            running.join(", ")
+                        );
+                        std::process::exit(2);
+                    }
+                }
+            }
+        };
+        print!("{}", self.reviews_report(&spec, tasks)?);
+        Ok(())
+    }
+
+    /// Tabela das conferências de cada tarefa do lote: as citadas, ou as que esperam conferência.
+    fn reviews_report(&self, spec: &str, tasks: &[String]) -> Result<String> {
+        let dir = self.tasks_root.join(spec);
+        let files = if tasks.is_empty() {
+            self.reviewing_tasks(&dir)?
+        } else {
+            tasks
+                .iter()
+                .map(|task| self.find_task(spec, task))
+                .collect::<Result<Vec<_>>>()?
+        };
+        let review_kinds = self.review_kinds();
+        let mut text = format!(
+            "### Conferências da {spec}\n\n| Tarefa | Status | A conferir | Aceitas | Recusadas |\n|---|---|---|---|---|\n"
+        );
+        for file in &files {
+            let (mut pending, mut accepted, mut rejected) = (Vec::new(), Vec::new(), Vec::new());
+            let waiting = self.reviewing_status(file);
+            let states = if waiting {
+                self.evidence_review_list(file)?
+            } else {
+                Vec::new()
+            };
+            for (index, state) in states.iter().enumerate() {
+                if !review_kinds.contains(&state.kind) {
+                    continue;
+                }
+                let id = format!("EV-{:02}", index + 1);
+                match state.status {
+                    "conferida" => accepted.push(format!("{id} ({})", state.origin)),
+                    "recusada" => {
+                        rejected.push(format!("{id} ({}): {}", state.origin, state.reason))
+                    }
+                    _ => pending.push(id),
+                }
+            }
+            let column = |items: Vec<String>| {
+                if items.is_empty() {
+                    "-".to_string()
+                } else {
+                    items.join(", ")
+                }
+            };
+            text.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                task_id_of(file),
+                status_of(file),
+                column(pending),
+                column(accepted),
+                column(rejected)
+            ));
+        }
+        Ok(text)
     }
 
     fn status_report(&self, spec: &str) -> Result<String> {
@@ -7120,8 +7300,9 @@ fn review_note(row: &RecordRow) -> String {
         .to_string()
 }
 
-#[cfg(feature = "painel")]
 /// Estado de conferência de uma evidência, como o painel o mostra (RF-28).
+// Sem a feature `painel`, só o comando `reviews` lê parte dos campos.
+#[cfg_attr(not(feature = "painel"), allow(dead_code))]
 pub(crate) struct ReviewState {
     pub name: String,
     pub kind: String,
@@ -7135,7 +7316,6 @@ pub(crate) struct ReviewState {
     pub sha256: String,
 }
 
-#[cfg(feature = "painel")]
 /// Estado de `name` pelo registro vigente com o hash dos bytes atuais; sem registro válido fica
 /// `a conferir`.
 fn review_status(
@@ -7184,48 +7364,7 @@ fn review_states(harness: &Path, task_dir: &Path) -> Result<Vec<ReviewState>> {
     let tasks = Tasks::new(Harness {
         root: harness.to_path_buf(),
     })?;
-    let layout = layout();
-    let verification = fs::read_to_string(task_dir.join(&layout.verification))?;
-    let record = fs::read_to_string(task_dir.join(&layout.record))?;
-    let content = format!(
-        "## {}\n\n{}\n\n{}\n",
-        tasks.cfg("execution_section")?,
-        verification.trim_end(),
-        record
-    );
-    let reviews = tasks.reviews(task_dir, &content)?;
-    let review_kinds = tasks.review_kinds();
-    let evidence_dir = task_dir.join(&layout.evidence_dir);
-    Ok(tasks
-        .evidence_entries(&content)?
-        .into_iter()
-        .map(|entry| {
-            let hashes = fs::read(evidence_dir.join(&entry.name))
-                .ok()
-                .filter(|_| is_valid_evidence_name(&entry.name))
-                .map(|bytes| tasks.review_hashes(&bytes));
-            let sha256 = hashes
-                .as_ref()
-                .map(|hashes| hashes.current.clone())
-                .unwrap_or_default();
-            let (status, reason, reviewed_at, origin) = match &hashes {
-                _ if !review_kinds.contains(&entry.kind) => {
-                    ("sem aval", String::new(), String::new(), String::new())
-                }
-                Some(hashes) => review_status(&reviews, &entry.name, hashes),
-                None => ("a conferir", String::new(), String::new(), String::new()),
-            };
-            ReviewState {
-                name: entry.name,
-                kind: entry.kind,
-                status,
-                reason,
-                reviewed_at,
-                origin,
-                sha256,
-            }
-        })
-        .collect())
+    tasks.evidence_review_list(task_dir)
 }
 
 /// Detalhe da linha `evidências` do registro, com as conferências mantidas e as que mudaram.

@@ -7470,3 +7470,189 @@ fn falha_sem_trecho_so_avisa_condicao() {
         "{output}"
     );
 }
+
+// --- Conferências do lote (SPEC-053) ---
+
+/// `vostok task reviews <args...>`.
+fn reviews_cmd(project: &Project, args: &[&str]) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(["task", "reviews"]).args(args);
+    command
+}
+
+/// Copia a TASK-01 em pasta para outra tarefa da spec, com o ID trocado.
+fn copy_folder_task(project: &Project, id: &str) {
+    for name in [
+        "estado.yml",
+        "execucao.md",
+        "verificacao.md",
+        "criterios.md",
+        "executivo.md",
+        "tecnico.md",
+        "registro.md",
+    ] {
+        let content = read(project, &format!("{FOLDER}/{name}")).replace("TASK-01", id);
+        write(project, &format!("{SPEC_FOLDER}/{id}/{name}"), &content);
+    }
+}
+
+/// Executa a tarefa em pasta até as evidências antecipadas, como o Coordenador faz.
+fn execute_ahead(project: &Project, id: &str) {
+    for args in [
+        ["adjust", "record-manual"],
+        ["approve", "approve"],
+        ["start", ""],
+    ] {
+        let mut command = project.vostok();
+        command.args(["task", args[0]]);
+        if !args[1].is_empty() {
+            command.arg(args[1]);
+        }
+        command.args(["SPEC-001", id]).assert().success();
+    }
+    project
+        .vostok()
+        .args(["task", "evidence", "SPEC-001", id, "--antecipada"])
+        .assert()
+        .success();
+}
+
+/// Spec com três tarefas em pasta executadas, todos os tipos pedindo conferência.
+fn reviews_spec() -> Project {
+    let project = folder_task("pending");
+    with_review_kinds(&project, "");
+    for id in ["TASK-02", "TASK-03"] {
+        copy_folder_task(&project, id);
+    }
+    for id in ["TASK-01", "TASK-02", "TASK-03"] {
+        execute_ahead(&project, id);
+    }
+    project
+}
+
+fn review_on(project: &Project, id: &str, args: &[&str]) {
+    project
+        .vostok()
+        .args(["task", "evidence", "SPEC-001", id])
+        .args(args)
+        .assert()
+        .success();
+}
+
+#[test]
+fn reviews_lista_aceitas_recusadas_e_a_conferir() {
+    let project = reviews_spec();
+    review_on(&project, "TASK-01", &["--reviewed", "EV-01"]);
+    review_on(
+        &project,
+        "TASK-02",
+        &["--rejected", "EV-01", "--motivo", "cor errada"],
+    );
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
+    assert!(stdout.contains("### Conferências da SPEC-001"), "{stdout}");
+    assert!(
+        stdout.contains("| Tarefa | Status | A conferir | Aceitas | Recusadas |"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("| TASK-01 | executed | - | EV-01 (chat) | - |"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("| TASK-02 | in_progress | - | - | EV-01 (chat): cor errada |"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("| TASK-03 | executed | EV-01 | - | - |"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reviews_com_tarefas_citadas_lista_so_elas() {
+    let project = reviews_spec();
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
+    assert!(stdout.contains("| TASK-03 |"), "{stdout}");
+    assert!(!stdout.contains("| TASK-01 |"), "{stdout}");
+    assert!(!stdout.contains("| TASK-02 |"), "{stdout}");
+}
+
+#[test]
+fn reviews_cita_tarefa_fora_da_conferencia_com_o_status() {
+    let project = reviews_spec();
+    write(
+        &project,
+        &format!("{SPEC_FOLDER}/TASK-03/estado.yml"),
+        &read(&project, &format!("{SPEC_FOLDER}/TASK-03/estado.yml"))
+            .replace("status: executed", "status: approved"),
+    );
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
+    assert!(
+        stdout.contains("| TASK-03 | approved | - | - | - |"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reviews_sem_spec_usa_a_spec_em_execucao() {
+    let project = reviews_spec();
+    let stdout = success_stdout(&mut reviews_cmd(&project, &[]));
+    assert!(stdout.contains("### Conferências da SPEC-001"), "{stdout}");
+    assert!(
+        stdout.contains("| TASK-03 | executed | EV-01 | - | - |"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reviews_sem_spec_com_duas_em_execucao_sai_com_codigo_2() {
+    let project = folder_task("in_progress");
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-002/TASK-01/estado.yml",
+        &read(&project, &format!("{FOLDER}/estado.yml")).replace("SPEC-001", "SPEC-002"),
+    );
+    let output = reviews_cmd(&project, &[]).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        stderr.contains("Mais de uma spec em execução; informe uma: SPEC-001, SPEC-002"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn reviews_sem_spec_sem_nenhuma_em_execucao_avisa() {
+    let project = folder_task("pending");
+    let stdout = success_stdout(&mut reviews_cmd(&project, &[]));
+    assert!(
+        stdout.contains("Nenhuma tarefa aguardando conferência."),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn reviews_lista_tarefa_em_arquivo_unico() {
+    let project = single_file_spec();
+    with_review_kinds(&project, "");
+    on(&project, "TASK-02", &["evidence", "--antecipada"])
+        .assert()
+        .success();
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
+    assert!(
+        stdout.contains("| TASK-02 | executed | EV-01 | - | - |"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("| TASK-01 |"), "{stdout}");
+}
+
+#[test]
+fn reviews_ignora_evidencia_sem_aval() {
+    let project = reviews_spec();
+    with_review_kinds(&project, PRINT_ONLY_REVIEW);
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
+    assert!(
+        stdout.contains("| TASK-03 | executed | - | - | - |"),
+        "{stdout}"
+    );
+}

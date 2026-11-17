@@ -158,7 +158,7 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 vostok task adjust record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGENTS.md removido de Mudar"
 ```
 
-O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`, zera tentativas e resultados e avisa; o trabalho segue pela skill `execute-task`, sem nova aprovação. Se recusar o ajuste, volte ao passo 8.
+O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`; o trabalho segue pela skill `execute-task`, sem nova aprovação. Ele mantém os testes e a regressão quando o Baseline, a Verificação e os arquivos de "Mudar" estão iguais aos da última execução dos testes, com o aviso `testes e regressão mantidos (Verificação igual)`, e zera tudo nos demais casos. Lista as conferências na linha `Conferências:`: "derrubada" quando o comando ou o tipo da evidência mudou e "mantida se a saída não mudar" nos demais. A conferência mantida com `Trecho:` ou `Falha:` trocados ganha a marca `conferida sob o trecho anterior (ajuste N)`. Se recusar o ajuste, volte ao passo 8.
 
 Dependência de tarefa em execução ([adjust-task-04]): sem editar a tarefa nem rodar `vostok task adjust record`, execute, com a decisão do usuário no motivo:
 

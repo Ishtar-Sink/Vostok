@@ -1,4 +1,4 @@
-version: 0.6.3
+version: 0.6.4
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -20,9 +20,9 @@ files:
   skills/default/adjust-plan/SKILL.md: 493082786ecbaa6bf27ce9f1a796070c6a55058222fd599b61386eb2bb301057
   skills/default/adjust-rules/SKILL.md: c7641a99c2758b90d635834eb3600691e7ec1e855a4f5cf2003bc8aecb98ad94
   skills/default/adjust-spec/SKILL.md: 345ec608437ec02865b4c622873e4af85e16e7b342403a71a1acd1aa218db804
-  skills/default/adjust-task/SKILL.md: 2bd1e5b8472325ef57074317be3ac85fdb1470cc45458aeacf4b828daa3f09ac
+  skills/default/adjust-task/SKILL.md: 7810b61f723e8222548025e6b21737ffc432f5a08adaeb7c6b914fa516efb80c
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: 824f1dba004f577e380d7a2ba65545829c6474e0b386d1a67f5f2399a5054996
+  skills/default/approve-plan/SKILL.md: deeecb480feb06e637c1cce63b26a89a08646f98f2d15d7617db546baa1b76eb
   skills/default/approve-spec/SKILL.md: 7748150e33d308d71b5bceaaecbc820eff51052e3d2ee075f4d588b9eed5617c
   skills/default/approve-task/SKILL.md: aa60060ebd981c4cb1696e82fe7bc50905f8da8a9d1ccd9dde18ec9f0d176dab
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501

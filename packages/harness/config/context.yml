@@ -60,6 +60,10 @@ skills:
     - rules/agent/writing.md
     - context/glossario.md
     - rules/project/naming-convention.md
+  review-evidence:
+    - rules/agent/writing.md
+    - context/glossario.md
+    - config/tasks.yml
   init-harness:
     - rules/project/naming-convention.md
     - templates/rules/category.md

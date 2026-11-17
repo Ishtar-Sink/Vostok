@@ -163,6 +163,25 @@ fn ct03_init_yes_installs_harness_routing_for_every_tool_and_manifest() {
 }
 
 #[test]
+fn ct09_init_installs_the_review_evidence_skill() {
+    let workspace = Workspace::new();
+
+    workspace.init(&["--yes"]);
+
+    for dir in [".claude/skills", ".agents/skills", ".cursor/skills"] {
+        let redirect = workspace.read(&format!("{dir}/review-evidence/SKILL.md"));
+        assert!(
+            redirect.contains("`vostok/skills/default/review-evidence/SKILL.md`"),
+            "{dir}: {redirect}"
+        );
+    }
+    assert!(workspace
+        .read(CATALOG)
+        .lines()
+        .any(|line| line.starts_with("| review-evidence |")));
+}
+
+#[test]
 fn ct03_manifest_records_version_and_hash_of_each_binary_file() {
     let workspace = Workspace::new();
     workspace.init(&["--yes"]);

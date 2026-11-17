@@ -2,6 +2,17 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.6] - 2026-11-17
+
+### Recursos
+
+- Depois de conferir as evidências de várias tarefas no painel, basta dizer "conferi" no chat: a skill nova `review-evidence` monta o lote, pergunta uma única vez pelo que ficou sem decisão, finaliza em sequência as tarefas aceitas, corrige as recusadas e responde com uma tabela do lote. (SPEC-053)
+- O comando novo `vostok task reviews [SPEC_ID] [TASK_ID...]` lista numa tabela por spec o que cada tarefa tem a conferir, o que foi aceito e o que foi recusado, com a origem e o motivo, inclusive nas tarefas em arquivo único. Sem spec, usa a spec em execução e, com mais de uma, sai com código 2 e lista as candidatas. (SPEC-053)
+
+### Melhorias
+
+- As skills de execução e de finalização indicam a `review-evidence` quando o usuário volta do painel com várias tarefas conferidas. (SPEC-053)
+
 ## [0.6.5] - 2026-11-17
 
 ### Melhorias

@@ -4216,6 +4216,164 @@ fn folder_format_refuses_a_missing_execution_file() {
     );
 }
 
+// --- Ajuste que mantém testes (SPEC-057) ---
+
+fn folder_state(project: &Project) -> String {
+    read(project, &format!("{FOLDER}/estado.yml"))
+}
+
+fn folder_field(project: &Project, key: &str) -> String {
+    let prefix = format!("{key}: ");
+    folder_state(project)
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix).map(str::to_string))
+        .unwrap_or_default()
+}
+
+fn replace_in(project: &Project, relative: &str, from: &str, to: &str) {
+    let text = read(project, relative);
+    assert!(text.contains(from), "{text}");
+    write(project, relative, &text.replacen(from, to, 1));
+}
+
+/// Tarefa em pasta com `novo.txt` gravado e os testes aprovados.
+fn folder_tested() -> Project {
+    let project = folder_started();
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["tests"]).assert().success();
+    project
+}
+
+fn adjust_trecho(project: &Project) {
+    replace_in(
+        project,
+        &format!("{FOLDER}/verificacao.md"),
+        "  - Trecho: a linha.",
+        "  - Trecho: a primeira linha.",
+    );
+}
+
+fn adjust_record(project: &Project) -> String {
+    success_stdout(nested(project, "adjust", "record").arg("ajuste de teste"))
+}
+
+#[test]
+fn ajuste_mantem_testes_com_verificacao_igual() {
+    let project = folder_tested();
+    for key in ["tests_code_hash", "tests_checks_hash"] {
+        assert_eq!(
+            folder_field(&project, key).len(),
+            64,
+            "{}",
+            folder_state(&project)
+        );
+    }
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(
+        output.contains("testes e regressão mantidos (Verificação igual)"),
+        "{output}"
+    );
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+    assert_eq!(folder_field(&project, "attempts"), "0");
+    assert_eq!(folder_field(&project, "evidence_result"), "null");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("ajuste de teste; testes mantidos"),
+        "{record}"
+    );
+}
+
+#[test]
+fn ajuste_mantem_zera_quando_a_verificacao_muda() {
+    let project = folder_tested();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        "```bash\ntrue\n```",
+        "```bash\ntrue && true\n```",
+    );
+    let output = adjust_record(&project);
+    assert!(
+        output.contains("tentativas e resultados zerados"),
+        "{output}"
+    );
+    assert!(!output.contains("mantidos"), "{output}");
+    assert_eq!(folder_field(&project, "tests_result"), "null");
+}
+
+#[test]
+fn ajuste_mantem_zera_quando_o_codigo_muda_depois_dos_testes() {
+    let project = folder_tested();
+    write(&project, "novo.txt", "dois\n");
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(
+        output.contains("tentativas e resultados zerados"),
+        "{output}"
+    );
+    assert!(
+        output.contains("o código de \"Mudar\" mudou depois dos testes"),
+        "{output}"
+    );
+    assert_eq!(folder_field(&project, "tests_result"), "null");
+}
+
+#[test]
+fn ajuste_mantem_finish_pede_testes_quando_o_codigo_muda_depois() {
+    let project = folder_started();
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["evidence", "--antecipada"])
+        .assert()
+        .success();
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(output.contains("testes e regressão mantidos"), "{output}");
+    task(&project, &["evidence"]).assert().success();
+    write(&project, "novo.txt", "dois\n");
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("o código de \"Mudar\" mudou depois dos testes"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("vostok task tests SPEC-001 TASK-01"),
+        "{stderr}"
+    );
+    assert_ne!(folder_field(&project, "status"), "done");
+}
+
+#[test]
+fn ajuste_mantem_tarefa_antiga_sem_impressao_zera_tudo() {
+    let project = folder_tested();
+    let path = format!("{FOLDER}/estado.yml");
+    let state: String = read(&project, &path)
+        .lines()
+        .filter(|line| {
+            !line.starts_with("tests_code_hash:") && !line.starts_with("tests_checks_hash:")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(&project, &path, &state);
+    adjust_trecho(&project);
+    adjust_record(&project);
+    assert_eq!(folder_field(&project, "tests_result"), "null");
+}
+
+#[test]
+fn ajuste_mantem_testes_quando_so_o_executivo_muda() {
+    let project = folder_tested();
+    append(
+        &project,
+        &format!("{FOLDER}/executivo.md"),
+        "\nMais um parágrafo.\n",
+    );
+    adjust_record(&project);
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+}
+
 // --- Hash por arquivo, edição manual e carregamento por arquivo (SPEC-023) ---
 
 fn folder_approved() -> Project {

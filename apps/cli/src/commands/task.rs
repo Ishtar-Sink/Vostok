@@ -1468,13 +1468,97 @@ impl Tasks {
             return Ok(());
         }
         let in_progress = &self.status.in_progress;
+        let tested = self.tested_code(file)?;
         TaskDoc::at(file).set("status", in_progress)?;
+        if tested == TestedCode::Same {
+            TaskDoc::at(file).set("attempts", "0")?;
+            TaskDoc::at(file).set("evidence_result", "null")?;
+            self.record_step(
+                file,
+                "ajuste",
+                in_progress,
+                &format!("{summary}; testes mantidos"),
+            )?;
+            println!(
+                "Ajuste em execução: {task} voltou para '{in_progress}'; testes e regressão mantidos (Verificação igual)."
+            );
+            return Ok(());
+        }
         reset_results(file)?;
         self.record_step(file, "ajuste", in_progress, summary)?;
+        let code_changed = if tested == TestedCode::CodeChanged {
+            "; o código de \"Mudar\" mudou depois dos testes"
+        } else {
+            ""
+        };
         println!(
-            "Ajuste em execução: {task} voltou para '{in_progress}', com tentativas e resultados zerados e o baseline mantido."
+            "Ajuste em execução: {task} voltou para '{in_progress}', com tentativas e resultados zerados e o baseline mantido{code_changed}."
         );
         Ok(())
+    }
+
+    /// Compara o que os testes aprovados testaram com a Verificação, o Baseline e o código de
+    /// "Mudar" de agora. Sem testes aprovados ou sem as impressões (tarefa antiga), nada é mantido.
+    fn tested_code(&self, file: &Path) -> Result<TestedCode> {
+        let doc = TaskDoc::at(file);
+        if doc.get("tests_result").unwrap_or_default() != "passed" {
+            return Ok(TestedCode::Unknown);
+        }
+        let (Some(code), Some(checks)) = (
+            recorded_hash(&doc, "tests_code_hash"),
+            recorded_hash(&doc, "tests_checks_hash"),
+        ) else {
+            return Ok(TestedCode::Unknown);
+        };
+        if checks != self.checks_hash(&doc.text()?)? {
+            return Ok(TestedCode::ChecksChanged);
+        }
+        if code != self.code_fingerprint(file)? {
+            return Ok(TestedCode::CodeChanged);
+        }
+        Ok(TestedCode::Same)
+    }
+
+    /// Testes aprovados de um código de "Mudar" diferente do atual. Sem a impressão (tarefa antiga),
+    /// não há o que comparar.
+    fn code_changed_after_tests(&self, file: &Path) -> Result<bool> {
+        let doc = TaskDoc::at(file);
+        if doc.get("tests_result").unwrap_or_default() != "passed" {
+            return Ok(false);
+        }
+        match recorded_hash(&doc, "tests_code_hash") {
+            Some(code) => Ok(code != self.code_fingerprint(file)?),
+            None => Ok(false),
+        }
+    }
+
+    /// Impressão do código: o SHA-256 de `caminho\0conteúdo\0` de cada item de "Mudar", em ordem,
+    /// lido da raiz do projeto. A pasta entra com os arquivos dela; o arquivo ausente, como `<ausente>`.
+    fn code_fingerprint(&self, file: &Path) -> Result<String> {
+        let content = TaskDoc::at(file).text()?;
+        let mut paths: Vec<String> = change_items(&self.subsection(&content, "change_subsection")?)
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
+        paths.sort();
+        paths.dedup();
+        let root = self.project_root()?;
+        let mut data = Vec::new();
+        for path in paths {
+            append_fingerprint(&mut data, &root, &path)?;
+        }
+        Ok(sha256_hex(&data))
+    }
+
+    /// SHA-256 do Baseline seguido da Verificação, sem as Evidências, que um ajuste pode mudar
+    /// sem mudar o que foi testado.
+    fn checks_hash(&self, content: &str) -> Result<String> {
+        let text = format!(
+            "{}\n{}",
+            self.subsection(content, "baseline_subsection")?,
+            self.subsection(content, "verify_subsection")?
+        );
+        Ok(sha256_hex(text.as_bytes()))
     }
 
     /// Status de execução: in_progress, executed, validating e blocked.
@@ -1936,6 +2020,9 @@ impl Tasks {
         if code == 0 {
             TaskDoc::at(&file).set("status", validating)?;
             TaskDoc::at(&file).set("tests_result", "passed")?;
+            let checks = self.checks_hash(&TaskDoc::at(&file).text()?)?;
+            TaskDoc::at(&file).put("tests_code_hash", &self.code_fingerprint(&file)?)?;
+            TaskDoc::at(&file).put("tests_checks_hash", &checks)?;
             self.record_step(
                 &file,
                 "testes",
@@ -1952,6 +2039,8 @@ impl Tasks {
         let attempts = number_or_zero(&TaskDoc::at(&file).get("attempts").unwrap_or_default()) + 1;
         let max_attempts = number_or_zero(&self.cfg("max_attempts")?);
         TaskDoc::at(&file).set("tests_result", "failed")?;
+        TaskDoc::at(&file).put("tests_code_hash", "null")?;
+        TaskDoc::at(&file).put("tests_checks_hash", "null")?;
         TaskDoc::at(&file).set("regression_result", "null")?;
         TaskDoc::at(&file).set("evidence_result", "null")?;
         TaskDoc::at(&file).set("attempts", &attempts.to_string())?;
@@ -3127,6 +3216,13 @@ impl Tasks {
                 next.push_str(" --reviewed <arquivo>");
             }
             problems.push((name, format!("{key} '{value}'"), next));
+        }
+        if self.code_changed_after_tests(file)? {
+            problems.push((
+                "testes",
+                "o código de \"Mudar\" mudou depois dos testes".into(),
+                format!("vostok task tests {spec} {task}"),
+            ));
         }
         problems.extend(self.rejection_problems(spec, task, file)?);
         if let Err(error) = self.check_done(spec, task) {
@@ -5322,6 +5418,47 @@ fn refusal_message(task: &str, problems: &[(&str, String, String)]) -> String {
         ));
     }
     message
+}
+
+/// O que os testes aprovados testaram, comparado com a tarefa de agora.
+#[derive(PartialEq)]
+enum TestedCode {
+    /// Sem testes aprovados ou sem as impressões gravadas.
+    Unknown,
+    ChecksChanged,
+    CodeChanged,
+    Same,
+}
+
+/// Hash gravado num campo do estado; ausente ou `null` quando o campo falta.
+fn recorded_hash(doc: &TaskDoc, key: &str) -> Option<String> {
+    doc.get(key)
+        .ok()
+        .filter(|value| !value.is_empty() && value != "null")
+}
+
+fn append_fingerprint(data: &mut Vec<u8>, root: &Path, relative: &str) -> Result<()> {
+    let full = root.join(relative);
+    if full.is_dir() {
+        let mut names: Vec<String> = fs::read_dir(&full)
+            .with_context(|| format!("não foi possível ler {}", full.display()))?
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        for name in names {
+            append_fingerprint(data, root, &format!("{relative}/{name}"))?;
+        }
+        return Ok(());
+    }
+    data.extend_from_slice(relative.as_bytes());
+    data.push(0);
+    match fs::read(&full) {
+        Ok(bytes) => data.extend_from_slice(&bytes),
+        Err(_) => data.extend_from_slice(b"<ausente>"),
+    }
+    data.push(0);
+    Ok(())
 }
 
 fn reset_results(file: &Path) -> Result<()> {

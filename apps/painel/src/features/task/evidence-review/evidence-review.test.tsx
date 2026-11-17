@@ -91,6 +91,18 @@ describe('EvidenceReview', () => {
     expect(within(explanation()).getByText(/Motivo: “falta o total”/)).toBeTruthy();
   });
 
+  it('mostra a marca de conferida sob o trecho anterior separada do aval', () => {
+    mockFiles();
+    open(
+      entry({
+        category: 'conferidas',
+        review: { status: 'conferida', reviewed_at: '2020-01-02', reason: 'bate com o log · conferida sob o trecho anterior (ajuste 2)' },
+      }),
+    );
+    expect(within(explanation()).getByText(/Aval: “bate com o log”$/)).toBeTruthy();
+    expect(within(explanation()).getByText('Conferida sob o trecho anterior (ajuste 2): o Trecho ou a Falha mudaram depois desta conferência.')).toBeTruthy();
+  });
+
   it('abre por O que mostra, Onde olhar e Falha, com o resto recolhido', () => {
     mockFiles();
     open(entry({ notes: { shows: 'o resumo dos testes', whereToLook: 'nas linhas do resumo', covers: 'RF-13, CT-11', reproduce: '`pnpm exec vitest run`', excerpt: '`test a ... ok`', failure: 'se aparecer `FAILED`, então o teste quebrou' } }));

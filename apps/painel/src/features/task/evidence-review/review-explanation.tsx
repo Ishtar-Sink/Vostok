@@ -44,6 +44,15 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+const PREVIOUS_SNIPPET = /(?:^| · )conferida sob o trecho anterior \(ajuste (\d+)\)$/;
+
+/** Separa do aval a marca que a CLI acrescenta à conferência mantida depois de um Trecho ou Falha trocado. */
+export function splitPreviousSnippet(reason: string): { reason: string; adjustment?: number } {
+  const match = PREVIOUS_SNIPPET.exec(reason);
+  if (!match) return { reason };
+  return { reason: reason.slice(0, match.index), adjustment: Number(match[1]) };
+}
+
 const TIME = /(?<!\d)(\d{1,2}):([0-5]\d)(?!\d)/g;
 
 /** Divide o texto nos tempos `m:ss`, que viram `{ label, seconds }`; o resto fica como texto. */
@@ -94,6 +103,7 @@ export function ReviewExplanation({ entry, checks, logNote, active, onSelect, co
     return <Block title={FIELD[field].title}>{checkList(field)}</Block>;
   }
 
+  const { reason: aval, adjustment } = splitPreviousSnippet(review?.reason ?? '');
   const date = review?.reviewed_at ? formatDateTime(review.reviewed_at) : '—';
   const where = notes.whereToLook ?? (visual ? notes.excerpt : undefined);
   const shows = notes.shows ?? notes.proof;
@@ -194,7 +204,10 @@ export function ReviewExplanation({ entry, checks, logNote, active, onSelect, co
       </p>
       {review?.status === 'conferida' ? (
         <Block title="Conferência">
-          <p className={styles.note}>{`Conferida em ${date}${review.reason ? ` · Aval: “${review.reason}”` : ''}`}</p>
+          <p className={styles.note}>{`Conferida em ${date}${aval ? ` · Aval: “${aval}”` : ''}`}</p>
+          {adjustment === undefined ? null : (
+            <p className={styles.note}>{`Conferida sob o trecho anterior (ajuste ${adjustment}): o Trecho ou a Falha mudaram depois desta conferência.`}</p>
+          )}
         </Block>
       ) : null}
       {review?.status === 'recusada' ? (

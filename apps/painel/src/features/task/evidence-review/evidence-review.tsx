@@ -16,6 +16,7 @@ const NO_TEXT: TextState = { value: null, total: null, failed: false };
 
 function statusBadge(entry: EvidenceEntry): { label: string; tone: BadgeTone } {
   const status = entry.review?.status;
+  if (status === 'não gerada') return { label: 'Não gerada', tone: 'neutral' };
   if (status !== 'a conferir' && status !== 'recusada' && status !== 'conferida') return { label: 'Sem aval', tone: 'neutral' };
   const category = CATEGORIES.find((item) => item.id === entry.category);
   const label = status === 'a conferir' ? 'A conferir' : status === 'recusada' ? 'Recusada' : 'Conferida';

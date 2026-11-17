@@ -91,6 +91,14 @@ describe('EvidenceReview', () => {
     expect(within(explanation()).getByText(/Motivo: “falta o total”/)).toBeTruthy();
   });
 
+  it('mostra Não gerada sem as ações de conferência', () => {
+    mockFiles();
+    open(entry({ id: 'EV-01', category: 'nao-geradas', review: { status: 'não gerada' } }));
+    const dialog = screen.getByRole('dialog', { name: 'Testes do quadro passam' });
+    expect(within(dialog).getByText('Não gerada')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^(Conferir|Recusar)/ })).toBeNull();
+  });
+
   it('mostra a marca de conferida sob o trecho anterior separada do aval', () => {
     mockFiles();
     open(

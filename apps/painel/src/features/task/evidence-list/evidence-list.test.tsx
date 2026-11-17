@@ -167,6 +167,13 @@ describe('EvidenceList', () => {
     expect(within(done).getByText('solta.txt')).toBeTruthy();
   });
 
+  it('mostra Não gerada na linha da evidência não gerada', () => {
+    render(<EvidenceList detail={detail([review('EV-01', 'log.txt', 'não gerada', { kind: 'automática' })], [])} headingId="evidencias" />);
+    const missing = screen.getByRole('region', { name: /Não geradas/ });
+    expect(within(missing).getByText('Não gerada')).toBeTruthy();
+    expect(within(missing).queryByText('Sem aval')).toBeNull();
+  });
+
   it('abre o modal ao clicar na linha e no card', async () => {
     mockLog();
     render(<EvidenceList detail={detail(MIXED)} headingId="evidencias" />);

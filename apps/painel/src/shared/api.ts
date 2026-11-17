@@ -79,7 +79,7 @@ export interface ManualEvidence extends FileRef {
 }
 
 /** Estado da conferência de uma evidência, calculado pela CLI (campo `reviews`). */
-export type ReviewStatus = 'conferida' | 'recusada' | 'a conferir' | 'sem aval';
+export type ReviewStatus = 'conferida' | 'recusada' | 'a conferir' | 'sem aval' | 'não gerada';
 
 export interface EvidenceReview {
   /** `EV-NN` pela ordem dos itens de "Evidências"; ausente numa CLI anterior à 0.6.0. */

@@ -44,10 +44,11 @@ export function evidenceNotes(verification: string): Map<string, EvidenceNotes> 
   return notes;
 }
 
-export type EvidenceCategory = 'a-conferir' | 'recusadas' | 'conferidas';
+export type EvidenceCategory = 'a-conferir' | 'nao-geradas' | 'recusadas' | 'conferidas';
 
 export const CATEGORIES: { id: EvidenceCategory; label: string; hint: string; tone: BadgeTone; one: string; many: string }[] = [
   { id: 'a-conferir', label: 'A conferir', hint: 'precisam do seu aval', tone: 'warning', one: 'a conferir', many: 'a conferir' },
+  { id: 'nao-geradas', label: 'Não geradas', hint: 'ainda não foram geradas', tone: 'neutral', one: 'não gerada', many: 'não geradas' },
   { id: 'recusadas', label: 'Recusadas', hint: 'voltaram para correção', tone: 'danger', one: 'recusada', many: 'recusadas' },
   { id: 'conferidas', label: 'Conferidas', hint: '', tone: 'success', one: 'conferida', many: 'conferidas' },
 ];
@@ -67,6 +68,7 @@ export function kindLabel(kind: string, name: string): string {
 
 export function categoryOf(status?: ReviewStatus): EvidenceCategory {
   if (status === 'a conferir') return 'a-conferir';
+  if (status === 'não gerada') return 'nao-geradas';
   if (status === 'recusada') return 'recusadas';
   return 'conferidas';
 }

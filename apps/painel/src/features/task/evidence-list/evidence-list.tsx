@@ -36,6 +36,7 @@ const STATE_BADGE: Record<string, { label: string; tone: BadgeTone }> = {
   'a conferir': { label: 'A conferir', tone: 'warning' },
   recusada: { label: 'Recusada', tone: 'danger' },
   conferida: { label: 'Conferida', tone: 'success' },
+  'não gerada': { label: 'Não gerada', tone: 'neutral' },
 };
 const NO_REVIEW = { label: 'Sem aval', tone: 'neutral' as BadgeTone };
 

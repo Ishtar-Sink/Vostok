@@ -89,6 +89,11 @@ describe('categoryOf', () => {
     expect(categoryOf('sem aval')).toBe('conferidas');
     expect(categoryOf(undefined)).toBe('conferidas');
   });
+
+  it('põe a evidência não gerada na categoria Não geradas', () => {
+    expect(categoryOf('não gerada')).toBe('nao-geradas');
+    expect(categoryOf('sem aval')).toBe('conferidas');
+  });
 });
 
 describe('evidenceEntries', () => {

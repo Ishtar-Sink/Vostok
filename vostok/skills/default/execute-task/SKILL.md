@@ -26,7 +26,7 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 - **Registro:** o `registro.md` da tarefa em pasta (no formato antigo, a seção "Registro de execução"), com uma linha por etapa, escrito só pelos comandos. `estado.yml`, `registro.md` e `README.md` nunca são editados à mão.
 - **Onda:** as tarefas da spec com o mesmo `wave`, mostrado pelo `vostok task status`; podem rodar em paralelo.
 - **Perfil e modelo:** o bloco "Modelo" do `vostok task load`: perfil, descrição e apelido de reserva da ferramenta em uso.
-- **Na fila:** tarefa `queued`, com o baseline coletado pelo `vostok task start`, à espera de começar; só o `vostok task begin` a põe em `in_progress`.
+- **Na fila:** tarefa `queued`, iniciada com `vostok task start --fila` para um subagente da onda, com o baseline coletado, à espera de começar; só o `vostok task begin` a põe em `in_progress`.
 - **Aguardando conferência:** tarefa `awaiting_review`, com evidência a conferir pelo usuário; com tudo conferido, fica `executed`.
 - **Arquivos em comum:** caminhos que aparecem em "Mudar" de mais de uma tarefa da onda.
 
@@ -126,9 +126,12 @@ Para iniciar cada tarefa:
 
 ```bash
 vostok task start <SPEC_ID> <TASK_ID> --model <MODELO>
+vostok task start <SPEC_ID> <TASK_ID> --model <MODELO> --fila
 ```
 
-O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. O `start` deixa a tarefa na fila (`queued`). Cada tarefa roda `vostok task begin <SPEC_ID> <TASK_ID>` quando começa de fato: na própria sessão, antes do `vostok task brief`, e no subagente, como primeiro passo do pedido.
+O primeiro é para a tarefa executada na própria sessão; o segundo, para a tarefa entregue a um subagente.
+
+O `--model` grava no front-matter e no registro de execução o modelo escolhido no passo 3 (RF-19). O comando confere se a tarefa está aprovada, sem mudança depois da aprovação e com as dependências concluídas, muda o status para `in_progress` e coleta o baseline no mesmo comando, para que nenhum baseline contenha a mudança de outra tarefa. Numa tarefa `approved` que já tem baseline (voltou de um bloqueio por dependência), o `start` recomeça a execução sem coletar o baseline de novo e grava a etapa `recomeço` no registro (`recomeço | in_progress | baseline mantido`); o código já feito continua e a tarefa segue pelos "Passos" que faltam. Sem `--fila`, o `start` deixa a tarefa em `in_progress`, e a sessão segue direto para o `vostok task brief`. Com `--fila`, a tarefa fica na fila (`queued`) até o subagente rodar `vostok task begin <SPEC_ID> <TASK_ID>` como primeiro passo do pedido.
 
 Se ele recusar, **PARE** e repasse a mensagem do comando com o template `blocker`:
 
@@ -207,6 +210,6 @@ Respostas ao usuário usam os templates de `templates/responses/`. Formatos pró
 Você é o subagente da tarefa <TASK_ID> da <SPEC_ID>, com a persona <persona> e o modelo <MODELO>.
 
 1. Rode `vostok task begin <SPEC_ID> <TASK_ID>` e depois `vostok task brief <SPEC_ID> <TASK_ID>`, e siga o que ele imprime.
-2. A tarefa já foi iniciada e está na fila, e o baseline já foi coletado: não rode `vostok context load`, `vostok task start` nem `vostok task baseline`, e não leia a skill `execute-task`.
+2. A tarefa já foi iniciada com `--fila` e está na fila, e o baseline já foi coletado: não rode `vostok context load`, `vostok task start` nem `vostok task baseline`, e não leia a skill `execute-task`.
 3. Devolva o bloco de até 5 linhas do briefing (Resultado, Arquivos, Verificação, Em aberto); se precisar parar, devolva a mensagem no template `blocker` ou `question`.
 ```

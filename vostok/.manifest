@@ -1,4 +1,4 @@
-version: 0.6.7
+version: 0.6.8
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -29,7 +29,7 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/customize-documents/SKILL.md: fc4be6a890d245e758e2ecb5dec2888cdbfd39e5091877aec57c1684ddf95c0e
-  skills/default/execute-task/SKILL.md: df00db5fc95ee28594c0fd8d6b654de93e46a13c0942785f1b63b10c8758b121
+  skills/default/execute-task/SKILL.md: b61686b6a4c468b540cabba0e3eba7f4e800885cf250136dcc2a131f31de2c11
   skills/default/finalize-spec/SKILL.md: 12a684dad2337205709e5595058acc206a4a03eef66506e40e1086b4248b9e1d
   skills/default/finish-task/SKILL.md: b7dba093b68952ab64f67373240dffd971cab701ad54013ba820ce4415e1bbaa
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702

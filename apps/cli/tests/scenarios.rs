@@ -291,7 +291,7 @@ impl Scenario {
     }
 
     /// Roda `vostok <args>` e acrescenta o comando, o código de saída e as duas saídas.
-    fn run(&mut self, args: &[&str]) {
+    fn run(&mut self, args: &[&str]) -> bool {
         if !self.deferred_migration {
             self.migrate_here();
         }
@@ -303,6 +303,7 @@ impl Scenario {
         self.section("stdout", &String::from_utf8_lossy(&output.stdout));
         self.section("stderr", &String::from_utf8_lossy(&output.stderr));
         self.transcript.push('\n');
+        output.status.success()
     }
 
     fn section(&mut self, label: &str, text: &str) {
@@ -318,8 +319,11 @@ impl Scenario {
     fn task(&mut self, command: &str, id: &str, extra: &[&str]) {
         let mut args = vec!["task", command, SPEC, id];
         args.extend_from_slice(extra);
-        self.run(&args);
+        let started = self.run(&args);
         if command == "start" {
+            if started {
+                self.run(&["task", "begin", SPEC, id]);
+            }
             self.enrich_documents(id);
         }
     }

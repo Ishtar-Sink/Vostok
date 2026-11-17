@@ -32,7 +32,8 @@ Tarefas de SPEC-008 aprovadas:
 
 @exit 1
 0
-@pre 445
+@pre 560
+W 9452ab7f54f0f3f6ca6fbd08115e3723cc57b0f4621b5a556f4048b3a193efaf packages/harness/work/tasks/SPEC-008/TASK-02.md
 W a73b0778e8e738b7001bac24ff3e03c2921551ea03821d927bda0f63ce94f978 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W 8df9e18780e7bce204ae1572f7cdc3494fb77c7c98e1e3707353f9d866492466 packages/harness/work/tasks/SPEC-008/TASK-02.md
 D packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out

@@ -22,8 +22,8 @@ TASK-01
 <OUTSIDE>
 @stdin 0
 
-@stdout 277
-Tarefa TASK-01 iniciada: status 'in_progress'. Coletando o baseline:
+@stdout 271
+Tarefa TASK-01 na fila: status 'queued'. Coletando o baseline:
 - [1] ls AGENTS.md
 - [2] echo "a|b"; echo erro >&2
 - [3] false
@@ -36,7 +36,7 @@ Baseline de TASK-01 coletado em <ROOT>/packages/harness/work/tasks/SPEC-008/evid
 @pre 0
 
 @post 526
-W 1b4443de4e206cc9a866d79bab192a37fb5e2288031b8b27f509231308ec432e packages/harness/work/tasks/SPEC-008/TASK-01.md
+W e78818297d3d205cdec7f206f691d7d0ef7e03bfaf8f77855a2276ec46632703 packages/harness/work/tasks/SPEC-008/TASK-01.md
 W c73f863517c3481f9c3cb28e58114c78d8a8cb5a8307897dadd2c3e37ad682d8 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/01.out
 W 3e88134a0642f28ff6c307cf5da9bc37a2e6a51cf64805cc4eb1dc7839bd86a6 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/02.out
 W 000a22b9eee76c125407aec93c680c67e49353cd077959968f92d4da7b9c1011 packages/harness/work/tasks/SPEC-008/evidence/TASK-01/baseline/03.out

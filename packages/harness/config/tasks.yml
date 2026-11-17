@@ -5,13 +5,16 @@ id:
   prefix: TASK
   digits: 2
 
-# Status da tarefa, na ordem do ciclo: criada (pending), aprovada pelo usuário (approved), em execução
-# (in_progress), pronta para finalizar (executed), em validação (validating), bloqueada à espera do
+# Status da tarefa, na ordem do ciclo: criada (pending), aprovada pelo usuário (approved), na fila com o
+# baseline coletado (queued), em execução (in_progress), aguardando a conferência do usuário
+# (awaiting_review), pronta para finalizar (executed), em validação (validating), bloqueada à espera do
 # usuário (blocked) e concluída (done).
 status:
   pending: pending
   approved: approved
+  queued: queued
   in_progress: in_progress
+  awaiting_review: awaiting_review
   executed: executed
   validating: validating
   blocked: blocked

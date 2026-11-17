@@ -719,6 +719,7 @@ fn writable_project() -> common::Project {
         ["task", "adjust", "record-manual", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "approve", "approve", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "start", "SPEC-001", "TASK-01"].as_slice(),
+        ["task", "begin", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "evidence", "SPEC-001", "TASK-01"].as_slice(),
     ] {
         project.vostok().args(args).assert().success();

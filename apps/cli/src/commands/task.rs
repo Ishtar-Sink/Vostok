@@ -60,6 +60,11 @@ pub enum TaskCommand {
         #[arg(long, value_name = "MODELO")]
         model: Option<String>,
     },
+    /// Tira a tarefa da fila e a põe em execução.
+    Begin {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+    },
     /// Coleta o baseline.
     Baseline {
         spec_id: Option<String>,
@@ -356,6 +361,10 @@ pub fn run(command: TaskCommand) -> Result<()> {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
             tasks.start(&spec, &task, model.as_deref())
         }
+        TaskCommand::Begin { spec_id, task_id } => {
+            let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
+            tasks.begin(&spec, &task)
+        }
         TaskCommand::Baseline {
             spec_id,
             task_id,
@@ -458,7 +467,9 @@ fn wave_status(statuses: &[String], status: &Statuses) -> String {
         status.done.clone()
     } else if any(&status.blocked) {
         status.blocked.clone()
-    } else if any(&status.in_progress)
+    } else if any(&status.queued)
+        || any(&status.in_progress)
+        || any(&status.awaiting_review)
         || any(&status.executed)
         || any(&status.validating)
         || any(&status.done)
@@ -507,7 +518,9 @@ enum EvidenceNames {
 struct Statuses {
     pending: String,
     approved: String,
+    queued: String,
     in_progress: String,
+    awaiting_review: String,
     executed: String,
     validating: String,
     blocked: String,
@@ -529,7 +542,11 @@ impl Tasks {
         let status = Statuses {
             pending: status("pending")?,
             approved: status("approved")?,
+            // Harness instalado antes dos status `queued` e `awaiting_review` não tem as chaves (SPEC-054).
+            queued: status("queued").unwrap_or_else(|_| "queued".to_string()),
             in_progress: status("in_progress")?,
+            awaiting_review: status("awaiting_review")
+                .unwrap_or_else(|_| "awaiting_review".to_string()),
             // Harness instalado antes do status `executed` não tem a chave (SPEC-047).
             executed: status("executed").unwrap_or_else(|_| "executed".to_string()),
             validating: status("validating")?,
@@ -872,6 +889,9 @@ impl Tasks {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
         let has_baseline = self.evidence_dir(&file)?.join("baseline").is_dir();
+        if status == self.status.queued {
+            bail!("a tarefa {task} está na fila; execute antes: vostok task begin {spec} {task}");
+        }
         if status != self.status.in_progress || !has_baseline {
             let hint = if has_baseline {
                 String::new()
@@ -932,13 +952,15 @@ impl Tasks {
         let status = status_of(&file);
         let described = [
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
         ];
         if !described.contains(&&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; a descrição só sai para tarefa '{}', '{}' ou '{}'",
+                "a tarefa {task} está com status '{status}'; a descrição só sai para tarefa '{}', '{}', '{}' ou '{}'",
                 self.status.in_progress,
+                self.status.awaiting_review,
                 self.status.executed,
                 self.status.validating
             );
@@ -1092,7 +1114,9 @@ impl Tasks {
     fn reviewing_status(&self, file: &Path) -> bool {
         let status = status_of(file);
         [
+            &self.status.queued,
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
         ]
@@ -1546,7 +1570,9 @@ impl Tasks {
         let adjustable = [
             &self.status.pending,
             &self.status.approved,
+            &self.status.queued,
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
             &self.status.blocked,
@@ -1855,10 +1881,16 @@ impl Tasks {
     /// Devolve uma tarefa em execução para in_progress, com tentativas e resultados zerados, mantendo o
     /// baseline e a aprovação. Não faz nada nas demais.
     fn restart_execution(&self, file: &Path, task: &str, summary: &str) -> Result<()> {
-        if !self.is_running(&status_of(file)) {
+        let status = status_of(file);
+        if !self.is_running(&status) {
             return Ok(());
         }
-        let in_progress = &self.status.in_progress;
+        // A tarefa na fila ainda não começou: o ajuste a mantém na fila.
+        let in_progress = if status == self.status.queued {
+            &self.status.queued
+        } else {
+            &self.status.in_progress
+        };
         let tested = self.tested_code(file)?;
         TaskDoc::at(file).set("status", in_progress)?;
         if tested == TestedCode::Same {
@@ -1955,7 +1987,9 @@ impl Tasks {
     /// Status de execução: in_progress, executed, validating e blocked.
     fn is_running(&self, status: &str) -> bool {
         [
+            &self.status.queued,
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
             &self.status.blocked,
@@ -1992,10 +2026,10 @@ impl Tasks {
         if restart {
             return self.restart_task(&file, task, model);
         }
-        // A tarefa aparece em execução antes da coleta, que pode demorar; se a coleta falhar, ela
-        // continua em execução sem baseline, e o `vostok task baseline` coleta de novo.
-        let in_progress = &self.status.in_progress;
-        TaskDoc::at(&file).set("status", in_progress)?;
+        // A tarefa entra na fila antes da coleta, que pode demorar; se a coleta falhar, ela continua
+        // na fila sem baseline, e o `vostok task baseline` coleta de novo.
+        let queued = &self.status.queued;
+        TaskDoc::at(&file).set("status", queued)?;
         let approved_at = TaskDoc::at(&file)
             .get("approved_at")
             .unwrap_or_else(|_| "?".into());
@@ -2004,9 +2038,9 @@ impl Tasks {
             TaskDoc::at(&file).put("model", model)?;
             detail.push_str(&format!("; modelo: {model}"));
         }
-        self.record_step(&file, "início", in_progress, &detail)?;
+        self.record_step(&file, "início", queued, &detail)?;
         TaskDoc::at(&file).store_document_hashes()?;
-        println!("Tarefa {task} iniciada: status '{in_progress}'. Coletando o baseline:");
+        println!("Tarefa {task} na fila: status '{queued}'. Coletando o baseline:");
         let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
         self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
         println!(
@@ -2018,15 +2052,30 @@ impl Tasks {
 
     /// Recomeça a tarefa desbloqueada: mantém o baseline, os hashes dos documentos e a aprovação.
     fn restart_task(&self, file: &Path, task: &str, model: Option<&str>) -> Result<()> {
-        let in_progress = &self.status.in_progress;
-        TaskDoc::at(file).set("status", in_progress)?;
+        let queued = &self.status.queued;
+        TaskDoc::at(file).set("status", queued)?;
         let mut detail = String::from("baseline mantido");
         if let Some(model) = model {
             TaskDoc::at(file).put("model", model)?;
             detail.push_str(&format!("; modelo: {model}"));
         }
-        self.record_step(file, "recomeço", in_progress, &detail)?;
-        println!("Tarefa {task} recomeçada: status '{in_progress}', com o baseline mantido.");
+        self.record_step(file, "recomeço", queued, &detail)?;
+        println!("Tarefa {task} recomeçada na fila: status '{queued}', com o baseline mantido.");
+        Ok(())
+    }
+
+    /// Tira da fila a tarefa que começa de fato a ser executada.
+    fn begin(&self, spec: &str, task: &str) -> Result<()> {
+        let file = self.find_task(spec, task)?;
+        let status = status_of(&file);
+        let queued = &self.status.queued;
+        if status != *queued {
+            bail!("a tarefa {task} está com status '{status}'; só tarefa '{queued}' sai da fila com vostok task begin; nada foi alterado");
+        }
+        let in_progress = &self.status.in_progress;
+        TaskDoc::at(&file).set("status", in_progress)?;
+        self.record_step(&file, "começo", in_progress, "saiu da fila")?;
+        println!("Tarefa {task} em execução: status '{in_progress}'.");
         Ok(())
     }
 
@@ -2089,9 +2138,9 @@ impl Tasks {
     fn baseline(&self, spec: &str, task: &str) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
-        let in_progress = &self.status.in_progress;
-        if status != *in_progress {
-            bail!("a tarefa {task} está com status '{status}'; o baseline só é coletado com status '{in_progress}' (vostok task start)");
+        let (queued, in_progress) = (&self.status.queued, &self.status.in_progress);
+        if status != *queued && status != *in_progress {
+            bail!("a tarefa {task} está com status '{status}'; o baseline só é coletado com status '{queued}' ou '{in_progress}' (vostok task start)");
         }
         let conflicts = self.created_conflicts(&file)?;
         if !conflicts.is_empty() {
@@ -2113,8 +2162,10 @@ impl Tasks {
         let status = status_of(&file);
         if !self.is_running(&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}', '{}' ou '{}' têm o baseline recoletado; nada foi alterado",
+                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}', '{}', '{}', '{}' ou '{}' têm o baseline recoletado; nada foi alterado",
+                self.status.queued,
                 self.status.in_progress,
+                self.status.awaiting_review,
                 self.status.executed,
                 self.status.validating,
                 self.status.blocked
@@ -2292,15 +2343,23 @@ impl Tasks {
         if status == self.status.blocked {
             bail!("a tarefa {task} está bloqueada; mostre as falhas ao usuário e, com a decisão dele, execute: vostok task resume");
         }
+        if status == self.status.queued {
+            let spec = TaskDoc::at(file)
+                .get("spec")
+                .unwrap_or_else(|_| "<SPEC_ID>".into());
+            bail!("a tarefa {task} está na fila; execute antes: vostok task begin {spec} {task}");
+        }
         let validated = [
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
         ];
         if !validated.contains(&&status) {
             bail!(
-                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}' ou '{}' são validadas",
+                "a tarefa {task} está com status '{status}'; só tarefas com status '{}', '{}', '{}' ou '{}' são validadas",
                 self.status.in_progress,
+                self.status.awaiting_review,
                 self.status.executed,
                 self.status.validating
             );
@@ -3824,7 +3883,9 @@ impl Tasks {
         let status = status_of(file);
         let blocked = status == self.status.blocked;
         if [
+            &self.status.queued,
             &self.status.in_progress,
+            &self.status.awaiting_review,
             &self.status.executed,
             &self.status.validating,
         ]
@@ -8645,7 +8706,9 @@ mod tests {
         let status = Statuses {
             pending: "pending".into(),
             approved: "approved".into(),
+            queued: "queued".into(),
             in_progress: "in_progress".into(),
+            awaiting_review: "awaiting_review".into(),
             executed: "executed".into(),
             validating: "validating".into(),
             blocked: "blocked".into(),
@@ -8660,6 +8723,8 @@ mod tests {
         assert_eq!(of(&["approved", "in_progress"]), "in_progress");
         assert_eq!(of(&["approved", "validating"]), "in_progress");
         assert_eq!(of(&["approved", "executed"]), "in_progress");
+        assert_eq!(of(&["approved", "queued"]), "in_progress");
+        assert_eq!(of(&["approved", "awaiting_review"]), "in_progress");
         assert_eq!(of(&["done", "pending"]), "in_progress");
         assert_eq!(of(&["approved", "approved"]), "approved");
         assert_eq!(of(&["approved", "pending"]), "pending");

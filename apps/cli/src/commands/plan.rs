@@ -29,6 +29,8 @@ use crate::support::{
 pub enum PlanCommand {
     /// Cria o plano de uma spec aprovada.
     Create { spec_id: String },
+    /// Cria o plano de extensão de uma spec planejada.
+    Extend { spec_id: String },
     /// Calcula e grava os perfis de execução (ou os níveis, em planos antigos).
     Score { spec_id: String },
     /// Valida o plano.
@@ -65,7 +67,7 @@ pub enum ApproveCommand {
     MarkPlanned { spec_id: String },
 }
 
-const PLAN_USAGE: &str = "Uso: vostok plan create|score|validate <SPEC_ID>";
+const PLAN_USAGE: &str = "Uso: vostok plan create|extend|score|validate <SPEC_ID>";
 const ADJUST_USAGE: &str =
     "Uso: vostok plan adjust record-manual <SPEC_ID> | validate <SPEC_ID> | record <SPEC_ID> \"resumo\"";
 const APPROVE_USAGE: &str = "Uso: vostok plan approve create-tasks|validate|mark-planned <SPEC_ID>";
@@ -113,6 +115,7 @@ pub fn run(command: PlanCommand) -> Result<()> {
     let workspace = Workspace::new(Harness::from_current_dir()?);
     match command {
         PlanCommand::Create { spec_id } => workspace.create(require(&spec_id, PLAN_USAGE)?),
+        PlanCommand::Extend { spec_id } => workspace.extend(require(&spec_id, PLAN_USAGE)?),
         PlanCommand::Score { spec_id } => workspace.score(require(&spec_id, PLAN_USAGE)?),
         PlanCommand::Validate { spec_id } => workspace.validate(require(&spec_id, PLAN_USAGE)?),
         PlanCommand::Adjust(command) => run_adjust(&workspace, command),
@@ -160,6 +163,13 @@ fn require<'a>(spec_id: &'a str, usage: &str) -> Result<&'a str> {
 
 fn problems_message(header: String, problems: &[String]) -> anyhow::Error {
     anyhow::anyhow!("{header}\n{}", problems.join("\n"))
+}
+
+/// Tarefa já criada da spec, lida para o plano de extensão.
+struct ExistingTask {
+    id: String,
+    covers: Vec<String>,
+    wave: usize,
 }
 
 /// O harness do projeto e as leituras de configuração usadas pelos comandos `plan`.
@@ -755,21 +765,35 @@ impl Workspace {
         let planned_status = self.spec_setting("status.planned")?;
         let status = field(&spec, "status");
         if status == planned_status {
-            bail!("a spec {spec_id} já está com status '{planned_status}': as tarefas já foram criadas");
+            bail!("a spec {spec_id} já está com status '{planned_status}': as tarefas já foram criadas; para tarefas novas, execute: vostok plan extend {spec_id}");
         }
         if status != approved_status {
             bail!("a spec {spec_id} está com status '{status}'; só specs com status '{approved_status}' são planejadas");
         }
-        let approved = field(&spec, &self.spec_setting("approved_hash_field")?);
-        let stored = field(&spec, &self.spec_setting("content_hash_field")?);
-        let current = sha256_hex(frontmatter_body(&read(&spec)?).as_bytes());
+        let approved = self.approved_hash(spec_id, &spec)?;
+        let plan = self.plan_path(spec_id)?;
+        self.check_plan_slot(spec_id, &plan, &spec)?;
+        let content = self.render_plan(spec_id, &spec, approved)?;
+        self.write_new_plan(&plan, &content)?;
+        println!("Plano de {spec_id} criado em {}", plan.display());
+        Ok(())
+    }
+
+    /// Hash aprovado da spec, recusando a spec alterada depois da aprovação.
+    fn approved_hash(&self, spec_id: &str, spec: &Path) -> Result<String> {
+        let approved = field(spec, &self.spec_setting("approved_hash_field")?);
+        let stored = field(spec, &self.spec_setting("content_hash_field")?);
+        let current = sha256_hex(frontmatter_body(&read(spec)?).as_bytes());
         if approved != stored || approved != current {
             bail!("a spec {spec_id} mudou depois da aprovação; aprove-a de novo antes de planejar");
         }
+        Ok(approved)
+    }
 
-        let plan = self.plan_path(spec_id)?;
+    /// Recusa o plano atualizado e avisa que o desatualizado será recriado.
+    fn check_plan_slot(&self, spec_id: &str, plan: &Path, spec: &Path) -> Result<()> {
         if plan.is_file() {
-            if !self.plan_is_outdated(&plan, &spec)? {
+            if !self.plan_is_outdated(plan, spec)? {
                 bail!(
                     "a spec {spec_id} já tem um plano atualizado: {}",
                     plan.display()
@@ -779,16 +803,27 @@ impl Workspace {
                 "Aviso: o plano existente foi feito para outra versão da spec e será recriado."
             );
         }
+        Ok(())
+    }
 
+    fn write_new_plan(&self, plan: &Path, content: &str) -> Result<()> {
+        if let Some(dir) = plan.parent() {
+            fs::create_dir_all(dir)
+                .with_context(|| format!("não foi possível criar {}", dir.display()))?;
+        }
+        write(plan, &self.with_stored_hash(content)?)
+    }
+
+    /// Texto do plano a partir do template, sem o hash de conteúdo.
+    fn render_plan(&self, spec_id: &str, spec: &Path, approved: String) -> Result<String> {
         let template = self.template("plan_template")?;
         let history =
             read(&self.section_template(&self.spec_setting("adjustment_history_section")?)?)?;
-        let now = utc_now();
         let mut values = HashMap::from([
             ("SPEC_ID", spec_id.to_string()),
-            ("SPEC_TITLE", field(&spec, "title")),
+            ("SPEC_TITLE", field(spec, "title")),
             ("SPEC_HASH", approved),
-            ("DATETIME", now),
+            ("DATETIME", utc_now()),
             ("PLAN_SHARED_FILES", "| - | - | - |".to_string()),
             (
                 "ADJUSTMENT_HISTORY",
@@ -801,14 +836,99 @@ impl Workspace {
         if self.task_list("profile_levels").is_ok() {
             values.insert("PROFILE_LEVELS", self.profile_rows()?);
         }
-        if let Some(dir) = plan.parent() {
-            fs::create_dir_all(dir)
-                .with_context(|| format!("não foi possível criar {}", dir.display()))?;
+        Ok(render_lines(&read(&template)?, &values))
+    }
+
+    fn extend(&self, spec_id: &str) -> Result<()> {
+        let spec = self.find_spec(spec_id)?;
+        let planned_status = self.spec_setting("status.planned")?;
+        let status = field(&spec, "status");
+        if status != planned_status {
+            bail!("a spec {spec_id} está com status '{status}'; só specs com status '{planned_status}' ganham plano de extensão");
         }
-        let content = render_lines(&read(&template)?, &values);
-        write(&plan, &self.with_stored_hash(&content)?)?;
-        println!("Plano de {spec_id} criado em {}", plan.display());
+        let approved = self.approved_hash(spec_id, &spec)?;
+        let plan = self.plan_path(spec_id)?;
+        self.check_plan_slot(spec_id, &plan, &spec)?;
+
+        let existing = self.existing_tasks(spec_id)?;
+        let cover_ids = self.ids_to_cover(&spec, &existing)?;
+        if cover_ids.is_empty() {
+            bail!("nenhum ID da spec está sem tarefa; a spec {spec_id} não precisa de plano de extensão");
+        }
+        let prefix = self.task_setting("id.prefix")?;
+        let digits: usize = self.task_setting("id.digits")?.parse().unwrap_or(0);
+        let last_number = existing
+            .iter()
+            .filter_map(|task| task.id.rsplit('-').next()?.parse::<usize>().ok())
+            .max()
+            .unwrap_or(0);
+        let first_task = format!("{prefix}-{:0digits$}", last_number + 1);
+        let first_wave = existing.iter().map(|task| task.wave).max().unwrap_or(0) + 1;
+
+        let mut content = self.render_plan(spec_id, &spec, approved)?;
+        content = frontmatter_put(&content, "extends", "true")?;
+        content = frontmatter_put(&content, "first_task", &first_task)?;
+        content = frontmatter_put(&content, "first_wave", &first_wave.to_string())?;
+        content = frontmatter_put(
+            &content,
+            "cover_ids",
+            &format!("[{}]", cover_ids.join(", ")),
+        )?;
+        self.write_new_plan(&plan, &content)?;
+        println!(
+            "Plano de extensão de {spec_id} criado: cobre {}; próxima tarefa: {first_task}; primeira onda: {first_wave}.",
+            cover_ids.join(", ")
+        );
+        println!("{}", plan.display());
         Ok(())
+    }
+
+    /// Tarefas já criadas da spec, em pasta ou arquivo único; sem a pasta, nenhuma.
+    fn existing_tasks(&self, spec_id: &str) -> Result<Vec<ExistingTask>> {
+        let dir = self.tasks_dir(spec_id)?;
+        if !dir.is_dir() {
+            return Ok(Vec::new());
+        }
+        let mut tasks = Vec::new();
+        let mut depends = Vec::new();
+        for file in task_entries(&dir)? {
+            let doc = TaskDoc::at(&file);
+            let id = file_stem(&file);
+            let read_ids = |key: &str| bracket_ids(&doc.get(key).unwrap_or_default());
+            let wave = doc
+                .get("wave")
+                .ok()
+                .and_then(|value| value.trim().parse::<usize>().ok());
+            depends.push((id.clone(), read_ids("depends_on")));
+            tasks.push((id, read_ids("covers"), wave));
+        }
+        let computed = waves(&depends);
+        Ok(tasks
+            .into_iter()
+            .map(|(id, covers, wave)| {
+                let wave = wave.or_else(|| computed.get(&id).copied()).unwrap_or(1);
+                ExistingTask { id, covers, wave }
+            })
+            .collect())
+    }
+
+    /// IDs sem tarefa que cubra, mais os de `extend_ids` da spec, na ordem da spec.
+    fn ids_to_cover(&self, spec: &Path, existing: &[ExistingTask]) -> Result<Vec<String>> {
+        let covered: HashSet<&str> = existing
+            .iter()
+            .flat_map(|task| task.covers.iter().map(|id| id.trim()))
+            .collect();
+        let extend_ids: Vec<String> = bracket_ids(&field(spec, "extend_ids"))
+            .into_iter()
+            .map(|id| id.trim().to_string())
+            .collect();
+        let mut seen = HashSet::new();
+        Ok(self
+            .spec_ids(spec)?
+            .into_iter()
+            .filter(|id| !covered.contains(id.as_str()) || extend_ids.contains(id))
+            .filter(|id| seen.insert(id.clone()))
+            .collect())
     }
 
     fn effort_level_rows(&self) -> Result<String> {
@@ -2456,6 +2576,11 @@ fn id_list(cell: &str) -> Vec<String> {
         return Vec::new();
     }
     text.split_whitespace().map(str::to_string).collect()
+}
+
+/// IDs de uma lista em linha do front-matter (`[RF-01, RF-02]`); vazia sem valor.
+fn bracket_ids(value: &str) -> Vec<String> {
+    id_list(value.trim().trim_start_matches('[').trim_end_matches(']'))
 }
 
 /// Grava os valores calculados (perfil, nível ou onda) na coluna da tabela de tarefas, em cada tarefa.

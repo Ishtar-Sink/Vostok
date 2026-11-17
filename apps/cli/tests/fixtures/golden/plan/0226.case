@@ -20,8 +20,8 @@ SPEC-008
 
 @stdout 0
 
-@stderr 83
-Erro: a spec SPEC-008 já está com status 'planned': as tarefas já foram criadas
+@stderr 141
+Erro: a spec SPEC-008 já está com status 'planned': as tarefas já foram criadas; para tarefas novas, execute: vostok plan extend SPEC-008
 
 @exit 1
 1

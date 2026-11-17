@@ -2,6 +2,15 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.5] - 2026-11-17
+
+### Melhorias
+
+- A aprovação do plano e o ajuste de tarefa recusam a evidência cuja Falha repete um texto do Trecho, que sempre acusaria numa entrega certa, e avisam a Falha com uma condição sobre o valor, como "maior que" ou "sem". (SPEC-059)
+- O painel mostra essas Falhas em cinza, como "não dá para buscar" com o motivo, em vez de vermelho, inclusive nas tarefas antigas; a CLI e o painel seguem os mesmos casos. (SPEC-059)
+- O agente tem uma regra nova, `rules/agent/evidence.md`, sobre como escrever a Falha, carregada em todo projeto; a skill de aprovação do plano traz um exemplo certo e um errado. (SPEC-059)
+- O técnico de cada tarefa segue uma forma única, escolhida pelo usuário: uma frase, o panorama em prosa e depois tabelas com o que muda e as decisões. A aprovação do plano e a finalização da tarefa escrevem nessa forma. (SPEC-059)
+
 ## [0.6.4] - 2026-11-17
 
 ### Melhorias

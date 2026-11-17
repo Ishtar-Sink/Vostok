@@ -102,7 +102,7 @@ O comando confere os impedimentos e cria um arquivo por tarefa, com o front-matt
 
 Tarefa com interface (lista "Mudar" com arquivos `.html`, `.css`, `.scss`, `.tsx`, `.jsx`, `.vue`, `.svelte` ou telas e templates visuais): antes de detalhá-la, execute `vostok context load --skill approve-plan --persona ui-ux-designer` e inclua os critérios e as evidências visuais da persona. A tarefa com interface exige ao menos um `(print)` (ou manual de imagem), e o print é conferido pelo usuário na finalização.
 
-Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, resultado na primeira frase e sem termos do harness, regra approve-plan-07) e `#{TASK_TECHNICAL}` (abordagem, decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
+Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do projeto que ela toca e substitua as variáveis `#{...}` de `execucao.md`, `verificacao.md` e `criterios.md` (no formato antigo, do arquivo único). Substitua também `#{TASK_EXECUTIVE}` (até 5 linhas, resultado na primeira frase e sem termos do harness, regra approve-plan-07) e `#{TASK_TECHNICAL}` (na **Forma do técnico**, com a abordagem, as decisões com alternativas, riscos, referências da spec e arquivos em comum com a onda, regra approve-plan-09): a aprovação recusa a tarefa com eles no template. Não escreva card nem README: o `vostok` os gera.
 
 **Execução** (para o agente):
 
@@ -128,7 +128,7 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
   - `Cobre:` opcional, os IDs cobertos separados por vírgula (`RF-01, CT-01`); com ele, os IDs saem do texto de `Mostra:`.
   - `Onde olhar:` opcional, texto livre sobre onde olhar: no log, a linha e a posição; no print, a região da tela; no vídeo, o tempo no formato `m:ss` e o que acontece nele (`0:05 aparece "Configurações salvas"`).
   - `Trecho:` o que procurar na saída (a linha, o valor ou a mensagem que comprova); cada texto entre crases aparece igual na saída, sem crase dentro dele e sem símbolo solto, como `+`, que acha quase qualquer linha. A busca diferencia maiúsculas; espaços repetidos contam como um; as quatro linhas do cabeçalho do log (comando, data, commit, código de saída) e as cores ANSI são ignoradas; a linha igual ao texto vence e, sem ela, vale a que contém o texto como palavra inteira (`exit=` não acha `exit=0`); `...` separa partes da mesma linha, na ordem. O `vostok task evidence --antecipada` lista o texto que não apareceu, e o agente corrige o texto antes de pedir a conferência.
-  - `Falha:` o que apareceria se a tarefa tivesse falhado, no formato "se aparecer `X`, então Y quebrou"; os textos entre crases seguem a mesma regra do `Trecho:`.
+  - `Falha:` o que apareceria se a tarefa tivesse falhado, no formato "se aparecer `X`, então Y quebrou". Os textos entre crases seguem a regra do `Trecho:` e as regras de `rules/agent/evidence.md`: nunca um texto do `Trecho:` nem parte dele, e o valor errado por extenso, com a condição fora das crases. Certo: "se aparecer `rm_na_referencia=1`, a bateria apagou a referência". Errado: "se `rm_na_referencia` for maior que 0", que o painel acusa em toda evidência certa.
   - `Reproduzir:` opcional, um comando entre crases, curto e pronto para copiar, quando o comando da evidência for longo ou montar um ambiente.
   - `Artefato:` opcional, o artefato medido (versão, build type, SHA-256).
   - `Como:` opcional, uma frase de até 160 caracteres sobre o que o script ou o comando faz, que o painel mostra em "Como foi feita". Escreva só quando o comando não se explica sozinho (um script do projeto, uma fixture montada no próprio comando, variáveis de ambiente que mudam o comportamento); omita em comandos óbvios, como `cargo test` ou `pnpm ... vitest run`, e em `(diff)` e `(manual)`, que o painel já explica pelo tipo e pelo comando.
@@ -148,6 +148,41 @@ Leia a spec aprovada e o plano. Para cada tarefa, investigue os arquivos do proj
 
 - **`#{TASK_EXECUTIVE_SUMMARY}`:** até 5 linhas, em linguagem de negócio: o resultado na primeira frase, depois o benefício, o risco e o que a tarefa bloqueia ou desbloqueia. Não cite o perfil de execução nem termos do harness (onda, baseline, Coordenador), nem arquivos ou comandos.
 - **`#{TASK_TECHNICAL_DETAILS}`:** a abordagem, os componentes afetados, as decisões com as alternativas descartadas, os riscos técnicos, as referências da spec (RF, CT e decisões) e os arquivos em comum com tarefas da mesma onda.
+
+**Forma do técnico:** o técnico abre com a frase e o panorama em prosa, e detalha o resto em tabelas; use este modelo:
+
+```markdown
+**Em uma frase**
+
+Uma frase com o que a tarefa faz.
+
+**Como funciona**
+
+Dois ou três parágrafos curtos, sem código, com o panorama: o que acontece, em que ordem e por quê.
+
+**O que muda**
+
+| Onde | O que muda | Por quê |
+|---|---|---|
+| `caminho`, função | O que muda nesse ponto | Motivo, com os IDs da spec |
+
+**Decisões**
+
+| Decisão | Descartado | Motivo |
+|---|---|---|
+| O que foi escolhido | A alternativa descartada | Por que ela foi descartada |
+
+**Riscos**
+
+- Um risco por item, com o que o cobre.
+
+**Referências**
+
+Os IDs da spec cobertos e os arquivos em comum com tarefas da mesma onda.
+```
+
+Sem passos encadeados por ponto e vírgula e sem blocos de código no meio da abordagem.
+
 - **`#{TASK_CARD_DESCRIPTION}`:** uma ou duas frases sobre o que a tarefa entrega, pronta para o card.
 - **`#{TASK_CARD_CRITERIA}`:** checklist de critérios de aceite, cada item como `  - [ ] critério`, indentado sob "Critérios de aceite".
 

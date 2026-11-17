@@ -7949,3 +7949,215 @@ fn conferencia_status_tarefa_antiga_executed_aplica_a_regra() {
     success_stdout(&mut ahead(&project));
     assert_eq!(state_line(&project, "status"), "awaiting_review");
 }
+
+// --- Recusa de evidência que saiu da tarefa (SPEC-061) ---
+
+const SAIDA_ITEM: &str = "`saida.txt` (automática): `cat valor.txt`";
+const NOVA_ITEM: &str = "`nova.txt` (automática): `echo nova`";
+
+/// TASK-01 em pasta, em execução, com todos os tipos de evidência pedindo conferência.
+fn reviewed_folder_started() -> Project {
+    let project = folder_task("pending");
+    with_review_kinds(&project, "");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    task(&project, &["begin"]).assert().success();
+    success_stdout(&mut ahead(&project));
+    project
+}
+
+/// `saida.txt` recusada e depois trocada por `nova.txt` num ajuste registrado.
+fn swapped_after_rejection() -> Project {
+    let project = reviewed_folder_started();
+    rejected(&project, "EV-01", "cortada");
+    replace_in(&project, VERIFICATION, SAIDA_ITEM, NOVA_ITEM);
+    adjust_record(&project);
+    project
+}
+
+/// Grava um campo no `estado.yml`, trocando a linha ou acrescentando-a no fim.
+fn put_state(project: &Project, key: &str, value: &str) {
+    let path = format!("{FOLDER}/estado.yml");
+    let prefix = format!("{key}: ");
+    let mut lines: Vec<String> = read(project, &path).lines().map(str::to_string).collect();
+    match lines.iter().position(|line| line.starts_with(&prefix)) {
+        Some(index) => lines[index] = format!("{prefix}{value}"),
+        None => lines.push(format!("{prefix}{value}")),
+    }
+    write(project, &path, &format!("{}\n", lines.join("\n")));
+}
+
+fn finish_validated(project: &Project) {
+    write(
+        project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    let criteria = read(project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(project, &format!("{FOLDER}/criterios.md"), &criteria);
+    for name in ["executivo.md", "tecnico.md"] {
+        append(project, &format!("{FOLDER}/{name}"), "\nEntregue.\n");
+    }
+}
+
+#[test]
+fn recusa_orfa_sai_no_ajuste() {
+    let project = swapped_after_rejection();
+    assert_eq!(folder_field(&project, "rejected_evidences"), "[]");
+    let line = review_line(&project, "saida.txt");
+    assert!(line.starts_with("| - | saida.txt | removida |"), "{line}");
+}
+
+#[test]
+fn recusa_orfa_finish_conclui() {
+    let project = swapped_after_rejection();
+    success_stdout(&mut ahead(&project));
+    reviewed(&project, "EV-01").assert().success();
+    for step in ["tests", "regression", "evidence"] {
+        task(&project, &[step]).assert().success();
+    }
+    finish_validated(&project);
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(folder_field(&project, "status"), "done");
+}
+
+#[test]
+fn recusa_orfa_tarefa_travada_destrava() {
+    let project = folder_validated();
+    put_state(&project, "rejected_evidences", "[antiga.txt]");
+    task(&project, &["evidence"]).assert().success();
+    assert_eq!(folder_field(&project, "rejected_evidences"), "[]");
+    finish_validated(&project);
+    task(&project, &["finish"]).assert().success();
+}
+
+#[test]
+fn recusa_orfa_presente_continua() {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    success_stdout(&mut ahead(&project));
+    assert_eq!(field(&project, "rejected_evidences"), "[tela.png]");
+}
+
+#[test]
+fn recusa_orfa_mensagem_em_validacao() {
+    let project = folder_validated();
+    put_state(&project, "rejected_evidences", "[saida.txt]");
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("-> vostok task evidence SPEC-001 TASK-01\n")
+            || stderr
+                .trim_end()
+                .ends_with("-> vostok task evidence SPEC-001 TASK-01"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("--antecipada"), "{stderr}");
+}
+
+#[test]
+fn recusa_orfa_mensagem_em_execucao() {
+    let project = two_prints();
+    rejected(&project, "EV-01", "cortada");
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(
+        stderr.contains("-> vostok task evidence SPEC-001 TASK-01 --antecipada"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn recusa_orfa_conferencia_removida() {
+    let project = reviewed_folder_started();
+    reviewed(&project, "EV-01").assert().success();
+    replace_in(&project, VERIFICATION, SAIDA_ITEM, NOVA_ITEM);
+    adjust_record(&project);
+    success_stdout(&mut ahead(&project));
+    reviewed(&project, "EV-01").assert().success();
+    let reviews = read(&project, REVIEWS);
+    assert!(
+        !reviews
+            .lines()
+            .any(|line| line.starts_with("| EV-01 | saida.txt")),
+        "{reviews}"
+    );
+    let line = review_line(&project, "nova.txt");
+    assert!(
+        line.starts_with("| EV-01 | nova.txt | conferida |"),
+        "{line}"
+    );
+}
+
+// --- Marcar critérios de conclusão (SPEC-061) ---
+
+const TWO_CRITERIA: &str = "### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n\n- [ ] Revisado (RF-01).\n\n  > Como comprovar: ver a revisão.\n";
+
+fn criteria_text(project: &Project) -> String {
+    read(project, &format!("{FOLDER}/criterios.md"))
+}
+
+fn mark(project: &Project, numbers: &[&str]) -> assert_cmd::Command {
+    let mut args = vec!["mark-criteria"];
+    args.extend_from_slice(numbers);
+    task(project, &args)
+}
+
+#[test]
+fn marca_criterios_marca_sem_edicao_manual() {
+    let project = folder_started();
+    write(&project, &format!("{FOLDER}/criterios.md"), TWO_CRITERIA);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    let stdout = success_stdout(&mut mark(&project, &["1", "2"]));
+    assert!(
+        stdout.contains("Critérios marcados em TASK-01: 1, 2."),
+        "{stdout}"
+    );
+    assert_eq!(criteria_text(&project).matches("- [x]").count(), 2);
+    let manual = success_stdout(&mut nested(&project, "adjust", "record-manual"));
+    assert!(manual.contains("Nenhuma edição manual."), "{manual}");
+}
+
+#[test]
+fn marca_criterios_ja_marcado() {
+    let project = folder_started();
+    mark(&project, &["1"]).assert().success();
+    mark(&project, &["1"]).assert().success();
+    assert_eq!(criteria_text(&project).matches("- [x]").count(), 1);
+}
+
+#[test]
+fn marca_criterios_numero_inexistente() {
+    let project = folder_started();
+    let before = criteria_text(&project);
+    let stderr = failure_stderr(&mut mark(&project, &["9"]));
+    assert!(
+        stderr.contains(
+            "critério 9 não existe em TASK-01; critérios válidos: 1 a 1; nada foi alterado"
+        ),
+        "{stderr}"
+    );
+    assert_eq!(criteria_text(&project), before);
+}
+
+#[test]
+fn marca_criterios_recusa_fora_da_execucao() {
+    let project = folder_task("pending");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    let stderr = failure_stderr(&mut mark(&project, &["1"]));
+    assert!(stderr.contains("status 'pending'"), "{stderr}");
+    assert!(criteria_text(&project).contains("- [ ] Pronto"));
+}
+
+#[test]
+fn marca_criterios_arquivo_unico() {
+    let project = running_task(&[("a.txt", "um\n")]);
+    replace_in(&project, TASK_PATH, "- [x] Pronto.", "- [ ] Pronto.");
+    mark(&project, &["1"]).assert().success();
+    assert!(read(&project, TASK_PATH).contains("- [x] Pronto."));
+}

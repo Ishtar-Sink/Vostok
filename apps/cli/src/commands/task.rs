@@ -40,6 +40,12 @@ pub enum TaskCommand {
         spec_id: Option<String>,
         task_id: Option<String>,
     },
+    /// Marca critérios de conclusão comprovados, pelo número.
+    MarkCriteria {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        numbers: Vec<usize>,
+    },
     /// Aprovação de tarefas.
     #[command(subcommand)]
     Approve(ApproveCommand),
@@ -246,6 +252,7 @@ const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
 const MIGRATE_USAGE: &str = "Uso: vostok task migrate <SPEC_ID>";
 const LOAD_USAGE: &str = "Uso: vostok task load <SPEC_ID> <TASK_ID>";
 const CHECK_DONE_USAGE: &str = "Uso: vostok task check-done <SPEC_ID> <TASK_ID>";
+const MARK_CRITERIA_USAGE: &str = "Uso: vostok task mark-criteria <SPEC_ID> <TASK_ID> <N...>";
 const APPROVE_USAGE: &str =
     "Uso: vostok task approve validate|approve <SPEC_ID> <TASK_ID ...>|--all";
 const ADJUST_USAGE: &str = "Uso: vostok task adjust record-manual <SPEC_ID> <TASK_ID> | validate <SPEC_ID> <TASK_ID> | record <SPEC_ID> <TASK_ID> \"resumo\"";
@@ -346,6 +353,17 @@ pub fn run(command: TaskCommand) -> Result<()> {
             Ok(())
         }
         TaskCommand::Reviews { ids } => tasks.run_reviews(&ids),
+        TaskCommand::MarkCriteria {
+            spec_id,
+            task_id,
+            numbers,
+        } => {
+            let (spec, task) = filled(spec_id, task_id, MARK_CRITERIA_USAGE)?;
+            if numbers.is_empty() {
+                return Err(usage(MARK_CRITERIA_USAGE));
+            }
+            tasks.mark_criteria(&spec, &task, &numbers)
+        }
         TaskCommand::CheckDone { spec_id, task_id } => {
             let (spec, task) = filled(spec_id, task_id, CHECK_DONE_USAGE)?;
             println!("{}", tasks.check_done(&spec, &task)?);
@@ -1340,6 +1358,49 @@ impl Tasks {
         format!(
             "\n### Esperas da {spec}\n\n| Tarefa | Espera | Tarefas | Motivo |\n|---|---|---|---|\n{rows}"
         )
+    }
+
+    /// Marca `[x]` nos critérios de conclusão pedidos, contados de 1, e mantém o hash da tarefa em
+    /// dia quando ele já estava: a marca não vira edição manual (SPEC-061).
+    fn mark_criteria(&self, spec: &str, task: &str, numbers: &[usize]) -> Result<()> {
+        let file = self.existing_task(spec, task)?;
+        let status = status_of(&file);
+        let running = [
+            &self.status.in_progress,
+            &self.status.awaiting_review,
+            &self.status.executed,
+            &self.status.validating,
+            &self.status.blocked,
+        ];
+        if !running.contains(&&status) {
+            bail!("a tarefa {task} está com status '{status}'; só tarefa em execução tem critérios marcados; nada foi alterado");
+        }
+        let target = if is_task_folder(&file) {
+            file.join(&layout().criteria)
+        } else {
+            file.clone()
+        };
+        let heading = format!("### {}", self.cfg("done_subsection")?);
+        let text = read(&target)?;
+        let (marked, total) = mark_checkboxes(&text, &heading, numbers);
+        if let Some(missing) = numbers
+            .iter()
+            .find(|number| **number == 0 || **number > total)
+        {
+            bail!("critério {missing} não existe em {task}; critérios válidos: 1 a {total}; nada foi alterado");
+        }
+        let listed: Vec<String> = numbers.iter().map(usize::to_string).collect();
+        let listed = listed.join(", ");
+        if marked != text {
+            let was_current = self.hash_is_current(&file)?;
+            write(&target, &marked)?;
+            if was_current {
+                self.store_hash(&file)?;
+            }
+            self.record_step(&file, "critérios", "marcados", &listed)?;
+        }
+        println!("Critérios marcados em {task}: {listed}.");
+        Ok(())
     }
 
     fn check_done(&self, spec: &str, task: &str) -> Result<String> {
@@ -3318,6 +3379,43 @@ impl Tasks {
         Ok((kept, changed))
     }
 
+    /// Tira de `rejected_evidences` os arquivos que saíram de "Evidências" e marca como removida a
+    /// conferência deles no `conferencias.md`, sem o ID atual (SPEC-061).
+    fn retire_orphans(&self, file: &Path) -> Result<()> {
+        let content = TaskDoc::at(file).text()?;
+        let names: Vec<String> = self
+            .evidence_entries(&content)?
+            .into_iter()
+            .map(|entry| entry.name)
+            .collect();
+        let rejected = rejected_of(file);
+        let kept: Vec<String> = rejected
+            .iter()
+            .filter(|name| names.contains(name))
+            .cloned()
+            .collect();
+        if kept.len() != rejected.len() {
+            write_rejected(file, &kept)?;
+        }
+        if !is_task_folder(file) || !file.join(REVIEWS_FILE).is_file() {
+            return Ok(());
+        }
+        let mut records = parse_reviews(&read(&file.join(REVIEWS_FILE))?, &task_id_of(file));
+        let mut changed = false;
+        for record in records
+            .iter_mut()
+            .filter(|record| !names.contains(&record.name) && record.id != REMOVED_ID)
+        {
+            record.id = REMOVED_ID.to_string();
+            record.mark = ReviewMark::Removed;
+            changed = true;
+        }
+        if changed {
+            write_reviews(file, &records)?;
+        }
+        Ok(())
+    }
+
     /// Tira de `rejected_evidences` a evidência gerada com saída diferente da recusada (RF-09); a que
     /// não foi gerada continua recusada.
     fn clear_changed_rejections(
@@ -3326,6 +3424,7 @@ impl Tasks {
         dir: &Path,
         reviews: &[ReviewRecord],
     ) -> Result<()> {
+        self.retire_orphans(file)?;
         let rejected = rejected_of(file);
         let mut pending: Vec<String> = Vec::new();
         for name in &rejected {
@@ -3439,7 +3538,7 @@ impl Tasks {
                     in_progress,
                     &evidence_rejection(&record.id, &record.name, hashes, &record.text),
                 )?,
-                ReviewMark::Withdrawn => self.record_step(
+                ReviewMark::Withdrawn | ReviewMark::Removed => self.record_step(
                     file,
                     WITHDRAWN_STEP,
                     "usuário",
@@ -3567,7 +3666,7 @@ impl Tasks {
                     pending.join(", ")
                 )]
             }
-            ReviewMark::Withdrawn => {
+            ReviewMark::Withdrawn | ReviewMark::Removed => {
                 let kind = match previous {
                     Some(previous) if previous.mark == ReviewMark::Rejected => "Recusa",
                     _ => "Conferência",
@@ -3703,9 +3802,19 @@ impl Tasks {
         let content = TaskDoc::at(file).text()?;
         let reviews = self.reviews(file, &content)?;
         let entries = self.evidence_entries(&content)?;
-        let next = format!("vostok task evidence {spec} {task} --antecipada");
+        let running = [
+            &self.status.in_progress,
+            &self.status.awaiting_review,
+            &self.status.executed,
+        ];
+        let next = if running.contains(&&status_of(file)) {
+            format!("vostok task evidence {spec} {task} --antecipada")
+        } else {
+            format!("vostok task evidence {spec} {task}")
+        };
         Ok(rejected
             .iter()
+            .filter(|name| entries.iter().any(|entry| &entry.name == *name))
             .map(|name| {
                 let label = evidence_label(&entries, name);
                 let reason = current_review(&reviews, name)
@@ -4834,6 +4943,7 @@ impl Tasks {
         TaskDoc::at(file).put("adjustments", &count.to_string())?;
         TaskDoc::at(file).put("adjusted_at", &now)?;
         TaskDoc::at(file).put("updated_at", &now)?;
+        self.retire_orphans(file)?;
         self.store_hash(file)?;
         if TaskDoc::at(file).folder() {
             TaskDoc::at(file).refresh_state_hash()?;
@@ -5839,6 +5949,36 @@ pub(crate) fn task_entries(dir: &Path) -> Result<Vec<PathBuf>> {
     }
     folders.sort();
     Ok(folders)
+}
+
+/// Texto com `[x]` nos itens de número pedido da seção `heading` e o total de itens dela.
+fn mark_checkboxes(text: &str, heading: &str, numbers: &[usize]) -> (String, usize) {
+    let mut inside = false;
+    let mut count = 0;
+    let lines: Vec<String> = text
+        .lines()
+        .map(|line| {
+            if line.starts_with('#') {
+                inside = line.trim_end() == heading;
+                return line.to_string();
+            }
+            let open = line.starts_with("- [ ] ");
+            if !inside || !(open || line.starts_with("- [x] ")) {
+                return line.to_string();
+            }
+            count += 1;
+            if open && numbers.contains(&count) {
+                format!("- [x] {}", &line["- [ ] ".len()..])
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+    let mut marked = lines.join("\n");
+    if text.ends_with('\n') {
+        marked.push('\n');
+    }
+    (marked, count)
 }
 
 /// Campo do estado com os arquivos das evidências recusadas que esperam nova geração (RF-09).
@@ -6961,6 +7101,9 @@ fn normalized_reason(reason: &str) -> String {
 
 /// Arquivo da tarefa em pasta com uma linha por evidência conferida, recusada ou retirada.
 const REVIEWS_FILE: &str = "conferencias.md";
+
+/// ID da conferência de um arquivo que saiu de "Evidências" (RF-05 da SPEC-061).
+const REMOVED_ID: &str = "-";
 const REVIEWS_HEADER: &str =
     "| ID | Arquivo | Estado | sha256 | Data | Origem | Texto |\n|---|---|---|---|---|---|---|\n";
 
@@ -6993,6 +7136,8 @@ pub(crate) enum ReviewMark {
     Accepted,
     Rejected,
     Withdrawn,
+    /// Conferência de um arquivo que saiu de "Evidências": fica no histórico e não conta.
+    Removed,
 }
 
 impl ReviewMark {
@@ -7001,13 +7146,19 @@ impl ReviewMark {
             Self::Accepted => "conferida",
             Self::Rejected => "recusada",
             Self::Withdrawn => "retirada",
+            Self::Removed => "removida",
         }
     }
 
     fn parse(text: &str) -> Option<Self> {
-        [Self::Accepted, Self::Rejected, Self::Withdrawn]
-            .into_iter()
-            .find(|mark| mark.as_str() == text)
+        [
+            Self::Accepted,
+            Self::Rejected,
+            Self::Withdrawn,
+            Self::Removed,
+        ]
+        .into_iter()
+        .find(|mark| mark.as_str() == text)
     }
 }
 
@@ -7370,7 +7521,7 @@ fn parse_review_line(line: &str) -> Option<ReviewRecord> {
     let [id, name, mark, hash, date, origin, text] = cells.as_slice() else {
         return None;
     };
-    if !is_evidence_id(id)
+    if !(is_evidence_id(id) || id == REMOVED_ID)
         || !is_valid_evidence_name(name)
         || !is_review_hash(hash)
         || !starts_with_date(date)

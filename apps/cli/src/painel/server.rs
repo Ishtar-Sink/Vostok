@@ -338,7 +338,7 @@ fn review_json(outcome: &ReviewOutcome) -> String {
     let status = match record.mark {
         ReviewMark::Accepted => "conferida",
         ReviewMark::Rejected => "recusada",
-        ReviewMark::Withdrawn => "a conferir",
+        ReviewMark::Withdrawn | ReviewMark::Removed => "a conferir",
     };
     format!(
         "{{\"id\":{},\"name\":{},\"status\":{},\"reason\":{},\"reviewed_at\":{},\"origin\":{},\"task_status\":{}}}",

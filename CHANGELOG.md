@@ -2,6 +2,15 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.10] - 2026-11-17
+
+### Melhorias
+
+- A verificação de uma tarefa roda uma vez no caminho comum, e não três: o `vostok task check` e o `vostok task tests` que passam gravam a rodada em `validation/run.yml`, e o `vostok task evidence --antecipada` e o `vostok task tests` a reaproveitam quando a Verificação, o Baseline e os arquivos de "Mudar" não mudaram. O registro diz de qual rodada veio o resultado, a tentativa não é contada e a regressão roda sempre. (SPEC-065, issue #20)
+- A opção `vostok task tests --forcar` roda a Verificação mesmo com rodada válida, e a configuração `verification_reuse` em `config/tasks.yml` escolhe o que a impressão compara: `mudar` (padrão), `arvore` (árvore do projeto, sem a pasta de trabalho) ou `nunca` (comportamento anterior). (SPEC-065, issue #20)
+- O `vostok plan approve validate`, o `vostok task approve validate` e o `vostok task adjust validate` avisam do `grep` que derruba a Verificação sob `pipefail` quando não acha nada (`$(grep ... | ...)` ou `grep ... | wc -l` sem `|| true`), sem recusar a tarefa. (SPEC-065, issue #20)
+- As skills `execute-task`, `finish-task` e `approve-plan` descrevem o reaproveitamento da rodada e o `set -e` com `pipefail` da Verificação. (SPEC-065)
+
 ## [0.6.9] - 2026-11-17
 
 ### Recursos

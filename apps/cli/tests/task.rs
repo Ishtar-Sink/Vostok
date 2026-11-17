@@ -4374,6 +4374,145 @@ fn ajuste_mantem_testes_quando_so_o_executivo_muda() {
     assert_eq!(folder_field(&project, "tests_result"), "passed");
 }
 
+// --- Previsão e marca das conferências (SPEC-057) ---
+
+const VERIFICATION: &str = "vostok/work/tasks/SPEC-001/TASK-01/verificacao.md";
+
+const FIXED_EVIDENCE: &str = "- `outra.txt` (automática): `echo fixo`\n  - Prova: o texto fixo.\n  - Trecho: fixo.\n  - Falha: arquivo ausente.\n";
+
+/// Tarefa em pasta com duas evidências automáticas, ambas conferidas.
+fn folder_forecast() -> Project {
+    let project = folder_task("pending");
+    with_review_kinds(&project, "");
+    append(&project, VERIFICATION, FIXED_EVIDENCE);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    for id in ["EV-01", "EV-02"] {
+        task(&project, &["evidence", "--reviewed", id])
+            .assert()
+            .success();
+    }
+    project
+}
+
+fn review_line(project: &Project, name: &str) -> String {
+    read(project, REVIEWS)
+        .lines()
+        .find(|line| line.contains(&format!("| {name} |")))
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn change_snippet(project: &Project, from: &str, to: &str) {
+    replace_in(
+        project,
+        VERIFICATION,
+        &format!("  - Trecho: {from}"),
+        &format!("  - Trecho: {to}"),
+    );
+}
+
+#[test]
+fn ajuste_previsao_lista_derrubada_e_mantida() {
+    let project = folder_forecast();
+    replace_in(&project, VERIFICATION, "`echo fixo`", "`echo novo`");
+    change_snippet(&project, "a linha.", "a primeira linha.");
+    let output = adjust_record(&project);
+    assert!(
+        output.contains("Conferências: EV-01 saida.txt mantida se a saída não mudar; EV-02 outra.txt derrubada (comando mudou)."),
+        "{output}"
+    );
+}
+
+#[test]
+fn ajuste_previsao_derrubada_tira_a_conferencia() {
+    let project = folder_forecast();
+    replace_in(&project, VERIFICATION, "`echo fixo`", "`echo novo`");
+    change_snippet(&project, "a linha.", "a primeira linha.");
+    adjust_record(&project);
+    let reviews = read(&project, REVIEWS);
+    assert!(!reviews.contains("outra.txt"), "{reviews}");
+    assert!(reviews.contains("| saida.txt |"), "{reviews}");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("| conferência | ajuste | EV-02 derrubada: comando mudou |"),
+        "{record}"
+    );
+}
+
+#[test]
+fn ajuste_marca_conferencia_mantida_sob_trecho_anterior() {
+    let project = folder_forecast();
+    change_snippet(&project, "a linha.", "a primeira linha.");
+    adjust_record(&project);
+    let number = folder_field(&project, "adjustments");
+    let line = review_line(&project, "saida.txt");
+    assert!(
+        line.contains(&format!(
+            "conferida sob o trecho anterior (ajuste {number})"
+        )),
+        "{line}"
+    );
+    assert!(
+        !review_line(&project, "outra.txt").contains("trecho anterior"),
+        "{}",
+        read(&project, REVIEWS)
+    );
+    task(&project, &["evidence", "--antecipada"])
+        .assert()
+        .success();
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    let criteria = read(&project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(&project, &format!("{FOLDER}/criterios.md"), &criteria);
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
+    append(&project, &format!("{FOLDER}/tecnico.md"), "\nFeito.\n");
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(folder_field(&project, "status"), "done");
+}
+
+#[test]
+fn ajuste_marca_troca_a_marca_anterior() {
+    let project = folder_forecast();
+    change_snippet(&project, "a linha.", "a primeira linha.");
+    adjust_record(&project);
+    let first = folder_field(&project, "adjustments");
+    change_snippet(&project, "a primeira linha.", "a segunda linha.");
+    adjust_record(&project);
+    let second = folder_field(&project, "adjustments");
+    assert_ne!(first, second);
+    let line = review_line(&project, "saida.txt");
+    assert!(line.contains(&format!("(ajuste {second})")), "{line}");
+    assert!(!line.contains(&format!("(ajuste {first})")), "{line}");
+    assert_eq!(line.matches("trecho anterior").count(), 1, "{line}");
+}
+
+#[test]
+fn ajuste_previsao_sem_copia_anterior_nao_lista() {
+    let project = folder_forecast();
+    std::fs::remove_file(
+        project
+            .root()
+            .join(format!("{FOLDER}/evidencias/baseline/verificacao.md")),
+    )
+    .unwrap();
+    replace_in(&project, VERIFICATION, "`echo fixo`", "`echo novo`");
+    let output = adjust_record(&project);
+    assert!(!output.contains("Conferências:"), "{output}");
+    assert!(output.contains("Ajuste"), "{output}");
+    assert!(review_line(&project, "outra.txt").contains("conferida"));
+}
+
 // --- Hash por arquivo, edição manual e carregamento por arquivo (SPEC-023) ---
 
 fn folder_approved() -> Project {
@@ -7145,4 +7284,98 @@ fn conferencias_legado_primeira_gravacao_leva_as_antigas() {
     let section = unreviewed_section(&stdout);
     assert!(section.contains("EV-02 outra.txt"), "{stdout}");
     assert!(!section.contains("EV-01"), "{stdout}");
+}
+
+// --- Busca do Trecho e da Falha (SPEC-057) ---
+
+fn searched_item(name: &str, kind: &str, command: &str, snippet: &str, failure: &str) -> String {
+    format!("- `{name}` ({kind}): `{command}`\n  - Prova: o comando roda.\n  - Trecho: {snippet}\n  - Falha: {failure}")
+}
+
+#[test]
+fn busca_antecipada_lista_trecho_e_falha() {
+    let evidence = searched_item(
+        "saida.txt",
+        "automática",
+        "echo exit=0 rc=0",
+        "`exit=`",
+        "`rc`",
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    let output = success_stdout(&mut ahead(&project));
+    assert!(
+        output.contains("Trecho e Falha de EV-01 saida.txt:"),
+        "{output}"
+    );
+    assert!(
+        output.contains("- Trecho não apareceu: `exit=`"),
+        "{output}"
+    );
+    assert!(output.contains("- Falha apareceu: `rc`"), "{output}");
+    assert_eq!(status(&project), "executed");
+}
+
+#[test]
+fn busca_antecipada_ignora_print() {
+    let evidence = format!(
+        "{}\n- `tela.png` (print): `{SHOT}`\n  - Prova: a tela.\n  - Trecho: `texto que não está em lugar nenhum`\n  - Falha: tela vazia.",
+        automatic("saida.txt", "echo ola", None)
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    let output = success_stdout(&mut ahead(&project));
+    assert!(!output.contains("Trecho e Falha de"), "{output}");
+}
+
+#[test]
+fn busca_antecipada_avisa_texto_que_nao_da_para_buscar() {
+    let evidence = searched_item(
+        "saida.txt",
+        "automática",
+        "echo ola",
+        "`+`",
+        "saída ausente",
+    );
+    let project = running_task_with_evidence(&[("a.txt", "um\n")], &evidence);
+    let output = success_stdout(&mut ahead(&project));
+    assert!(
+        output.contains("- Trecho não dá para buscar: `+` (símbolo solto)"),
+        "{output}"
+    );
+}
+
+fn folder_with_evidence(started: bool, evidence: &str) -> Project {
+    let project = folder_task("pending");
+    write(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        &format!("### Baseline\n\n- `cat valor.txt`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n{evidence}\n"),
+    );
+    if started {
+        nested(&project, "adjust", "record-manual")
+            .assert()
+            .success();
+        nested(&project, "approve", "approve").assert().success();
+        task(&project, &["start"]).assert().success();
+    }
+    project
+}
+
+#[test]
+fn busca_adjust_validate_avisa_falha_no_baseline() {
+    let evidence = searched_item("saida.txt", "automática", "echo rc=1", "a saída", "`rc`");
+    let project = folder_with_evidence(true, &evidence);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(
+        output.contains("Falha que já aparece no baseline de EV-01 saida.txt:"),
+        "{output}"
+    );
+    assert!(output.contains("- `rc`"), "{output}");
+}
+
+#[test]
+fn busca_adjust_validate_sem_baseline_nao_avisa() {
+    let evidence = searched_item("saida.txt", "automática", "echo rc=1", "a saída", "`rc`");
+    let project = folder_with_evidence(false, &evidence);
+    let output = success_stdout(&mut nested(&project, "adjust", "validate"));
+    assert!(!output.contains("Falha que já aparece"), "{output}");
 }

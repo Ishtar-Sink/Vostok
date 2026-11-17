@@ -1904,3 +1904,41 @@ fn chat_aval_mark_planned_without_aval_file() {
     assert!(content.contains("\nstatus: planned\n"), "{content}");
     assert!(!project.harness().join("work/avais").exists());
 }
+
+// --- Busca da Falha no baseline (SPEC-057) ---
+
+fn folder_task_with_failure_evidence() -> Project {
+    let project = created_folder_task();
+    fill_folder_task(&project);
+    write_file(
+        &project,
+        &format!("{TASK_FOLDER}/verificacao.md"),
+        "### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n- `saida.txt` (automática): `echo rc=1`\n  - Título: Saída do comando.\n  - Prova: o comando roda.\n  - Trecho: a saída.\n  - Falha: `rc`\n",
+    );
+    project
+}
+
+#[test]
+fn approve_validate_busca_avisa_falha_no_baseline() {
+    let project = folder_task_with_failure_evidence();
+    write_file(
+        &project,
+        &format!("{TASK_FOLDER}/evidencias/baseline/evidence/saida.txt"),
+        "$ echo rc=1\nexit: 0\nrc=1\n",
+    );
+    let (ok, text) = approve_validate(&project);
+    assert!(ok, "{text}");
+    assert!(
+        text.contains("Falha que já aparece no baseline de EV-01 saida.txt:"),
+        "{text}"
+    );
+    assert!(text.contains("- `rc`"), "{text}");
+}
+
+#[test]
+fn approve_validate_busca_sem_baseline_nao_avisa() {
+    let project = folder_task_with_failure_evidence();
+    let (ok, text) = approve_validate(&project);
+    assert!(ok, "{text}");
+    assert!(!text.contains("Falha que já aparece"), "{text}");
+}

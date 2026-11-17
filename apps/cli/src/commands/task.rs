@@ -15,10 +15,10 @@ use clap::Subcommand;
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{
-    config_get, config_list, evidence_subitem, evidence_subitem_errors, frontmatter_get,
-    frontmatter_lines, frontmatter_set, is_indented, markdown_section, markdown_subsection, render,
-    sha256_hex, template_leftovers, yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD,
-    EVIDENCE_SHOWS_FIELD,
+    config_get, config_list, evidence_subitem, evidence_subitem_errors, find_lines,
+    frontmatter_get, frontmatter_lines, frontmatter_set, is_indented, markdown_section,
+    markdown_subsection, render, sha256_hex, snippets_of, template_leftovers, unsearchable,
+    yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD,
 };
 
 #[derive(Debug, Subcommand)]
@@ -1391,7 +1391,7 @@ impl Tasks {
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste manual {count} registrado em {task}: {summary}");
         self.drop_approval(&file, task)?;
-        self.restart_execution(&file, task, &summary)?;
+        self.restart_after_adjustment(&file, task, &summary, count)?;
         let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
         if !errors.is_empty() {
             println!("Problemas de validação:\n{}", errors.join("\n"));
@@ -1410,7 +1410,29 @@ impl Tasks {
             &self.evidence_renames(&file)?.1,
         );
         println!("Tarefa {task} válida: {}", file.display());
-        self.print_dashdash_warnings(&file)
+        self.print_dashdash_warnings(&file)?;
+        self.print_baseline_failures(&file)
+    }
+
+    /// Avisa a `Falha` que já aparece na saída gravada no baseline, antes da mudança.
+    fn print_baseline_failures(&self, file: &Path) -> Result<()> {
+        let Some(sub) = self.evidence_baseline_dir() else {
+            return Ok(());
+        };
+        let baseline = self.evidence_dir(file)?.join("baseline").join(sub);
+        if !baseline.is_dir() {
+            return Ok(());
+        }
+        let entries = self.evidence_entries(&TaskDoc::at(file).text()?)?;
+        for line in snippet_warnings(
+            &entries,
+            &baseline,
+            Which::FalhaOnly,
+            &self.evidence_print(),
+        ) {
+            println!("{line}");
+        }
+        Ok(())
     }
 
     fn record(&self, spec: &str, task: &str, summary: &str) -> Result<()> {
@@ -1436,7 +1458,7 @@ impl Tasks {
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste {count} registrado em {task}: {}", file.display());
         self.drop_approval(&file, task)?;
-        self.restart_execution(&file, task, &summary)
+        self.restart_after_adjustment(&file, task, &summary, count)
     }
 
     /// Devolve uma tarefa aprovada para pending e avisa. Não faz nada nas demais.
@@ -1458,6 +1480,192 @@ impl Tasks {
             "Aprovação de {task} derrubada: o status voltou para '{}'; aprove-a de novo antes de executar.",
             self.status.pending
         );
+        Ok(())
+    }
+
+    /// Reinicia a execução e acerta as conferências pelo que o ajuste mudou nas evidências: a previsão
+    /// vem da cópia da Verificação anterior, que é regravada por último.
+    fn restart_after_adjustment(
+        &self,
+        file: &Path,
+        task: &str,
+        summary: &str,
+        count: u64,
+    ) -> Result<()> {
+        let running = self.is_running(&status_of(file));
+        let forecast = if running {
+            self.adjustment_forecast(file)?
+        } else {
+            Vec::new()
+        };
+        self.restart_execution(file, task, summary)?;
+        if !forecast.is_empty() {
+            println!("{}", forecast_line(&forecast));
+            self.apply_forecast(file, &forecast, count)?;
+        }
+        if running && self.has_baseline(file)? {
+            self.save_previous_verification(file)?;
+        }
+        Ok(())
+    }
+
+    /// Texto da "Verificação" e das evidências de agora: o arquivo de verificação da pasta ou a
+    /// seção de Execução do arquivo único.
+    fn verification_text(&self, file: &Path) -> Result<String> {
+        if is_task_folder(file) {
+            return read(&file.join(&layout().verification));
+        }
+        let content = TaskDoc::at(file).text()?;
+        Ok(markdown_section(&content, &self.cfg("execution_section")?).unwrap_or_default())
+    }
+
+    fn previous_verification_path(&self, file: &Path) -> Result<PathBuf> {
+        Ok(self
+            .evidence_dir(file)?
+            .join("baseline")
+            .join(&layout().verification))
+    }
+
+    /// Guarda a Verificação de agora no baseline, para o próximo ajuste dizer o que mudou nas evidências.
+    fn save_previous_verification(&self, file: &Path) -> Result<()> {
+        let path = self.previous_verification_path(file)?;
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
+        write(&path, &self.verification_text(file)?)
+    }
+
+    /// Texto no formato de uma tarefa, com a seção de Execução, para ler as evidências de uma cópia.
+    fn execution_text(&self, verification: &str) -> Result<String> {
+        Ok(format!(
+            "## {}\n\n{verification}\n",
+            self.cfg("execution_section")?
+        ))
+    }
+
+    /// Comando de cada evidência: o da própria linha ou o do rótulo na "Verificação".
+    fn evidence_commands(
+        &self,
+        content: &str,
+        entries: &[EvidenceEntry],
+    ) -> Result<HashMap<String, String>> {
+        let block = verify_block(&self.subsection(content, "verify_subsection")?);
+        let labeled: HashMap<String, String> = labeled_commands(&block, &self.verify_label())
+            .into_iter()
+            .collect();
+        Ok(entries
+            .iter()
+            .map(|entry| {
+                let command = labeled
+                    .get(&entry.name)
+                    .cloned()
+                    .unwrap_or_else(|| entry.rest.clone());
+                (entry.name.clone(), command)
+            })
+            .collect())
+    }
+
+    /// O que o ajuste faz com a conferência de cada evidência conferida, comparando a cópia da
+    /// Verificação anterior com a de agora. Sem a cópia (tarefa antiga), não há previsão.
+    fn adjustment_forecast(&self, file: &Path) -> Result<Vec<EvidenceFate>> {
+        let path = self.previous_verification_path(file)?;
+        if !path.is_file() {
+            return Ok(Vec::new());
+        }
+        let before_text = self.execution_text(&read(&path)?)?;
+        let after_text = self.execution_text(&self.verification_text(file)?)?;
+        let before = self.evidence_entries(&before_text)?;
+        let after = self.evidence_entries(&after_text)?;
+        let before_commands = self.evidence_commands(&before_text, &before)?;
+        let after_commands = self.evidence_commands(&after_text, &after)?;
+        let reviews = self.reviews(file, &TaskDoc::at(file).text()?)?;
+        let mut forecast = Vec::new();
+        for (index, old) in before.iter().enumerate() {
+            let reviewed = current_review(&reviews, &old.name)
+                .is_some_and(|record| record.mark == ReviewMark::Accepted);
+            if !reviewed {
+                continue;
+            }
+            let id = evidence_id(index);
+            let name = old.name.clone();
+            let Some((position, new)) = after
+                .iter()
+                .enumerate()
+                .find(|(_, entry)| entry.name == old.name)
+            else {
+                forecast.push(EvidenceFate::Dropped {
+                    id,
+                    name,
+                    reason: "evidência removida",
+                });
+                continue;
+            };
+            if new.kind != old.kind {
+                forecast.push(EvidenceFate::Dropped {
+                    id,
+                    name,
+                    reason: "tipo mudou",
+                });
+            } else if after_commands.get(&name) != before_commands.get(&name) {
+                forecast.push(EvidenceFate::Dropped {
+                    id,
+                    name,
+                    reason: "comando mudou",
+                });
+            } else {
+                forecast.push(EvidenceFate::Kept {
+                    id: evidence_id(position),
+                    name,
+                    snippet_changed: SNIPPET_FIELDS
+                        .iter()
+                        .any(|field| old.fields.get(*field) != new.fields.get(*field)),
+                });
+            }
+        }
+        Ok(forecast)
+    }
+
+    /// Tira do `conferencias.md` a conferência derrubada e marca a mantida sob o trecho anterior. A
+    /// tarefa em arquivo único não tem o arquivo e fica só com a previsão.
+    fn apply_forecast(&self, file: &Path, forecast: &[EvidenceFate], count: u64) -> Result<()> {
+        if !is_task_folder(file) || !file.join(REVIEWS_FILE).is_file() {
+            return Ok(());
+        }
+        let mut records = parse_reviews(&read(&file.join(REVIEWS_FILE))?, &task_id_of(file));
+        let mut changed = false;
+        for fate in forecast {
+            match fate {
+                EvidenceFate::Dropped { id, name, reason } => {
+                    let before = records.len();
+                    records.retain(|record| record.name != *name);
+                    if records.len() < before {
+                        changed = true;
+                        self.record_step(
+                            file,
+                            "conferência",
+                            "ajuste",
+                            &format!("{id} derrubada: {reason}"),
+                        )?;
+                    }
+                }
+                EvidenceFate::Kept {
+                    name,
+                    snippet_changed: true,
+                    ..
+                } => {
+                    for record in records.iter_mut().filter(|record| {
+                        record.name == *name && record.mark == ReviewMark::Accepted
+                    }) {
+                        record.text = mark_previous_snippet(&record.text, count);
+                        changed = true;
+                    }
+                }
+                EvidenceFate::Kept { .. } => {}
+            }
+        }
+        if changed {
+            write_reviews(file, &records)?;
+        }
         Ok(())
     }
 
@@ -1862,6 +2070,7 @@ impl Tasks {
         if let Some(sha) = git_text(&root, &["rev-parse", "--verify", "HEAD"]) {
             TaskDoc::at(file).put(BASELINE_COMMIT_KEY, &sha)?;
         }
+        self.save_previous_verification(file)?;
         let mut detail = format!("{} comando(s); códigos de saída: {codes}", commands.len());
         if !evidences.is_empty() {
             detail.push_str(&format!(
@@ -2522,6 +2731,14 @@ impl Tasks {
             entries.len()
         );
         print_kept_and_changed(&generated.kept, &generated.changed);
+        for line in snippet_warnings(
+            &entries,
+            &dir,
+            Which::TrechoAndFalha,
+            &self.evidence_print(),
+        ) {
+            println!("{line}");
+        }
         if !pending.is_empty() {
             println!("Evidências a conferir (mostre ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <EV-NN|arquivo> ou --rejected <EV-NN|arquivo> --motivo \"...\"):");
             for line in &pending {
@@ -3714,30 +3931,7 @@ impl Tasks {
     /// Evidências de "Evidências" com os subitens de cada uma.
     fn evidence_entries(&self, content: &str) -> Result<Vec<EvidenceEntry>> {
         let text = self.subsection(content, "evidence_subsection")?;
-        let from_verify = self.evidence_from_verify();
-        let mut entries: Vec<EvidenceEntry> = Vec::new();
-        for line in text.lines().filter(|line| has_text(line)) {
-            if let Some((field, value)) = evidence_subitem(line) {
-                if let Some(entry) = entries.last_mut() {
-                    entry.fields.insert(field.to_string(), value.to_string());
-                }
-            } else if let Some(name) = verify_evidence_name(line, &from_verify) {
-                entries.push(EvidenceEntry {
-                    name: name.to_string(),
-                    kind: from_verify.clone(),
-                    rest: String::new(),
-                    fields: HashMap::new(),
-                });
-            } else if let Some((name, kind, rest)) = evidence_item(line) {
-                entries.push(EvidenceEntry {
-                    name: name.to_string(),
-                    kind: kind.to_string(),
-                    rest: rest.to_string(),
-                    fields: HashMap::new(),
-                });
-            }
-        }
-        Ok(entries)
+        Ok(parse_evidence_entries(&text, &self.evidence_from_verify()))
     }
 
     fn persist(&self, spec: &str, task: &str, options: &PersistOptions) -> Result<()> {
@@ -6751,6 +6945,67 @@ fn review_position(rows: &[RecordRow], id: &str, name: &str) -> Option<usize> {
     })
 }
 
+/// Subitens das evidências cuja mudança deixa a conferência dada sob o trecho anterior.
+const SNIPPET_FIELDS: [&str; 2] = ["Trecho", "Falha"];
+const PREVIOUS_SNIPPET_MARK: &str = "conferida sob o trecho anterior";
+
+/// O que um ajuste faz com a conferência de uma evidência.
+enum EvidenceFate {
+    Kept {
+        id: String,
+        name: String,
+        snippet_changed: bool,
+    },
+    Dropped {
+        id: String,
+        name: String,
+        reason: &'static str,
+    },
+}
+
+/// A linha `Conferências:` do ajuste, com um item por evidência conferida.
+fn forecast_line(forecast: &[EvidenceFate]) -> String {
+    let items: Vec<String> = forecast
+        .iter()
+        .map(|fate| match fate {
+            EvidenceFate::Kept { id, name, .. } => {
+                format!("{id} {name} mantida se a saída não mudar")
+            }
+            EvidenceFate::Dropped { id, name, reason } => {
+                format!("{id} {name} derrubada ({reason})")
+            }
+        })
+        .collect();
+    format!("Conferências: {}.", items.join("; "))
+}
+
+/// Texto de uma conferência sem a marca de um ajuste anterior, que é trocada e nunca acumulada.
+fn without_previous_snippet_mark(text: &str) -> &str {
+    let Some(start) = text.rfind(PREVIOUS_SNIPPET_MARK) else {
+        return text;
+    };
+    let tail = &text[start + PREVIOUS_SNIPPET_MARK.len()..];
+    let is_mark = tail
+        .strip_prefix(" (ajuste ")
+        .and_then(|rest| rest.strip_suffix(')'))
+        .is_some_and(|number| !number.is_empty() && number.chars().all(|c| c.is_ascii_digit()));
+    if !is_mark {
+        return text;
+    }
+    let before = &text[..start];
+    before.strip_suffix(" · ").unwrap_or(before)
+}
+
+fn mark_previous_snippet(text: &str, adjustment: u64) -> String {
+    let base = without_previous_snippet_mark(text);
+    let mark = format!("{PREVIOUS_SNIPPET_MARK} (ajuste {adjustment})");
+    if base.is_empty() {
+        mark
+    } else {
+        format!("{base} · {mark}")
+    }
+}
+
 fn write_reviews(task_dir: &Path, records: &[ReviewRecord]) -> Result<()> {
     let mut text = REVIEWS_HEADER.to_string();
     for record in records {
@@ -7679,7 +7934,114 @@ struct Generated {
     changed: Vec<String>,
 }
 
-struct EvidenceEntry {
+/// Evidências do texto de "Evidências" com os subitens de cada uma.
+pub(crate) fn parse_evidence_entries(text: &str, from_verify: &str) -> Vec<EvidenceEntry> {
+    let mut entries: Vec<EvidenceEntry> = Vec::new();
+    for line in text.lines().filter(|line| has_text(line)) {
+        if let Some((field, value)) = evidence_subitem(line) {
+            if let Some(entry) = entries.last_mut() {
+                entry.fields.insert(field.to_string(), value.to_string());
+            }
+        } else if let Some(name) = verify_evidence_name(line, from_verify) {
+            entries.push(EvidenceEntry {
+                name: name.to_string(),
+                kind: from_verify.to_string(),
+                rest: String::new(),
+                fields: HashMap::new(),
+            });
+        } else if let Some((name, kind, rest)) = evidence_item(line) {
+            entries.push(EvidenceEntry {
+                name: name.to_string(),
+                kind: kind.to_string(),
+                rest: rest.to_string(),
+                fields: HashMap::new(),
+            });
+        }
+    }
+    entries
+}
+
+/// Quais subitens a busca olha: o `Trecho` e a `Falha` na saída nova, ou só a `Falha` na saída
+/// gravada antes da mudança.
+#[derive(Clone, Copy, PartialEq)]
+pub(crate) enum Which {
+    TrechoAndFalha,
+    FalhaOnly,
+}
+
+const BINARY_EXTENSIONS: [&str; 7] = ["png", "jpg", "jpeg", "gif", "webp", "mp4", "webm"];
+const VIDEO_EXTENSION: &str = "mov";
+
+fn is_searchable_file(name: &str) -> bool {
+    let extension = Path::new(name)
+        .extension()
+        .map(|extension| extension.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    extension != VIDEO_EXTENSION && !BINARY_EXTENSIONS.contains(&extension.as_str())
+}
+
+/// Linhas de aviso da busca do `Trecho` e da `Falha` no texto de cada evidência de `dir`. Prints,
+/// binários e arquivos ausentes ficam de fora; nunca recusa.
+pub(crate) fn snippet_warnings(
+    entries: &[EvidenceEntry],
+    dir: &Path,
+    which: Which,
+    print: &str,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    for (index, entry) in entries.iter().enumerate() {
+        let Ok(log) = fs::read_to_string(dir.join(&entry.name)) else {
+            continue;
+        };
+        if entry.kind == print || !is_searchable_file(&entry.name) {
+            continue;
+        }
+        let mut found = Vec::new();
+        for (field, is_trecho) in [("Trecho", true), ("Falha", false)] {
+            if is_trecho && which == Which::FalhaOnly {
+                continue;
+            }
+            for text in entry
+                .fields
+                .get(field)
+                .map(|v| snippets_of(v))
+                .unwrap_or_default()
+            {
+                let reason = unsearchable(&text);
+                let matches = !find_lines(&log, &text).is_empty();
+                if !reason.is_empty() {
+                    if which == Which::TrechoAndFalha {
+                        found.push(format!("- {field} não dá para buscar: `{text}` ({reason})"));
+                    }
+                } else if is_trecho && !matches {
+                    found.push(format!("- Trecho não apareceu: `{text}`"));
+                } else if !is_trecho && matches {
+                    found.push(match which {
+                        Which::TrechoAndFalha => format!("- Falha apareceu: `{text}`"),
+                        Which::FalhaOnly => format!("- `{text}`"),
+                    });
+                }
+            }
+        }
+        if found.is_empty() {
+            continue;
+        }
+        lines.push(match which {
+            Which::TrechoAndFalha => {
+                format!("Trecho e Falha de {} {}:", evidence_id(index), entry.name)
+            }
+            Which::FalhaOnly => format!(
+                "Falha que já aparece no baseline de {} {}:",
+                evidence_id(index),
+                entry.name
+            ),
+        });
+        lines.extend(found);
+    }
+    lines
+}
+
+pub(crate) struct EvidenceEntry {
     name: String,
     kind: String,
     rest: String,

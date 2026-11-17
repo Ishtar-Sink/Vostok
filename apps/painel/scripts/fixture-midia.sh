@@ -56,6 +56,7 @@ STATE
 
 printf '### Ler\n\n- `exemplo.txt`: arquivo de exemplo.\n\n### Mudar\n\n- `exemplo.txt` (alterar): exemplo.\n\n### Passos\n\n1. Exemplo.\n' > "$TASK/execucao.md"
 printf '### Concluída quando\n\n- [x] A evidência mostra imagem, texto e vídeo.\n\n  > Como comprovar: abrir a aba Evidências.\n' > "$TASK/criterios.md"
+printf '## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n' > "$TASK/registro.md"
 
 cat > "$TASK/verificacao.md" <<'VERIFICACAO'
 ### Verificação

@@ -61,9 +61,9 @@ describe('Board', () => {
     ];
     const { container } = render(<Board tasks={tasks} />);
     const columns = Array.from(container.querySelectorAll('section[data-column]'));
-    expect(columns.map((column) => column.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
-    expect(within(columns[3] as HTMLElement).getByText('Título TASK-04')).toBeTruthy();
-    expect(within(columns[5] as HTMLElement).getByText('Título TASK-05')).toBeTruthy();
+    expect(columns.map((column) => column.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Na fila', 'Em execução', 'Aguardando conferência', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
+    expect(within(columns[4] as HTMLElement).getByText('Título TASK-04')).toBeTruthy();
+    expect(within(columns[7] as HTMLElement).getByText('Título TASK-05')).toBeTruthy();
   });
 });
 
@@ -169,11 +169,11 @@ describe('Board em listas', () => {
   const t = (id: string, status: string, over: object = {}) => ({ ...task(id, status, over), spec: 'SPEC-001' });
   const section = (name: string) => within(screen.getByRole('region', { name }));
 
-  it('mostra oito seções sem raia lado a lado, com Nenhuma nas vazias', () => {
+  it('mostra dez seções sem raia lado a lado, com Nenhuma nas vazias', () => {
     const { container } = render(<Board tasks={[]} />);
     const sections = Array.from(container.querySelectorAll('section[data-column]'));
-    expect(sections.map((s) => s.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
-    expect(screen.getAllByText('Nenhuma')).toHaveLength(8);
+    expect(sections.map((s) => s.querySelector('h3')?.textContent)).toEqual(['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Na fila', 'Em execução', 'Aguardando conferência', 'Prontas para finalizar', 'Em validação', 'Bloqueadas', 'Concluídas']);
+    expect(screen.getAllByText('Nenhuma')).toHaveLength(10);
   });
 
   it('separa Prontas de Aprovadas', () => {
@@ -417,6 +417,30 @@ describe('Prontas para finalizar', () => {
     expect(screen.getByText('pronta para finalizar')).toBeTruthy();
   });
 
+  it('põe a tarefa queued na raia Na fila', () => {
+    const { container } = render(<Board tasks={[t('TASK-02', 'queued')]} />);
+    expect(within(container.querySelector('section[data-column="queued"]') as HTMLElement).getByText('Título TASK-02')).toBeTruthy();
+    expect(within(container.querySelector('section[data-column="running"]') as HTMLElement).queryByText('Título TASK-02')).toBeNull();
+  });
+
+  it('põe a tarefa awaiting_review na raia Aguardando conferência', () => {
+    const { container } = render(<Board tasks={[t('TASK-01', 'awaiting_review')]} />);
+    expect(within(container.querySelector('section[data-column="awaiting_review"]') as HTMLElement).getByText('Título TASK-01')).toBeTruthy();
+    expect(within(container.querySelector('section[data-column="executed"]') as HTMLElement).queryByText('Título TASK-01')).toBeNull();
+  });
+
+  it('mostra o selo com as provas a conferir e leva à conferência', () => {
+    render(<Board tasks={[t('TASK-01', 'awaiting_review', { pending_reviews: 2 })]} />);
+    expect(screen.getByText('2 a conferir')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Título TASK-01/ }).getAttribute('href')).toBe('/tarefas/SPEC-001/TASK-01#evidencias');
+  });
+
+  it('não mostra o selo sem prova a conferir', () => {
+    render(<Board tasks={[t('TASK-01', 'executed', { pending_reviews: 0 })]} />);
+    expect(screen.queryByText(/a conferir/)).toBeNull();
+    expect(screen.getByRole('link', { name: /Título TASK-01/ }).getAttribute('href')).toBe('/tarefas/SPEC-001/TASK-01');
+  });
+
   it('mostra a onda só com tarefas executed como em execução', () => {
     render(<Board tasks={[t('TASK-01', 'executed'), t('TASK-02', 'approved')]} />);
     expect(within(screen.getByRole('group', { name: 'Onda 1' })).getByText('em execução')).toBeTruthy();
@@ -434,11 +458,11 @@ describe('Filtro de status, ordem e faixa', () => {
 
   it('abre só com as raias ativas', () => {
     const { container } = render(<Board tasks={every} />);
-    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'awaiting_review', 'running', 'queued']);
     const trigger = screen.getByRole('button', { name: 'Etapas: Ativas' });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(trigger);
-    for (const name of ['Em execução', 'Prontas para finalizar', 'Em validação', 'Bloqueadas']) expect(checked(name)).toBe(true);
+    for (const name of ['Na fila', 'Em execução', 'Aguardando conferência', 'Prontas para finalizar', 'Em validação', 'Bloqueadas']) expect(checked(name)).toBe(true);
     for (const name of ['Para aprovar', 'Aprovadas', 'Prontas para execução', 'Concluídas']) expect(checked(name)).toBe(false);
   });
 
@@ -447,8 +471,8 @@ describe('Filtro de status, ordem e faixa', () => {
     openMenu();
     fireEvent.click(menu().getByRole('checkbox', { name: 'Bloqueadas' }));
     expect(screen.queryByRole('region', { name: 'Bloqueadas' })).toBeNull();
-    expect(localStorage.getItem('vostok.quadro.raias')).toBe(JSON.stringify(['running', 'executed', 'validating']));
-    expect(screen.getByRole('button', { name: 'Etapas: 3 de 8' })).toBeTruthy();
+    expect(localStorage.getItem('vostok.quadro.raias')).toBe(JSON.stringify(['queued', 'running', 'awaiting_review', 'executed', 'validating']));
+    expect(screen.getByRole('button', { name: 'Etapas: 5 de 10' })).toBeTruthy();
     cleanup();
     render(<Board tasks={every} />);
     expect(screen.queryByRole('region', { name: 'Bloqueadas' })).toBeNull();
@@ -462,29 +486,29 @@ describe('Filtro de status, ordem e faixa', () => {
     expect(container.querySelector('section[data-column]')).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Contagem do quadro' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Voltar às raias ativas' }));
-    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'awaiting_review', 'running', 'queued']);
   });
 
   it('troca a seleção pelos atalhos Ativas e Todas', () => {
     const { container } = render(<Board tasks={every} />);
     openMenu();
     fireEvent.click(menu().getByRole('button', { name: 'Todas' }));
-    expect(columns(container)).toHaveLength(8);
+    expect(columns(container)).toHaveLength(10);
     expect(screen.getByRole('button', { name: 'Etapas: Todas' })).toBeTruthy();
     fireEvent.click(menu().getByRole('button', { name: 'Ativas' }));
-    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    expect(columns(container)).toEqual(['blocked', 'validating', 'executed', 'awaiting_review', 'running', 'queued']);
     expect(screen.getByRole('button', { name: 'Etapas: Ativas' })).toBeTruthy();
   });
 
   it('abre com as raias ativas quando o localStorage falha ou guarda valor inválido', () => {
     localStorage.setItem('vostok.quadro.raias', 'x');
     const first = render(<Board tasks={every} />);
-    expect(columns(first.container)).toHaveLength(4);
+    expect(columns(first.container)).toHaveLength(6);
     cleanup();
     const blocked = () => { throw new Error('bloqueado'); };
     vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked, clear: () => undefined });
     const second = render(<Board tasks={every} />);
-    expect(columns(second.container)).toEqual(['blocked', 'validating', 'executed', 'running']);
+    expect(columns(second.container)).toEqual(['blocked', 'validating', 'executed', 'awaiting_review', 'running', 'queued']);
     openMenu();
     expect(() => fireEvent.click(menu().getByRole('checkbox', { name: 'Aprovadas' }))).not.toThrow();
   });
@@ -492,7 +516,7 @@ describe('Filtro de status, ordem e faixa', () => {
   it('mostra as raias da última etapa para a primeira por padrão', () => {
     localStorage.setItem('vostok.quadro.raias', JSON.stringify(BOARD_SECTIONS.map((section) => section.id)));
     const { container } = render(<Board tasks={every} />);
-    expect(Array.from(container.querySelectorAll('section[data-column] h3')).map((heading) => heading.textContent)).toEqual(['Concluídas', 'Bloqueadas', 'Em validação', 'Prontas para finalizar', 'Em execução', 'Prontas para execução', 'Aprovadas', 'Para aprovar']);
+    expect(Array.from(container.querySelectorAll('section[data-column] h3')).map((heading) => heading.textContent)).toEqual(['Concluídas', 'Bloqueadas', 'Em validação', 'Prontas para finalizar', 'Aguardando conferência', 'Em execução', 'Na fila', 'Prontas para execução', 'Aprovadas', 'Para aprovar']);
   });
 
   it('volta à ordem do fluxo pelo controle e lembra a escolha', () => {
@@ -510,7 +534,7 @@ describe('Filtro de status, ordem e faixa', () => {
   it('mostra a contagem de cada raia visível na faixa', () => {
     render(<Board tasks={every} />);
     const strip = screen.getByRole('navigation', { name: 'Contagem do quadro' });
-    expect(within(strip).getAllByRole('button').map((button) => button.textContent)).toEqual(['Bloqueadas1', 'Em validação1', 'Prontas para finalizar1', 'Em execução2']);
+    expect(within(strip).getAllByRole('button').map((button) => button.textContent)).toEqual(['Bloqueadas1', 'Em validação1', 'Prontas para finalizar1', 'Aguardando conferência0', 'Em execução2', 'Na fila0']);
   });
 
   it('rola até a raia ao clicar na contagem', () => {
@@ -546,10 +570,10 @@ describe('Visualização em blocos', () => {
   it('agrupa as raias em Agora, A seguir e Concluídas na ordem do fluxo', () => {
     localStorage.setItem('vostok.quadro.raias', JSON.stringify(allColumns));
     const { container } = render(<Board tasks={every} view="blocos" />);
-    expect(ids(container, 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked', 'pending', 'approved', 'ready', 'done']);
+    expect(ids(container, 'section[data-column]')).toEqual(['queued', 'running', 'awaiting_review', 'executed', 'validating', 'blocked', 'pending', 'approved', 'ready', 'done']);
     const titles = Array.from(container.querySelectorAll('section[data-block] > header h2')).map((title) => title.textContent);
     expect(titles).toEqual(['Agora', 'A seguir']);
-    expect(ids(screen.getByRole('region', { name: 'Agora' }), 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked']);
+    expect(ids(screen.getByRole('region', { name: 'Agora' }), 'section[data-column]')).toEqual(['queued', 'running', 'awaiting_review', 'executed', 'validating', 'blocked']);
     expect(ids(screen.getByRole('region', { name: 'A seguir' }), 'section[data-column]')).toEqual(['pending', 'approved', 'ready']);
   });
 
@@ -559,7 +583,7 @@ describe('Visualização em blocos', () => {
     expect(screen.getByRole('region', { name: /^Agora/ }).querySelector('header')?.textContent).toBe('Agora5');
     expect(screen.getByRole('region', { name: /^A seguir/ }).querySelector('header')?.textContent).toBe('A seguir2');
     const strip = within(screen.getByRole('navigation', { name: 'Contagem do quadro' })).getAllByRole('button').map((button) => button.textContent);
-    expect(strip).toEqual(['Em execução2', 'Prontas para finalizar1', 'Em validação1', 'Bloqueadas1', 'Para aprovar1', 'Aprovadas0', 'Prontas para execução1', 'Concluídas1']);
+    expect(strip).toEqual(['Na fila0', 'Em execução2', 'Aguardando conferência0', 'Prontas para finalizar1', 'Em validação1', 'Bloqueadas1', 'Para aprovar1', 'Aprovadas0', 'Prontas para execução1', 'Concluídas1']);
   });
 
   it('aplica o filtro de etapas e esconde o bloco sem raia visível', () => {
@@ -567,7 +591,7 @@ describe('Visualização em blocos', () => {
     expect(screen.getByRole('region', { name: /^Agora/ })).toBeTruthy();
     expect(screen.queryByRole('region', { name: /^A seguir/ })).toBeNull();
     expect(container.querySelector('section[data-column="done"]')).toBeNull();
-    expect(ids(container, 'section[data-column]')).toEqual(['running', 'executed', 'validating', 'blocked']);
+    expect(ids(container, 'section[data-column]')).toEqual(['queued', 'running', 'awaiting_review', 'executed', 'validating', 'blocked']);
     expect(screen.queryByRole('button', { name: 'Ordem do fluxo' })).toBeNull();
   });
 

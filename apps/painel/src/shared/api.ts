@@ -16,6 +16,7 @@ export interface TaskSummary {
   waiting_on?: string;
   waiting_reason?: string;
   closes_after?: string;
+  pending_reviews?: number;
 }
 
 export interface SpecMeta {

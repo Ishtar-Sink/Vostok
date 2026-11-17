@@ -38,6 +38,15 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('img', { name: '1 pendente, 1 pronta para finalizar, 1 concluída' })).toBeTruthy();
   });
 
+  it('conta as tarefas na fila e aguardando conferência como em execução', async () => {
+    const specs = [{ meta, plan: false, plan_outdated: false, tasks: [task('TASK-01', 'queued', '1'), task('TASK-02', 'awaiting_review', '1'), task('TASK-03', 'in_progress', '1'), task('TASK-04', 'pending', '2')] }];
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ specs })))));
+    render(<DashboardPage version={0} name="" />);
+    await screen.findByText('Spec em andamento');
+    expect(within(screen.getByText('Tarefas em execução').parentElement as HTMLElement).getByText('3')).toBeTruthy();
+    expect(screen.getByRole('img', { name: '1 pendente, 1 na fila, 1 em execução, 1 aguardando conferência' })).toBeTruthy();
+  });
+
   it('não mostra onda sem número', async () => {
     const specs = [{ meta, plan: false, tasks: [task('TASK-01', 'pending', ''), task('TASK-02', 'in_progress', '')] }];
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(overview({ specs })))));

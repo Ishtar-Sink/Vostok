@@ -9,7 +9,7 @@ import { MultiSelect } from '../../ui/multi-select/multi-select';
 import styles from './board.module.css';
 
 /** Cor de status das colunas do fluxo; as de entrada (para aprovar e aprovadas) ficam sem cor. */
-const COLUMN_TONE: Record<string, 'info' | 'accent' | 'warning' | 'success'> = { ready: 'success', running: 'info', executed: 'success', validating: 'accent', blocked: 'warning', done: 'success' };
+const COLUMN_TONE: Record<string, 'info' | 'accent' | 'warning' | 'success'> = { ready: 'success', queued: 'info', running: 'info', awaiting_review: 'warning', executed: 'success', validating: 'accent', blocked: 'warning', done: 'success' };
 
 export interface BoardTask extends TaskSummary {
   spec: string;
@@ -32,9 +32,9 @@ function sortCards(cards: BoardTask[], order: BoardOrder): BoardTask[] {
   return [...cards].sort((a, b) => criteria.reduce((result, compare) => result || compare(a, b), 0));
 }
 
-const ACTIVE_SECTIONS = ['running', 'executed', 'validating', 'blocked'];
+const ACTIVE_SECTIONS = ['queued', 'running', 'awaiting_review', 'executed', 'validating', 'blocked'];
 const BOARD_BLOCKS: { id: string; label: string; sections: string[] }[] = [
-  { id: 'agora', label: 'Agora', sections: ['running', 'executed', 'validating', 'blocked'] },
+  { id: 'agora', label: 'Agora', sections: ['queued', 'running', 'awaiting_review', 'executed', 'validating', 'blocked'] },
   { id: 'a-seguir', label: 'A seguir', sections: ['pending', 'approved', 'ready'] },
   { id: 'concluidas', label: 'Concluídas', sections: ['done'] },
 ];
@@ -140,7 +140,7 @@ function waveGroups(cards: BoardTask[]): WaveGroup[] {
 export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numero', view = 'lista' }: { tasks: BoardTask[]; showSpec?: boolean; group?: BoardGroup; order?: BoardOrder; view?: BoardView }) {
   const done = new Set(tasks.filter((task) => task.status === 'done').map((task) => `${task.spec}/${task.id}`));
   const isReady = (task: BoardTask) => task.status === 'approved' && listOf(task.depends_on).every((dep) => done.has(`${task.spec}/${dep}`));
-  const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && (task.status === 'in_progress' || task.status === 'executed' || task.status === 'validating'));
+  const running = (group: WaveGroup) => tasks.some((task) => task.spec === group.spec && task.wave === group.wave && ['queued', 'in_progress', 'awaiting_review', 'executed', 'validating'].includes(task.status));
   const inSection = (task: BoardTask, id: string) => (id === 'ready' ? isReady(task) : id === 'approved' ? !isReady(task) : true);
   const [doneOpen, setDoneOpen] = useState(false);
   const [visible, setVisible] = useState(readSections);
@@ -162,13 +162,15 @@ export function Board({ tasks, showSpec = false, group = 'etapa', order = 'numer
     const waitingOn = listOf(task.waiting_on ?? '');
     const closesAfter = listOf(task.closes_after ?? '').filter((id) => !done.has(`${task.spec}/${id}`));
     const facts = [task.profile, task.persona].filter(Boolean);
+    const pendingReviews = task.pending_reviews ?? 0;
     return (
       <li key={`${task.spec}/${task.id}`} className={styles.cardItem}>
-        <a href={`/tarefas/${task.spec}/${task.id}`} onClick={onLinkClick} className={styles.card}>
+        <a href={`/tarefas/${task.spec}/${task.id}${pendingReviews > 0 ? '#evidencias' : ''}`} onClick={onLinkClick} className={styles.card}>
           <span className={styles.cardTop}>
             <span className={styles.id}>{showSpec ? `${task.spec} · ${task.id}` : task.id}</span>
             {task.wave ? <span className={styles.wave}>onda {task.wave}</span> : null}
             {showStatus ? <Badge tone={statusTone(task.status)}>{statusLabel(task.status)}</Badge> : null}
+            {pendingReviews > 0 ? <Badge tone="warning">{`${pendingReviews} a conferir`}</Badge> : null}
           </span>
           <span className={styles.title}>{task.title}</span>
           {facts.length > 0 ? <span className={styles.facts}>{facts.join(' · ')}</span> : null}

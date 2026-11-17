@@ -55,3 +55,45 @@ export function unsearchable(snippet: string): string {
   if (ASCII_PUNCTUATION.test(snippet.replace(/\s+/g, ''))) return 'símbolo solto';
   return '';
 }
+
+export const FAILURE_IN_EXCERPT = 'está no Trecho';
+export const FAILURE_CONDITION = 'condição sobre o valor';
+
+const CONDITION_WORDS = ['diferente de', 'maior que', 'menor que', 'acima de', 'abaixo de', 'outro', 'outra', 'sem'];
+const CLAUSE_BREAK = /[;.,`]/;
+const NEIGHBOR = /[\p{L}\p{N}]/u;
+
+function hasConditionWord(clause: string): boolean {
+  const lower = clause.toLowerCase();
+  return CONDITION_WORDS.some((word) => {
+    let at = lower.indexOf(word);
+    while (at >= 0) {
+      const before = lower[at - 1];
+      const after = lower[at + word.length];
+      if (!(before && NEIGHBOR.test(before)) && !(after && NEIGHBOR.test(after))) return true;
+      at = lower.indexOf(word, at + 1);
+    }
+    return false;
+  });
+}
+
+function conditionNear(failure: string, text: string): boolean {
+  const quoted = `\`${text}\``;
+  for (let start = failure.indexOf(quoted); start >= 0; start = failure.indexOf(quoted, start + 1)) {
+    const before = failure.slice(0, start);
+    const after = failure.slice(start + quoted.length);
+    const clauseBefore = before.slice(Math.max(before.lastIndexOf(';'), before.lastIndexOf('.'), before.lastIndexOf(','), before.lastIndexOf('`')) + 1);
+    const breakAfter = after.search(CLAUSE_BREAK);
+    const clauseAfter = breakAfter < 0 ? after : after.slice(0, breakAfter);
+    const lastWords = clauseBefore.split(/\s+/).filter(Boolean).slice(-3).join(' ');
+    const firstWords = clauseAfter.split(/\s+/).filter(Boolean).slice(0, 3).join(' ');
+    if (hasConditionWord(lastWords) || hasConditionWord(firstWords)) return true;
+  }
+  return false;
+}
+
+/** Motivo de um texto da Falha ser suspeito: já está no Trecho ou vem com condição sobre o valor; vazio quando dá para buscar (RF-03). */
+export function failureReason(excerpt: string | undefined, failure: string, text: string): string {
+  if (snippetsOf(excerpt).some((held) => findLines(held, text).length > 0)) return FAILURE_IN_EXCERPT;
+  return conditionNear(failure, text) ? FAILURE_CONDITION : '';
+}

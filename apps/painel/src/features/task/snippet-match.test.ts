@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findLines, stripAnsi, unsearchable } from './snippet-match';
+import { failureReason, findLines, stripAnsi, unsearchable } from './snippet-match';
 import cases from './snippet-cases.json';
 
 const HEADER = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n';
@@ -240,3 +240,12 @@ const BARRA_DA_ONDA = `$ pnpm --dir apps/painel exec vitest run src/features/tas
    Duration  5.52s (transform 320ms, setup 0ms, import 445ms, tests 4.50s, environment 436ms)
 
 `;
+
+describe('failureReason', () => {
+  const failureCases = cases.filter((item) => 'falha' in item);
+
+  it.each(failureCases.map((item) => [item.name, item] as const))('%s', (_name, item) => {
+    const { trecho, falha, snippet, failure } = item as unknown as Record<string, string>;
+    expect(failureReason(trecho, falha, snippet)).toBe(failure);
+  });
+});

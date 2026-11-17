@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef } from 'react';
 import styles from './check-list.module.css';
 
-export type CheckTone = 'good' | 'bad';
+export type CheckTone = 'good' | 'bad' | 'neutral';
 
 export interface CheckItem {
   id: string;
@@ -9,7 +9,7 @@ export interface CheckItem {
   label: string;
   /** Resultado escrito, por exemplo `apareceu · 1 linha`. */
   result: string;
-  /** `good` pinta de sucesso (✓) e `bad` de perigo (✕). */
+  /** `good` pinta de sucesso (✓) e `bad` de perigo (✕) e `neutral` de cinza (–), para o que não dá para conferir. */
   tone: CheckTone;
 }
 
@@ -26,10 +26,16 @@ export interface CheckListProps extends Omit<ComponentPropsWithoutRef<'ul'>, 'on
   itemTitle?: string;
 }
 
+const TONE_PATH: Record<CheckTone, string> = {
+  good: 'M3 8.5l3.5 3.5L13 4.5',
+  bad: 'M4 4l8 8M12 4l-8 8',
+  neutral: 'M4 8h8',
+};
+
 function ToneIcon({ tone }: { tone: CheckTone }) {
   return (
     <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d={tone === 'good' ? 'M3 8.5l3.5 3.5L13 4.5' : 'M4 4l8 8M12 4l-8 8'} />
+      <path d={TONE_PATH[tone]} />
     </svg>
   );
 }

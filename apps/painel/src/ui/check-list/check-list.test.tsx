@@ -18,6 +18,12 @@ describe('CheckList', () => {
     expect(first.querySelector('code')?.textContent).toBe('test a ... ok');
   });
 
+  it('marca o tom neutro no item', () => {
+    const neutral: CheckItem[] = [{ id: '0', label: 'rc', result: 'não dá para buscar: está no Trecho', tone: 'neutral' }];
+    render(<CheckList label="Sinal de falha" items={neutral} onSelect={() => undefined} />);
+    expect(screen.getByRole('button').getAttribute('data-tone')).toBe('neutral');
+  });
+
   it('marca o tom bom e ruim no item', () => {
     render(<CheckList label="Trecho esperado" items={ITEMS} onSelect={() => undefined} />);
     const buttons = screen.getAllByRole('button');

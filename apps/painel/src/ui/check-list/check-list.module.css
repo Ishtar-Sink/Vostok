@@ -57,6 +57,11 @@ button.item:focus-visible {
   color: var(--danger);
 }
 
+.item[data-tone='neutral'] .icon {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+}
+
 .text {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--font-size-xs);
@@ -76,6 +81,10 @@ button.item:focus-visible {
 
 .item[data-tone='bad'] .result {
   color: var(--danger);
+}
+
+.item[data-tone='neutral'] .result {
+  color: var(--text-muted);
 }
 
 @media (max-width: 760px) {

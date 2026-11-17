@@ -7,7 +7,7 @@ import { EvidenceViewer, TEXT, type TextState } from './evidence-viewer';
 import { nextToReview } from './next-to-review';
 import { ReviewActions, type ReviewAction } from './review-actions';
 import { ReviewExplanation, type CheckField } from './review-explanation';
-import { checksOf, isVisual, snippetsOf, type SnippetCheck } from './snippet-checks';
+import { checksOf, failureChecksOf, isVisual, snippetsOf, type SnippetCheck } from './snippet-checks';
 import styles from './evidence-review.module.css';
 
 const COPY_MESSAGE_MS = 1500;
@@ -101,7 +101,7 @@ export function EvidenceReview({ spec, task, taskStatus, entries, current, onNav
     const log = text.value ?? '';
     return {
       excerpt: checksOf(log, snippetsOf(current.notes.excerpt), true),
-      failure: checksOf(log, snippetsOf(current.notes.failure), false),
+      failure: failureChecksOf(log, current.notes.failure, current.notes.excerpt),
     };
   }, [current, text.value]);
 

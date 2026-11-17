@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checksOf, snippetsOf } from './snippet-checks';
+import { checksOf, failureChecksOf, snippetsOf } from './snippet-checks';
 
 const LOG = '$ cmd\n# data: d\n# commit: c\n# código de saída: 0\ntest a ... ok\ntest b ... ok\n0 failed\nFAILED x\nFAILED y';
 
@@ -37,5 +37,26 @@ describe('checksOf', () => {
     expect(escaped).toEqual({ id: '1', label: 'origem \\', result: 'não dá para buscar: crase dentro do texto', tone: 'bad', lines: [] });
     expect(times.result).toBe('não apareceu');
     expect(found.result).toBe('apareceu · 1 linha');
+  });
+});
+
+describe('failureChecksOf', () => {
+  const log = (line: string) => `$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n${line}`;
+
+  it('mostra a Falha contida no Trecho como não dá para buscar, em tom neutro', () => {
+    const checks = failureChecksOf(log('mp4_referencia=152'), 'se `mp4_referencia` diferente de 152', '`mp4_referencia=152`');
+    expect(checks).toEqual([
+      { id: '0', label: 'mp4_referencia', result: 'não dá para buscar: está no Trecho', tone: 'neutral', lines: [] },
+    ]);
+  });
+
+  it('mostra a Falha com condição como não dá para buscar', () => {
+    const checks = failureChecksOf(log('rm_na_referencia=0'), 'se `rm_na_referencia` for maior que 0', undefined);
+    expect(checks[0]).toMatchObject({ result: 'não dá para buscar: condição sobre o valor', tone: 'neutral', lines: [] });
+  });
+
+  it('mantém a Falha literal como antes', () => {
+    const checks = failureChecksOf(log('tudo certo'), 'se aparecer `FAILED`', '`tudo certo`');
+    expect(checks[0]).toMatchObject({ result: 'não apareceu', tone: 'good' });
   });
 });

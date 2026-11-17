@@ -1,5 +1,5 @@
 import type { CheckItem } from '../../../ui/check-list/check-list';
-import { findLines, snippetsOf, unsearchable } from '../snippet-match';
+import { failureReason, findLines, snippetsOf, unsearchable } from '../snippet-match';
 
 export { snippetsOf, unsearchable };
 
@@ -23,6 +23,16 @@ export function checksOf(log: string, snippets: string[], expectFound: boolean):
       tone: found === expectFound ? 'good' : 'bad',
       lines,
     };
+  });
+}
+
+/** Resultado da Falha: o texto que repete o Trecho ou tem condição não é buscado e fica em tom neutro. */
+export function failureChecksOf(log: string, failure: string | undefined, excerpt: string | undefined): SnippetCheck[] {
+  const snippets = snippetsOf(failure);
+  return checksOf(log, snippets, false).map((check, index) => {
+    const reason = failureReason(excerpt, failure ?? '', snippets[index]);
+    if (!reason) return check;
+    return { id: check.id, label: check.label, result: `não dá para buscar: ${reason}`, tone: 'neutral', lines: [] };
   });
 }
 

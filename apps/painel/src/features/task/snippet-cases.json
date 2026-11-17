@@ -329,5 +329,75 @@
     "snippet": "\\fim",
     "lines": [],
     "unsearchable": "crase dentro do texto"
+  },
+  {
+    "name": "Falha com o nome contido no Trecho",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "mp4_referencia",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "`mp4_referencia=152`",
+    "falha": "se `mp4_referencia` diferente de 152",
+    "failure": "está no Trecho"
+  },
+  {
+    "name": "Falha de ausência que repete o Trecho",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "resultado=ok",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "`resultado=ok`",
+    "falha": "sem `resultado=ok`",
+    "failure": "está no Trecho"
+  },
+  {
+    "name": "Falha maior que o texto do Trecho",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "rc=1",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "`rc`",
+    "falha": "se aparecer `rc=1`",
+    "failure": ""
+  },
+  {
+    "name": "Falha com condição depois do texto",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "rm_na_referencia",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "",
+    "falha": "se `rm_na_referencia` for maior que 0",
+    "failure": "condição sobre o valor"
+  },
+  {
+    "name": "Falha com condição antes do texto",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "versao_instalada",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "",
+    "falha": "outra versão em `versao_instalada`",
+    "failure": "condição sobre o valor"
+  },
+  {
+    "name": "Condição em outra oração não conta",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "FAILED",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "",
+    "falha": "se aparecer `FAILED`; sem isso, tudo certo",
+    "failure": ""
+  },
+  {
+    "name": "Falha com valor literal",
+    "log": "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\nok",
+    "snippet": "rm_na_referencia=1",
+    "lines": [],
+    "unsearchable": "",
+    "trecho": "",
+    "falha": "se aparecer `rm_na_referencia=1`",
+    "failure": ""
   }
 ]

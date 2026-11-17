@@ -719,7 +719,6 @@ fn writable_project() -> common::Project {
         ["task", "adjust", "record-manual", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "approve", "approve", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "start", "SPEC-001", "TASK-01"].as_slice(),
-        ["task", "begin", "SPEC-001", "TASK-01"].as_slice(),
         ["task", "evidence", "SPEC-001", "TASK-01"].as_slice(),
     ] {
         project.vostok().args(args).assert().success();
@@ -1410,6 +1409,23 @@ fn pendentes_resumo_conta_as_evidencias_a_conferir() {
     let painel = start(project.root());
     let overview = overview_text(&painel);
     assert!(overview.contains(r#""pending_reviews":1"#), "{overview}");
+}
+
+#[cfg(painel_bundle)]
+#[test]
+fn pendentes_resumo_ignora_evidencia_nao_gerada() {
+    let project = writable_project();
+    with_spec(&project);
+    fs::remove_file(
+        project
+            .root()
+            .join(WRITABLE_TASK)
+            .join("evidencias/saida.txt"),
+    )
+    .unwrap();
+    let painel = start(project.root());
+    let overview = overview_text(&painel);
+    assert!(overview.contains(r#""pending_reviews":0"#), "{overview}");
 }
 
 #[cfg(painel_bundle)]

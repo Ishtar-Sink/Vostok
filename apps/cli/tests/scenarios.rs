@@ -319,11 +319,8 @@ impl Scenario {
     fn task(&mut self, command: &str, id: &str, extra: &[&str]) {
         let mut args = vec!["task", command, SPEC, id];
         args.extend_from_slice(extra);
-        let started = self.run(&args);
+        self.run(&args);
         if command == "start" {
-            if started {
-                self.run(&["task", "begin", SPEC, id]);
-            }
             self.enrich_documents(id);
         }
     }

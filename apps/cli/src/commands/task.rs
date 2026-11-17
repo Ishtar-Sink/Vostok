@@ -65,6 +65,9 @@ pub enum TaskCommand {
         /// Modelo escolhido pelo Coordenador, gravado no registro de execução.
         #[arg(long, value_name = "MODELO")]
         model: Option<String>,
+        /// Deixa a tarefa na fila, à espera do vostok task begin (onda com subagentes).
+        #[arg(long)]
+        fila: bool,
     },
     /// Tira a tarefa da fila e a põe em execução.
     Begin {
@@ -375,9 +378,10 @@ pub fn run(command: TaskCommand) -> Result<()> {
             spec_id,
             task_id,
             model,
+            fila,
         } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
-            tasks.start(&spec, &task, model.as_deref())
+            tasks.start(&spec, &task, model.as_deref(), fila)
         }
         TaskCommand::Begin { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
@@ -1073,7 +1077,7 @@ impl Tasks {
                         ("sem aval", String::new(), String::new(), String::new())
                     }
                     Some(hashes) => review_status(&reviews, &entry.name, hashes),
-                    None => ("a conferir", String::new(), String::new(), String::new()),
+                    None => ("não gerada", String::new(), String::new(), String::new()),
                 };
                 ReviewState {
                     name: entry.name,
@@ -1186,10 +1190,11 @@ impl Tasks {
         };
         let review_kinds = self.review_kinds();
         let mut text = format!(
-            "### Conferências da {spec}\n\n| Tarefa | Status | A conferir | Aceitas | Recusadas |\n|---|---|---|---|---|\n"
+            "### Conferências da {spec}\n\n| Tarefa | Status | A conferir | Não geradas | Aceitas | Recusadas |\n|---|---|---|---|---|---|\n"
         );
         for file in &files {
-            let (mut pending, mut accepted, mut rejected) = (Vec::new(), Vec::new(), Vec::new());
+            let (mut pending, mut missing, mut accepted, mut rejected) =
+                (Vec::new(), Vec::new(), Vec::new(), Vec::new());
             let waiting = self.reviewing_status(file);
             let states = if waiting {
                 self.evidence_review_list(file)?
@@ -1206,6 +1211,7 @@ impl Tasks {
                     "recusada" => {
                         rejected.push(format!("{id} ({}): {}", state.origin, state.reason))
                     }
+                    "não gerada" => missing.push(id),
                     _ => pending.push(id),
                 }
             }
@@ -1217,10 +1223,11 @@ impl Tasks {
                 }
             };
             text.push_str(&format!(
-                "| {} | {} | {} | {} | {} |\n",
+                "| {} | {} | {} | {} | {} | {} |\n",
                 task_id_of(file),
                 status_of(file),
                 column(pending),
+                column(missing),
                 column(accepted),
                 column(rejected)
             ));
@@ -2064,7 +2071,7 @@ impl Tasks {
         Ok(self.evidence_dir(file)?.join("baseline").is_dir())
     }
 
-    fn start(&self, spec: &str, task: &str, model: Option<&str>) -> Result<()> {
+    fn start(&self, spec: &str, task: &str, model: Option<&str>, fila: bool) -> Result<()> {
         let model = match model.map(str::trim) {
             Some(value) if value.is_empty() || value.contains(['\n', '\r']) => {
                 bail!("informe o modelo em --model")
@@ -2085,12 +2092,12 @@ impl Tasks {
             );
         }
         if restart {
-            return self.restart_task(&file, task, model);
+            return self.restart_task(&file, task, model, fila);
         }
-        // A tarefa entra na fila antes da coleta, que pode demorar; se a coleta falhar, ela continua
-        // na fila sem baseline, e o `vostok task baseline` coleta de novo.
-        let queued = &self.status.queued;
-        TaskDoc::at(&file).set("status", queued)?;
+        // O status muda antes da coleta, que pode demorar; se a coleta falhar, a tarefa continua
+        // no status sem baseline, e o `vostok task baseline` coleta de novo.
+        let status = self.start_status(fila);
+        TaskDoc::at(&file).set("status", status)?;
         let approved_at = TaskDoc::at(&file)
             .get("approved_at")
             .unwrap_or_else(|_| "?".into());
@@ -2099,9 +2106,10 @@ impl Tasks {
             TaskDoc::at(&file).put("model", model)?;
             detail.push_str(&format!("; modelo: {model}"));
         }
-        self.record_step(&file, "início", queued, &detail)?;
+        self.record_step(&file, "início", status, &detail)?;
         TaskDoc::at(&file).store_document_hashes()?;
-        println!("Tarefa {task} na fila: status '{queued}'. Coletando o baseline:");
+        let place = if fila { "na fila" } else { "em execução" };
+        println!("Tarefa {task} {place}: status '{status}'. Coletando o baseline:");
         let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
         self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
         println!(
@@ -2111,17 +2119,27 @@ impl Tasks {
         Ok(())
     }
 
+    /// Status do início: em execução, ou na fila com `--fila`, à espera do `vostok task begin`.
+    fn start_status(&self, fila: bool) -> &str {
+        if fila {
+            &self.status.queued
+        } else {
+            &self.status.in_progress
+        }
+    }
+
     /// Recomeça a tarefa desbloqueada: mantém o baseline, os hashes dos documentos e a aprovação.
-    fn restart_task(&self, file: &Path, task: &str, model: Option<&str>) -> Result<()> {
-        let queued = &self.status.queued;
-        TaskDoc::at(file).set("status", queued)?;
+    fn restart_task(&self, file: &Path, task: &str, model: Option<&str>, fila: bool) -> Result<()> {
+        let status = self.start_status(fila);
+        TaskDoc::at(file).set("status", status)?;
         let mut detail = String::from("baseline mantido");
         if let Some(model) = model {
             TaskDoc::at(file).put("model", model)?;
             detail.push_str(&format!("; modelo: {model}"));
         }
-        self.record_step(file, "recomeço", queued, &detail)?;
-        println!("Tarefa {task} recomeçada na fila: status '{queued}', com o baseline mantido.");
+        self.record_step(file, "recomeço", status, &detail)?;
+        let place = if fila { "na fila" } else { "em execução" };
+        println!("Tarefa {task} recomeçada {place}: status '{status}', com o baseline mantido.");
         Ok(())
     }
 

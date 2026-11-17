@@ -1145,7 +1145,7 @@ fn evidence_title_absent_in_an_old_task_is_accepted() {
     success_stdout(&mut nested(&project, "approve", "validate"));
     success_stdout(&mut nested(&project, "approve", "approve"));
     success_stdout(&mut task(&project, &["start"]));
-    assert_eq!(status(&project), "queued");
+    assert_eq!(status(&project), "in_progress");
 }
 
 fn automatic_with_title(chars: usize) -> String {
@@ -1181,7 +1181,7 @@ fn approve_and_start(evidence: &str) {
     success_stdout(&mut nested(&project, "approve", "validate"));
     success_stdout(&mut nested(&project, "approve", "approve"));
     success_stdout(&mut task(&project, &["start"]));
-    assert_eq!(status(&project), "queued");
+    assert_eq!(status(&project), "in_progress");
 }
 
 #[test]
@@ -1378,7 +1378,6 @@ fn started_task(extra: &[&str]) -> Project {
     let mut args = vec!["start"];
     args.extend_from_slice(extra);
     success_stdout(&mut task(&project, &args));
-    success_stdout(&mut task(&project, &["begin"]));
     project
 }
 
@@ -1431,7 +1430,7 @@ fn start_baseline_is_collected_by_the_start() {
     let project = approved_task("- `true`\n- `echo antes`");
     let output = success_stdout(&mut task(&project, &["start"]));
     let content = read(&project, TASK_PATH);
-    assert!(content.contains("\nstatus: queued\n"), "{content}");
+    assert!(content.contains("\nstatus: in_progress\n"), "{content}");
     assert!(exists(&project, &format!("{BASELINE_DIR}/01.out")));
     assert!(exists(&project, &format!("{BASELINE_DIR}/02.out")));
     let start = content.find("| início |").expect("início");
@@ -1460,7 +1459,7 @@ fn start_progress_failure_leaves_the_task_running() {
     write(&project, "vostok/work/tasks/SPEC-001/evidence", "arquivo");
     failure_stderr(&mut task(&project, &["start"]));
     let content = read(&project, TASK_PATH);
-    assert!(content.contains("\nstatus: queued\n"), "{content}");
+    assert!(content.contains("\nstatus: in_progress\n"), "{content}");
     assert!(content.contains("| início |"), "{content}");
     assert!(!content.contains("| baseline |"), "{content}");
 }
@@ -3830,7 +3829,7 @@ fn start_progress_prints_each_command_before_the_summary() {
     success_stdout(&mut nested(&project, "approve", "approve"));
     let output = stdout(&mut task(&project, &["start"]));
     let header = output
-        .find("Tarefa TASK-01 na fila: status 'queued'. Coletando o baseline:\n")
+        .find("Tarefa TASK-01 em execução: status 'in_progress'. Coletando o baseline:\n")
         .expect(&output);
     let first = output.find("- [1] true\n").expect(&output);
     let second = output.find("- [2] echo dois\n").expect(&output);
@@ -4112,7 +4111,6 @@ fn folder_started() -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     project
 }
 
@@ -4138,7 +4136,7 @@ fn folder_format_records_the_steps_in_registro_md() {
     task(&project, &["tests"]).assert().success();
     let record = read(&project, &format!("{FOLDER}/registro.md"));
     assert!(
-        record.contains("| 1 |") && record.contains("| início | queued |"),
+        record.contains("| 1 |") && record.contains("| início | in_progress |"),
         "{record}"
     );
     assert!(record.contains("| baseline | coletado |"), "{record}");
@@ -4392,7 +4390,6 @@ fn folder_forecast() -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     task(&project, &["evidence"]).assert().success();
     for id in ["EV-01", "EV-02"] {
         task(&project, &["evidence", "--reviewed", id])
@@ -4546,7 +4543,6 @@ fn part_hash_ignores_the_files_of_people() {
         "Mais um detalhe.\n",
     );
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
     assert!(output.contains("Nenhuma edição manual."), "{output}");
 }
@@ -4622,7 +4618,6 @@ fn part_hash_keeps_the_state_edit_visible_after_a_script_writes_the_state() {
         .replace("effort: simples", "effort: padrao");
     write(&project, &format!("{FOLDER}/estado.yml"), &state);
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     let output = success_stdout(&mut nested(&project, "adjust", "record-manual"));
     assert!(output.contains("estado.yml"), "{output}");
 }
@@ -4888,7 +4883,6 @@ fn single_file_spec() -> Project {
             .assert()
             .success();
         on(&project, task, &["start"]).assert().success();
-        on(&project, task, &["begin"]).assert().success();
     }
     validate_single(&project, "TASK-01");
     on(&project, "TASK-01", &["finish"]).assert().success();
@@ -4932,7 +4926,7 @@ fn migrate_converts_a_spec_in_progress_keeping_state_record_approval_and_evidenc
             );
         }
         let record = read(&project, &format!("{tasks}/{task}/registro.md"));
-        assert!(record.contains("| início | queued |"), "{record}");
+        assert!(record.contains("| início | in_progress |"), "{record}");
         assert!(
             record.contains("| migração | pasta | formato antigo convertido |"),
             "{record}"
@@ -4999,7 +4993,6 @@ fn migrate_keeps_an_approval_valid_for_a_task_not_started() {
     nested(&project, "approve", "approve").assert().success();
     migrate(&project, "SPEC-001").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     assert_eq!(state_field(&project, "TASK-01", "status"), "in_progress");
 }
 
@@ -5107,7 +5100,6 @@ fn docs_commands_keep_structured_documents() {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     for step in ["tests", "regression", "evidence"] {
         task(&project, &[step]).assert().success();
     }
@@ -5545,7 +5537,6 @@ fn folder_spec(tasks: &[(&str, &str)]) -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     project
 }
 
@@ -5762,13 +5753,13 @@ fn release_restart_finish_releases_and_start_restarts() {
     let output = stdout(&mut task(&project, &["start"]));
     assert!(
         output.contains(
-            "Tarefa TASK-01 recomeçada na fila: status 'queued', com o baseline mantido."
+            "Tarefa TASK-01 recomeçada em execução: status 'in_progress', com o baseline mantido."
         ),
         "{output}"
     );
     let record = record_of(&project);
     assert!(
-        record.contains("| recomeço | queued | baseline mantido |"),
+        record.contains("| recomeço | in_progress | baseline mantido |"),
         "{record}"
     );
     assert_eq!(
@@ -5817,7 +5808,6 @@ fn release_restart_remove_of_the_last_wait_releases() {
         "{record}"
     );
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     assert!(record_of(&project).contains("| recomeço |"));
 }
 
@@ -5846,7 +5836,6 @@ fn release_restart_refuses_a_task_changed_during_the_wait() {
     );
     assert_eq!(state_line(&project, "status"), "approved");
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     assert!(record_of(&project).contains("| recomeço |"));
 }
 
@@ -7047,7 +7036,6 @@ fn folder_reviewing(two: bool) -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     task(&project, &["evidence"]).assert().success();
     project
 }
@@ -7379,7 +7367,6 @@ fn folder_with_evidence(started: bool, evidence: &str) -> Project {
             .success();
         nested(&project, "approve", "approve").assert().success();
         task(&project, &["start"]).assert().success();
-        task(&project, &["begin"]).assert().success();
     }
     project
 }
@@ -7526,7 +7513,6 @@ fn execute_ahead(project: &Project, id: &str) {
         ["adjust", "record-manual"],
         ["approve", "approve"],
         ["start", ""],
-        ["begin", ""],
     ] {
         let mut command = project.vostok();
         command.args(["task", args[0]]);
@@ -7576,19 +7562,19 @@ fn reviews_lista_aceitas_recusadas_e_a_conferir() {
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
     assert!(stdout.contains("### Conferências da SPEC-001"), "{stdout}");
     assert!(
-        stdout.contains("| Tarefa | Status | A conferir | Aceitas | Recusadas |"),
+        stdout.contains("| Tarefa | Status | A conferir | Não geradas | Aceitas | Recusadas |"),
         "{stdout}"
     );
     assert!(
-        stdout.contains("| TASK-01 | executed | - | EV-01 (chat) | - |"),
+        stdout.contains("| TASK-01 | executed | - | - | EV-01 (chat) | - |"),
         "{stdout}"
     );
     assert!(
-        stdout.contains("| TASK-02 | in_progress | - | - | EV-01 (chat): cor errada |"),
+        stdout.contains("| TASK-02 | in_progress | - | - | - | EV-01 (chat): cor errada |"),
         "{stdout}"
     );
     assert!(
-        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - | - |"),
         "{stdout}"
     );
 }
@@ -7613,7 +7599,7 @@ fn reviews_cita_tarefa_fora_da_conferencia_com_o_status() {
     );
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
     assert!(
-        stdout.contains("| TASK-03 | approved | - | - | - |"),
+        stdout.contains("| TASK-03 | approved | - | - | - | - |"),
         "{stdout}"
     );
 }
@@ -7624,7 +7610,7 @@ fn reviews_sem_spec_usa_a_spec_em_execucao() {
     let stdout = success_stdout(&mut reviews_cmd(&project, &[]));
     assert!(stdout.contains("### Conferências da SPEC-001"), "{stdout}");
     assert!(
-        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | EV-01 | - | - | - |"),
         "{stdout}"
     );
 }
@@ -7665,7 +7651,7 @@ fn reviews_lista_tarefa_em_arquivo_unico() {
         .success();
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
     assert!(
-        stdout.contains("| TASK-02 | awaiting_review | EV-01 | - | - |"),
+        stdout.contains("| TASK-02 | awaiting_review | EV-01 | - | - | - |"),
         "{stdout}"
     );
     assert!(!stdout.contains("| TASK-01 |"), "{stdout}");
@@ -7677,7 +7663,45 @@ fn reviews_ignora_evidencia_sem_aval() {
     with_review_kinds(&project, PRINT_ONLY_REVIEW);
     let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001", "TASK-03"]));
     assert!(
-        stdout.contains("| TASK-03 | awaiting_review | - | - | - |"),
+        stdout.contains("| TASK-03 | awaiting_review | - | - | - | - |"),
+        "{stdout}"
+    );
+}
+
+// --- Evidência ainda não gerada (SPEC-062) ---
+
+fn remove_evidence(project: &Project, id: &str) {
+    std::fs::remove_file(
+        project
+            .root()
+            .join(format!("{SPEC_FOLDER}/{id}/evidencias/saida.txt")),
+    )
+    .unwrap();
+}
+
+#[test]
+fn nao_gerada_reviews_separa_da_conferencia() {
+    let project = reviews_spec();
+    remove_evidence(&project, "TASK-03");
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
+    assert!(
+        stdout.contains("| Tarefa | Status | A conferir | Não geradas | Aceitas | Recusadas |"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("| TASK-03 | awaiting_review | - | EV-01 | - | - |"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn nao_gerada_conferida_apagada_volta_a_nao_gerada() {
+    let project = reviews_spec();
+    review_on(&project, "TASK-01", &["--reviewed", "EV-01"]);
+    remove_evidence(&project, "TASK-01");
+    let stdout = success_stdout(&mut reviews_cmd(&project, &["SPEC-001"]));
+    assert!(
+        stdout.contains("| TASK-01 | executed | - | EV-01 | - | - |"),
         "{stdout}"
     );
 }
@@ -7700,9 +7724,48 @@ fn set_folder_status(project: &Project, id: &str, status: &str) {
 }
 
 #[test]
-fn fila_start_poe_a_tarefa_na_fila() {
+fn inicio_start_poe_em_execucao() {
     let project = folder_approved();
     let output = success_stdout(&mut task(&project, &["start"]));
+    assert!(output.contains("status 'in_progress'"), "{output}");
+    assert_eq!(folder_field(&project, "status"), "in_progress");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(record.contains("| início | in_progress |"), "{record}");
+    assert!(exists(&project, &format!("{FOLDER}/evidencias/baseline")));
+}
+
+#[test]
+fn inicio_recomeco_poe_em_execucao() {
+    let project = folder_spec(&[("TASK-01", "pending"), ("TASK-03", "in_progress")]);
+    depends(&project, "add", "TASK-03", Some("m"))
+        .assert()
+        .success();
+    ready_to_finish(&project, "TASK-03");
+    finish_of(&project, "TASK-03").assert().success();
+    let output = success_stdout(&mut task(&project, &["start"]));
+    assert!(output.contains("status 'in_progress'"), "{output}");
+    assert_eq!(state_line(&project, "status"), "in_progress");
+    assert!(record_of(&project).contains("| recomeço | in_progress | baseline mantido |"));
+}
+
+#[test]
+fn inicio_begin_recusa_tarefa_em_execucao() {
+    let project = folder_approved();
+    task(&project, &["start"]).assert().success();
+    let before = folder_state(&project);
+    let stderr = failure_stderr(&mut task(&project, &["begin"]));
+    assert!(
+        stderr.contains("só tarefa 'queued' sai da fila"),
+        "{stderr}"
+    );
+    assert_eq!(folder_state(&project), before);
+    assert_eq!(folder_field(&project, "status"), "in_progress");
+}
+
+#[test]
+fn fila_start_poe_a_tarefa_na_fila() {
+    let project = folder_approved();
+    let output = success_stdout(&mut task(&project, &["start", "--fila"]));
     assert!(output.contains("status 'queued'"), "{output}");
     assert_eq!(folder_field(&project, "status"), "queued");
     assert!(exists(&project, &format!("{FOLDER}/evidencias/baseline")));
@@ -7711,7 +7774,7 @@ fn fila_start_poe_a_tarefa_na_fila() {
 #[test]
 fn fila_begin_poe_em_execucao() {
     let project = folder_approved();
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     let output = success_stdout(&mut task(&project, &["begin"]));
     assert!(
         output.contains("Tarefa TASK-01 em execução: status 'in_progress'."),
@@ -7732,7 +7795,7 @@ fn fila_begin_recusa_fora_da_fila() {
     let stderr = failure_stderr(&mut task(&project, &["begin"]));
     assert!(stderr.contains("status 'approved'"), "{stderr}");
     assert_eq!(folder_state(&project), before);
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     task(&project, &["begin"]).assert().success();
     let before = folder_state(&project);
     let stderr = failure_stderr(&mut task(&project, &["begin"]));
@@ -7743,7 +7806,7 @@ fn fila_begin_recusa_fora_da_fila() {
 #[test]
 fn fila_brief_e_check_pedem_o_begin() {
     let project = folder_approved();
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     for command in ["brief", "check"] {
         let stderr = failure_stderr(&mut task(&project, &[command]));
         assert!(
@@ -7793,7 +7856,7 @@ fn fila_configuracao_antiga_usa_os_padroes() {
         .map(|line| format!("{line}\n"))
         .collect();
     write(&project, path, &content);
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     assert_eq!(folder_field(&project, "status"), "queued");
     task(&project, &["begin"]).assert().success();
     assert_eq!(folder_field(&project, "status"), "in_progress");
@@ -7802,7 +7865,7 @@ fn fila_configuracao_antiga_usa_os_padroes() {
 #[test]
 fn fila_ajuste_mantem_na_fila() {
     let project = folder_approved();
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     adjust_trecho(&project);
     adjust_record(&project);
     assert_eq!(folder_field(&project, "status"), "queued");
@@ -7811,7 +7874,7 @@ fn fila_ajuste_mantem_na_fila() {
 #[test]
 fn fila_tarefa_antiga_em_execucao_segue() {
     let project = folder_approved();
-    task(&project, &["start"]).assert().success();
+    task(&project, &["start", "--fila"]).assert().success();
     set_folder_status(&project, "TASK-01", "in_progress");
     task(&project, &["check"]).assert().success();
 }
@@ -7824,7 +7887,7 @@ fn fila_recomeco_volta_para_a_fila() {
         .success();
     ready_to_finish(&project, "TASK-03");
     finish_of(&project, "TASK-03").assert().success();
-    let output = success_stdout(&mut task(&project, &["start"]));
+    let output = success_stdout(&mut task(&project, &["start", "--fila"]));
     assert!(output.contains("status 'queued'"), "{output}");
     assert_eq!(state_line(&project, "status"), "queued");
     assert!(record_of(&project).contains("| recomeço | queued | baseline mantido |"));
@@ -7842,7 +7905,6 @@ fn conferencia_task(evidence: &str, kinds: &str) -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     project
 }
 
@@ -7964,7 +8026,6 @@ fn reviewed_folder_started() -> Project {
         .success();
     nested(&project, "approve", "approve").assert().success();
     task(&project, &["start"]).assert().success();
-    task(&project, &["begin"]).assert().success();
     success_stdout(&mut ahead(&project));
     project
 }

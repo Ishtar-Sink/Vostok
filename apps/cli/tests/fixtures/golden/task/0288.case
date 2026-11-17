@@ -30,7 +30,7 @@ a tarefa TASK-01 está com status 'in_progress'; só tarefas com status 'approve
 
 @exit 1
 1
-@pre 114
-W 1b4443de4e206cc9a866d79bab192a37fb5e2288031b8b27f509231308ec432e packages/harness/work/tasks/SPEC-008/TASK-01.md
+@pre 0
+
 @post 0
 

@@ -41,14 +41,9 @@ Tarefas de SPEC-001 aprovadas:
 $ vostok task start SPEC-001 TASK-01
 exit: 0
 --- stdout
-Tarefa TASK-01 na fila: status 'queued'. Coletando o baseline:
+Tarefa TASK-01 em execução: status 'in_progress'. Coletando o baseline:
 - [1] echo base
 Baseline de TASK-01 coletado em <EVIDENCIAS>/baseline: 1 comando(s); códigos de saída: 0
-
-$ vostok task begin SPEC-001 TASK-01
-exit: 0
---- stdout
-Tarefa TASK-01 em execução: status 'in_progress'.
 
 $ vostok task adjust record-manual SPEC-001 TASK-01
 exit: 0
@@ -71,11 +66,10 @@ evidence_result: null
 approved_hash preenchido: true
 
 ## registro TASK-01
-| 1 | <DATA> | início | queued | aprovada em <DATA> |
+| 1 | <DATA> | início | in_progress | aprovada em <DATA> |
 | 2 | <DATA> | baseline | coletado | 1 comando(s); códigos de saída: 0 |
-| 3 | <DATA> | começo | in_progress | saiu da fila |
-| 4 | <DATA> | ajuste | in_progress | Edição manual |
-| 5 | <DATA> | ajuste | in_progress | passo ajustado durante a execução |
+| 3 | <DATA> | ajuste | in_progress | Edição manual |
+| 4 | <DATA> | ajuste | in_progress | passo ajustado durante a execução |
 
 ## evidências TASK-01
 baseline/01.out

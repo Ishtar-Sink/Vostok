@@ -29,7 +29,7 @@ Erro: o baseline de TASK-01 já foi coletado em <ROOT>/packages/harness/work/tas
 
 @exit 1
 1
-@pre 114
-W 1f6528dad00d7ce1a5a9f9670f9281380770a160a8ea719ec5172ca04cd84cb3 packages/harness/work/tasks/SPEC-008/TASK-01.md
+@pre 0
+
 @post 0
 

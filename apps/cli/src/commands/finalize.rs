@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
+use crate::changes::change_item;
 use crate::commands::task::{accepted_diff_name, accepted_regressions};
 use crate::harness::Harness;
 use crate::support::{
@@ -609,16 +610,6 @@ fn log_command(path: &Path) -> Option<String> {
     let text = fs::read_to_string(path).ok()?;
     let command = text.lines().next()?.strip_prefix("$ ")?.trim();
     (!command.is_empty()).then(|| command.to_string())
-}
-
-/// Item "- `caminho` (ação)" da subseção "Mudar", como ação e caminho.
-fn change_item(line: &str) -> Option<(String, String)> {
-    let (path, rest) = backticked_item(line)?;
-    let action = rest.strip_prefix(" (")?;
-    let end = action.find(')')?;
-    let action = &action[..end];
-    let valid = !action.is_empty() && action.bytes().all(|b| b.is_ascii_lowercase());
-    valid.then(|| (action.to_string(), path.to_string()))
 }
 
 fn backticked_item(line: &str) -> Option<(&str, &str)> {

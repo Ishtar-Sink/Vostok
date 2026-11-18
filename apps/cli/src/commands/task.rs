@@ -326,10 +326,11 @@ const BRIEF_ROUTE: &str = "1. Confira no registro abaixo a linha `baseline` e n�
 2. Leia os arquivos de \"Ler\" por busca e trecho (`grep -n`, `sed -n`), nunca inteiro um arquivo com mais de 400 linhas.
 3. Implemente primeiro os testes pedidos e confirme que falham.
 4. Siga os \"Passos\", mudando só os arquivos de \"Mudar\".
-5. Verifique com `vostok task check <SPEC_ID> <TASK_ID>` até passar.
-6. Sem commit, sem stage, sem `vostok task tests|regression|evidence|finish` (nem `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que é do Coordenador depois da onda), sem ler segredos.
-7. Se um passo exigir algo fora da tarefa, pare e devolva a pergunta.
-8. Devolva um bloco de até 5 linhas: `Resultado:`, `Arquivos:`, `Verificação:` (a última linha do `vostok task check`), `Em aberto:`.
+5. Grave em `vostok/work/tasks/<SPEC_ID>/<TASK_ID>/frases.json` uma frase em linguagem simples por trecho da diff, dizendo o que ele muda: `{\"<arquivo>\": {\"@@ -a,b +c,d @@\": \"frase\"}}`, chave sem o texto depois do segundo `@@`. Trechos, na raiz do projeto: `git diff --no-color --no-ext-diff --no-textconv --no-renames <baseline_commit> -- <arquivo>` (`baseline_commit` do estado da tarefa); fora do git, `git diff --no-color --no-ext-diff --no-textconv --no-index -- /dev/null <arquivo>`.
+6. Verifique com `vostok task check <SPEC_ID> <TASK_ID>` até passar.
+7. Sem commit, sem stage, sem `vostok task tests|regression|evidence|finish` (nem `vostok task evidence <SPEC_ID> <TASK_ID> --antecipada`, que é do Coordenador depois da onda), sem ler segredos.
+8. Se um passo exigir algo fora da tarefa, pare e devolva a pergunta.
+9. Devolva um bloco de até 5 linhas: `Resultado:`, `Arquivos:`, `Verificação:` (a última linha do `vostok task check`), `Em aberto:`.
 ";
 
 /// Itens fixos de `# Regras` do briefing, antes dos `rules/...` da entrada `execute-task`.
@@ -2571,6 +2572,10 @@ impl Tasks {
             .join(", ");
         if let Some(sha) = git_text(&root, &["rev-parse", "--verify", "HEAD"]) {
             TaskDoc::at(file).put(BASELINE_COMMIT_KEY, &sha)?;
+            TaskDoc::at(file).put(
+                BASELINE_DIRTY_KEY,
+                &baseline_dirty_value(&crate::changes::dirty_files(&root)?),
+            )?;
         }
         self.save_previous_verification(file)?;
         let mut detail = format!("{} comando(s); códigos de saída: {codes}", commands.len());
@@ -4483,6 +4488,16 @@ impl Tasks {
         let problems = self.finish_problems(spec, task, &file)?;
         if !problems.is_empty() {
             bail!("{}", refusal_message(task, &problems));
+        }
+        if is_task_folder(&file) {
+            let mut changes = crate::changes::report(&self.harness, spec, task)?;
+            changes["frozen"] = serde_json::Value::Bool(true);
+            let frozen = file.join("mudancas.json");
+            fs::write(
+                &frozen,
+                format!("{}\n", serde_json::to_string_pretty(&changes)?),
+            )
+            .with_context(|| format!("não foi possível gravar {}", frozen.display()))?;
         }
 
         let done = &self.status.done;
@@ -6742,14 +6757,7 @@ fn quoted_name(text: &str) -> Option<(&str, &str)> {
 /// Item de "Mudar" no formato "- `caminho` (ação): motivo", como (ação, caminho).
 fn change_items(text: &str) -> Vec<(String, String)> {
     text.lines()
-        .filter_map(|line| {
-            let (path, rest) = quoted_name(line.strip_prefix("- ")?)?;
-            let rest = rest.strip_prefix(" (")?;
-            let end = rest.find(')')?;
-            let action = &rest[..end];
-            let valid = !action.is_empty() && action.chars().all(|c| c.is_ascii_lowercase());
-            valid.then(|| (action.to_string(), path.to_string()))
-        })
+        .filter_map(crate::changes::change_item)
         .collect()
 }
 
@@ -8083,6 +8091,19 @@ fn git_text(root: &Path, args: &[&str]) -> Option<String> {
 
 /// Chave do estado com o commit em que o baseline foi coletado.
 const BASELINE_COMMIT_KEY: &str = "baseline_commit";
+
+/// Chave do estado com os arquivos já alterados no início da tarefa e o hash de cada um.
+const BASELINE_DIRTY_KEY: &str = "baseline_dirty";
+
+/// Lista `[caminho=hash, ...]` do estado; caminhos com `,`, `[` ou `]` não cabem nesse formato.
+fn baseline_dirty_value(files: &[(String, String)]) -> String {
+    let items: Vec<String> = files
+        .iter()
+        .filter(|(path, _)| !path.contains([',', '[', ']']))
+        .map(|(path, hash)| format!("{path}={hash}"))
+        .collect();
+    format!("[{}]", items.join(", "))
+}
 
 /// Commit do baseline gravado na tarefa, se houver.
 fn file_baseline_commit(file: &Path) -> Option<String> {

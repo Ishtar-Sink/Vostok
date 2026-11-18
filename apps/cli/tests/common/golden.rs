@@ -548,6 +548,7 @@ const CLI_ONLY_FIELDS: &[&str] = &[
     "tests_code_hash:",
     "tests_checks_hash:",
     "approved_disk:",
+    "baseline_dirty:",
 ];
 
 /// Cópia da Verificação que só a CLI grava no baseline (SPEC-057), ausente nos scripts bash.

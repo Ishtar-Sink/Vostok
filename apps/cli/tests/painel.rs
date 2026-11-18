@@ -762,3 +762,297 @@ fn leitura_mudanca_fora_de_work_nao_avisa() {
         "chegou mensagem: {outcome:?}"
     );
 }
+
+// --- Mudanças da tarefa (SPEC-063) ---
+
+fn git(project: &Project, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(project.root())
+        .args(args)
+        .env("GIT_AUTHOR_NAME", "T")
+        .env("GIT_AUTHOR_EMAIL", "t@t")
+        .env("GIT_COMMITTER_NAME", "T")
+        .env("GIT_COMMITTER_EMAIL", "t@t")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git {args:?}: {output:?}");
+    String::from_utf8(output.stdout).unwrap().trim().to_string()
+}
+
+fn body(response: &str) -> serde_json::Value {
+    let (_, text) = response.split_once("\r\n\r\n").unwrap();
+    serde_json::from_str(text).unwrap_or_else(|error| panic!("{error}: {response}"))
+}
+
+/// Projeto com git, a TASK-01 com "Mudar" de `a.txt` e `novo.txt` e a TASK-02 com `b.txt`.
+fn changes_project(status: &str, baseline: Option<&str>) -> Project {
+    let project = Project::new();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-mudancas.md",
+        "---\nid: SPEC-001\ntitle: \"Mudanças\"\nstatus: planned\ntype: feature\n---\n\n# Mudanças\n",
+    );
+    write(&project, "a.txt", "um\ndois\n");
+    write(&project, "b.txt", "b\n");
+    git(&project, &["init", "-q"]);
+    git(&project, &["add", "-A"]);
+    git(&project, &["commit", "-qm", "base"]);
+    let mut state = format!("id: TASK-01\ntitle: \"Primeira\"\nstatus: {status}\ndepends_on: []\n");
+    if let Some(value) = baseline {
+        let commit = if value == "HEAD" {
+            git(&project, &["rev-parse", "HEAD"])
+        } else {
+            value.to_string()
+        };
+        state.push_str(&format!("baseline_commit: {commit}\nbaseline_dirty: []\n"));
+    }
+    write(&project, &format!("{FOLDER}/estado.yml"), &state);
+    write(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "### Mudar\n\n- `a.txt` (alterar): muda.\n- `novo.txt` (criar): cria.\n",
+    );
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02/estado.yml",
+        "id: TASK-02\nstatus: approved\n",
+    );
+    write(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02/execucao.md",
+        "### Mudar\n\n- `b.txt` (alterar): outra tarefa.\n",
+    );
+    project
+}
+
+const CHANGES: &str = "/api/tarefas/SPEC-001/TASK-01/mudancas";
+
+fn changes_body(project: &Project) -> serde_json::Value {
+    let running = start(project.root());
+    let response = get(running.address, CHANGES);
+    assert_status(&response, "200");
+    body(&response)
+}
+
+fn assert_empty(changes: &serde_json::Value, reason: &str, base: serde_json::Value, frozen: bool) {
+    assert_eq!(changes["reason"], reason, "{changes}");
+    assert_eq!(changes["base"], base, "{changes}");
+    assert_eq!(changes["frozen"], frozen, "{changes}");
+    assert_eq!(changes["files"], serde_json::json!([]), "{changes}");
+}
+
+#[test]
+fn mudancas_ao_vivo_traz_alterado_e_criado_com_as_contagens() {
+    let project = changes_project("in_progress", Some("HEAD"));
+    let commit = git(&project, &["rev-parse", "HEAD"]);
+    write(&project, "a.txt", "um\nDOIS\n");
+    write(&project, "novo.txt", "x\ny\n");
+    write(&project, "b.txt", "B\n");
+    let changes = changes_body(&project);
+    assert_eq!(changes["base"], commit.as_str());
+    assert_eq!(changes["frozen"], false);
+    assert_eq!(changes["reason"], serde_json::Value::Null);
+    assert_eq!(changes["added"], 3);
+    assert_eq!(changes["removed"], 1);
+    let files = changes["files"].as_array().unwrap();
+    let paths: Vec<&str> = files.iter().map(|f| f["path"].as_str().unwrap()).collect();
+    assert_eq!(paths, ["a.txt", "novo.txt"], "{changes}");
+    assert_eq!(files[0]["action"], "alterado");
+    assert_eq!(files[0]["added"], 1);
+    assert_eq!(files[0]["removed"], 1);
+    assert!(!files[0]["hunks"].as_array().unwrap().is_empty());
+    assert_eq!(files[0]["before"], false);
+    assert_eq!(files[1]["action"], "criado");
+    assert_eq!(files[1]["added"], 2);
+    assert_eq!(files[1]["removed"], 0);
+}
+
+#[test]
+fn mudancas_tarefa_aprovada_responde_nao_iniciada() {
+    let project = changes_project("approved", None);
+    let changes = changes_body(&project);
+    assert_empty(&changes, "nao_iniciada", serde_json::Value::Null, false);
+}
+
+#[test]
+fn mudancas_sem_base_ou_commit_fora_do_repositorio_responde_sem_base() {
+    for baseline in [None, Some("0123456789abcdef0123456789abcdef01234567")] {
+        let project = changes_project("in_progress", baseline);
+        write(&project, "a.txt", "um\nDOIS\n");
+        let changes = changes_body(&project);
+        assert_empty(&changes, "sem_base", serde_json::Value::Null, false);
+    }
+}
+
+#[test]
+fn mudancas_sem_alteracao_responde_sem_mudancas() {
+    let project = changes_project("in_progress", Some("HEAD"));
+    let commit = git(&project, &["rev-parse", "HEAD"]);
+    let changes = changes_body(&project);
+    assert_empty(&changes, "sem_mudancas", commit.as_str().into(), false);
+}
+
+#[test]
+fn mudancas_concluida_sem_arquivo_responde_nao_gravada() {
+    let project = changes_project("done", Some("HEAD"));
+    write(&project, "a.txt", "um\nDOIS\n");
+    let changes = changes_body(&project);
+    assert_empty(&changes, "nao_gravada", serde_json::Value::Null, true);
+}
+
+#[test]
+fn mudancas_concluida_devolve_o_arquivo_sem_recalcular() {
+    let project = changes_project("done", Some("HEAD"));
+    let frozen = r#"{"base":"abc1234","frozen":true,"reason":null,"added":1,"removed":0,"files":[{"path":"congelado.txt","action":"criado","added":1,"removed":0,"hunks":["@@ -0,0 +1 @@\n+x"],"before":false}]}"#;
+    write(&project, &format!("{FOLDER}/mudancas.json"), frozen);
+    write(&project, "a.txt", "um\nDOIS\n");
+    let running = start(project.root());
+    let response = get(running.address, CHANGES);
+    assert_status(&response, "200");
+    let expected: serde_json::Value = serde_json::from_str(frozen).unwrap();
+    assert_eq!(body(&response), expected);
+    let task = get(running.address, "/api/tarefas/SPEC-001/TASK-01");
+    assert_status(&task, "200");
+    assert!(!task.contains("mudancas.json"), "{task}");
+}
+
+#[test]
+fn mudancas_rota_igual_ao_relatorio_da_cli() {
+    let project = changes_project("in_progress", Some("HEAD"));
+    write(&project, "a.txt", "um\nDOIS\n");
+    let changes = changes_body(&project);
+    let harness = vostok::harness::Harness {
+        root: project.harness(),
+    };
+    let expected = vostok::changes::report(&harness, "SPEC-001", "TASK-01").unwrap();
+    assert_eq!(changes, expected);
+}
+
+#[test]
+fn mudancas_tarefa_inexistente_ou_segmento_invalido_e_404() {
+    let project = changes_project("in_progress", Some("HEAD"));
+    let running = start(project.root());
+    for target in [
+        "/api/tarefas/SPEC-001/TASK-99/mudancas",
+        "/api/tarefas/SPEC-001/..%2FTASK-01/mudancas",
+    ] {
+        assert_status(&get(running.address, target), "404");
+    }
+}
+
+// --- Frases da diff (SPEC-063) ---
+
+const LINES_BEFORE: &str = "linha01\nlinha02\nlinha03\nlinha04\nlinha05\nlinha06\nlinha07\nlinha08\nlinha09\nlinha10\nlinha11\nlinha12\nlinha13\nlinha14\nlinha15\nlinha16\nlinha17\nlinha18\nlinha19\nlinha20\n";
+
+fn lines_after(changed: &[&str]) -> String {
+    LINES_BEFORE
+        .lines()
+        .map(|line| {
+            if changed.contains(&line) {
+                format!("{}\n", line.to_uppercase())
+            } else {
+                format!("{line}\n")
+            }
+        })
+        .collect()
+}
+
+/// Projeto da rota de mudanças com `linhas.txt` no commit base.
+fn frases_project() -> Project {
+    let project = changes_project("in_progress", Some("HEAD"));
+    write(&project, "linhas.txt", LINES_BEFORE);
+    git(&project, &["add", "-A"]);
+    git(&project, &["commit", "-qm", "linhas"]);
+    let head = git(&project, &["rev-parse", "HEAD"]);
+    write(
+        &project,
+        &format!("{FOLDER}/estado.yml"),
+        &format!("id: TASK-01\ntitle: \"Primeira\"\nstatus: in_progress\ndepends_on: []\nbaseline_commit: {head}\nbaseline_dirty: []\n"),
+    );
+    project
+}
+
+fn file_json<'a>(body: &'a serde_json::Value, path: &str) -> &'a serde_json::Value {
+    body["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|file| file["path"] == path)
+        .unwrap_or_else(|| panic!("sem {path} em {body}"))
+}
+
+const NOTES: &str = r#"{"linhas.txt":{"@@ -17,4 +17,4 @@":"A última linha muda."},"a.txt":{"@@ -1,4 +1,4 @@":"Frase de outro arquivo."}}"#;
+
+#[test]
+fn frases_rota_junta_a_frase_pelo_intervalo_sem_o_contexto() {
+    let project = frases_project();
+    write(
+        &project,
+        "linhas.txt",
+        &lines_after(&["linha01", "linha20"]),
+    );
+    write(&project, &format!("{FOLDER}/frases.json"), NOTES);
+    let changes = changes_body(&project);
+    let file = file_json(&changes, "linhas.txt");
+    let hunks = file["hunks"].as_array().unwrap();
+    assert_eq!(hunks.len(), 2, "{file}");
+    assert!(
+        hunks[0].as_str().unwrap().starts_with("@@ -1,4 +1,4 @@\n"),
+        "{file}"
+    );
+    assert!(
+        hunks[1]
+            .as_str()
+            .unwrap()
+            .starts_with("@@ -17,4 +17,4 @@ linha16\n"),
+        "{file}"
+    );
+    assert_eq!(
+        file["notes"],
+        serde_json::json!([null, "A última linha muda."])
+    );
+}
+
+#[test]
+fn frases_trecho_alterado_depois_da_frase_fica_sem_frase() {
+    let project = frases_project();
+    write(
+        &project,
+        "linhas.txt",
+        &lines_after(&["linha01", "linha18", "linha20"]),
+    );
+    write(&project, &format!("{FOLDER}/frases.json"), NOTES);
+    let changes = changes_body(&project);
+    let file = file_json(&changes, "linhas.txt");
+    let hunks = file["hunks"].as_array().unwrap();
+    assert!(
+        hunks[1]
+            .as_str()
+            .unwrap()
+            .starts_with("@@ -15,6 +15,6 @@ linha14\n"),
+        "{file}"
+    );
+    assert_eq!(file["notes"], serde_json::json!([null, null]));
+}
+
+#[test]
+fn frases_arquivo_ausente_ou_invalido_deixa_todas_nulas() {
+    let project = frases_project();
+    write(
+        &project,
+        "linhas.txt",
+        &lines_after(&["linha01", "linha20"]),
+    );
+    let running = start(project.root());
+    let notes = || {
+        let response = get(running.address, CHANGES);
+        assert_status(&response, "200");
+        file_json(&body(&response), "linhas.txt")["notes"].clone()
+    };
+    assert_eq!(notes(), serde_json::json!([null, null]));
+    for content in ["{invalido", r#"["lista"]"#] {
+        write(&project, &format!("{FOLDER}/frases.json"), content);
+        assert_eq!(notes(), serde_json::json!([null, null]), "{content}");
+    }
+}

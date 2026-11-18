@@ -4,7 +4,10 @@ mod common;
 
 use common::golden::assert_group;
 use common::{failure_stderr, vostok_at, Project};
+use std::path::Path;
 use tempfile::TempDir;
+use vostok::changes::{change_item, dirty_files, task_changes, ChangeAction};
+use vostok::support::sha256_hex;
 
 #[test]
 fn golden_task() {
@@ -2373,6 +2376,70 @@ fn brief_without_persona_uses_desenvolvedor() {
     let persona = harness_file(&project, "personas/desenvolvedor.md");
     let section = brief.split("\n# Persona\n").nth(1).unwrap();
     assert!(section.contains(persona.trim()), "{brief}");
+}
+
+// --- Frases da diff no roteiro (SPEC-063) ---
+
+#[test]
+fn brief_asks_for_phrases_before_the_check() {
+    let brief = brief_of(&started_task(&[]));
+    let route = brief
+        .split("\n# Roteiro\n")
+        .nth(1)
+        .unwrap()
+        .split("\n# Tarefa\n")
+        .next()
+        .unwrap();
+    println!("--- roteiro do vostok task brief ---\n{route}");
+    for text in [
+        "vostok/work/tasks/SPEC-001/TASK-01/frases.json",
+        "uma frase em linguagem simples por trecho",
+        "@@ -a,b +c,d @@",
+        "git diff --no-color --no-ext-diff --no-textconv --no-renames <baseline_commit> -- <arquivo>",
+        "git diff --no-color --no-ext-diff --no-textconv --no-index -- /dev/null <arquivo>",
+    ] {
+        assert!(route.contains(text), "{route}");
+    }
+    assert!(
+        route.find("frases.json").unwrap()
+            < route.find("vostok task check SPEC-001 TASK-01").unwrap(),
+        "{route}"
+    );
+    assert!(!route.contains("<SPEC_ID>"), "{route}");
+}
+
+#[test]
+fn brief_asks_for_phrases_in_the_execute_task_skill() {
+    let project = started_task(&[]);
+    let skill = harness_file(&project, "skills/default/execute-task/SKILL.md");
+    let section = skill
+        .split("\n## Roteiro do subagente\n")
+        .nth(1)
+        .unwrap()
+        .split("\n## ")
+        .next()
+        .unwrap();
+    println!("--- roteiro da skill execute-task ---\n{section}");
+    for text in [
+        "vostok/work/tasks/<SPEC_ID>/<TASK_ID>/frases.json",
+        "uma frase em linguagem simples por trecho",
+        "@@ -a,b +c,d @@",
+        "git diff --no-color --no-ext-diff --no-textconv --no-renames <baseline_commit> -- <arquivo>",
+        "git diff --no-color --no-ext-diff --no-textconv --no-index -- /dev/null <arquivo>",
+    ] {
+        assert!(section.contains(text), "{section}");
+    }
+    assert!(
+        section.contains("antes do `vostok task check`, grave"),
+        "{section}"
+    );
+    assert!(
+        section.find("gravar as frases da diff").unwrap()
+            < section
+                .find("vostok task check <SPEC_ID> <TASK_ID>")
+                .unwrap(),
+        "{section}"
+    );
 }
 
 /// Troca o bloco da "Verificação" da tarefa pelo comando dado.
@@ -5528,6 +5595,188 @@ fn docs_finish_without_start_hashes_checks_only_the_template() {
     assert!(read(&project, &format!("{FOLDER}/estado.yml")).contains("\nstatus: done\n"));
 }
 
+// --- Mudanças congeladas na conclusão (SPEC-063) ---
+
+/// TASK-01 em pasta, validada, que cria `novo.txt` e altera `outro.txt`, com os critérios por marcar.
+fn changes_validated() -> Project {
+    let project = folder_task("pending");
+    write(&project, "outro.txt", "antes\n");
+    init_git(&project);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    write(&project, "novo.txt", "um\ndois\n");
+    write(&project, "outro.txt", "depois\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
+    append(&project, &format!("{FOLDER}/tecnico.md"), "\nFeito.\n");
+    project
+}
+
+fn mark_criteria(project: &Project) {
+    let criteria = read(project, &format!("{FOLDER}/criterios.md")).replace("- [ ]", "- [x]");
+    write(project, &format!("{FOLDER}/criterios.md"), &criteria);
+}
+
+fn changes_report(project: &Project) -> serde_json::Value {
+    let harness = vostok::harness::Harness {
+        root: project.harness(),
+    };
+    vostok::changes::report(&harness, "SPEC-001", "TASK-01").unwrap()
+}
+
+fn frozen_changes(project: &Project) -> serde_json::Value {
+    serde_json::from_str(&read(project, &format!("{FOLDER}/mudancas.json"))).unwrap()
+}
+
+#[test]
+fn mudancas_conclusao_grava_o_json_congelado_na_pasta() {
+    let project = changes_validated();
+    mark_criteria(&project);
+    let mut expected = changes_report(&project);
+    expected["frozen"] = serde_json::Value::Bool(true);
+    write(
+        &project,
+        &format!("{FOLDER}/mudancas.json"),
+        "{\"antigo\":true}",
+    );
+    task(&project, &["finish"]).assert().success();
+    let frozen = frozen_changes(&project);
+    assert_eq!(frozen, expected);
+    let files: Vec<(&str, &str)> = frozen["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|file| {
+            (
+                file["path"].as_str().unwrap(),
+                file["action"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        files,
+        [("novo.txt", "criado"), ("outro.txt", "alterado")],
+        "{frozen}"
+    );
+    assert!(frozen.get("antigo").is_none(), "{frozen}");
+    assert!(!exists(
+        &project,
+        &format!("{FOLDER}/evidencias/mudancas.json")
+    ));
+    write(&project, "outro.txt", "de novo\n");
+    assert_eq!(changes_report(&project), frozen_changes(&project));
+}
+
+#[test]
+fn mudancas_conclusao_recusada_nao_grava_o_json() {
+    let project = changes_validated();
+    let stderr = failure_stderr(&mut task(&project, &["finish"]));
+    assert!(stderr.contains("critérios"), "{stderr}");
+    assert!(!exists(&project, &format!("{FOLDER}/mudancas.json")));
+    let state = read(&project, &format!("{FOLDER}/estado.yml"));
+    assert!(!state.contains("\nstatus: done\n"), "{state}");
+}
+
+// --- Pasta do harness fora da diff (SPEC-063) ---
+
+/// TASK-01 em execução com base no commit inicial, que já traz dois redirecionamentos do harness.
+fn harness_changes_project(mudar: &str) -> Project {
+    let project = Project::new();
+    write(&project, "a.txt", "a\n");
+    write(&project, ".claude/agents/vostok-revisor.md", "agente\n");
+    write(&project, ".agents/skills/x/SKILL.md", "skill\n");
+    init_git(&project);
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(project.root())
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    let head = String::from_utf8(output.stdout).unwrap().trim().to_string();
+    write(
+        &project,
+        &format!("{FOLDER}/estado.yml"),
+        &format!("id: TASK-01\ntitle: \"Primeira\"\nstatus: in_progress\ndepends_on: []\nbaseline_commit: {head}\nbaseline_dirty: []\n"),
+    );
+    write(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        &format!("### Mudar\n\n{mudar}"),
+    );
+    project
+}
+
+fn changed_paths(report: &serde_json::Value) -> Vec<String> {
+    report["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|file| file["path"].as_str().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn mudancas_harness_fica_fora_menos_o_que_esta_no_mudar() {
+    let project = harness_changes_project(
+        "- `a.txt` (alterar): muda.\n- `vostok/rules/project/regra.md` (criar): regra.\n- `vostok/work/notas.md` (criar): notas.\n",
+    );
+    write(&project, "a.txt", "b\n");
+    write(&project, "vostok/rules/project/regra.md", "regra\n");
+    write(&project, "vostok/work/notas.md", "notas\n");
+    append(&project, "vostok/config/tasks.yml", "\n# x\n");
+    write(&project, ".claude/agents/vostok-revisor.md", "outro\n");
+    write(&project, ".agents/skills/x/SKILL.md", "outra\n");
+    write(&project, ".claude/skills/y/SKILL.md", "nova\n");
+    write(&project, ".codex/agents/vostok-revisor.toml", "x = 1\n");
+    let report = changes_report(&project);
+    assert_eq!(
+        changed_paths(&report),
+        ["a.txt", "vostok/rules/project/regra.md"],
+        "{report}"
+    );
+    let added: u64 = report["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|file| file["added"].as_u64().unwrap())
+        .sum();
+    assert_eq!(report["added"], added, "{report}");
+}
+
+#[test]
+fn mudancas_harness_redirecionamento_no_mudar_aparece() {
+    let project =
+        harness_changes_project("- `.claude/agents/vostok-revisor.md` (alterar): agente.\n");
+    write(&project, ".claude/agents/vostok-revisor.md", "outro\n");
+    write(&project, ".agents/skills/x/SKILL.md", "outra\n");
+    let report = changes_report(&project);
+    assert_eq!(
+        changed_paths(&report),
+        [".claude/agents/vostok-revisor.md"],
+        "{report}"
+    );
+}
+
+#[test]
+fn mudancas_harness_so_harness_alterado_responde_sem_mudancas() {
+    let project = harness_changes_project("- `a.txt` (alterar): muda.\n");
+    append(&project, "vostok/config/tasks.yml", "\n# x\n");
+    let report = changes_report(&project);
+    assert_eq!(report["reason"], "sem_mudancas", "{report}");
+    assert_eq!(report["files"], serde_json::json!([]), "{report}");
+    assert_eq!(report["added"], 0, "{report}");
+}
+
 #[test]
 fn finish_records_implemented_in_the_status_history() {
     let project = running_task(&[("a.txt", "a\n")]);
@@ -8653,5 +8902,366 @@ fn revisor_ajuste_sem_opcao_mantem_agente() {
     assert!(
         content.contains("| agente | Passo esclarecido |"),
         "{content}"
+    );
+}
+
+// --- Diff da tarefa (SPEC-063) ---
+
+fn put_file(root: &Path, relative: &str, content: &[u8]) {
+    let path = root.join(relative);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, content).unwrap();
+}
+
+fn changes_repo(files: &[(&str, &[u8])]) -> TempDir {
+    let repo = TempDir::new().unwrap();
+    for (name, content) in files {
+        put_file(repo.path(), name, content);
+    }
+    git(repo.path(), &["init", "-q"]);
+    git(repo.path(), &["add", "-A"]);
+    git(repo.path(), &["commit", "-qm", "base"]);
+    repo
+}
+
+fn changes_head(root: &Path) -> String {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn change_paths(changes: &[vostok::changes::FileChange]) -> Vec<&str> {
+    changes.iter().map(|change| change.path.as_str()).collect()
+}
+
+#[test]
+fn changes_rs_lists_modified_created_and_removed_files() {
+    let repo = changes_repo(&[("a.txt", b"um\n"), ("b.txt", b"b\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    put_file(root, "a.txt", b"dois\n");
+    std::fs::remove_file(root.join("b.txt")).unwrap();
+    put_file(root, "c.txt", b"c\n");
+    git(root, &["add", "c.txt"]);
+    let changes = task_changes(root, &base, &[], &[]).unwrap();
+    assert_eq!(change_paths(&changes), ["a.txt", "b.txt", "c.txt"]);
+    let summary: Vec<_> = changes
+        .iter()
+        .map(|change| (change.action, change.added, change.removed, change.before))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            (ChangeAction::Modified, 1, 1, false),
+            (ChangeAction::Removed, 0, 1, false),
+            (ChangeAction::Created, 1, 0, false),
+        ]
+    );
+    for change in &changes {
+        assert!(!change.hunks.is_empty(), "{change:?}");
+        assert!(change.hunks.iter().all(|hunk| hunk.starts_with("@@")));
+    }
+    assert_eq!(ChangeAction::Modified.label(), "alterado");
+    assert_eq!(ChangeAction::Created.label(), "criado");
+    assert_eq!(ChangeAction::Removed.label(), "removido");
+    assert_eq!(ChangeAction::Binary.label(), "binário");
+}
+
+#[test]
+fn changes_rs_untracked_file_counts_as_created_in_full() {
+    let repo = changes_repo(&[("a.txt", b"um\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    put_file(root, "novo.txt", b"x\ny\n");
+    let changes = task_changes(root, &base, &[], &[]).unwrap();
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    let change = &changes[0];
+    assert_eq!(change.path, "novo.txt");
+    assert_eq!(change.action, ChangeAction::Created);
+    assert_eq!((change.added, change.removed), (2, 0));
+    assert_eq!(change.hunks.len(), 1);
+    assert!(
+        change.hunks[0].contains("\n+x\n+y"),
+        "{:?}",
+        change.hunks[0]
+    );
+}
+
+#[test]
+fn changes_rs_binary_file_has_no_hunks() {
+    let repo = changes_repo(&[("img.bin", &[0u8, 1, 2])]);
+    let root = repo.path();
+    let base = changes_head(root);
+    put_file(root, "img.bin", &[0u8, 9, 9]);
+    put_file(root, "novo.bin", &[0u8, 7]);
+    let changes = task_changes(root, &base, &[], &[]).unwrap();
+    assert_eq!(change_paths(&changes), ["img.bin", "novo.bin"]);
+    for change in &changes {
+        assert_eq!(change.action, ChangeAction::Binary, "{change:?}");
+        assert_eq!((change.added, change.removed), (0, 0));
+        assert!(change.hunks.is_empty());
+    }
+}
+
+#[test]
+fn changes_rs_rename_becomes_removed_and_created() {
+    let repo = changes_repo(&[("velho.txt", b"um\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    git(root, &["mv", "velho.txt", "novo.txt"]);
+    let changes = task_changes(root, &base, &[], &[]).unwrap();
+    let actions: Vec<_> = changes
+        .iter()
+        .map(|change| (change.path.as_str(), change.action))
+        .collect();
+    assert_eq!(
+        actions,
+        [
+            ("novo.txt", ChangeAction::Created),
+            ("velho.txt", ChangeAction::Removed)
+        ]
+    );
+}
+
+#[test]
+fn changes_rs_commit_after_base_still_belongs_to_the_task() {
+    let repo = changes_repo(&[("a.txt", b"um\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    put_file(root, "a.txt", b"um\ndois\n");
+    git(root, &["commit", "-qam", "mudança"]);
+    put_file(root, "a.txt", b"um\ndois\ntres\n");
+    let changes = task_changes(root, &base, &[], &[]).unwrap();
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    let change = &changes[0];
+    assert_eq!(change.path, "a.txt");
+    assert_eq!(change.action, ChangeAction::Modified);
+    assert_eq!((change.added, change.removed), (2, 0));
+    let hunks = change.hunks.join("\n");
+    assert!(
+        hunks.contains("+dois") && hunks.contains("+tres"),
+        "{hunks}"
+    );
+}
+
+#[test]
+fn changes_rs_skips_harness_work_and_excluded_paths() {
+    let repo = changes_repo(&[("base.txt", b"b\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    for name in [
+        "vostok/work/tasks/x.md",
+        "outra.txt",
+        "comum.txt",
+        "livre.txt",
+        "outra-spec.txt",
+    ] {
+        put_file(root, name, b"x\n");
+    }
+    let changes = task_changes(root, &base, &[], &["outra.txt".to_string()]).unwrap();
+    assert_eq!(
+        change_paths(&changes),
+        ["comum.txt", "livre.txt", "outra-spec.txt"]
+    );
+}
+
+#[test]
+fn changes_rs_dirty_files_hashes_changed_and_untracked() {
+    let repo = changes_repo(&[
+        ("a.txt", b"a\n"),
+        ("b.txt", b"b\n"),
+        (".gitignore", b"ignorado.txt\n"),
+    ]);
+    let root = repo.path();
+    put_file(root, "a.txt", b"a2\n");
+    std::fs::remove_file(root.join("b.txt")).unwrap();
+    put_file(root, "novo.txt", b"n\n");
+    put_file(root, "ignorado.txt", b"i\n");
+    put_file(root, "vostok/work/y.md", b"y\n");
+    assert_eq!(
+        dirty_files(root).unwrap(),
+        vec![
+            ("a.txt".to_string(), sha256_hex(b"a2\n")),
+            ("b.txt".to_string(), "-".to_string()),
+            ("novo.txt".to_string(), sha256_hex(b"n\n")),
+        ]
+    );
+}
+
+#[test]
+fn changes_rs_dirty_unchanged_is_dropped_and_changed_is_marked_before() {
+    let repo = changes_repo(&[("a.txt", b"a\n"), ("b.txt", b"b\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    put_file(root, "a.txt", b"a2\n");
+    put_file(root, "b.txt", b"b2\n");
+    let dirty = dirty_files(root).unwrap();
+    put_file(root, "b.txt", b"b2\nb3\n");
+    let changes = task_changes(root, &base, &dirty, &[]).unwrap();
+    assert_eq!(changes.len(), 1, "{changes:?}");
+    let change = &changes[0];
+    assert_eq!(change.path, "b.txt");
+    assert!(change.before);
+    assert_eq!((change.added, change.removed), (2, 1));
+    let hunks = change.hunks.join("\n");
+    assert!(
+        hunks.contains("-b\n+b2\n+b3"),
+        "a diff vai desde a base: {hunks}"
+    );
+}
+
+#[test]
+fn changes_rs_clean_tree_has_no_changes() {
+    let repo = changes_repo(&[("a.txt", b"a\n")]);
+    let root = repo.path();
+    let base = changes_head(root);
+    assert!(task_changes(root, &base, &[], &[]).unwrap().is_empty());
+    assert!(dirty_files(root).unwrap().is_empty());
+}
+
+#[test]
+fn changes_rs_invalid_base_is_an_error() {
+    let repo = changes_repo(&[("a.txt", b"a\n")]);
+    let result = task_changes(
+        repo.path(),
+        "0000000000000000000000000000000000000001",
+        &[],
+        &[],
+    );
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn changes_rs_change_item_reads_the_mudar_line() {
+    assert_eq!(
+        change_item("- `a.rs` (alterar): motivo"),
+        Some(("alterar".into(), "a.rs".into()))
+    );
+    assert_eq!(change_item("- `a.rs` (Alterar)"), None);
+    assert_eq!(change_item("- `` (criar)"), None);
+    assert_eq!(change_item("texto"), None);
+}
+
+#[test]
+fn changes_rs_project_in_subfolder() {
+    let repo = changes_repo(&[
+        ("fora.txt", b"f\n"),
+        ("sub/a.txt", b"a\n"),
+        ("sub/b.txt", b"b\n"),
+    ]);
+    let root = repo.path().join("sub");
+    put_file(&root, "b.txt", b"b2\n");
+    let dirty = dirty_files(&root).unwrap();
+    put_file(&root, "a.txt", b"a2\n");
+    put_file(repo.path(), "fora.txt", b"f2\n");
+    put_file(&root, "novo.txt", b"n\n");
+    put_file(&root, "vostok/work/x.md", b"x\n");
+    put_file(repo.path(), "vostok/work/z.md", b"z\n");
+    assert_eq!(dirty, vec![("b.txt".to_string(), sha256_hex(b"b2\n"))]);
+    let changes = task_changes(&root, &changes_head(repo.path()), &dirty, &[]).unwrap();
+    let actions: Vec<_> = changes
+        .iter()
+        .map(|change| (change.path.as_str(), change.action))
+        .collect();
+    assert_eq!(
+        actions,
+        [
+            ("a.txt", ChangeAction::Modified),
+            ("novo.txt", ChangeAction::Created)
+        ]
+    );
+}
+
+#[test]
+fn changes_rs_beginning_records_baseline_dirty() {
+    let project = folder_task("pending");
+    write(&project, "antes.txt", "a\n");
+    init_git(&project);
+    write(&project, "antes.txt", "b\n");
+    write(&project, "solto.txt", "s\n");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    let state = read(&project, &format!("{FOLDER}/estado.yml"));
+    let expected = format!(
+        "\nbaseline_dirty: [antes.txt={}, solto.txt={}]\n",
+        sha256_hex(b"b\n"),
+        sha256_hex(b"s\n")
+    );
+    assert!(state.contains(&expected), "{state}");
+    assert!(state.contains("\nbaseline_commit: "), "{state}");
+}
+
+// --- Frases congeladas na conclusão (SPEC-063) ---
+
+const FRASES_LINES: &str = "linha01\nlinha02\nlinha03\nlinha04\nlinha05\nlinha06\nlinha07\nlinha08\nlinha09\nlinha10\nlinha11\nlinha12\nlinha13\nlinha14\nlinha15\nlinha16\nlinha17\nlinha18\nlinha19\nlinha20\n";
+
+/// Como `changes_validated`, com `linhas.txt` de 20 linhas no lugar de `outro.txt`.
+fn frases_validated() -> Project {
+    let project = folder_task("pending");
+    write(&project, "linhas.txt", FRASES_LINES);
+    init_git(&project);
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    write(&project, "novo.txt", "um\n");
+    let changed = FRASES_LINES
+        .replace("linha01\n", "LINHA01\n")
+        .replace("linha20\n", "LINHA20\n");
+    write(&project, "linhas.txt", &changed);
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    task(&project, &["evidence"]).assert().success();
+    write(
+        &project,
+        "vostok/work/specs/refined/SPEC-001-exemplo.md",
+        "---\nid: SPEC-001\ntitle: \"Exemplo\"\nstatus: planned\nupdated_at: null\n---\n\n# Exemplo\n",
+    );
+    append(&project, &format!("{FOLDER}/executivo.md"), "\nEntregue.\n");
+    append(&project, &format!("{FOLDER}/tecnico.md"), "\nFeito.\n");
+    project
+}
+
+fn frozen_file(project: &Project, path: &str) -> serde_json::Value {
+    frozen_changes(project)["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|file| file["path"] == path)
+        .cloned()
+        .unwrap_or_else(|| panic!("sem {path} no mudancas.json"))
+}
+
+#[test]
+fn frases_conclusao_congela_as_frases_no_json() {
+    let project = frases_validated();
+    mark_criteria(&project);
+    write(
+        &project,
+        &format!("{FOLDER}/frases.json"),
+        r#"{"linhas.txt":{"@@ -17,4 +17,4 @@":"A última linha muda."}}"#,
+    );
+    task(&project, &["finish"]).assert().success();
+    assert_eq!(
+        frozen_file(&project, "linhas.txt")["notes"],
+        serde_json::json!([null, "A última linha muda."])
+    );
+    assert_eq!(
+        frozen_file(&project, "novo.txt")["notes"],
+        serde_json::json!([null])
+    );
+    write(&project, &format!("{FOLDER}/frases.json"), "{}");
+    assert_eq!(changes_report(&project), frozen_changes(&project));
+    assert_eq!(
+        frozen_file(&project, "linhas.txt")["notes"][1],
+        "A última linha muda."
     );
 }

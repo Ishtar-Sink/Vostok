@@ -149,6 +149,7 @@ pub fn route(painel: &Painel, parts: &[&str], query: &str) -> Option<Reply> {
         ["api", "specs", id] => layout.spec(id),
         ["api", "planos", id] => layout.plan(id),
         ["api", "tarefas", spec, task] => layout.task(spec, task),
+        ["api", "tarefas", spec, task, "mudancas"] => layout.task_changes(spec, task),
         ["api", "configuracoes", "evidencias"] => layout.evidence_settings(),
         ["api", "arquivo"] => layout.file(&query_value(query, "caminho")),
         ["api", "fonte"] => layout.source(&query_value(query, "caminho")),
@@ -378,9 +379,8 @@ impl Layout<'_> {
         )))
     }
 
-    fn task(&self, spec: &str, task: &str) -> Result<Reply, Reply> {
-        let spec = safe_segment(spec)?;
-        let task = safe_segment(task)?;
+    /// Pasta da tarefa e se ela está arquivada; 404 sem `estado.yml`.
+    fn task_dir(&self, spec: &str, task: &str) -> Result<(PathBuf, bool), Reply> {
         let open = self.tasks.join(spec).join(task);
         let archived = !open.is_dir();
         let dir = if archived {
@@ -391,6 +391,27 @@ impl Layout<'_> {
         if !dir.join("estado.yml").is_file() {
             return Err(not_found());
         }
+        Ok((dir, archived))
+    }
+
+    /// Diff da tarefa desde o commit base, ou a congelada na conclusão (SPEC-063).
+    fn task_changes(&self, spec: &str, task: &str) -> Result<Reply, Reply> {
+        let spec = safe_segment(spec)?;
+        let task = safe_segment(task)?;
+        self.task_dir(spec, task)?;
+        let report = crate::changes::report(&self.harness(), spec, task).map_err(|error| {
+            text(
+                500,
+                &format!("não foi possível calcular as mudanças: {error}"),
+            )
+        })?;
+        Ok(json(report.to_string()))
+    }
+
+    fn task(&self, spec: &str, task: &str) -> Result<Reply, Reply> {
+        let spec = safe_segment(spec)?;
+        let task = safe_segment(task)?;
+        let (dir, archived) = self.task_dir(spec, task)?;
         let files: Vec<String> = TASK_FILES
             .iter()
             .map(|name| {

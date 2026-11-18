@@ -2607,3 +2607,46 @@ fn extend_approve_initial_plan_still_refuses_existing_folder() {
         "{stderr}"
     );
 }
+
+// --- Trecho e Falha terminados em `=` ou `:` (SPEC-066) ---
+
+fn plan_with_snippets(trecho: &str, falha: &str) -> (bool, String) {
+    let project = Project::new();
+    let evidence = format!(
+        "- `saida.txt` (automática): `echo ok`\n  - Título: Saída do comando.\n  - Prova: ok.\n  - Trecho: {trecho}\n  - Falha: {falha}"
+    );
+    plan_task_with(&project, "true", &evidence);
+    approve_validate(&project)
+}
+
+#[test]
+fn trecho_termina_em_igual_e_recusado() {
+    let (ok, text) = plan_with_snippets("`ITEM parada ms=`", "se aparecer `fail=1`");
+    assert!(!ok, "{text}");
+    assert!(text.contains("EV-01 saida.txt"), "{text}");
+    assert!(text.contains("`ITEM parada ms=`"), "{text}");
+    assert!(text.contains("`ITEM parada ms=...`"), "{text}");
+}
+
+#[test]
+fn trecho_termina_em_dois_pontos_e_recusado() {
+    let (ok, text) = plan_with_snippets("`Resumo:`", "se aparecer `fail=1`");
+    assert!(!ok, "{text}");
+    assert!(text.contains("`Resumo:...`"), "{text}");
+}
+
+#[test]
+fn trecho_termina_falha_em_igual_e_recusada() {
+    let (ok, text) = plan_with_snippets("`fail=0`", "se aparecer `fail=`");
+    assert!(!ok, "{text}");
+    assert!(text.contains("a Falha cita `fail=`"), "{text}");
+    assert!(text.contains("valor errado literal"), "{text}");
+}
+
+#[test]
+fn trecho_termina_aceita_valor_e_curinga() {
+    for trecho in ["`ITEM parada ms=...`", "`fail=0`", "`ms=92 classe=a`"] {
+        let (ok, text) = plan_with_snippets(trecho, "se aparecer `fail=1`");
+        assert!(ok, "{trecho}: {text}");
+    }
+}

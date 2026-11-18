@@ -8541,3 +8541,89 @@ fn marca_criterios_arquivo_unico() {
     mark(&project, &["1"]).assert().success();
     assert!(read(&project, TASK_PATH).contains("- [x] Pronto."));
 }
+
+// --- Trecho com valor depois e rodada avisada (SPEC-066) ---
+
+const MAIOR_VERIFICATION: &str =
+    "# evidência: resultado.txt\nprintf 'ITEM parada ms=92.58 classe=a\\nTEST DONE fail=0\\n'";
+
+fn maior_evidence(trecho: &str) -> String {
+    format!("- `resultado.txt` (automática, da verificação)\n  - Prova: p.\n  - Trecho: {trecho}\n  - Falha: se aparecer `fail=1`")
+}
+
+fn ahead_output(project: &Project) -> String {
+    let output = ahead(project).assert().success().get_output().clone();
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+}
+
+#[test]
+fn trecho_termina_recusado_no_ajuste() {
+    let project = task_with_evidence(
+        "pending",
+        "- `saida.txt` (automática): `echo ok`\n  - Título: Saída.\n  - Prova: p.\n  - Trecho: `ITEM parada ms=`\n  - Falha: se aparecer `fail=1`",
+    );
+    let stderr = failure_stderr(&mut nested(&project, "adjust", "validate"));
+    assert!(stderr.contains("`ITEM parada ms=...`"), "{stderr}");
+}
+
+#[test]
+fn trecho_maior_explica_a_linha() {
+    let project = labeled_task(
+        MAIOR_VERIFICATION,
+        &maior_evidence("`ITEM parada ms=` e `fail=0`"),
+    );
+    let output = ahead_output(&project);
+    assert!(
+        output.contains("Trecho não apareceu: `ITEM parada ms=`"),
+        "{output}"
+    );
+    assert!(
+        output.contains("aparece só dentro de um texto maior"),
+        "{output}"
+    );
+    assert!(output.contains("ITEM parada ms=92.58 classe=a"), "{output}");
+    assert!(output.contains("`ITEM parada ms=...`"), "{output}");
+}
+
+#[test]
+fn trecho_maior_nao_aparece_quando_ausente() {
+    let project = labeled_task(MAIOR_VERIFICATION, &maior_evidence("`nada disso`"));
+    let output = ahead_output(&project);
+    assert!(
+        output.contains("Trecho não apareceu: `nada disso`"),
+        "{output}"
+    );
+    assert!(!output.contains("texto maior"), "{output}");
+}
+
+#[test]
+fn rodada_avisada_no_antecipada() {
+    let project = labeled_task(
+        MAIOR_VERIFICATION,
+        &maior_evidence("`ITEM parada ms=` e `fail=0`"),
+    );
+    task(&project, &["check"]).assert().success();
+    let output = ahead_output(&project);
+    assert!(
+        output.contains("Evidências da verificação geradas da rodada de "),
+        "{output}"
+    );
+    assert!(
+        output.contains("rode vostok task check SPEC-001 TASK-01 de novo"),
+        "{output}"
+    );
+}
+
+#[test]
+fn rodada_avisada_nao_sem_rodada() {
+    let project = labeled_task(
+        MAIOR_VERIFICATION,
+        &maior_evidence("`ITEM parada ms=` e `fail=0`"),
+    );
+    let output = ahead_output(&project);
+    assert!(!output.contains("geradas da rodada de"), "{output}");
+}

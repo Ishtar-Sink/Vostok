@@ -15,10 +15,11 @@ use clap::Subcommand;
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{
-    condition_near, config_get, config_list, evidence_subitem, evidence_subitem_errors,
-    excerpt_holding, find_lines, frontmatter_get, frontmatter_lines, frontmatter_set, is_indented,
-    markdown_section, markdown_subsection, render, sha256_hex, snippets_of, template_leftovers,
-    unsearchable, yaml_escape, EvidenceFields, EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD,
+    condition_near, config_get, config_list, containing_line, evidence_subitem,
+    evidence_subitem_errors, excerpt_holding, find_lines, frontmatter_get, frontmatter_lines,
+    frontmatter_set, is_indented, markdown_section, markdown_subsection, render, sha256_hex,
+    snippets_of, template_leftovers, unsearchable, yaml_escape, EvidenceFields,
+    EVIDENCE_PROOF_FIELD, EVIDENCE_SHOWS_FIELD,
 };
 
 #[derive(Debug, Subcommand)]
@@ -3031,6 +3032,7 @@ impl Tasks {
             failed,
             kept,
             changed,
+            ..
         } = self.generate_evidences(&file, &content, &dir, reviewed, false)?;
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
@@ -3252,14 +3254,26 @@ impl Tasks {
             "Evidências antecipadas de {task}: {} gerada(s).",
             entries.len()
         );
+        if let Some(at) = &generated.reused_at {
+            println!("Evidências da verificação geradas da rodada de {at}, sem rodar os comandos rotulados.");
+        }
         print_kept_and_changed(&generated.kept, &generated.changed);
-        for line in snippet_warnings(
+        let warnings = snippet_warnings(
             &entries,
             &dir,
             Which::TrechoAndFalha,
             &self.evidence_print(),
-        ) {
+        );
+        for line in &warnings {
             println!("{line}");
+        }
+        if let Some(at) = &generated.reused_at {
+            if warnings
+                .iter()
+                .any(|line| line.contains("Trecho não apareceu"))
+            {
+                println!("As evidências vieram da rodada de {at}: se mudou o que a Verificação lê, rode vostok task check {spec} {task} de novo.");
+            }
         }
         if !pending.is_empty() {
             println!("Evidências a conferir (mostre ao usuário e, com a resposta dele, execute vostok task evidence {spec} {task} --reviewed <EV-NN|arquivo> ou --rejected <EV-NN|arquivo> --motivo \"...\"):");
@@ -3404,11 +3418,12 @@ impl Tasks {
         let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
         let rows = self.record_rows(content)?;
         let reviews = self.reviews(file, content)?;
-        let run_outputs = if ahead && self.valid_run(file)?.is_some() {
-            Some(self.verify_dir(file)?)
-        } else {
-            None
+        let valid_run = if ahead { self.valid_run(file)? } else { None };
+        let run_outputs = match &valid_run {
+            Some(_) => Some(self.verify_dir(file)?),
+            None => None,
         };
+        let mut reused_at: Option<String> = None;
         for (index, item) in items.iter().enumerate() {
             if let Some(name) = evidence_name(item, &from_verify) {
                 match self.review_kept(&rows, &reviews, dir, &evidence_id(index), name)? {
@@ -3443,6 +3458,7 @@ impl Tasks {
                     log.extend_from_slice(&output);
                     fs::write(dir.join(name), log)?;
                     outputs.push((name.to_string(), output));
+                    reused_at = valid_run.as_ref().map(|run| run.at.clone());
                     continue;
                 }
                 if ahead {
@@ -3577,6 +3593,7 @@ impl Tasks {
             failed,
             kept,
             changed,
+            reused_at,
         })
     }
 
@@ -8682,6 +8699,7 @@ struct Generated {
     failed: String,
     kept: Vec<String>,
     changed: Vec<String>,
+    reused_at: Option<String>,
 }
 
 /// Evidências do texto de "Evidências" com os subitens de cada uma.
@@ -8764,7 +8782,13 @@ pub(crate) fn snippet_warnings(
                         found.push(format!("- {field} não dá para buscar: `{text}` ({reason})"));
                     }
                 } else if is_trecho && !matches {
-                    found.push(format!("- Trecho não apareceu: `{text}`"));
+                    found.push(match containing_line(&log, &text) {
+                        Some((index, line)) => {
+                            let shown: String = line.chars().take(80).collect();
+                            format!("- Trecho não apareceu: `{text}`; aparece só dentro de um texto maior na linha {} (`{shown}`); use `{text}...` ou o texto com o valor", index + 1)
+                        }
+                        None => format!("- Trecho não apareceu: `{text}`"),
+                    });
                 } else if !is_trecho && matches {
                     found.push(match which {
                         Which::TrechoAndFalha => format!("- Falha apareceu: `{text}`"),
@@ -8791,6 +8815,17 @@ pub(crate) fn snippet_warnings(
     lines
 }
 
+/// O `=` ou `:` em que um texto buscável termina, quando o valor viria depois dele.
+fn value_expected_after(text: &str) -> Option<char> {
+    if !unsearchable(text).is_empty() {
+        return None;
+    }
+    text.trim_end()
+        .chars()
+        .next_back()
+        .filter(|c| matches!(c, '=' | ':'))
+}
+
 /// Erros e avisos da `Falha` de cada evidência: o texto que já está no `Trecho` recusa; a condição
 /// sobre o valor só avisa.
 pub(crate) fn falha_problems(entries: &[EvidenceEntry]) -> (Vec<String>, Vec<String>) {
@@ -8799,8 +8834,17 @@ pub(crate) fn falha_problems(entries: &[EvidenceEntry]) -> (Vec<String>, Vec<Str
         let trecho = entry.fields.get("Trecho").map_or("", String::as_str);
         let falha = entry.fields.get("Falha").map_or("", String::as_str);
         let id = format!("{} {}", evidence_id(index), entry.name);
+        for text in snippets_of(trecho) {
+            if let Some(end) = value_expected_after(&text) {
+                errors.push(format!("{id}: o Trecho cita `{text}`, que termina em '{end}'; a busca exige palavra inteira e não acha o texto seguido de um valor; use `{text}...` ou o texto com o valor"));
+            }
+        }
         for text in snippets_of(falha) {
             if !unsearchable(&text).is_empty() {
+                continue;
+            }
+            if let Some(end) = value_expected_after(&text) {
+                errors.push(format!("{id}: a Falha cita `{text}`, que termina em '{end}' e nunca acusaria; escreva entre crases o valor errado literal"));
                 continue;
             }
             if let Some(excerpt) = excerpt_holding(trecho, &text) {

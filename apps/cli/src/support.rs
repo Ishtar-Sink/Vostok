@@ -894,6 +894,30 @@ fn line_matches(text: &str, wanted: &[&str], word_before: bool, word_after: bool
     find_part(text, wanted[last], cursor, false, word_after).is_some()
 }
 
+/// Primeira linha do log (índice e texto normalizado) em que as partes do texto aparecem em ordem,
+/// sem exigir palavra inteira nas pontas.
+pub fn containing_line(log: &str, snippet: &str) -> Option<(usize, String)> {
+    let parts: Vec<String> = snippet
+        .split("...")
+        .flat_map(|p| p.split('…'))
+        .map(normalize)
+        .collect();
+    let wanted: Vec<&str> = parts
+        .iter()
+        .map(String::as_str)
+        .filter(|p| !p.is_empty())
+        .collect();
+    if wanted.is_empty() {
+        return None;
+    }
+    let raw: Vec<&str> = log.split('\n').collect();
+    raw.iter()
+        .enumerate()
+        .skip(header_length(&raw))
+        .map(|(index, line)| (index, normalize(line)))
+        .find(|(_, text)| line_matches(text, &wanted, false, false))
+}
+
 /// Índices das linhas do log que o texto do Trecho ou da Falha aponta, pela mesma regra do painel (RF-22).
 pub fn find_lines(log: &str, snippet: &str) -> Vec<usize> {
     let parts: Vec<String> = snippet
@@ -1054,6 +1078,16 @@ mod snippet_tests {
 
     const CASES: &str = include_str!("../../painel/src/features/task/snippet-cases.json");
     const HEADER: &str = "$ cmd\n# data: d\n# commit: c\n# código de saída: 0\n";
+
+    #[test]
+    fn snippet_containing_line_ignores_word_edges() {
+        let log = format!("{HEADER}ITEM parada ms=92.58");
+        assert_eq!(
+            containing_line(&log, "ITEM parada ms="),
+            Some((4, "ITEM parada ms=92.58".to_string()))
+        );
+        assert!(find_lines(&log, "ITEM parada ms=").is_empty());
+    }
 
     #[test]
     fn snippet_shared_cases_match_the_painel() {

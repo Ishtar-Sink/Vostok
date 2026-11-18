@@ -680,12 +680,13 @@ fn refined_errors(specs: &Specs, file: &Path) -> Result<Vec<String>> {
             &content,
             &specs.project_root()?.display().to_string(),
             &rows_of("affected-components")?,
+            &disk_check(specs, file)?,
         ));
     }
     Ok(errors)
 }
 
-fn component_errors(content: &str, root: &str, rows: &[String]) -> Vec<String> {
+fn component_errors(content: &str, root: &str, rows: &[String], check: &DiskCheck) -> Vec<String> {
     let components: Vec<(String, String)> = rows
         .iter()
         .map(|row| {
@@ -711,13 +712,14 @@ fn component_errors(content: &str, root: &str, rows: &[String]) -> Vec<String> {
             ));
             continue;
         }
-        let exists = Path::new(&format!("{root}/{path}")).exists();
-        if action == "criar" && exists {
-            errors.push(format!("'{path}' já existe; use a ação 'alterar'"));
-        } else if action != "criar" && !exists {
-            errors.push(format!(
+        match check.existed(root, path) {
+            Some(true) if action == "criar" => {
+                errors.push(format!("'{path}' já existe; use a ação 'alterar'"));
+            }
+            Some(false) if action != "criar" => errors.push(format!(
                 "'{path}' não existe em {root}; use a ação 'criar' ou corrija o caminho"
-            ));
+            )),
+            _ => {}
         }
         let folder = trim_trailing_slashes(path);
         if folder.is_empty() {
@@ -733,6 +735,112 @@ fn component_errors(content: &str, root: &str, rows: &[String]) -> Vec<String> {
         }
     }
     errors
+}
+
+const APPROVED_DISK_FIELD: &str = "approved_disk";
+const DISK_PRESENT: &str = "existe";
+const DISK_ABSENT: &str = "ausente";
+
+/// De onde vem a existência de cada componente. O disco atual deixa de servir depois que as
+/// tarefas criam e apagam os caminhos da spec (SPEC-068).
+enum DiskCheck {
+    Current,
+    Snapshot(Vec<(String, bool)>),
+    Skip,
+}
+
+impl DiskCheck {
+    /// A existência do caminho para a conferência da ação; `None` quando ela não roda.
+    fn existed(&self, root: &str, path: &str) -> Option<bool> {
+        let on_disk = || Path::new(&format!("{root}/{path}")).exists();
+        match self {
+            DiskCheck::Skip => None,
+            DiskCheck::Snapshot(entries) => Some(
+                entries
+                    .iter()
+                    .find(|(entry, _)| entry == path)
+                    .map_or_else(on_disk, |(_, existed)| *existed),
+            ),
+            DiskCheck::Current => Some(on_disk()),
+        }
+    }
+}
+
+/// O retrato gravado na aprovação; `None` quando a chave não existe, mesmo com a lista `[]`.
+fn approved_disk(file: &Path) -> Option<Vec<(String, bool)>> {
+    frontmatter_get(file, APPROVED_DISK_FIELD).ok()?;
+    Some(
+        id_list_field(file, APPROVED_DISK_FIELD)
+            .iter()
+            .filter_map(|item| item.rsplit_once('='))
+            .map(|(path, value)| (path.to_string(), value == DISK_PRESENT))
+            .collect(),
+    )
+}
+
+fn tasks_folder_exists(specs: &Specs, file: &Path) -> Result<bool> {
+    Ok(specs
+        .harness
+        .path("tasks")?
+        .join(frontmatter_get(file, "id")?)
+        .is_dir())
+}
+
+fn disk_check(specs: &Specs, file: &Path) -> Result<DiskCheck> {
+    Ok(match approved_disk(file) {
+        Some(entries) => DiskCheck::Snapshot(entries),
+        None if tasks_folder_exists(specs, file)? => DiskCheck::Skip,
+        None => DiskCheck::Current,
+    })
+}
+
+/// Caminho e ação de cada linha de "Componentes afetados", sem as linhas `-`.
+fn affected_components(specs: &Specs, file: &Path) -> Result<Vec<(String, String)>> {
+    let heading = specs.section_heading("affected-components")?;
+    let content = fs::read_to_string(file)?;
+    Ok(markdown_section(&content, &heading)
+        .map(|text| markdown_table_rows(&text))
+        .unwrap_or_default()
+        .iter()
+        .map(|row| {
+            (
+                markdown_cell(row, 1).replace('`', ""),
+                markdown_cell(row, 2),
+            )
+        })
+        .filter(|(path, _)| path != "-")
+        .collect())
+}
+
+/// Grava ou completa o retrato: entradas gravadas nunca mudam, e só os componentes novos entram.
+fn record_approved_disk(specs: &Specs, file: &Path) -> Result<()> {
+    let root = specs.project_root()?;
+    let stored = approved_disk(file);
+    let by_action = stored.is_none() && tasks_folder_exists(specs, file)?;
+    let mut entries = stored.unwrap_or_default();
+    for (path, action) in affected_components(specs, file)? {
+        if entries.iter().any(|(entry, _)| *entry == path) {
+            continue;
+        }
+        let existed = if by_action {
+            action != "criar"
+        } else {
+            root.join(&path).exists()
+        };
+        entries.push((path, existed));
+    }
+    let items: Vec<String> = entries
+        .iter()
+        .map(|(path, existed)| {
+            let value = if *existed { DISK_PRESENT } else { DISK_ABSENT };
+            format!("{path}={value}")
+        })
+        .collect();
+    frontmatter_put(
+        file,
+        APPROVED_DISK_FIELD,
+        &format!("[{}]", items.join(", ")),
+    )
 }
 
 /// Caminhos entre crases (fechadas, sem espaço, com `/`) fora de blocos de código.
@@ -1351,6 +1459,7 @@ fn approve(specs: &Specs, spec_id: &str) -> Result<()> {
 
     let now = utc_now();
     let hash = frontmatter_get(&refined, &specs.setting("content_hash_field")?)?;
+    record_approved_disk(specs, &refined)?;
     frontmatter_set(&refined, "status", &specs.status("approved")?)?;
     frontmatter_put(&refined, &specs.setting("approved_at_field")?, &now)?;
     frontmatter_put(&refined, &specs.setting("approved_hash_field")?, &hash)?;
@@ -1383,6 +1492,7 @@ fn reapprove(specs: &Specs, spec_id: &str, refined: &Path, changed: &[String]) -
     let now = utc_now();
     let planned = specs.status("planned")?;
     let hash = frontmatter_get(refined, &specs.setting("content_hash_field")?)?;
+    record_approved_disk(specs, refined)?;
     frontmatter_set(refined, "status", &planned)?;
     frontmatter_put(refined, &specs.setting("approved_at_field")?, &now)?;
     frontmatter_put(refined, &specs.setting("approved_hash_field")?, &hash)?;

@@ -171,6 +171,11 @@ fn approve_records_the_status_history() {
 }
 
 fn refined_spec(project: &Project) -> std::path::PathBuf {
+    refined_spec_with(project, &[])
+}
+
+/// Como `refined_spec`, com variáveis a mais para o `fill-refined.py` (`VAR=valor`).
+fn refined_spec_with(project: &Project, fill: &[&str]) -> std::path::PathBuf {
     let spec = |args: &[&str]| {
         let mut command = project.vostok();
         command.args(["spec"]).args(args);
@@ -188,6 +193,7 @@ fn refined_spec(project: &Project) -> std::path::PathBuf {
     std::process::Command::new("python3")
         .arg(filler)
         .arg(&file)
+        .args(fill)
         .status()
         .expect("preenche a spec")
         .success()
@@ -843,4 +849,246 @@ fn revisor_ajuste_grava_origem_na_spec() {
         content.contains("| revisor | Requisito esclarecido |"),
         "{content}"
     );
+}
+
+// --- Retrato do disco na aprovação (SPEC-068) ---
+
+const RETRATO_ORIGINAL: &str = "[src/novo.ext=ausente, src/velho.ext=existe]";
+
+fn retrato_spec(project: &Project) -> std::path::PathBuf {
+    existing(project, &["src/velho.ext"]);
+    refined_spec_with(
+        project,
+        &["AFFECTED_COMPONENTS=| `src/novo.ext` | criar | Motivo. |\\n| `src/velho.ext` | remover | Motivo. |"],
+    )
+}
+
+fn approved_disk(file: &std::path::Path) -> String {
+    let content = fs::read_to_string(file).unwrap();
+    content
+        .lines()
+        .find_map(|line| line.strip_prefix("approved_disk: "))
+        .unwrap_or_else(|| panic!("sem approved_disk: {content}"))
+        .to_string()
+}
+
+fn replace_in(file: &std::path::Path, from: &str, to: &str) {
+    let content = fs::read_to_string(file).unwrap();
+    assert!(content.contains(from), "sem '{from}': {content}");
+    fs::write(file, content.replacen(from, to, 1)).unwrap();
+}
+
+fn tarefas_executadas(project: &Project, file: &std::path::Path) {
+    replace_in(file, "\nstatus: approved\n", "\nstatus: planned\n");
+    fs::create_dir_all(project.harness().join("work/tasks/SPEC-001")).unwrap();
+    existing(project, &["src/novo.ext"]);
+    fs::remove_file(project.root().join("src/velho.ext")).unwrap();
+}
+
+fn sem_retrato(file: &std::path::Path) {
+    let content = fs::read_to_string(file).unwrap();
+    let kept: Vec<&str> = content
+        .split_inclusive('\n')
+        .filter(|line| !line.starts_with("approved_disk:"))
+        .collect();
+    fs::write(file, kept.concat()).unwrap();
+}
+
+fn muda_rf01(file: &std::path::Path) {
+    replace_in(file, "O sistema deve A.", "O sistema deve A, ajustado.");
+}
+
+fn adjust_validate_stderr(project: &Project) -> String {
+    failure_stderr(
+        project
+            .vostok()
+            .args(["spec", "adjust", "validate", "SPEC-001"]),
+    )
+}
+
+/// Spec aprovada cujas tarefas criaram `src/novo.ext` e apagaram `src/velho.ext`, com o RF-01 ajustado.
+fn retrato_ajustado(project: &Project) -> std::path::PathBuf {
+    let file = retrato_spec(project);
+    run_spec(project, &["approve", "approve", "SPEC-001"]);
+    tarefas_executadas(project, &file);
+    muda_rf01(&file);
+    adjust_with_ids(project, "RF-01").assert().success();
+    file
+}
+
+const VELHO_ROW: &str = "| `src/velho.ext` | remover | Motivo. |";
+
+#[test]
+fn retrato_gravado_na_aprovacao() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    assert_eq!(approved_disk(&file), RETRATO_ORIGINAL);
+}
+
+#[test]
+fn retrato_ajuste_da_spec_em_execucao_e_registrado() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    tarefas_executadas(&project, &file);
+    muda_rf01(&file);
+    let stdout = stdout_of(&mut adjust_with_ids(&project, "RF-01"));
+    assert!(stdout.contains("Ajuste 2 registrado"), "{stdout}");
+    assert_eq!(approved_disk(&file), RETRATO_ORIGINAL);
+}
+
+#[test]
+fn retrato_registro_manual_e_validacao_aceitam() {
+    let project = Project::new();
+    let file = retrato_ajustado(&project);
+    replace_in(&file, "Objetivo.", "Objetivo editado à mão.");
+    let stdout = stdout_of(
+        project
+            .vostok()
+            .args(["spec", "adjust", "record-manual", "SPEC-001"]),
+    );
+    assert!(!stdout.contains("Problemas de validação"), "{stdout}");
+    run_spec(&project, &["adjust", "validate", "SPEC-001"]);
+    assert_eq!(approved_disk(&file), RETRATO_ORIGINAL);
+}
+
+#[test]
+fn retrato_reaprovacao_sem_impedimento() {
+    let project = Project::new();
+    retrato_ajustado(&project);
+    let stdout = stdout_of(
+        project
+            .vostok()
+            .args(["spec", "approve", "validate", "SPEC-001"]),
+    );
+    assert!(stdout.contains("pode ser aprovada"), "{stdout}");
+}
+
+#[test]
+fn retrato_componente_novo_continua_conferido() {
+    let project = Project::new();
+    let file = retrato_ajustado(&project);
+    existing(&project, &["src/existente.ext"]);
+    replace_in(
+        &file,
+        VELHO_ROW,
+        &format!(
+            "{VELHO_ROW}\n{}",
+            component_row("src/existente.ext", "criar")
+        ),
+    );
+    let stderr = adjust_validate_stderr(&project);
+    assert!(
+        stderr.contains("'src/existente.ext' já existe; use a ação 'alterar'"),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("'src/novo.ext' já existe"), "{stderr}");
+}
+
+#[test]
+fn retrato_reaprovacao_com_ids_mantem_as_entradas() {
+    let project = Project::new();
+    let file = retrato_ajustado(&project);
+    existing(&project, &["src/outro.ext"]);
+    replace_in(
+        &file,
+        VELHO_ROW,
+        &format!("{VELHO_ROW}\n{}", component_row("src/outro.ext", "alterar")),
+    );
+    run_spec(&project, &["adjust", "record-manual", "SPEC-001"]);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(content.contains("\nstatus: planned\n"), "{content}");
+    assert_eq!(
+        approved_disk(&file),
+        "[src/novo.ext=ausente, src/velho.ext=existe, src/outro.ext=existe]"
+    );
+}
+
+#[test]
+fn retrato_nova_aprovacao_sem_tarefas_mantem_as_entradas() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    existing(&project, &["src/novo.ext", "src/outro.ext"]);
+    replace_in(&file, VELHO_ROW, &component_row("src/outro.ext", "alterar"));
+    run_spec(
+        &project,
+        &["adjust", "record", "SPEC-001", "Componente trocado"],
+    );
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    assert_eq!(
+        approved_disk(&file),
+        "[src/novo.ext=ausente, src/velho.ext=existe, src/outro.ext=existe]"
+    );
+}
+
+#[test]
+fn retrato_spec_antiga_com_tarefas_aceita_o_ajuste() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    sem_retrato(&file);
+    tarefas_executadas(&project, &file);
+    muda_rf01(&file);
+    adjust_with_ids(&project, "RF-01").assert().success();
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(!content.contains("approved_disk:"), "{content}");
+}
+
+#[test]
+fn retrato_spec_antiga_sem_tarefas_confere_o_disco() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    sem_retrato(&file);
+    existing(&project, &["src/novo.ext"]);
+    let stderr = adjust_validate_stderr(&project);
+    assert!(
+        stderr.contains("'src/novo.ext' já existe; use a ação 'alterar'"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn retrato_spec_antiga_ajustada_duas_vezes() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    sem_retrato(&file);
+    tarefas_executadas(&project, &file);
+    muda_rf01(&file);
+    adjust_with_ids(&project, "RF-01").assert().success();
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    assert_eq!(approved_disk(&file), RETRATO_ORIGINAL);
+    replace_in(&file, "O sistema deve B.", "O sistema deve B, ajustado.");
+    adjust_with_ids(&project, "RF-02").assert().success();
+}
+
+#[test]
+fn retrato_acao_trocada_confere_o_retrato() {
+    let project = Project::new();
+    let file = retrato_ajustado(&project);
+    replace_in(
+        &file,
+        "| `src/novo.ext` | criar |",
+        "| `src/novo.ext` | remover |",
+    );
+    let stderr = adjust_validate_stderr(&project);
+    assert!(stderr.contains("'src/novo.ext' não existe em"), "{stderr}");
+}
+
+#[test]
+fn retrato_spec_sem_componentes_grava_lista_vazia() {
+    let project = Project::new();
+    let file = retrato_spec(&project);
+    replace_in(
+        &file,
+        &format!("{}\n{VELHO_ROW}", component_row("src/novo.ext", "criar")),
+        "| - | - | - |",
+    );
+    run_spec(&project, &["adjust", "record-manual", "SPEC-001"]);
+    run_spec(&project, &["approve", "approve", "SPEC-001"]);
+    assert_eq!(approved_disk(&file), "[]");
 }

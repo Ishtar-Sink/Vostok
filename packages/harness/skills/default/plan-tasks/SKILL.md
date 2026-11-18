@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok plan create, vostok plan score, vostok plan validate"
+  scripts: "vostok context load, vostok spec list, vostok plan create, vostok plan score, vostok plan validate, vostok review brief"
   templates: "templates/plan/plan.md"
 ---
 
@@ -41,6 +41,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [plan-tasks-07]: Não crie arquivos de tarefa. Eles só existem depois que o usuário aprova o plano (skill `approve-plan`).
 [plan-tasks-08]: Indique na coluna "Persona" a persona que executa cada tarefa, pela [tabela de personas](#tabela-de-personas).
 [plan-tasks-09]: Divida o trabalho para permitir paralelismo, mesmo que o usuário execute em sequência: dependência só quando uma tarefa precisa do resultado de outra, e tarefas que podem rodar juntas não dividem arquivos sem necessidade (RF-15).
+[plan-tasks-10]: Nunca aplique sem o usuário a correção do revisor que cria ou remove tarefa de forma que mude o escopo da spec, ou que mude a cobertura de um critério de aceite.
 
 ## Checklist
 
@@ -53,7 +54,8 @@ Copie e marque o progresso:
 - [ ] 4. Preencher o plano
 - [ ] 5. Calcular os perfis
 - [ ] 6. Validar
-- [ ] 7. Responder ao usuário
+- [ ] 7. Revisar o plano
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
@@ -135,13 +137,35 @@ Execute:
 vostok plan validate <SPEC_ID>
 ```
 
-O comando lista os problemas sem alterar nada, como "componente da spec sem tarefa". Corrija-os, execute o `vostok plan score` de novo se mudou fatos ou tarefas e valide outra vez. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada, como "componente da spec sem tarefa". Corrija-os, execute o `vostok plan score` de novo se mudou fatos ou tarefas e valide outra vez. Se falhar de novo, **PARE** e responda com o template `blocker`.
 
-### 7. Responder ao usuário
+### 7. Revisar o plano
+
+Execute:
+
+```bash
+vostok review brief plan <SPEC_ID>
+```
+
+Com a saída `Revisão desligada para plan.`, siga para o passo 8 e diga na resposta que a revisão está desligada.
+
+Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief plan <SPEC_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Com a tabela de achados do revisor:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique no plano as correções com "Muda o escopo" igual a `não`, sem editar o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" (regra plan-tasks-05).
+3. Valide com `vostok plan adjust validate <SPEC_ID>` e registre com `vostok plan adjust record <SPEC_ID> "<resumo>" --revisor`, que recalcula os perfis e as ondas. A correção que deixa o plano inválido e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 8. Responder ao usuário
 
 Responda com o template `completion`:
 
 - **O que foi feito:** o caminho do plano e o [resumo do plano](#resumo-do-plano). Se o plano foi recriado, informe o aviso do comando.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver. O resumo do plano mostra a tabela depois das correções.
 - **Verificação:** os comandos executados e o resultado.
 - **Pendências:** informe que o plano pode ser ajustado (skill `adjust-plan`) ou aprovado (skill `approve-plan`), e que o perfil é a sugestão de modelo da tarefa.
 

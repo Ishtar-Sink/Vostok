@@ -3,9 +3,9 @@ name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record"
+  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record, vostok review brief"
   templates: "templates/spec/sections"
 ---
 
@@ -41,6 +41,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [adjust-spec-06]: Não amplie o pedido. O que não foi pedido e for necessário para a spec continuar coerente é inferência e entra no "Registro de decisões".
 [adjust-spec-07]: O tipo da spec não muda num ajuste. Se o pedido exige outro tipo, **PARE** e responda com o template `blocker`.
 [adjust-spec-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok spec adjust record`.
+[adjust-spec-09]: Nunca aplique sem o usuário a correção do revisor que cria requisito, muda o escopo ou muda um critério de aceite.
 
 ## Checklist
 
@@ -56,7 +57,8 @@ Copie e marque o progresso:
 - [ ] 7. Editar a refinada
 - [ ] 8. Validar
 - [ ] 9. Registrar o ajuste
-- [ ] 10. Responder ao usuário
+- [ ] 10. Revisar a spec ajustada
+- [ ] 11. Responder ao usuário
 ```
 
 ## Passos
@@ -87,7 +89,7 @@ Nos demais casos:
 
 Spec citada com status `draft`: **PARE** e informe o status atual. Só specs refinadas, aprovadas ou planejadas são ajustadas.
 
-Spec citada com status `planned`: siga. Leia também o `vostok task status <SPEC_ID>` e o `covers` do `estado.yml` de cada tarefa, para o passo 10.
+Spec citada com status `planned`: siga. Leia também o `vostok task status <SPEC_ID>` e o `covers` do `estado.yml` de cada tarefa, para o passo 11.
 
 ### 3. Registrar edições manuais
 
@@ -157,7 +159,7 @@ Execute:
 vostok spec adjust validate <SPEC_ID>
 ```
 
-Numa spec `planned`, pule este passo: o `validate` ainda recusa essa spec e o `record` do passo 9 valida o ajuste. O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+Numa spec `planned`, pule este passo: o `validate` ainda recusa essa spec e o `record` do passo 9 valida o ajuste. O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se continuar falhando, **PARE** e responda com o template `blocker`.
 
 Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do projeto mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário e sem nova rodada ([adjust-spec-05]); o que for acrescentado ou trocado além do pedido entra no "Registro de decisões" como inferência ([adjust-spec-06]).
 
@@ -179,7 +181,28 @@ O comando recusa, sem registrar, um ID que não existe na spec e uma spec `plann
 
 O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa spec aprovada, ele também derruba a aprovação e avisa na saída. Se ele recusar o ajuste, volte ao passo 8.
 
-### 10. Responder ao usuário
+### 10. Revisar a spec ajustada
+
+Execute:
+
+```bash
+vostok review brief spec <SPEC_ID>
+```
+
+Com a saída `Revisão desligada para spec.`, siga para o passo 11 e diga na resposta que a revisão está desligada.
+
+Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief spec <SPEC_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Com a tabela de achados do revisor:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique na spec as correções com "Muda o escopo" igual a `não`.
+3. Valide com `vostok spec adjust validate <SPEC_ID>` e registre com `vostok spec adjust record <SPEC_ID> "<resumo>" --revisor`. A correção que deixa a spec inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez. O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 11. Responder ao usuário
 
 Responda com o template `completion`:
 
@@ -189,6 +212,7 @@ Responda com o template `completion`:
 - Numa spec `planned`, a [tabela de tarefas afetadas](#tabela-de-tarefas-afetadas), com as tarefas que cobrem os IDs mudados, montada com o `vostok task status <SPEC_ID>` e o `covers` de cada tarefa: `pending` e `approved` serão refeitas (voltam a `pending` e são detalhadas de novo pela skill `adjust-task`); `in_progress`, `executed`, `validating` e `blocked` serão ajustadas (ganham a linha `ajuste` e seguem sem nova aprovação); `done` só são avisadas, sem mudar, com a sugestão de uma tarefa nova num novo plano. As que não cobrem os IDs não mudam. Informe que nada muda nas tarefas até a reaprovação da spec (skill `approve-spec`).
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
 - **Pendências:** os ajustes que ficaram sem resposta.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver.
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.
 

@@ -1,4 +1,4 @@
-version: 0.7.1
+version: 0.8.0
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -30,7 +30,7 @@ files:
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501
   skills/default/create-spec/SKILL.md: 4625415449aa29927fa23ab710a43e6659726809b892955bf040ee6db13649ed
   skills/default/customize-documents/SKILL.md: fc4be6a890d245e758e2ecb5dec2888cdbfd39e5091877aec57c1684ddf95c0e
-  skills/default/execute-task/SKILL.md: cce0cf049ed94fa938d597eced7f7b0ffb92d3f9557ed5cd00b3d62db01911cf
+  skills/default/execute-task/SKILL.md: 5a9d067aa8e2f0c83b136429a60231c30b68b4092af5cd341e3be0af114639f9
   skills/default/finalize-spec/SKILL.md: 12a684dad2337205709e5595058acc206a4a03eef66506e40e1086b4248b9e1d
   skills/default/finish-task/SKILL.md: ec1ff85915f72274ab2660d760e5906bb5ee3d09df3734aa7a06c7acebe8f17b
   skills/default/init-harness/SKILL.md: 93fd525efbb75bcda4e0a871e980334dd7a96f08eca254bcc0effdb11b6e7702
@@ -46,7 +46,7 @@ files:
   templates/finalize/content.md: 58d58348798792d718257f08d44bda5d67645b981be9a5164055ee24540f8051
   templates/finalize/evidence-item.html: d6817619e91d29f81f643810bef0eff201b919ced1566b0bf7401ade3f374255
   templates/finalize/evidence.html: 7ecf444648eb73cd574578f4a9cb259a8e48ebc0cfe60dfe2e9518776f3cfba9
-  templates/finalize/executive.html: e2c806c7b63d5b58c126619d3a54b8ad3970ddbcac263a341183e036e7861935
+  templates/finalize/executive.html: 73a009c63d7ace7b93d74ec98773fbf0e39902b932c9245136bb3cd464c2980a
   templates/finalize/fonts/Inter.woff2: d0c4a8f48d56c09131ae634ae45dc1028ec42a1b9b34dbc051c88716e8970dda
   templates/finalize/fonts/OFL-Inter.txt: 262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a
   templates/finalize/fonts/OFL-Outfit.txt: c676351bf8576b9aba743cd5eaa8c0e7ee0d51f805d720447b4df4ddb6a2e416

@@ -2,6 +2,12 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.7.1] - 2026-11-18
+
+### Correções
+
+- Uma spec com tarefas já executadas volta a aceitar ajustes, o registro de edições manuais e uma nova aprovação. A aprovação passa a guardar, no campo `approved_disk` da spec, quais componentes afetados existiam naquele momento, e a validação confere as ações contra esse registro, e não contra os arquivos que as tarefas criaram ou apagaram. Componentes acrescentados depois continuam conferidos contra o disco, e specs aprovadas antes desta versão que já têm tarefas aceitam o ajuste e ganham o registro na próxima aprovação. (SPEC-068, issue #22)
+
 ## [0.7.0] - 2026-11-18
 
 ### Recursos

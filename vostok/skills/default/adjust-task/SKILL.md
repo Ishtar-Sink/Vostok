@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status"
+  scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status, vostok review brief"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -44,6 +44,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-13]: Ao ajustar "Passos" ou "Baseline", todo comando de "Baseline" que mede algo que os passos renomeiam ou removem leva `(muda): motivo`, como na skill `approve-plan`.
 [adjust-task-14]: Recuse em "Concluída quando" o critério que só se comprova na finalização da spec. Se nenhum critério de aceite da spec o cobre, **PARE** e responda com o template `blocker`, propondo ajustar a spec pela skill `adjust-spec`, com `--ids` numa spec `planned`.
 [adjust-task-15]: Tarefa que voltou a `pending` pela reaprovação de uma spec com `changed_ids` é detalhada de novo: reescreva, nos formatos do passo 4 da skill `approve-plan`, as partes que cobrem os IDs mudados, registre o ajuste e informe que ela precisa ser aprovada de novo (skill `approve-task`).
+[adjust-task-16]: Nunca aplique sem o usuário a correção do revisor que muda a cobertura da tarefa, o escopo ou um critério de aceite da spec.
 
 ## Checklist
 
@@ -59,7 +60,8 @@ Copie e marque o progresso:
 - [ ] 7. Editar a tarefa
 - [ ] 8. Validar
 - [ ] 9. Registrar o ajuste
-- [ ] 10. Responder ao usuário
+- [ ] 10. Revisar a tarefa ajustada
+- [ ] 11. Responder ao usuário
 ```
 
 ## Passos
@@ -148,7 +150,7 @@ Execute:
 vostok task adjust validate <SPEC_ID> <TASK_ID>
 ```
 
-O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Corrija-os e execute de novo. Se falhar de novo, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
@@ -168,13 +170,37 @@ vostok task depends add <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "<decisão do
 
 O comando muda `depends_on`, grava a linha `ajuste`, que derruba as conferências de evidência anteriores, e, com a dependência fora de `done`, deixa a tarefa `blocked` com `waiting_on` e `waiting_reason` (linha `bloqueio`). Ele recusa, sem gravar, a própria tarefa, ciclo, tarefa de outra spec, dependência repetida e tarefa bloqueada por falha (nesta, rode antes o `vostok task resume`, com a decisão do usuário). Com `vostok task depends remove`, a tarefa que fica sem espera volta a `approved`. Quando a dependência é concluída, a tarefa volta a `approved` e o `vostok task start` a recomeça sem coletar o baseline de novo; se a regressão vier da dependência, a skill `finish-task` oferece a recoleta.
 
-### 10. Responder ao usuário
+### 10. Revisar a tarefa ajustada
+
+Execute:
+
+```bash
+vostok review brief task <SPEC_ID> <TASK_ID>
+```
+
+Com a saída `Revisão desligada para task.`, siga para o passo 11 e diga na resposta que a revisão está desligada.
+
+Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief task <SPEC_ID> <TASK_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Numa tarefa em execução, a revisão vale para o ajuste, e a correção registrada com `--revisor` segue o efeito do ajuste: a tarefa continua em execução, sem nova aprovação.
+
+Com a tabela de achados do revisor:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique nos arquivos da tarefa as correções com "Muda o escopo" igual a `não`, sem editar o front-matter nem o "Histórico de ajustes" (regra adjust-task-03).
+3. Valide com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 11. Responder ao usuário
 
 Responda com o template `completion`:
 
 - **O que foi feito:** o caminho da tarefa, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver.
 - **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação. Se a tarefa ficou à espera de uma dependência, informe qual e que ela recomeça quando a dependência for concluída. Se o baseline foi recoletado, informe o motivo e onde ficou o anterior.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
 - **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).

@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.0.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok memory search, vostok plan adjust record-manual, vostok plan adjust validate, vostok plan adjust record"
+  scripts: "vostok context load, vostok memory search, vostok plan adjust record-manual, vostok plan adjust validate, vostok plan adjust record, vostok review brief"
 ---
 
 # Ajustar plano
@@ -38,6 +38,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [adjust-plan-06]: Não amplie o pedido. O que não foi pedido e for necessário para o plano continuar coerente (renumerar dependências, redistribuir cobertura) é inferência e aparece na resposta.
 [adjust-plan-07]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok plan adjust record`.
 [adjust-plan-08]: Não aprove o plano como parte do ajuste. A aprovação é feita pela skill `approve-plan`, só a pedido do usuário.
+[adjust-plan-09]: Nunca aplique sem o usuário a correção do revisor que cria ou remove tarefa de forma que mude o escopo da spec, ou que mude a cobertura de um critério de aceite.
 
 ## Checklist
 
@@ -53,7 +54,8 @@ Copie e marque o progresso:
 - [ ] 7. Editar o plano
 - [ ] 8. Validar
 - [ ] 9. Registrar o ajuste
-- [ ] 10. Responder ao usuário
+- [ ] 10. Revisar o plano ajustado
+- [ ] 11. Responder ao usuário
 ```
 
 ## Passos
@@ -157,7 +159,7 @@ Execute:
 vostok plan adjust validate <SPEC_ID>
 ```
 
-O comando lista os problemas sem alterar nada. Diferenças de perfil são resolvidas pelo `vostok plan adjust record`; corrija os demais e execute de novo. Se falhar pela segunda vez com outros problemas, **PARE** e responda com o template `blocker`.
+O comando lista os problemas sem alterar nada. Diferenças de perfil são resolvidas pelo `vostok plan adjust record`; corrija os demais e execute de novo. Se falhar de novo com outros problemas, **PARE** e responda com o template `blocker`.
 
 ### 9. Registrar o ajuste
 
@@ -169,13 +171,35 @@ vostok plan adjust record <SPEC_ID> "TASK-02 dividida em TASK-02 e TASK-03; TASK
 
 O comando recalcula os perfis, valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Se ele recusar o ajuste, volte ao passo 8.
 
-### 10. Responder ao usuário
+### 10. Revisar o plano ajustado
+
+Execute:
+
+```bash
+vostok review brief plan <SPEC_ID>
+```
+
+Com a saída `Revisão desligada para plan.`, siga para o passo 11 e diga na resposta que a revisão está desligada.
+
+Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief plan <SPEC_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Com a tabela de achados do revisor:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique no plano as correções com "Muda o escopo" igual a `não`, sem editar o front-matter, a seção "Perfis de execução" nem o "Histórico de ajustes" (regra adjust-plan-03).
+3. Valide com `vostok plan adjust validate <SPEC_ID>` e registre com `vostok plan adjust record <SPEC_ID> "<resumo>" --revisor`, que recalcula os perfis e as ondas. A correção que deixa o plano inválido e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 11. Responder ao usuário
 
 Responda com o template `completion`:
 
 - **O que foi feito:** o caminho do plano, o número do ajuste, a [tabela de ajustes](#tabela-de-ajustes) e o plano atualizado no formato "Resumo do plano" da skill `plan-tasks`.
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver. O resumo do plano mostra a tabela depois das correções.
 - **Pendências:** os ajustes que ficaram sem resposta. Informe que o plano pode receber novos ajustes ou ser aprovado (skill `approve-plan`).
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.

@@ -5,7 +5,7 @@ allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
   version: "1.3.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status"
+  scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status, vostok review brief"
   templates: "templates/task/task.md"
 ---
 
@@ -40,6 +40,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, mais UI/UX Designer nas ta
 [approve-plan-09]: Nos "Detalhes técnicos", cite os arquivos que a tarefa divide com outras da mesma onda, para o Coordenador executá-las em sequência.
 [approve-plan-10]: Recuse em "Concluída quando" o critério que só se comprova na finalização da spec (documentos finais, conferência dos critérios de aceite da spec, `vostok finalize`). Se nenhum critério de aceite da spec cobre o critério recusado, **PARE** e responda com o template `blocker`, propondo o ajuste da spec pela skill `adjust-spec`.
 [approve-plan-11]: Os critérios de "Concluída quando" dizem em palavras o que fica comprovado, com os IDs só no parêntese final, e cada "Como comprovar" traz o comando exato ou o lugar exato para conferir.
+[approve-plan-12]: Nunca aplique sem o usuário a correção do revisor que muda a cobertura da tarefa, o escopo ou um critério de aceite da spec.
 
 ## Checklist
 
@@ -52,7 +53,8 @@ Copie e marque o progresso:
 - [ ] 4. Detalhar as tarefas
 - [ ] 5. Validar
 - [ ] 6. Marcar a spec como planejada
-- [ ] 7. Responder ao usuário
+- [ ] 7. Revisar as tarefas
+- [ ] 8. Responder ao usuário
 ```
 
 ## Passos
@@ -197,7 +199,7 @@ Execute:
 vostok plan approve validate <SPEC_ID>
 ```
 
-O comando lista os problemas das tarefas sem alterar nada. Corrija-os e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista os problemas das tarefas sem alterar nada. Corrija-os e execute de novo. Se falhar de novo, **PARE** e responda com o template `blocker`.
 
 ### 6. Marcar a spec como planejada
 
@@ -209,11 +211,35 @@ vostok plan approve mark-planned <SPEC_ID>
 
 O comando valida de novo, muda o status da spec para `planned` e remove o plano. Num plano de extensão, o comando mantém a spec `planned`, limpa `extend_ids` e remove o plano. Se ele falhar, volte ao passo 5.
 
-### 7. Responder ao usuário
+### 7. Revisar as tarefas
+
+A revisão vem depois do `mark-planned` porque o ajuste de tarefa exige a spec `planned`.
+
+Execute, uma vez por tarefa detalhada:
+
+```bash
+vostok review brief task <SPEC_ID> <TASK_ID>
+```
+
+Com a saída `Revisão desligada para task.`, siga para o passo 8 e diga na resposta que a revisão está desligada.
+
+Senão, dispare um subagente `vostok-revisor` por tarefa, até `max_subagents` de `config/tasks.yml` ao mesmo tempo, com a mensagem "Rode `vostok review brief task <SPEC_ID> <TASK_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, tarefa por tarefa, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Com a tabela de achados de cada tarefa:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique nos arquivos da tarefa as correções com "Muda o escopo" igual a `não`, sem editar o front-matter (regra approve-plan-04).
+3. Valide com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`, juntando as de todas as tarefas.
+6. Se aplicou alguma correção numa tarefa, dispare o revisor dela uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 8. Responder ao usuário
 
 Responda com o template `completion`:
 
 - **O que foi feito:** a pasta das tarefas, a [lista de tarefas](#lista-de-tarefas), a remoção do plano e o novo status da spec.
+- **Revisão:** depois de "O que foi feito", uma tabela com a tarefa, o número de correções aplicadas e o que ficou para o usuário, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver.
 - **Verificação:** os comandos executados e o resultado.
 - **Pendências:** informe que cada tarefa é carregada para execução com `vostok task load <SPEC_ID> <TASK_ID>` e que o perfil é a sugestão de modelo de cada tarefa.
 - **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).

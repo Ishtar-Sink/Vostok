@@ -3,9 +3,9 @@ name: refine-spec
 description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined"
+  scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined, vostok review brief"
   templates: "templates/spec/refined.md templates/spec/sections"
 ---
 
@@ -39,6 +39,7 @@ Esta skill atua como Planejador, carregada(s) no passo 1 pelo `vostok context lo
 [refine-spec-06]: Todo critério de aceite da refinada precisa ser verificável.
 [refine-spec-07]: Nenhuma seção fica genérica. Cada seção traz informação concreta do projeto (caminhos, comandos, campos, IDs), vinda do rascunho, das respostas do usuário ou da investigação (com referência), ou registrada como inferência.
 [refine-spec-08]: Uma lacuna é também uma seção do tipo que não pode ser preenchida com essa informação. Ela vira pergunta ou inferência, pelo critério do passo 4.
+[refine-spec-09]: Nunca aplique sem o usuário a correção do revisor que cria requisito, muda o escopo ou muda um critério de aceite.
 
 ## Checklist
 
@@ -53,7 +54,8 @@ Copie e marque o progresso:
 - [ ] 6. Criar a refinada
 - [ ] 7. Preencher a refinada
 - [ ] 8. Validar e marcar como refinada
-- [ ] 9. Responder ao usuário
+- [ ] 9. Revisar a refinada
+- [ ] 10. Responder ao usuário
 ```
 
 ## Passos
@@ -140,7 +142,7 @@ Execute:
 vostok spec validate <SPEC_ID>
 ```
 
-O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se falhar pela segunda vez, **PARE** e responda com o template `blocker`.
+O comando lista todos os problemas, sem alterar nada: variáveis sem preencher, seções ausentes ou vazias, requisitos (`RF`) sem caso de teste ou critério de aceite, argumentos da tese ou da antítese fora da síntese e componentes afetados com ação ou caminho inconsistentes. Corrija os problemas e execute de novo. Se continuar falhando, **PARE** e responda com o template `blocker`.
 
 Componente recusado porque a pasta contém caminhos citados na spec ou porque é uma pasta existente com a ação `alterar`: troque a linha pelos caminhos específicos, os citados na mensagem ou os que a investigação do passo 3 mostrou, mantendo a ação e o motivo, e execute o comando de novo. Faça isso sem perguntar ao usuário; só pergunte se a divisão muda o escopo da spec.
 
@@ -152,12 +154,34 @@ vostok spec mark-refined <SPEC_ID>
 
 O comando grava o hash do conteúdo da refinada e muda o status do rascunho para `refined`.
 
-### 9. Responder ao usuário
+### 9. Revisar a refinada
+
+Execute:
+
+```bash
+vostok review brief spec <SPEC_ID>
+```
+
+Com a saída `Revisão desligada para spec.`, siga para o passo 10 e diga na resposta que a revisão está desligada.
+
+Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief spec <SPEC_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+
+Com a tabela de achados do revisor:
+
+1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
+2. Aplique na refinada as correções com "Muda o escopo" igual a `não`.
+3. Valide com `vostok spec adjust validate <SPEC_ID>` e registre com `vostok spec adjust record <SPEC_ID> "<resumo>" --revisor`. A correção que deixa a spec inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez. O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+
+### 10. Responder ao usuário
 
 Responda com o template `completion`:
 
 - **O que foi feito:** o caminho e o tipo da refinada, um resumo de 1 a 3 frases do que mudou e a contagem de itens por seção (ex.: 8 RF, 12 CT, 6 CA).
 - **Pendências:** o número de pendências registradas na refinada.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver.
 - Acrescente a [tabela de inferências](#tabela-de-inferências) com o cabeçalho "Inferências" depois de "O que foi feito", se ela ainda não foi mostrada numa rodada.
 
 Esta resposta encerra a persona da skill: o chat volta à persona Coordenador.

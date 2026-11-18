@@ -9,7 +9,7 @@ use common::golden::assert_group;
 use common::{failure_stderr, Project};
 use vostok::embedded;
 
-const PERSONAS: [&str; 8] = [
+const PERSONAS: [&str; 9] = [
     "coordenador",
     "planejador",
     "arquiteto",
@@ -18,6 +18,7 @@ const PERSONAS: [&str; 8] = [
     "qa-lead",
     "ui-ux-designer",
     "qa",
+    "revisor",
 ];
 
 #[test]
@@ -341,7 +342,7 @@ fn ct06_context_load_rejects_an_unknown_persona() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         String::from_utf8(output.stderr).expect("UTF-8"),
-        "Persona 'nao-existe' não existe; as disponíveis são: arquiteto, coordenador, desenvolvedor, engenheiro, planejador, qa, qa-lead, ui-ux-designer\n"
+        "Persona 'nao-existe' não existe; as disponíveis são: arquiteto, coordenador, desenvolvedor, engenheiro, planejador, qa, qa-lead, revisor, ui-ux-designer\n"
     );
 }
 

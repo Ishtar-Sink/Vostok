@@ -964,7 +964,7 @@ fn rnf04_update_from_0_4_0_leaves_a_usable_project() {
 
 // --- subagentes (CT-08, RF-12) ---
 
-const SPECIALISTS: [&str; 7] = [
+const SPECIALISTS: [&str; 8] = [
     "planejador",
     "arquiteto",
     "engenheiro",
@@ -972,6 +972,7 @@ const SPECIALISTS: [&str; 7] = [
     "qa-lead",
     "ui-ux-designer",
     "qa",
+    "revisor",
 ];
 const ARCHITECT_AGENT: &str = ".claude/agents/vostok-arquiteto.md";
 
@@ -993,8 +994,10 @@ fn ct08_init_generates_a_subagent_per_specialist_persona_for_claude_code() {
         );
     }
     assert!(!workspace.exists(".claude/agents/vostok-coordenador.md"));
+    let reviewer = workspace.read(".claude/agents/vostok-revisor.md");
+    assert!(reviewer.contains("vostok review brief"), "{reviewer}");
     assert!(
-        out.contains("Subagentes: .claude/agents (7 personas)"),
+        out.contains("Subagentes: .claude/agents (8 personas)"),
         "{out}"
     );
 }
@@ -1011,6 +1014,7 @@ fn max_turns_in_claude_code_agents() {
         ("engenheiro", 30),
         ("qa-lead", 30),
         ("planejador", 30),
+        ("revisor", 30),
     ] {
         let agent = workspace.read(&format!(".claude/agents/vostok-{name}.md"));
         assert!(
@@ -1040,7 +1044,7 @@ fn max_turns_only_for_claude_code() {
 fn agents_follow_the_task_brief() {
     let workspace = installed("claude-code");
 
-    for name in SPECIALISTS {
+    for name in SPECIALISTS.into_iter().filter(|name| *name != "revisor") {
         let agent = workspace.read(&format!(".claude/agents/vostok-{name}.md"));
         assert!(
             agent.contains("vostok task brief <SPEC_ID> <TASK_ID>"),
@@ -1108,7 +1112,7 @@ fn ct08_codex_subagents_follow_the_study_format() {
     }
     assert!(!workspace.exists(".codex/agents/vostok-coordenador.toml"));
     assert!(
-        out.contains("Subagentes: .codex/agents (7 personas)"),
+        out.contains("Subagentes: .codex/agents (8 personas)"),
         "{out}"
     );
 }
@@ -1139,7 +1143,7 @@ fn ct08_cursor_reuses_the_agents_of_another_registered_tool() {
     let out = alone.init(&["--yes", "--tools", "cursor"]);
     assert!(alone.exists(".cursor/agents/vostok-arquiteto.md"));
     assert!(
-        out.contains("Subagentes: .cursor/agents (7 personas)"),
+        out.contains("Subagentes: .cursor/agents (8 personas)"),
         "{out}"
     );
 }

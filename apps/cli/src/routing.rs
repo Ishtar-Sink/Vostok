@@ -320,9 +320,14 @@ fn max_turns(persona: &str) -> u32 {
 
 fn render_agent(format: &AgentFormat, with_max_turns: bool, persona: &Persona) -> String {
     let name = &persona.name;
+    let second_line = if name == "revisor" {
+        "A mensagem do Coordenador manda rodar `vostok review brief <fluxo> <SPEC_ID> [TASK_ID]`: rode só ele, siga o que ele imprime e devolva só a tabela de achados ou `Nenhum achado.`."
+    } else {
+        "Numa tarefa, a mensagem do Coordenador manda rodar `vostok task brief <SPEC_ID> <TASK_ID>`: rode só ele e siga o que ele imprime."
+    };
     let instructions = format!(
         "Persona {} do harness Vostok, como subagente.\n\
-         Numa tarefa, a mensagem do Coordenador manda rodar `vostok task brief <SPEC_ID> <TASK_ID>`: rode só ele e siga o que ele imprime.\n\
+         {second_line}\n\
          Em qualquer outro trabalho, antes de qualquer ação, execute `vostok context load --persona {name}` e siga a persona e o contexto carregados.\n\
          O que entregar e o modelo vêm da mensagem do Coordenador.\n",
         persona.title

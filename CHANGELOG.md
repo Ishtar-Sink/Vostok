@@ -2,6 +2,14 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.6.11] - 2026-11-17
+
+### Correções
+
+- O texto de prova que termina em `=` ou `:`, como `ms=`, nunca era encontrado no log e só falhava no fim do fluxo. Agora o `vostok plan approve validate`, o `vostok task approve validate` e o `vostok task adjust validate` recusam esse texto no Trecho e na Falha, com a correção: `ms=...` para aceitar qualquer valor ou o texto com o valor. (SPEC-066, issue #21)
+- O `vostok task evidence --antecipada` explica o Trecho que aparece só dentro de um texto maior, com a linha e a correção, e informa a rodada de onde vieram as evidências, lembrando de rodar o `vostok task check` de novo quando o Trecho não aparece. (SPEC-066, issue #21)
+- A skill `approve-plan` descreve a regra com os exemplos. (SPEC-066)
+
 ## [0.6.10] - 2026-11-17
 
 ### Melhorias

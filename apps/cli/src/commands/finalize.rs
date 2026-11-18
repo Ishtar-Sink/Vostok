@@ -773,6 +773,30 @@ impl Finalization {
         }
     }
 
+    /// Ajustes de origem `revisor` no histórico da spec e no de cada tarefa.
+    fn reviewer_adjustments(&self) -> Result<usize> {
+        let origin = self
+            .spec_setting("adjustment_origins.reviewer")
+            .unwrap_or_else(|_| "revisor".to_string());
+        let heading = self.adjustment_history_heading()?;
+        let spec = fs::read_to_string(&self.spec).unwrap_or_default();
+        let texts = self
+            .tasks
+            .iter()
+            .map(|task| task.content.as_str())
+            .chain(std::iter::once(spec.as_str()));
+        Ok(texts
+            .map(|text| {
+                markdown_section(text, &heading)
+                    .unwrap_or_default()
+                    .lines()
+                    .filter(|line| is_numbered_row(line))
+                    .filter(|line| awk_trim(line.split('|').nth(3).unwrap_or("")) == origin)
+                    .count()
+            })
+            .sum())
+    }
+
     fn adjustment_history_heading(&self) -> Result<String> {
         let template = self
             .templates_dir()?
@@ -990,6 +1014,7 @@ struct SpecMetrics {
     tasks: usize,
     waves: usize,
     adjustments: usize,
+    reviewer_adjustments: usize,
     extra_attempts: usize,
     blocks: usize,
     refusals: usize,
@@ -1183,12 +1208,14 @@ impl Finalization {
         } else {
             Situation::Green
         };
+        let reviewer_adjustments = self.reviewer_adjustments()?;
         Ok(SpecMetrics {
             cycle,
             approval_to_implementation,
             tasks: self.tasks.len(),
             waves: waves.len(),
             adjustments,
+            reviewer_adjustments,
             extra_attempts,
             blocks,
             refusals,
@@ -1269,6 +1296,14 @@ fn plural(count: usize, one: &str, many: &str) -> String {
 }
 
 /// Linhas do bloco "## Métricas", no formato do contrato.
+fn reviewer_adjustments_text(metrics: &SpecMetrics) -> String {
+    plural(
+        metrics.reviewer_adjustments,
+        "ajuste do revisor",
+        "ajustes do revisor",
+    )
+}
+
 fn metrics_lines(metrics: &SpecMetrics) -> Vec<String> {
     let mut lines = Vec::new();
     let mut marks: Vec<String> = Vec::new();
@@ -1314,6 +1349,9 @@ fn metrics_lines(metrics: &SpecMetrics) -> Vec<String> {
         plural(metrics.blocks, "bloqueio", "bloqueios"),
         plural(metrics.refusals, "recusa", "recusas"),
     ));
+    if metrics.reviewer_adjustments > 0 {
+        lines.push(format!("- Revisão: {}", reviewer_adjustments_text(metrics)));
+    }
     lines.push(if metrics.criteria_total == 0 {
         "- Critérios de aceite: nenhum na spec".to_string()
     } else if !metrics.coverage_found {
@@ -1530,6 +1568,9 @@ fn cards_html(metrics: &SpecMetrics, part: &str) -> String {
         effort.push(plural(metrics.waves, "onda", "ondas"));
     }
     effort.push(plural(metrics.adjustments, "ajuste", "ajustes"));
+    if metrics.reviewer_adjustments > 0 {
+        effort.push(reviewer_adjustments_text(metrics));
+    }
     effort.push(plural(
         metrics.extra_attempts,
         "tentativa extra",
@@ -1677,7 +1718,7 @@ fn execution_html(metrics: &SpecMetrics) -> String {
         )
     }];
     let lines = metrics_lines(metrics);
-    for prefix in ["- Retrabalho: ", "- Volume: "] {
+    for prefix in ["- Retrabalho: ", "- Revisão: ", "- Volume: "] {
         items.extend(
             lines
                 .iter()

@@ -1413,6 +1413,70 @@ fn executive_bars_are_inline_svg_with_text() {
     assert!(!html.contains("<link") && !html.contains("<script src"));
 }
 
+const HISTORY_HEADER: &str =
+    "\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n";
+
+fn append_to(path: &std::path::Path, text: &str) {
+    let mut content = fs::read_to_string(path).unwrap();
+    content.push_str(text);
+    fs::write(path, content).unwrap();
+}
+
+fn spec_path(project: &Project) -> PathBuf {
+    project
+        .harness()
+        .join("work/specs/refined/SPEC-001-exemplo.md")
+}
+
+#[test]
+fn revisao_ajustes_contados_a_parte() {
+    let project = green_project();
+    let before = metrics_block(&project);
+    let rework = before
+        .lines()
+        .find(|line| line.starts_with("- Retrabalho:"))
+        .unwrap()
+        .to_string();
+    append_to(
+        &spec_path(&project),
+        &format!("{HISTORY_HEADER}| 1 | 2026-11-13 | revisor | requisito esclarecido |\n"),
+    );
+    let registro = project
+        .harness()
+        .join("work/tasks/SPEC-001/TASK-01/registro.md");
+    append_to(
+        &registro,
+        &format!(
+            "{HISTORY_HEADER}| 1 | 2026-11-13 | revisor | passo esclarecido |\n| 2 | 2026-11-13 | agente | ajuste pedido |\n"
+        ),
+    );
+    let block = metrics_block(&project);
+    assert!(block.contains("- Revisão: 2 ajustes do revisor"), "{block}");
+    assert!(block.lines().any(|line| line == rework), "{block}");
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    assert!(html.contains("<li>2 ajustes do revisor</li>"), "{html}");
+}
+
+#[test]
+fn revisao_um_ajuste_no_singular() {
+    let project = green_project();
+    append_to(
+        &spec_path(&project),
+        &format!("{HISTORY_HEADER}| 1 | 2026-11-13 | revisor | requisito esclarecido |\n"),
+    );
+    let block = metrics_block(&project);
+    assert!(block.contains("- Revisão: 1 ajuste do revisor"), "{block}");
+}
+
+#[test]
+fn revisao_sem_ajustes_sem_linha() {
+    let project = green_project();
+    let block = metrics_block(&project);
+    assert!(!block.contains("- Revisão:"), "{block}");
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    assert!(!html.contains("do revisor"), "{html}");
+}
+
 #[test]
 fn executive_cycle_bar_shows_only_existing_marks() {
     let project = Project::new();

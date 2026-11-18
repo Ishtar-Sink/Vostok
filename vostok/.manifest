@@ -1,4 +1,4 @@
-version: 0.7.0
+version: 0.7.1
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a

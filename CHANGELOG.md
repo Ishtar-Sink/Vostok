@@ -2,6 +2,19 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.7.0] - 2026-11-18
+
+### Recursos
+
+- Um revisor sem o contexto da conversa confere a spec refinada, o plano e cada tarefa detalhada antes da aprovação, e de novo a cada ajuste, e aponta só o que causaria retrabalho na execução. As correções que não mudam o escopo são aplicadas e validadas sozinhas; as que criam requisito, mudam o escopo ou um critério de aceite viram uma única pergunta ao usuário; são no máximo duas rodadas por etapa. O revisor é a persona nova `revisor`, gerada como o subagente `vostok-revisor`. (SPEC-067)
+- O comando novo `vostok review brief <spec|plan|task> <SPEC_ID> [TASK_ID]` imprime o roteiro do revisor: o modelo do perfil `julgamento`, a persona, o que procurar, os arquivos e o formato da resposta. A chave `review` de `config/main.yml` desliga a revisão de cada etapa (`spec`, `plan` e `task`); sem a chave, as três ficam ligadas. (SPEC-067)
+
+### Melhorias
+
+- O `vostok spec adjust record`, o `vostok plan adjust record` e o `vostok task adjust record` aceitam `--revisor`, que grava o ajuste com a origem `revisor` no histórico. (SPEC-067)
+- Os documentos finais mostram à parte quantos ajustes vieram do revisor, na linha "Revisão" das métricas e no cartão "Esforço" do executivo, só quando há algum. (SPEC-067)
+- As skills `refine-spec`, `adjust-spec`, `plan-tasks`, `adjust-plan`, `approve-plan` e `adjust-task` ganharam o passo da revisão; na `approve-plan`, cada tarefa tem um revisor próprio, vários ao mesmo tempo. (SPEC-067)
+
 ## [0.6.11] - 2026-11-17
 
 ### Correções

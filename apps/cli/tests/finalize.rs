@@ -1256,6 +1256,127 @@ fn metrics_legacy_content_template_keeps_sources_without_the_block() {
 
 // --- Executivo como documento de decisão (SPEC-055) ---
 
+// --- Evidências sem conferência exigida (SPEC-073) ---
+
+/// Troca a chave `evidence_review_kinds` do `config/tasks.yml` do projeto; `None` a remove.
+fn set_review_kinds(project: &Project, line: Option<&str>) {
+    let path = project.harness().join("config/tasks.yml");
+    let mut content: String = fs::read_to_string(&path)
+        .unwrap()
+        .lines()
+        .filter(|row| !row.starts_with("evidence_review_kinds:"))
+        .map(|row| format!("{row}\n"))
+        .collect();
+    if let Some(line) = line {
+        content.push_str(line);
+        content.push('\n');
+    }
+    fs::write(path, content).unwrap();
+}
+
+/// Spec com a TASK-01 de uma evidência `saida.txt` do tipo dado, a lista de tipos dada e o mapa preenchido.
+fn review_free_project(kinds: Option<&str>, kind: &str, reviews: &str) -> Project {
+    let project = Project::new();
+    write_metrics_spec(&project, CYCLE);
+    let folder = metrics_task(&project, "TASK-01", 1, &["saida.txt"], "", reviews);
+    if kind != "automática" {
+        let path = folder.join("verificacao.md");
+        let text = fs::read_to_string(&path).unwrap().replace(
+            "- `saida.txt` (automática): `echo x`",
+            &format!("- `saida.txt` ({kind})"),
+        );
+        fs::write(path, text).unwrap();
+    }
+    set_review_kinds(&project, kinds);
+    coverage(&project, MET_ALL);
+    project
+}
+
+const AUTOMATIC_AND_PRINT: &str = "evidence_review_kinds: [automática, print]";
+const FROM_VERIFY: &str = "automática, da verificação";
+
+#[test]
+fn review_free_verify_output_is_not_to_check() {
+    let project = review_free_project(Some(AUTOMATIC_AND_PRINT), FROM_VERIFY, "");
+    let block = metrics_block(&project);
+    assert!(
+        block.contains(
+            "- Evidências: 1 (1 texto); 0 conferidas, 0 recusadas, 1 sem conferência exigida"
+        ),
+        "{block}"
+    );
+    assert!(!block.contains("a conferir"), "{block}");
+}
+
+#[test]
+fn review_free_verify_output_in_the_executive_bar() {
+    let project = review_free_project(Some(AUTOMATIC_AND_PRINT), FROM_VERIFY, "");
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    for expected in [
+        "<figcaption>0 de 0 evidências conferidas</figcaption>",
+        "<li>1 sem conferência exigida</li>",
+        "<rect class=\"seg skip\"",
+        "aria-label=\"Evidências: 0 conferidas, 0 recusadas, 0 a conferir, 1 sem conferência exigida\"",
+    ] {
+        assert!(html.contains(expected), "{expected}\n{html}");
+    }
+}
+
+#[test]
+fn review_free_listed_kind_stays_to_check() {
+    let project = review_free_project(Some(AUTOMATIC_AND_PRINT), "automática", "");
+    let block = metrics_block(&project);
+    assert!(
+        block.contains("0 conferidas, 0 recusadas, 1 a conferir"),
+        "{block}"
+    );
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    for expected in [
+        "<li>0 sem conferência exigida</li>",
+        "aria-label=\"Evidências: 0 conferidas, 0 recusadas, 1 a conferir, 0 sem conferência exigida\"",
+    ] {
+        assert!(html.contains(expected), "{expected}\n{html}");
+    }
+}
+
+#[test]
+fn review_free_missing_list_asks_for_every_kind() {
+    let project = review_free_project(None, FROM_VERIFY, "");
+    let block = metrics_block(&project);
+    assert!(block.contains("1 a conferir"), "{block}");
+    assert!(!block.contains("sem conferência exigida"), "{block}");
+}
+
+#[test]
+fn review_free_empty_list_asks_for_nothing() {
+    let project = review_free_project(Some("evidence_review_kinds: []"), "automática", "");
+    let block = metrics_block(&project);
+    assert!(block.contains("1 sem conferência exigida"), "{block}");
+    assert!(!block.contains("a conferir"), "{block}");
+}
+
+#[test]
+fn review_free_reviewed_anyway_counts_as_reviewed() {
+    let project = review_free_project(
+        Some(AUTOMATIC_AND_PRINT),
+        FROM_VERIFY,
+        "| EV-01 | saida.txt | conferida | 0 | 2026-11-13T22:00:00Z | painel |  |\n",
+    );
+    let block = metrics_block(&project);
+    assert!(block.contains("1 conferidas, 0 recusadas"), "{block}");
+    assert!(!block.contains("sem conferência exigida"), "{block}");
+}
+
+#[test]
+fn review_free_quality_card_counts_only_the_reviewed_kinds() {
+    let project = review_free_project(Some(AUTOMATIC_AND_PRINT), FROM_VERIFY, "");
+    let html = executive_html(&project, &DECISION_SECTIONS);
+    assert!(
+        html.contains("0 de 0 evidências conferidas, 1 sem conferência exigida, 0 recusas"),
+        "{html}"
+    );
+}
+
 /// Preenche o conteúdo criado, aplica as seções dadas, gera os documentos e devolve o `executivo.html`.
 fn executive_html(project: &Project, sections: &[(&str, &str)]) -> String {
     let path = finalize_content_path(project);
@@ -1406,7 +1527,7 @@ fn executive_bars_are_inline_svg_with_text() {
         assert!(html.contains(mark), "{mark}");
     }
     assert!(
-        html.contains("aria-label=\"Evidências: 3 conferidas, 0 recusadas, 0 a conferir\""),
+        html.contains("aria-label=\"Evidências: 3 conferidas, 0 recusadas, 0 a conferir, 0 sem conferência exigida\""),
         "{html}"
     );
     assert!(!html.contains("http://") && !html.contains("https://"));

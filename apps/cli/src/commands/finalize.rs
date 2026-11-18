@@ -13,7 +13,7 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 
 use crate::changes::change_item;
-use crate::commands::task::{accepted_diff_name, accepted_regressions};
+use crate::commands::task::{accepted_diff_name, accepted_regressions, review_kinds_of};
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, frontmatter_get, frontmatter_set, markdown_section,
@@ -1018,6 +1018,8 @@ struct SpecMetrics {
     evidence_accepted: usize,
     evidence_refused: usize,
     evidence_to_check: usize,
+    /// Sem conferência registrada, de um tipo fora de `evidence_review_kinds`.
+    evidence_not_required: usize,
     volume: Volume,
     situation: Situation,
 }
@@ -1097,7 +1099,8 @@ impl Finalization {
         let (mut adjustments, mut extra_attempts, mut blocks, mut refusals) = (0, 0, 0, 0);
         let mut waves: Vec<String> = Vec::new();
         let (mut texts, mut prints, mut videos) = (0, 0, 0);
-        let (mut accepted, mut refused, mut to_check) = (0, 0, 0);
+        let (mut accepted, mut refused, mut to_check, mut not_required) = (0, 0, 0, 0);
+        let review_kinds = review_kinds_of(&self.harness.config_file("tasks.yml"));
         let mut regression_accepted = false;
         let config = self.documents_config();
         for task in &self.tasks {
@@ -1147,7 +1150,7 @@ impl Finalization {
                     );
                 }
             }
-            for (name, _) in self.evidence_items(task)? {
+            for (name, kind) in self.evidence_items(task)? {
                 match media_type(&config, &name, &mut String::new()) {
                     MediaType::Image => prints += 1,
                     MediaType::Video => videos += 1,
@@ -1156,7 +1159,8 @@ impl Finalization {
                 match states.get(&name).map(String::as_str) {
                     Some("conferida") => accepted += 1,
                     Some("recusada") => refused += 1,
-                    _ => to_check += 1,
+                    _ if review_kinds.contains(&kind) => to_check += 1,
+                    _ => not_required += 1,
                 }
             }
             let evidence_dir = self.task_evidence_dir(task)?;
@@ -1219,6 +1223,7 @@ impl Finalization {
             evidence_accepted: accepted,
             evidence_refused: refused,
             evidence_to_check: to_check,
+            evidence_not_required: not_required,
             volume,
             situation,
         })
@@ -1396,6 +1401,12 @@ fn metrics_lines(metrics: &SpecMetrics) -> Vec<String> {
         if metrics.evidence_to_check > 0 {
             text.push_str(&format!(", {} a conferir", metrics.evidence_to_check));
         }
+        if metrics.evidence_not_required > 0 {
+            text.push_str(&format!(
+                ", {} sem conferência exigida",
+                metrics.evidence_not_required
+            ));
+        }
         text
     });
     lines.push(match &metrics.volume {
@@ -1549,7 +1560,8 @@ fn cards_html(metrics: &SpecMetrics, part: &str) -> String {
             format!("{met} de {}", metrics.criteria_total)
         },
         &format!(
-            "{checked} de {total} evidências conferidas, {}",
+            "{checked} de {total} evidências conferidas, {}{}",
+            not_required_part(metrics.evidence_not_required),
             plural(metrics.evidence_refused, "recusa", "recusas")
         ),
         None,
@@ -1649,12 +1661,21 @@ fn cycle_bar_html(metrics: &SpecMetrics) -> String {
     )
 }
 
-/// Barra das evidências por estado: conferidas, recusadas e a conferir.
+/// Trecho do cartão Qualidade com as evidências sem conferência exigida, vazio sem nenhuma.
+fn not_required_part(count: usize) -> String {
+    if count == 0 {
+        return String::new();
+    }
+    format!("{count} sem conferência exigida, ")
+}
+
+/// Barra das evidências por estado: conferidas, recusadas, a conferir e sem conferência exigida.
 fn evidence_bar_html(metrics: &SpecMetrics) -> String {
     let counts = [
         ("seg ok", metrics.evidence_accepted),
         ("seg bad", metrics.evidence_refused),
         ("seg todo", metrics.evidence_to_check),
+        ("seg skip", metrics.evidence_not_required),
     ];
     let total: usize = counts.iter().map(|(_, count)| count).sum();
     if total == 0 {
@@ -1679,19 +1700,22 @@ fn evidence_bar_html(metrics: &SpecMetrics) -> String {
         ));
         x += width;
     }
-    let (accepted, refused, to_check) = (
+    let (accepted, refused, to_check, not_required) = (
         metrics.evidence_accepted,
         metrics.evidence_refused,
         metrics.evidence_to_check,
+        metrics.evidence_not_required,
     );
+    let asked = accepted + refused + to_check;
     format!(
-        "<figure class=\"bar\" id=\"barra-evidencias\"><figcaption>{accepted} de {total} evidências conferidas</figcaption><svg role=\"img\" aria-label=\"Evidências: {accepted} conferidas, {refused} recusadas, {to_check} a conferir\" viewBox=\"0 0 1000 14\" preserveAspectRatio=\"none\">{rects}</svg>{}</figure>",
+        "<figure class=\"bar\" id=\"barra-evidencias\"><figcaption>{accepted} de {asked} evidências conferidas</figcaption><svg role=\"img\" aria-label=\"Evidências: {accepted} conferidas, {refused} recusadas, {to_check} a conferir, {not_required} sem conferência exigida\" viewBox=\"0 0 1000 14\" preserveAspectRatio=\"none\">{rects}</svg>{}</figure>",
         marks_html(
             "ul",
             &[
                 format!("{accepted} conferidas"),
                 format!("{refused} recusadas"),
                 format!("{to_check} a conferir"),
+                format!("{not_required} sem conferência exigida"),
             ]
         )
     )

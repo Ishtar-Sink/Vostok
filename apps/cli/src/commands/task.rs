@@ -721,15 +721,7 @@ impl Tasks {
     /// Tipos de evidência com aval do usuário: `evidence_review_kinds`, em bloco ou em lista na
     /// linha; ausente vale todos os tipos e `[]` vale nenhum.
     fn review_kinds(&self) -> Vec<String> {
-        if let Some(inline) = self
-            .cfg("evidence_review_kinds")
-            .ok()
-            .filter(|value| value.starts_with('[') && value.ends_with(']'))
-        {
-            return inline_list(&inline);
-        }
-        self.cfg_list("evidence_review_kinds")
-            .unwrap_or_else(|_| self.evidence_kinds().all())
+        review_kinds_of(&self.harness.config_file("tasks.yml"))
     }
 
     /// Itens de `evidence_review_kinds` que não são um tipo de evidência conhecido.
@@ -7085,6 +7077,19 @@ impl EvidenceKinds {
         .map(String::clone)
         .to_vec()
     }
+}
+
+/// Tipos de evidência com aval do usuário no `tasks.yml` dado: `evidence_review_kinds`, em bloco
+/// ou em lista na linha; ausente vale todos os tipos e `[]` vale nenhum. A finalização usa a mesma regra.
+pub(crate) fn review_kinds_of(config: &Path) -> Vec<String> {
+    if let Some(inline) = config_get(config, "evidence_review_kinds")
+        .ok()
+        .filter(|value| value.starts_with('[') && value.ends_with(']'))
+    {
+        return inline_list(&inline);
+    }
+    config_list(config, "evidence_review_kinds")
+        .unwrap_or_else(|_| EvidenceKinds::read(|key| config_get(config, key).ok()).all())
 }
 
 /// Itens de uma lista na linha (`[a, "b, c", d]`): separa por vírgula fora de aspas duplas.

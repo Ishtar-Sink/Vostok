@@ -823,3 +823,24 @@ fn extend_ids_merges_with_the_previous_list() {
         "{content}"
     );
 }
+
+#[test]
+fn revisor_ajuste_grava_origem_na_spec() {
+    let project = Project::new();
+    let file = refined_spec(&project);
+    run_spec(
+        &project,
+        &[
+            "adjust",
+            "record",
+            "SPEC-001",
+            "Requisito esclarecido",
+            "--revisor",
+        ],
+    );
+    let content = fs::read_to_string(&file).unwrap();
+    assert!(
+        content.contains("| revisor | Requisito esclarecido |"),
+        "{content}"
+    );
+}

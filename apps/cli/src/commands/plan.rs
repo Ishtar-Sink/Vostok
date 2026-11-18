@@ -54,6 +54,9 @@ pub enum AdjustCommand {
         spec_id: String,
         #[arg(allow_hyphen_values = true)]
         summary: Option<String>,
+        /// Ajuste aplicado a partir da revisão (origem revisor).
+        #[arg(long)]
+        revisor: bool,
     },
 }
 
@@ -131,11 +134,15 @@ fn run_adjust(workspace: &Workspace, command: AdjustCommand) -> Result<()> {
         AdjustCommand::Validate { spec_id } => {
             workspace.adjust_validate(require(&spec_id, ADJUST_USAGE)?)
         }
-        AdjustCommand::Record { spec_id, summary } => {
+        AdjustCommand::Record {
+            spec_id,
+            summary,
+            revisor,
+        } => {
             let Some(summary) = summary else {
                 bail!(ADJUST_USAGE);
             };
-            workspace.record(require(&spec_id, ADJUST_USAGE)?, &summary)
+            workspace.record(require(&spec_id, ADJUST_USAGE)?, &summary, revisor)
         }
     }
 }
@@ -1098,7 +1105,7 @@ impl Workspace {
         Ok(())
     }
 
-    fn record(&self, spec_id: &str, summary: &str) -> Result<()> {
+    fn record(&self, spec_id: &str, summary: &str, revisor: bool) -> Result<()> {
         let summary = clean_summary(summary)?;
         let plan = self.plan_to_adjust(spec_id)?;
         let spec = self.find_spec(spec_id)?;
@@ -1112,7 +1119,12 @@ impl Workspace {
             return Err(problems_message(header, &errors));
         }
         write(&plan, &content)?;
-        let origin = self.spec_setting("adjustment_origins.agent")?;
+        let origin = if revisor {
+            self.spec_setting("adjustment_origins.reviewer")
+                .unwrap_or_else(|_| "revisor".to_string())
+        } else {
+            self.spec_setting("adjustment_origins.agent")?
+        };
         let count = self.record_adjustment(&plan, &origin, &summary)?;
         println!(
             "Ajuste {count} registrado no plano de {spec_id}: {}",

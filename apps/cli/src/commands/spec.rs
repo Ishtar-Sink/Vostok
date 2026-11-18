@@ -62,6 +62,9 @@ pub enum AdjustCommand {
         /// IDs da spec mudados pelo ajuste, separados por vírgula.
         #[arg(long, value_name = "ID[,ID...]", allow_hyphen_values = true)]
         ids: Option<String>,
+        /// Ajuste aplicado a partir da revisão (origem revisor).
+        #[arg(long)]
+        revisor: bool,
     },
 }
 
@@ -93,8 +96,9 @@ pub fn run(command: SpecCommand) -> Result<()> {
             spec_id,
             summary,
             ids,
+            revisor,
         }) => match summary {
-            Some(summary) => record(&specs, &spec_id, &summary, ids.as_deref()),
+            Some(summary) => record(&specs, &spec_id, &summary, ids.as_deref(), revisor),
             None => bail!("{ADJUST_USAGE}"),
         },
         SpecCommand::Approve(ApproveCommand::Validate { spec_id }) => {
@@ -966,7 +970,13 @@ fn validate_adjustable(specs: &Specs, spec_id: &str) -> Result<()> {
     Ok(())
 }
 
-fn record(specs: &Specs, spec_id: &str, summary: &str, ids: Option<&str>) -> Result<()> {
+fn record(
+    specs: &Specs,
+    spec_id: &str,
+    summary: &str,
+    ids: Option<&str>,
+    revisor: bool,
+) -> Result<()> {
     let summary = clean_summary(summary)?;
     let ids = ids.map(parse_ids).transpose()?;
     let refined = find_adjustable_with(specs, spec_id, true)?;
@@ -997,7 +1007,13 @@ fn record(specs: &Specs, spec_id: &str, summary: &str, ids: Option<&str>) -> Res
             );
         }
     }
-    let origin = specs.setting("adjustment_origins.agent")?;
+    let origin = if revisor {
+        specs
+            .setting("adjustment_origins.reviewer")
+            .unwrap_or_else(|_| "revisor".to_string())
+    } else {
+        specs.setting("adjustment_origins.agent")?
+    };
     let count = record_adjustment(specs, &refined, &origin, &summary)?;
     println!(
         "Ajuste {count} registrado em {spec_id}: {}",

@@ -8627,3 +8627,31 @@ fn rodada_avisada_nao_sem_rodada() {
     let output = ahead_output(&project);
     assert!(!output.contains("geradas da rodada de"), "{output}");
 }
+
+const REVISOR_EVIDENCE: &str = "- `saida.txt` (automática): `echo ok`\n  - Prova: o comando roda.\n  - Trecho: a linha `ok`.\n  - Falha: saída vazia.";
+
+#[test]
+fn revisor_ajuste_grava_origem_na_tarefa() {
+    let project = task_with_evidence("pending", REVISOR_EVIDENCE);
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Passo esclarecido").arg("--revisor");
+    success_stdout(&mut record);
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content.contains("| revisor | Passo esclarecido |"),
+        "{content}"
+    );
+}
+
+#[test]
+fn revisor_ajuste_sem_opcao_mantem_agente() {
+    let project = task_with_evidence("pending", REVISOR_EVIDENCE);
+    let mut record = nested(&project, "adjust", "record");
+    record.arg("Passo esclarecido");
+    success_stdout(&mut record);
+    let content = read(&project, TASK_PATH);
+    assert!(
+        content.contains("| agente | Passo esclarecido |"),
+        "{content}"
+    );
+}

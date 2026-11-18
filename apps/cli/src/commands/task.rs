@@ -193,6 +193,9 @@ pub enum AdjustCommand {
         task_id: Option<String>,
         #[arg(allow_hyphen_values = true)]
         summary: Option<String>,
+        /// Ajuste aplicado a partir da revisão (origem revisor).
+        #[arg(long)]
+        revisor: bool,
     },
 }
 
@@ -1650,10 +1653,11 @@ impl Tasks {
                 spec_id,
                 task_id,
                 summary,
+                revisor,
             } => {
                 let (spec, task) = given(spec_id, task_id, ADJUST_USAGE)?;
                 let summary = summary.ok_or_else(|| usage(ADJUST_USAGE))?;
-                self.record(&spec, &task, &summary)
+                self.record(&spec, &task, &summary, revisor)
             }
         }
     }
@@ -1739,7 +1743,7 @@ impl Tasks {
         Ok(())
     }
 
-    fn record(&self, spec: &str, task: &str, summary: &str) -> Result<()> {
+    fn record(&self, spec: &str, task: &str, summary: &str, revisor: bool) -> Result<()> {
         let summary = clean_summary(summary)?;
         let file = self.adjustable_task(spec, task)?;
         let errors = self.errors_of(spec, &file, EvidenceNames::Normalizable)?;
@@ -1758,7 +1762,12 @@ impl Tasks {
             "Nomes de evidência com caminho trocados pelo nome do arquivo:",
             &renames,
         );
-        let origin = self.spec_cfg("adjustment_origins.agent")?;
+        let origin = if revisor {
+            self.spec_cfg("adjustment_origins.reviewer")
+                .unwrap_or_else(|_| "revisor".to_string())
+        } else {
+            self.spec_cfg("adjustment_origins.agent")?
+        };
         let count = self.record_adjustment(&file, &origin, &summary)?;
         println!("Ajuste {count} registrado em {task}: {}", file.display());
         self.drop_approval(&file, task)?;

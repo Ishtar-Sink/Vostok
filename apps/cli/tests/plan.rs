@@ -2650,3 +2650,37 @@ fn trecho_termina_aceita_valor_e_curinga() {
         assert!(ok, "{trecho}: {text}");
     }
 }
+
+#[test]
+fn revisor_ajuste_grava_origem_no_plano() {
+    use vostok::support::sha256_hex;
+    let project = Project::new();
+    let spec_body = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Entregar. |\n";
+    let plan_body = "\n# Plano\n\n## Visão geral\n\nUma tarefa.\n\n## Tarefas\n\n| ID | Título | Descrição | Tipo | Nível | Dependências | Cobre |\n|---|---|---|---|---|---|---|\n| TASK-01 | Tarefa | Entrega. | tarefa | simples | - | RF-01 |\n\n## Fatos de esforço\n\n| ID | Arquivos a criar | Arquivos a alterar | Contrato público | Inferência | Risco alto |\n|---|---|---|---|---|---|\n| TASK-01 | 0 | 1 | não | não | não |\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n";
+    spec_and_plan(&project, "improvement", spec_body, "");
+    let spec_hash = sha256_hex(spec_body.as_bytes());
+    let plan_hash = sha256_hex(plan_body.as_bytes());
+    write_file(
+        &project,
+        "vostok/work/plans/SPEC-001.md",
+        &format!("---\nspec: SPEC-001\nspec_hash: {spec_hash}\ncontent_hash: {plan_hash}\nadjustments: 0\nadjusted_at: null\n---\n{plan_body}"),
+    );
+    project
+        .vostok()
+        .args([
+            "plan",
+            "adjust",
+            "record",
+            "SPEC-001",
+            "Dependência corrigida",
+            "--revisor",
+        ])
+        .assert()
+        .success();
+    let plan =
+        std::fs::read_to_string(project.root().join("vostok/work/plans/SPEC-001.md")).unwrap();
+    assert!(
+        plan.contains("| revisor | Dependência corrigida |"),
+        "{plan}"
+    );
+}

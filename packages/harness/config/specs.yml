@@ -157,6 +157,7 @@ adjustment_history_section: adjustment-history
 adjustment_origins:
   manual: manual
   agent: agente
+  reviewer: revisor
 
 # Resumo de um ajuste manual. Se o arquivo estiver versionado no git, o script acrescenta
 # as seções alteradas desde o último commit. Ex.: "Edição manual: Riscos, Casos de teste".

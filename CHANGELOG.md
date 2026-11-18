@@ -2,6 +2,19 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.8.0] - 2026-11-18
+
+### Recursos
+
+- A tela da tarefa no painel ganhou a aba "Mudanças", com tudo o que a tarefa alterou no código desde o início da execução. A leitura é lado a lado por padrão, com a opção unificada. Nas linhas quase iguais, a palavra trocada aparece em negrito, e cada trecho traz uma frase de quem fez a tarefa. A comparação se atualiza durante a execução e fica guardada, sem mudar mais, quando a tarefa é concluída. (SPEC-063)
+- A comparação deixa de fora o que não é da tarefa: os arquivos que já estavam alterados quando ela começou, o que está no "Mudar" de outras tarefas, a pasta do harness e os redirecionamentos de skills e agentes, menos os caminhos do "Mudar" da própria tarefa. (SPEC-063)
+- A skill `execute-task` e o `vostok task brief` pedem a frase de cada trecho da comparação antes do `vostok task check`. (SPEC-063)
+
+### Correções
+
+- O `vostok plan score` e a validação do plano contam um arquivo novo como criado só na primeira tarefa da cadeia de dependências; as tarefas seguintes que o listam o contam como alteração. Num plano de extensão, a tarefa nova também conta como alteração o arquivo que uma tarefa original já tem no "Mudar". (SPEC-072, issue #23)
+- Os documentos finais deixam de cobrar a conferência de evidências que o projeto dispensa em `evidence_review_kinds`. Essas evidências aparecem à parte, como "sem conferência exigida", na linha de métricas, no cartão "Qualidade" e na barra de evidências, e o "N de M" conta só as que pedem conferência. (SPEC-073)
+
 ## [0.7.1] - 2026-11-18
 
 ### Correções

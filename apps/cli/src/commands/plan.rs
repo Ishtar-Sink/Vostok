@@ -634,9 +634,12 @@ impl Workspace {
             }
             rows.insert(id, markdown_cell(&row, 2));
         }
+        let previous = previous_paths(plan);
+        let original = self.original_paths(plan)?;
         let mut facts = ComponentFacts::default();
         let mut cited = HashSet::new();
         for id in &task_ids {
+            let before = previous.get(id);
             let Some(cell) = rows.get(id) else {
                 facts.problems.push(format!(
                     "{id}: sem linha em '{COMPONENTS_HEADING}' (use - quando a tarefa não assume componente da spec)"
@@ -652,12 +655,14 @@ impl Workspace {
             for path in paths {
                 match components.iter().find(|(known, _)| *known == path) {
                     Some((_, action)) => {
-                        cited.insert(path);
-                        if action == "criar" {
+                        let created_before = original.contains(&path)
+                            || before.is_some_and(|paths| paths.contains(&path));
+                        if action == "criar" && !created_before {
                             create += 1;
                         } else {
                             change += 1;
                         }
+                        cited.insert(path);
                     }
                     None => facts.problems.push(format!(
                         "{id}: componente `{path}` não está nos componentes afetados da spec"
@@ -678,6 +683,24 @@ impl Workspace {
             .filter(|path| !cited.contains(path) && seen.insert(path.clone()))
             .collect();
         Ok(Some(facts))
+    }
+
+    /// Caminhos do "Mudar" das tarefas do plano original, num plano de extensão.
+    fn original_paths(&self, plan: &str) -> Result<HashSet<String>> {
+        let Some(extension) = self.extension_of(plan)? else {
+            return Ok(HashSet::new());
+        };
+        let dir = self.tasks_dir(&plan_field(plan, "spec"))?;
+        let mut paths = HashSet::new();
+        for id in &extension.existing {
+            let file = task_path(&dir, id);
+            // A tarefa original sem "Mudar" legível só deixa de contribuir.
+            let Ok(text) = task_text(&file) else {
+                continue;
+            };
+            paths.extend(self.change_items(&text)?.into_iter().map(|(_, path)| path));
+        }
+        Ok(paths)
     }
 
     fn plan_errors(&self, plan: &str, spec: &Path) -> Result<Vec<String>> {
@@ -2900,6 +2923,35 @@ fn plan_waves(plan: &str) -> BTreeMap<String, usize> {
     waves(&tasks)
         .into_iter()
         .map(|(id, wave)| (id, wave + offset))
+        .collect()
+}
+
+/// Caminhos listados pelas tarefas de que cada tarefa depende, direta ou indiretamente.
+/// A tarefa em ciclo, ou que depende de uma em ciclo, fica de fora e conta pela spec.
+fn previous_paths(plan: &str) -> HashMap<String, HashSet<String>> {
+    let tasks: Vec<(String, Vec<String>)> = plan_tasks(plan, &HashMap::new())
+        .into_iter()
+        .map(|task| {
+            let depends = id_list(&task.depends);
+            (task.id, depends)
+        })
+        .collect();
+    let mut graph = CreatedPaths::default();
+    for (id, depends) in &tasks {
+        for dependency in depends {
+            graph.add_dependency(id, dependency);
+        }
+    }
+    for (id, paths) in task_components(plan) {
+        for path in paths {
+            graph.add_created(&id, &path);
+        }
+    }
+    let acyclic = waves(&tasks);
+    graph
+        .resolve()
+        .into_iter()
+        .filter(|(id, _)| acyclic.contains_key(id))
         .collect()
 }
 

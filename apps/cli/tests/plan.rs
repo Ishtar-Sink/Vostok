@@ -884,6 +884,192 @@ fn components_legacy_plan_without_the_section_keeps_typed_facts() {
     }
 }
 
+// --- criar só na primeira tarefa da cadeia (SPEC-072) ---
+
+fn chain_row(id: &str, depends: &str, covers: &str) -> String {
+    format!("| {id} | Tarefa {id} | Faz. | tarefa | desenvolvedor | - | {depends} | {covers} |")
+}
+
+fn chain_facts(rows: &[(&str, &str)]) -> String {
+    rows.iter()
+        .map(|(id, files)| format!("| {id} | {files} | não | não | não |"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn chain_project(rows: &str, facts: &str, components: &str) -> Project {
+    let project = Project::new();
+    spec_and_plan(
+        &project,
+        "feature",
+        COMPONENT_SPEC,
+        &with_components(&profile_plan(rows, facts), components),
+    );
+    project
+}
+
+/// TASK-01 cria `src/a.rs`; TASK-02 depende dela (ou de `dependency`) e também o lista.
+fn three_task_chain(dependency: &str, facts: &[(&str, &str)]) -> Project {
+    let rows = [
+        chain_row("TASK-01", "-", "RF-01, CT-01"),
+        chain_row("TASK-02", dependency, "-"),
+        chain_row("TASK-03", "-", "RF-02"),
+    ]
+    .join("\n");
+    chain_project(
+        &rows,
+        &chain_facts(facts),
+        "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/a.rs`, `src/b.rs` |\n| TASK-03 | `src/c.rs`, `docs/d.md` |",
+    )
+}
+
+const DASH_THREE: [(&str, &str); 3] = [
+    ("TASK-01", "- | -"),
+    ("TASK-02", "- | -"),
+    ("TASK-03", "- | -"),
+];
+
+#[test]
+fn creates_once_dependent_task_counts_the_new_file_as_change() {
+    let project = three_task_chain("TASK-01", &DASH_THREE);
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-01").starts_with("| TASK-01 | 1 | 0 |"),
+        "{plan}"
+    );
+    assert!(
+        fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 0 | 2 |"),
+        "{plan}"
+    );
+    assert!(
+        fact_line(&plan, "TASK-03").starts_with("| TASK-03 | 0 | 2 |"),
+        "{plan}"
+    );
+}
+
+#[test]
+fn creates_once_validate_accepts_the_corrected_facts() {
+    let project = three_task_chain("TASK-01", &DASH_THREE);
+    score(&project);
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn creates_once_validate_refuses_the_old_facts() {
+    let project = three_task_chain(
+        "TASK-01",
+        &[
+            ("TASK-01", "1 | 0"),
+            ("TASK-02", "1 | 1"),
+            ("TASK-03", "0 | 2"),
+        ],
+    );
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("TASK-02: arquivos a criar e a alterar diferentes dos calculados pelos componentes (execute vostok plan score)"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn creates_once_indirect_dependency_counts_as_change() {
+    let rows = [
+        chain_row("TASK-01", "-", "RF-01, CT-01"),
+        chain_row("TASK-02", "TASK-01", "RF-02"),
+        chain_row("TASK-03", "TASK-02", "-"),
+    ]
+    .join("\n");
+    let project = chain_project(
+        &rows,
+        &chain_facts(&DASH_THREE),
+        "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/b.rs` |\n| TASK-03 | `src/a.rs` |",
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-03").starts_with("| TASK-03 | 0 | 1 |"),
+        "{plan}"
+    );
+}
+
+#[test]
+fn creates_once_independent_tasks_both_count_create() {
+    let rows = [
+        chain_row("TASK-01", "-", "RF-01, CT-01"),
+        chain_row("TASK-02", "-", "RF-02"),
+    ]
+    .join("\n");
+    let project = chain_project(
+        &rows,
+        &chain_facts(&[("TASK-01", "- | -"), ("TASK-02", "- | -")]),
+        "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/a.rs` |",
+    );
+    score(&project);
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-01").starts_with("| TASK-01 | 1 | 0 |"),
+        "{plan}"
+    );
+    assert!(
+        fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 1 | 0 |"),
+        "{plan}"
+    );
+}
+
+#[test]
+fn creates_once_missing_dependency_keeps_the_spec_action() {
+    let project = three_task_chain(
+        "TASK-09",
+        &[
+            ("TASK-01", "1 | 0"),
+            ("TASK-02", "1 | 1"),
+            ("TASK-03", "0 | 2"),
+        ],
+    );
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("TASK-02: dependência inexistente TASK-09"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("TASK-02: arquivos a criar e a alterar diferentes"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn creates_once_cycle_keeps_the_spec_action() {
+    let rows = [
+        chain_row("TASK-01", "TASK-02", "RF-01, CT-01"),
+        chain_row("TASK-02", "TASK-01", "RF-02"),
+        chain_row("TASK-03", "TASK-02", "-"),
+    ]
+    .join("\n");
+    let project = chain_project(
+        &rows,
+        &chain_facts(&[
+            ("TASK-01", "1 | 0"),
+            ("TASK-02", "1 | 0"),
+            ("TASK-03", "1 | 0"),
+        ]),
+        "| TASK-01 | `src/a.rs` |\n| TASK-02 | `src/a.rs` |\n| TASK-03 | `src/a.rs` |",
+    );
+    let stderr = validate_stderr(&project);
+    assert!(
+        stderr.contains("dependência em ciclo envolvendo"),
+        "{stderr}"
+    );
+    assert!(
+        !stderr.contains("arquivos a criar e a alterar diferentes"),
+        "{stderr}"
+    );
+}
+
 const EDGE_SPEC: &str = "\n# Exemplo\n\n## Requisitos funcionais\n\n| ID | Requisito |\n|---|---|\n| RF-01 | Um. |\n\n## Casos de teste\n\n| ID | Cenário | Passos | Resultado esperado | Requisitos |\n|---|---|---|---|---|\n| CT-01 | Caso. | Rodar. | Ok. | RF-01 |\n\n## Casos de borda\n\n| ID | Situação | Comportamento esperado | Requisitos |\n|---|---|---|---|\n| CB-01 | Borda. | Trata. | RF-01 |\n| CB-02 | Outra. | Trata. | RF-01 |\n";
 
 fn coverage_plan(covers: &str) -> String {
@@ -2682,5 +2868,99 @@ fn revisor_ajuste_grava_origem_no_plano() {
     assert!(
         plan.contains("| revisor | Dependência corrigida |"),
         "{plan}"
+    );
+}
+
+// --- criar só na primeira tarefa, no plano de extensão (SPEC-072) ---
+
+fn creating_extension_spec() -> String {
+    format!(
+        "{EXTEND_SPEC}\n## Componentes afetados\n\n| Caminho | Ação | Motivo |\n|---|---|---|\n| `src/a.rs` | criar | Novo. |\n"
+    )
+}
+
+/// Extensão com a TASK-01 original (só `estado.yml`) e a TASK-02 nova listando `src/a.rs`.
+fn creating_extension(original_change: Option<&str>) -> Project {
+    let project = Project::new();
+    extension_tasks(&project, &creating_extension_spec(), "1", 1);
+    if let Some(change) = original_change {
+        let folder = "vostok/work/tasks/SPEC-001/TASK-01";
+        write_file(&project, &format!("{folder}/execucao.md"), change);
+        write_file(
+            &project,
+            &format!("{folder}/verificacao.md"),
+            "### Baseline\n",
+        );
+        write_file(
+            &project,
+            &format!("{folder}/criterios.md"),
+            "### Concluída quando\n",
+        );
+        write_file(
+            &project,
+            &format!("{folder}/registro.md"),
+            "## Registro de execução\n",
+        );
+    }
+    extension_plan(
+        &project,
+        &extension_row("TASK-02", "-", "RF-03"),
+        &extension_facts(&["TASK-02"]),
+        "| TASK-02 | `src/a.rs` |",
+    );
+    score(&project);
+    project
+}
+
+const CREATES_A: &str = "### Mudar\n\n- `src/a.rs` (criar): novo.\n";
+
+#[test]
+fn creates_once_extension_counts_the_original_file_as_change() {
+    let project = creating_extension(Some(CREATES_A));
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 0 | 1 |"),
+        "{plan}"
+    );
+    project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn creates_once_original_task_without_change_list_keeps_create() {
+    let project = creating_extension(None);
+    let plan = plan_text(&project);
+    assert!(
+        fact_line(&plan, "TASK-02").starts_with("| TASK-02 | 1 | 0 |"),
+        "{plan}"
+    );
+}
+
+#[test]
+fn creates_once_extension_after_create_tasks_keeps_the_facts() {
+    let project = creating_extension(None);
+    assert!(fact_line(&plan_text(&project), "TASK-02").starts_with("| TASK-02 | 1 | 0 |"));
+    project
+        .vostok()
+        .args(["plan", "approve", "create-tasks", "SPEC-001"])
+        .assert()
+        .success();
+    write_file(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-02/execucao.md",
+        CREATES_A,
+    );
+    let output = project
+        .vostok()
+        .args(["plan", "validate", "SPEC-001"])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("TASK-02: arquivos a criar e a alterar diferentes"),
+        "{stderr}"
     );
 }

@@ -4,6 +4,7 @@
 // PAINEL_CLICAR: seletores do Playwright separados por ";;", clicados em ordem (com 300 ms de espera) depois da rolagem
 // e antes do print, para fotografar o visualizador aberto, o texto com o botão de copiar ou o player; seletor ausente falha o print.
 // PAINEL_STORAGE: JSON com as chaves do localStorage gravadas antes de abrir a página.
+// PAINEL_PAGINA_INTEIRA: com "1", o print pega a página inteira, além da área visível.
 import { chromium } from 'playwright';
 
 const [url, output, size = '1280,900'] = process.argv.slice(2);
@@ -49,7 +50,7 @@ try {
     await page.waitForTimeout(300);
   }
   await page.waitForTimeout(500);
-  await page.screenshot({ path: output });
+  await page.screenshot({ path: output, fullPage: process.env.PAINEL_PAGINA_INTEIRA === '1' });
 } finally {
   await browser.close();
 }

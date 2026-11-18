@@ -26,11 +26,11 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); history.replaceState(null, '
 async function openEvidence() { fireEvent.click(await screen.findByRole('tab', { name: 'Evidências' })); }
 
 describe('TaskPage', () => {
-  it('divide a tarefa nas abas Resumo, Evidências e Para o agente', async () => {
+  it('divide a tarefa nas abas Resumo, Evidências, Mudanças e Para o agente', async () => {
     mockFetch(taskDetail());
     render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
     const tabs = await screen.findAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Resumo', 'Evidências', 'Para o agente']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Resumo', 'Evidências', 'Mudanças', 'Para o agente']);
     expect(screen.getByRole('tablist', { name: 'Partes da tarefa' })).toBeTruthy();
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
     const h2 = () => screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
@@ -148,7 +148,33 @@ describe('anexo de evidência', () => {
 });
 
 describe('TaskPage em abas', () => {
-  const tabNames = ['Resumo', 'Evidências', 'Para o agente'];
+  const tabNames = ['Resumo', 'Evidências', 'Mudanças', 'Para o agente'];
+
+  const changesBody = { base: 'abc1234', frozen: false, reason: null, added: 1, removed: 0, files: [{ path: 'apps/x.ts', action: 'criado', added: 1, removed: 0, hunks: ['@@ -0,0 +1 @@\n+x'] }] };
+  function mockWithChanges() {
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url.endsWith('/mudancas') ? json(changesBody) : url.startsWith('/api/tarefas') ? json(taskDetail()) : json(specDetail)));
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('abre a aba Mudanças com #mudancas', async () => {
+    history.pushState(null, '', '/tarefas/SPEC-001/TASK-02#mudancas');
+    mockWithChanges();
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    expect((await screen.findByRole('tab', { name: 'Mudanças' })).getAttribute('aria-selected')).toBe('true');
+    await screen.findByText('apps/x.ts');
+  });
+
+  it('só pede as mudanças com a aba Mudanças aberta', async () => {
+    const fetchMock = mockWithChanges();
+    render(<TaskPage spec="SPEC-001" task="TASK-02" version={0} />);
+    await screen.findByRole('tab', { name: 'Resumo' });
+    const asked = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/mudancas')).length;
+    expect(asked()).toBe(0);
+    fireEvent.click(screen.getByRole('tab', { name: 'Mudanças' }));
+    await waitFor(() => expect(asked()).toBe(1));
+    expect(window.location.hash).toBe('#mudancas');
+  });
 
   it('guarda a aba aberta no hash', async () => {
     mockFetch(taskDetail());

@@ -14,6 +14,7 @@ import { PageHeader } from '../../ui/page-header/page-header';
 import { Tabs } from '../../ui/tabs/tabs';
 import page from '../../shared/page.module.css';
 import { EvidenceList } from './evidence-list/evidence-list';
+import { TaskDiff } from './task-diff/task-diff';
 import styles from './task-page.module.css';
 
 /** Ordem de leitura: primeiro o que interessa a quem decide, depois o que é roteiro do agente. */
@@ -31,6 +32,7 @@ const AGENT = [
 const TASK_TABS = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'evidencias', label: 'Evidências' },
+  { id: 'mudancas', label: 'Mudanças' },
   { id: 'agente', label: 'Para o agente' },
 ];
 
@@ -165,6 +167,16 @@ export function TaskPage({ spec, task, version }: { spec: string; task: string; 
                 panel: (
                   <section aria-labelledby="evidencias" className={styles.part}>
                     <EvidenceList detail={detail.data} headingId="evidencias" />
+                  </section>
+                ),
+              },
+              {
+                id: 'mudancas',
+                label: 'Mudanças',
+                panel: (
+                  <section aria-labelledby="mudancas" className={styles.part}>
+                    <h2 id="mudancas" className={styles.partTitle}>Mudanças</h2>
+                    <TaskDiff spec={spec} task={state.id} status={state.status} version={version} />
                   </section>
                 ),
               },

@@ -114,6 +114,10 @@ export interface TaskDetail {
   reviews?: EvidenceReview[];
 }
 
+export type ChangeAction = 'criado' | 'alterado' | 'removido' | 'binário';
+export interface ChangedFile { path: string; action: ChangeAction; added: number; removed: number; hunks: string[]; before?: boolean; notes?: (string | null)[]; }
+export interface TaskChanges { base: string | null; frozen: boolean; reason: 'nao_iniciada' | 'nao_gravada' | 'sem_base' | 'sem_mudancas' | null; added?: number; removed?: number; files: ChangedFile[]; }
+
 export interface DocumentGroup {
   meta: SpecMeta;
   docs: FileRef[];

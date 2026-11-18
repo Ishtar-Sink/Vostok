@@ -1,0 +1,181 @@
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space) * 3);
+  margin-bottom: calc(var(--space) * 3);
+  color: var(--text);
+}
+
+.switcher {
+  margin-left: auto;
+}
+
+.plus {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.minus {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.files {
+  display: grid;
+  gap: calc(var(--space) * 2);
+}
+
+.file {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.fileSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space) * 2);
+  padding: calc(var(--space) * 2) calc(var(--space) * 3);
+  cursor: pointer;
+}
+
+.path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.counts {
+  margin-left: auto;
+  font-size: var(--font-size-sm);
+}
+
+.binary {
+  margin: 0;
+  padding: calc(var(--space) * 3);
+  color: var(--text-faint);
+  font-size: var(--font-size-sm);
+}
+
+.note {
+  margin: 0;
+  padding: calc(var(--space) * 2) calc(var(--space) * 3);
+  max-width: 75ch;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+}
+
+.note code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+  padding: 0 calc(var(--space) * 1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border-top: 1px solid var(--border);
+}
+
+.table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-sm);
+}
+
+.table td {
+  padding: 0 calc(var(--space) * 2);
+  vertical-align: top;
+  color: var(--text);
+}
+
+/* Larguras fixas: os números cabem em 5 dígitos e o código divide o resto por igual. */
+.colNumber {
+  width: calc(5ch + var(--space) * 2);
+}
+
+.colSign {
+  width: 3ch;
+}
+
+.colCode {
+  width: auto;
+}
+
+.number {
+  color: var(--text-faint) !important;
+  text-align: right;
+  user-select: none;
+  white-space: nowrap;
+  padding: 0 var(--space) !important;
+}
+
+.sign {
+  text-align: center;
+  user-select: none;
+  padding: 0 !important;
+}
+
+.code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.table td[data-diff='add'] {
+  background: var(--success-soft);
+  color: var(--text);
+}
+
+.table td[data-diff='del'] {
+  background: var(--danger-soft);
+  color: var(--text);
+}
+
+.table td.sign[data-diff='add'] {
+  color: var(--success);
+}
+
+.table td.sign[data-diff='del'] {
+  color: var(--danger);
+}
+
+.wordAdd,
+.wordDel {
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.wordAdd {
+  background: color-mix(in srgb, var(--success) 22%, var(--success-soft));
+}
+
+.wordDel {
+  background: color-mix(in srgb, var(--danger) 22%, var(--danger-soft));
+}
+
+@media (max-width: 480px) {
+  .summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .switcher {
+    margin-left: 0;
+  }
+
+  .path {
+    overflow-wrap: anywhere;
+  }
+}

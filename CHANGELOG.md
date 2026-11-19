@@ -2,6 +2,15 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.9.2] - 2026-11-19
+
+### Melhorias
+
+- A quantidade de rodadas da revisão sem contexto passa a ser configurada por tipo, no grupo novo `review_rounds` de `config/main.yml`, com `spec`, `plan` e `task` independentes, cada um com um inteiro de 1 a 5. Chave ausente ou vazia vale 1, e outro valor é recusado com uma mensagem que diz o que corrigir. (SPEC-076)
+- O `vostok review brief` aceita `--rodada <N>`, com padrão 1: dentro do limite, o roteiro traz a linha `- Rodada: N de M`; acima dele, o comando imprime só `Limite de M rodada(s) de revisão para <fluxo> atingido.` e termina sem erro. A revisão desligada em `review` continua desligada em qualquer rodada. (SPEC-076)
+- As skills `refine-spec`, `adjust-spec`, `plan-tasks`, `adjust-plan`, `approve-plan` e `adjust-task` deixam a segunda rodada fixa e pedem a rodada seguinte à CLI só depois de aplicar uma correção; no limite, o que sobrou vai para o usuário. (SPEC-076)
+- O padrão distribuído é 1 rodada em cada tipo, e o `vostok update` acrescenta `review_rounds` aos projetos instalados, mantendo o valor que o projeto já tiver. Com isso, projetos instalados passam de até 2 para 1 rodada; para voltar a 2, use `review_rounds.<fluxo>: 2`. (SPEC-076)
+
 ## [0.9.1] - 2026-11-19
 
 ### Recursos

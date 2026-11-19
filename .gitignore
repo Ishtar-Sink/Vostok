@@ -8,3 +8,6 @@ vostok/work/**/evidence
 vostok/work/**/evidencias
 apps/painel/node_modules/
 apps/painel/dist/
+
+# Lista local dos projetos que usam o vostok (modelo em projetos-vostok.example.yml).
+projetos-vostok.yml

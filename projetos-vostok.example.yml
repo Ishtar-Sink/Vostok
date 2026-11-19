@@ -1,0 +1,23 @@
+# Modelo da lista de projetos que usam o vostok. Copie para projetos-vostok.yml (fora do git)
+# e troque os exemplos pelos seus projetos. Lida pela skill update-vostok-projects
+# (scripts em scripts/projetos-vostok/). Vale só para este repositório, não para o harness.
+#
+# Cada item tem:
+#   nome:    nome curto, usado na saída e para atualizar um projeto só.
+#   tipo:    projeto (a pasta tem vostok/) ou pasta (cada subpasta com vostok/ vira um projeto,
+#            com o nome <nome>/<subpasta>).
+#   caminho: ${VARIAVEL} definida no .env (não versionado), ou um caminho relativo a este
+#            repositório. Prefira a variável: assim nenhum caminho do computador fica em arquivo.
+
+projetos:
+  - nome: ai-hub
+    tipo: projeto
+    caminho: .
+
+  - nome: exemplo
+    tipo: projeto
+    caminho: ${VOSTOK_PROJETO_EXEMPLO}
+
+  - nome: exemplos
+    tipo: pasta
+    caminho: ${VOSTOK_PASTA_EXEMPLOS}

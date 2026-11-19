@@ -837,3 +837,314 @@ fn reaproveita_valida_depende_existente_passa() {
         .assert()
         .success();
 }
+
+// --- Candidatas de baseline de imagem (SPEC-075, TASK-05) ---
+
+const CANDIDATAS_PRINT: &str = "- `fase1.png` (print): `cp assets/fase1.png \"$VOSTOK_EVIDENCE/fase1.png\"`\n  - Título: A tela da fase 1\n  - Prova: a fase 1.\n  - Depende: `assets/fase1.png`\n  - Trecho: o cenário.\n  - Falha: tela vazia.";
+
+const CANDIDATAS_DESTINO: &str = "vostok/work/tasks/SPEC-002/evidence/TASK-01";
+
+fn candidatas_tarefa(spec: &str, status: &str, evidence: &str) -> String {
+    format!(
+        "---\nid: TASK-01\nspec: {spec}\ntitle: \"Tarefa\"\neffort: simples\ndepends_on: []\ncovers: [RF-01]\ntype: tarefa\nlabels: [{spec}, simples]\nstatus: {status}\ncontent_hash: null\nadjustments: 0\nadjusted_at: null\napproved_at: null\napproved_hash: null\nattempts: 0\ntests_result: null\nregression_result: null\nevidence_result: null\n---\n\n# TASK-01: Tarefa\n\n## Execução\n\n### Ler\n\n- `README.md`\n\n### Mudar\n\n- `novo.txt` (criar): arquivo novo.\n\n### Passos\n\n1. Crie o arquivo.\n\n### Baseline\n\n- `true`\n\n### Verificação\n\n```bash\ntrue\n```\n\n### Evidências\n\n{evidence}\n\n### Concluída quando\n\n- [ ] Pronto (RF-01).\n\n  > Como comprovar: ver o arquivo.\n\n## Descrição\n\n### Resumo executivo\n\nResumo.\n\n### Detalhes técnicos\n\nDetalhes.\n\n### Card\n\n- **Título:** Tarefa\n- **Tipo:** tarefa\n- **Descrição:** Descrição.\n- **Critérios de aceite:**\n  - [ ] Pronto.\n- **Rótulos:** {spec}, simples\n- **Estimativa:** simples\n- **Bloqueada por:** -\n\n## Registro de execução\n\n| # | Data | Etapa | Resultado | Detalhe |\n|---|---|---|---|---|\n\n## Histórico de ajustes\n\n| # | Data | Origem | Resumo |\n|---|---|---|---|\n"
+    )
+}
+
+fn candidatas_rodar(project: &Project, args: &[&str]) -> assert_cmd::Command {
+    let mut command = project.vostok();
+    command.args(args);
+    command
+}
+
+fn candidatas_saida(project: &Project, args: &[&str]) -> String {
+    let output = candidatas_rodar(project, args)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).unwrap()
+}
+
+fn candidatas_gravar(project: &Project, relative: &str, content: &str) {
+    let path = project.root().join(relative);
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(path, content).unwrap();
+}
+
+fn candidatas_ler(project: &Project, relative: &str) -> String {
+    fs::read_to_string(project.root().join(relative)).unwrap_or_default()
+}
+
+fn candidatas_existe(project: &Project, relative: &str) -> bool {
+    project.root().join(relative).exists()
+}
+
+fn candidatas_projeto() -> Project {
+    let project = Project::new();
+    candidatas_gravar(&project, "assets/fase1.png", "PNG1");
+    candidatas_gravar(
+        &project,
+        "vostok/work/tasks/SPEC-001/TASK-01.md",
+        &candidatas_tarefa("SPEC-001", "in_progress", CANDIDATAS_PRINT),
+    );
+    candidatas_saida(&project, &["task", "baseline", "SPEC-001", "TASK-01"]);
+    candidatas_saida(&project, &["task", "evidence", "SPEC-001", "TASK-01"]);
+    fs::remove_dir_all(project.root().join("vostok/work/tasks/SPEC-001")).unwrap();
+    candidatas_gravar(
+        &project,
+        "vostok/work/tasks/SPEC-002/TASK-01.md",
+        &candidatas_tarefa("SPEC-002", "pending", CANDIDATAS_PRINT),
+    );
+    candidatas_saida(
+        &project,
+        &["task", "adjust", "record-manual", "SPEC-002", "TASK-01"],
+    );
+    candidatas_saida(
+        &project,
+        &["task", "approve", "approve", "SPEC-002", "TASK-01"],
+    );
+    project
+}
+
+fn candidatas_aplicar(project: &Project, de: &str) -> assert_cmd::Command {
+    candidatas_rodar(
+        project,
+        &[
+            "task",
+            "reuse",
+            "apply",
+            "SPEC-002",
+            "TASK-01",
+            "fase1.png",
+            "--de",
+            "SPEC-001",
+            "TASK-01",
+            de,
+            "--motivo",
+            "usuário aceitou",
+        ],
+    )
+}
+
+fn candidatas_linha(saida: &str) -> String {
+    saida
+        .lines()
+        .find(|line| line.starts_with("| TASK-01 | fase1.png | SPEC-001 TASK-01 EV-01 | "))
+        .unwrap_or_else(|| panic!("sem a linha da candidata: {saida}"))
+        .to_string()
+}
+
+fn candidatas_iniciar(project: &Project) -> String {
+    candidatas_saida(
+        project,
+        &["task", "start", "SPEC-002", "TASK-01", "--model", "teste"],
+    )
+}
+
+#[test]
+fn candidatas_lista_a_origem_com_entradas_iguais() {
+    let project = candidatas_projeto();
+    let saida = candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-002"]);
+    assert!(
+        saida.contains("### Candidatas de baseline da SPEC-002"),
+        "{saida}"
+    );
+    assert!(candidatas_linha(&saida).ends_with("| iguais |"), "{saida}");
+    assert!(
+        saida
+            .lines()
+            .any(|line| line.starts_with("Reaproveitar: vostok task reuse apply SPEC-002")),
+        "{saida}"
+    );
+}
+
+#[test]
+fn candidatas_entradas_mudaram_depois_da_gravacao() {
+    let project = candidatas_projeto();
+    candidatas_gravar(&project, "assets/fase1.png", "PNG2");
+    let saida = candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-002"]);
+    assert!(candidatas_linha(&saida).ends_with("| mudaram |"), "{saida}");
+}
+
+#[test]
+fn candidatas_spec_sem_candidatas() {
+    let project = candidatas_projeto();
+    let outra = CANDIDATAS_PRINT
+        .replace("$VOSTOK_EVIDENCE/fase1.png", "$VOSTOK_EVIDENCE/outra.png")
+        .replace("`fase1.png` (print)", "`outra.png` (print)");
+    candidatas_gravar(
+        &project,
+        "vostok/work/tasks/SPEC-003/TASK-01.md",
+        &candidatas_tarefa("SPEC-003", "pending", &outra),
+    );
+    let saida = candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-003"]);
+    assert_eq!(saida, "Nenhuma evidência para reaproveitar.\n");
+}
+
+#[test]
+fn candidatas_aplica_copia_e_registra_o_motivo() {
+    let project = candidatas_projeto();
+    let output = candidatas_aplicar(&project, "EV-01")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let saida = String::from_utf8(output).unwrap();
+    assert!(
+        saida.contains("- [evidência fase1.png] reaproveitada de SPEC-001 TASK-01 EV-01 (chave "),
+        "{saida}"
+    );
+    assert_eq!(
+        candidatas_ler(
+            &project,
+            &format!("{CANDIDATAS_DESTINO}/baseline-reaproveitado/fase1.png")
+        ),
+        "PNG1"
+    );
+    assert!(!candidatas_existe(
+        &project,
+        &format!("{CANDIDATAS_DESTINO}/baseline")
+    ));
+    let tarefa = candidatas_ler(&project, "vostok/work/tasks/SPEC-002/TASK-01.md");
+    let linha = tarefa
+        .lines()
+        .find(|line| line.contains("| reaproveitada |"))
+        .unwrap_or_else(|| panic!("sem a linha reaproveitada: {tarefa}"));
+    assert!(
+        linha.contains("fase1.png de SPEC-001 TASK-01 EV-01 (chave "),
+        "{linha}"
+    );
+    assert!(linha.contains("motivo: usuário aceitou"), "{linha}");
+}
+
+#[test]
+fn candidatas_aplicar_e_iniciar_move_para_o_baseline() {
+    let project = candidatas_projeto();
+    println!(
+        "{}",
+        candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-002"])
+    );
+    let output = candidatas_aplicar(&project, "EV-01")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    println!("{}", String::from_utf8(output).unwrap());
+    let inicio = candidatas_iniciar(&project);
+    println!("{inicio}");
+    assert!(
+        inicio.contains("1 evidência(s) reaproveitada(s) movida(s) para o baseline"),
+        "{inicio}"
+    );
+    assert_eq!(
+        candidatas_ler(
+            &project,
+            &format!("{CANDIDATAS_DESTINO}/baseline/evidence/fase1.png")
+        ),
+        "PNG1"
+    );
+    assert!(!candidatas_existe(
+        &project,
+        &format!("{CANDIDATAS_DESTINO}/baseline-reaproveitado")
+    ));
+}
+
+#[test]
+fn candidatas_recusa_depois_do_baseline() {
+    let project = candidatas_projeto();
+    candidatas_iniciar(&project);
+    let saida = candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-002"]);
+    assert!(
+        saida.contains("Nenhuma evidência para reaproveitar."),
+        "{saida}"
+    );
+    let stderr = failure_stderr(&mut candidatas_aplicar(&project, "EV-01"));
+    assert!(stderr.contains("já foi coletado"), "{stderr}");
+}
+
+#[test]
+fn candidatas_aplicar_recusa_entrada_invalida() {
+    let project = candidatas_projeto();
+    let destino = format!("{CANDIDATAS_DESTINO}/baseline-reaproveitado");
+    let base = [
+        "task",
+        "reuse",
+        "apply",
+        "SPEC-002",
+        "TASK-01",
+        "fase1.png",
+        "--de",
+        "SPEC-001",
+        "TASK-01",
+        "EV-01",
+    ];
+    let stderr = failure_stderr(&mut candidatas_rodar(&project, &base));
+    assert!(stderr.contains("informe em --motivo"), "{stderr}");
+    let stderr = failure_stderr(&mut candidatas_aplicar(&project, "EV-02"));
+    assert!(stderr.contains("não é candidata"), "{stderr}");
+    let mut outra = base.to_vec();
+    outra[5] = "outra.png";
+    outra.extend_from_slice(&["--motivo", "usuário aceitou"]);
+    let stderr = failure_stderr(&mut candidatas_rodar(&project, &outra));
+    assert!(stderr.contains("não é uma evidência (print)"), "{stderr}");
+    candidatas_rodar(
+        &project,
+        &[
+            "task",
+            "reuse",
+            "apply",
+            "SPEC-002",
+            "TASK-01",
+            "fase1.png",
+            "--de",
+            "SPEC-001",
+            "TASK-01",
+            "--motivo",
+            "usuário aceitou",
+        ],
+    )
+    .assert()
+    .failure();
+    assert!(!candidatas_existe(&project, &destino));
+}
+
+#[test]
+fn candidatas_aplicar_recusa_copia_alterada() {
+    let project = candidatas_projeto();
+    let objetos = project.root().join("vostok/work/evidence-index/objects");
+    for objeto in fs::read_dir(&objetos).unwrap() {
+        fs::write(objeto.unwrap().path(), "ALTERADO").unwrap();
+    }
+    let stderr = failure_stderr(&mut candidatas_aplicar(&project, "EV-01"));
+    assert!(stderr.contains("não está íntegra"), "{stderr}");
+    let criados: Vec<_> = fs::read_dir(project.root().join(CANDIDATAS_DESTINO))
+        .map(|entries| entries.collect())
+        .unwrap_or_default();
+    assert!(criados.is_empty(), "{criados:?}");
+}
+
+#[test]
+fn candidatas_desligado() {
+    let project = candidatas_projeto();
+    let path = "vostok/config/tasks.yml";
+    let mut config: String = candidatas_ler(&project, path)
+        .lines()
+        .filter(|line| !line.starts_with("evidence_reuse:"))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    config.push_str("evidence_reuse: desligado\n");
+    candidatas_gravar(&project, path, &config);
+    let saida = candidatas_saida(&project, &["task", "reuse", "candidates", "SPEC-002"]);
+    assert!(
+        saida.contains("Reaproveitamento desligado em config/tasks.yml (evidence_reuse)."),
+        "{saida}"
+    );
+    let stderr = failure_stderr(&mut candidatas_aplicar(&project, "EV-01"));
+    assert!(
+        stderr.contains("o reaproveitamento está desligado"),
+        "{stderr}"
+    );
+}

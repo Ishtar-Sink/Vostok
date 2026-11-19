@@ -183,6 +183,9 @@ pub enum TaskCommand {
         #[arg(long, value_name = "ARQUIVO=QUEM")]
         reviewed: Vec<String>,
     },
+    /// Reaproveita prints e vídeos de outras tarefas como baseline, com a decisão do usuário.
+    #[command(subcommand)]
+    Reuse(ReuseCommand),
 }
 
 #[derive(Debug, Subcommand)]
@@ -267,6 +270,23 @@ pub enum ApproveCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+pub enum ReuseCommand {
+    /// Lista os prints e vídeos do índice com o mesmo comando das evidências da spec.
+    Candidates { spec_id: Option<String> },
+    /// Copia uma evidência do índice para o baseline da tarefa, com a decisão do usuário em --motivo.
+    Apply {
+        spec_id: Option<String>,
+        task_id: Option<String>,
+        file: Option<String>,
+        #[arg(long = "de", num_args = 3, value_names = ["SPEC", "TASK", "EV-NN"])]
+        de: Vec<String>,
+        #[arg(long, value_name = "MOTIVO", allow_hyphen_values = true)]
+        motivo: Option<String>,
+    },
+}
+
+const REUSE_USAGE: &str = "Uso: vostok task reuse candidates <SPEC_ID> | apply <SPEC_ID> <TASK_ID> <arquivo> --de <SPEC> <TASK> <EV-NN> --motivo \"decisão\"";
 const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
 const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
 const MIGRATE_USAGE: &str = "Uso: vostok task migrate <SPEC_ID>";
@@ -321,6 +341,10 @@ const DEFAULT_EVIDENCE_BASELINE_TIMEOUT: u64 = 120;
 /// Código gravado para uma evidência interrompida pelo tempo-limite, o mesmo do `timeout`.
 const TIMEOUT_EXIT: i32 = 124;
 const NOT_EXECUTED: &str = "não executada:";
+/// Pasta da tarefa com as cópias do índice escolhidas pelo usuário antes do baseline (SPEC-075).
+const REUSED_BASELINE_DIR: &str = "baseline-reaproveitado";
+/// Subpasta do baseline das evidências quando `evidence_baseline_dir` não está configurado.
+const DEFAULT_EVIDENCE_BASELINE_DIR: &str = "evidence";
 const DEFAULT_EVIDENCE_PRINT: &str = "print";
 const EXPECTED_CHANGE_MARK: &str = "(muda)";
 const DEFAULT_REGRESSION_ALERT: [&str; 4] = ["FAILED", "error", "warning", "panicked"];
@@ -506,6 +530,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
             };
             tasks.persist(&spec, &task, &options)
         }
+        TaskCommand::Reuse(command) => tasks.run_reuse(command),
     }
 }
 
@@ -1680,6 +1705,42 @@ impl Tasks {
     }
 
     // --- adjust ---
+
+    fn run_reuse(&self, command: ReuseCommand) -> Result<()> {
+        match command {
+            ReuseCommand::Candidates { spec_id } => {
+                let spec = spec_id
+                    .filter(|spec| !spec.is_empty())
+                    .ok_or_else(|| usage(REUSE_USAGE))?;
+                print!("{}", self.reuse_candidates_report(&spec)?);
+                Ok(())
+            }
+            ReuseCommand::Apply {
+                spec_id,
+                task_id,
+                file,
+                de,
+                motivo,
+            } => {
+                let filled = |value: Option<String>| value.filter(|value| !value.is_empty());
+                let (Some(spec), Some(task), Some(file)) =
+                    (filled(spec_id), filled(task_id), filled(file))
+                else {
+                    return Err(usage(REUSE_USAGE));
+                };
+                if de.len() != 3 {
+                    return Err(usage(REUSE_USAGE));
+                }
+                self.reuse_apply(
+                    &spec,
+                    &task,
+                    &file,
+                    [&de[0], &de[1], &de[2]],
+                    motivo.as_deref(),
+                )
+            }
+        }
+    }
 
     fn run_adjust(&self, command: AdjustCommand) -> Result<()> {
         match command {
@@ -3109,6 +3170,7 @@ impl Tasks {
             fs::write(target.join(name), output)?;
         }
         self.record_candidates(file, candidates);
+        let moved = self.move_reused_baseline(file, &dir)?;
         let codes = results
             .iter()
             .map(|(code, _)| code.to_string())
@@ -3129,7 +3191,201 @@ impl Tasks {
                 evidences.len()
             ));
         }
+        if moved > 0 {
+            detail.push_str(&format!(
+                "; {moved} evidência(s) reaproveitada(s) movida(s) para o baseline"
+            ));
+        }
         Ok((dir, detail, reused))
+    }
+
+    // --- reuse: candidatas de baseline de imagem ---
+
+    /// Move as cópias escolhidas em `baseline-reaproveitado/` para o baseline das evidências.
+    fn move_reused_baseline(&self, file: &Path, baseline: &Path) -> Result<usize> {
+        let reused = self.evidence_dir(file)?.join(REUSED_BASELINE_DIR);
+        if !reused.is_dir() {
+            return Ok(0);
+        }
+        let target = baseline.join(
+            self.evidence_baseline_dir()
+                .unwrap_or_else(|| DEFAULT_EVIDENCE_BASELINE_DIR.to_string()),
+        );
+        fs::create_dir_all(&target)?;
+        let mut names: Vec<_> = fs::read_dir(&reused)?
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.path().is_file())
+            .map(|entry| entry.file_name())
+            .collect();
+        names.sort();
+        for name in &names {
+            fs::rename(reused.join(name), target.join(name))?;
+        }
+        fs::remove_dir(&reused)?;
+        Ok(names.len())
+    }
+
+    /// Comandos das evidências `(print)` da tarefa, pelo nome.
+    fn print_commands(&self, file: &Path) -> Result<Vec<(String, String)>> {
+        let print = self.evidence_print();
+        Ok(self
+            .evidence_entries(&TaskDoc::at(file).text()?)?
+            .into_iter()
+            .filter(|entry| entry.kind == print)
+            .filter_map(|entry| {
+                let command = entry.rest.strip_prefix('`')?.strip_suffix('`')?.to_string();
+                (!command.is_empty()).then_some((entry.name, command))
+            })
+            .collect())
+    }
+
+    /// Entradas do índice com o mesmo comando, de imagem ou vídeo e de outra tarefa, em ordem.
+    fn image_candidates(&self, file: &Path, command: &str) -> Result<Vec<Entry>> {
+        let (spec, task) = (spec_of(file), task_id_of(file));
+        let mut entries: Vec<Entry> = self
+            .reuse_index()
+            .by_command(&evidence_reuse::command_hash(command))?
+            .into_iter()
+            .filter(|entry| entry.kind != "log" && !(entry.spec == spec && entry.task == task))
+            .collect();
+        entries.sort_by(|a, b| {
+            (&a.spec, &a.task, &a.evidence_id).cmp(&(&b.spec, &b.task, &b.evidence_id))
+        });
+        Ok(entries)
+    }
+
+    /// Tabela das candidatas de baseline de imagem das tarefas da spec sem baseline (RF-16).
+    fn reuse_candidates_report(&self, spec: &str) -> Result<String> {
+        if !self.evidence_reuse() {
+            return Ok(
+                "Reaproveitamento desligado em config/tasks.yml (evidence_reuse).\n".to_string(),
+            );
+        }
+        if !is_spec_id(spec) {
+            bail!("ID de spec inválido: '{spec}'");
+        }
+        let dir = self.tasks_root.join(spec);
+        let prefix = format!("{}-", self.cfg("id.prefix")?);
+        let files: Vec<PathBuf> = if dir.is_dir() {
+            task_entries(&dir)?
+                .into_iter()
+                .filter(|file| task_id_of(file).starts_with(&prefix))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        if files.is_empty() {
+            bail!("a spec {spec} não tem tarefas em {}", dir.display());
+        }
+        let mut tree: Option<String> = None;
+        let mut rows = Vec::new();
+        for file in &files {
+            if self.has_baseline(file)? {
+                continue;
+            }
+            for (name, command) in self.print_commands(file)? {
+                for entry in self.image_candidates(file, &command)? {
+                    let current = if entry.depends.is_empty() {
+                        match &tree {
+                            Some(fingerprint) => fingerprint.clone(),
+                            None => {
+                                let fingerprint = self.tree_fingerprint()?;
+                                tree = Some(fingerprint.clone());
+                                fingerprint
+                            }
+                        }
+                    } else {
+                        self.inputs_fingerprint(&entry.depends)?
+                    };
+                    let inputs = if current == entry.inputs {
+                        "iguais"
+                    } else {
+                        "mudaram"
+                    };
+                    let date: String = entry.date.chars().take(10).collect();
+                    rows.push(format!(
+                        "| {} | {name} | {} {} {} | {date} | {inputs} |",
+                        task_id_of(file),
+                        entry.spec,
+                        entry.task,
+                        entry.evidence_id
+                    ));
+                }
+            }
+        }
+        if rows.is_empty() {
+            return Ok("Nenhuma evidência para reaproveitar.\n".to_string());
+        }
+        Ok(format!(
+            "### Candidatas de baseline da {spec}\n\n| Tarefa | Evidência | Origem | Data | Entradas |\n|---|---|---|---|---|\n{}\n\nReaproveitar: vostok task reuse apply {spec} <TASK_ID> <arquivo> --de <SPEC> <TASK> <EV-NN> --motivo \"<decisão do usuário>\"\n",
+            rows.join("\n")
+        ))
+    }
+
+    /// Copia a candidata escolhida pelo usuário para `baseline-reaproveitado/` da tarefa (RF-17).
+    fn reuse_apply(
+        &self,
+        spec: &str,
+        task: &str,
+        name: &str,
+        origin: [&str; 3],
+        reason: Option<&str>,
+    ) -> Result<()> {
+        if !self.evidence_reuse() {
+            bail!("o reaproveitamento está desligado em config/tasks.yml (evidence_reuse); nada foi copiado");
+        }
+        let reason = normalized_reason(reason.unwrap_or_default());
+        if reason.is_empty() {
+            bail!("informe em --motivo a decisão do usuário; nada foi copiado");
+        }
+        let file = self.find_task(spec, task)?;
+        if self.has_baseline(&file)? {
+            bail!("o baseline de {task} já foi coletado; o reaproveitamento vale só antes do vostok task start; nada foi copiado");
+        }
+        let Some((_, command)) = self
+            .print_commands(&file)?
+            .into_iter()
+            .find(|(evidence, _)| evidence == name)
+        else {
+            bail!(
+                "'{name}' não é uma evidência ({}) da tarefa {task}; nada foi copiado",
+                self.evidence_print()
+            );
+        };
+        let source = origin.join(" ");
+        let Some(entry) = self
+            .image_candidates(&file, &command)?
+            .into_iter()
+            .find(|entry| {
+                [
+                    entry.spec.as_str(),
+                    entry.task.as_str(),
+                    entry.evidence_id.as_str(),
+                ] == origin
+            })
+        else {
+            bail!("{source} não é candidata para {name}; veja vostok task reuse candidates {spec}; nada foi copiado");
+        };
+        let Some((entry, bytes)) = self.reuse_index().lookup(&entry.key)? else {
+            bail!("a cópia de {source} no índice não está íntegra; nada foi copiado");
+        };
+        let dir = self.evidence_dir(&file)?.join(REUSED_BASELINE_DIR);
+        fs::create_dir_all(&dir)?;
+        let target = dir.join(name);
+        fs::write(&target, &bytes)?;
+        let key = &entry.key[..entry.key.len().min(8)];
+        self.record_step(
+            &file,
+            "reaproveitada",
+            &status_of(&file),
+            &format!("{name} de {source} (chave {key}); motivo: {reason}"),
+        )?;
+        println!("- [evidência {name}] reaproveitada de {source} (chave {key})");
+        println!(
+            "Baseline de {name} gravado em {}; o vostok task start o move para o baseline das evidências.",
+            target.display()
+        );
+        Ok(())
     }
 
     /// Motivo de cada comando de "Baseline" com mudança esperada, na ordem dos comandos.

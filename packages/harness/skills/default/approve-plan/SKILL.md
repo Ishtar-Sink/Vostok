@@ -3,7 +3,7 @@ name: approve-plan
 description: "Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status, vostok review brief"
   templates: "templates/task/task.md"
@@ -234,7 +234,7 @@ Com a tabela de achados, que traz a coluna "Tarefa":
 3. Valide cada tarefa alterada com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
 5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
-6. Se aplicou alguma correção, dispare o revisor uma segunda vez com `vostok review brief task <SPEC_ID> <TASK_ID>...`, só com as tarefas corrigidas; as demais entram em "## Contexto". O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+6. Se aplicou alguma correção, rode `vostok review brief task <SPEC_ID> <TASK_ID>... --rodada <N+1>`, só com as tarefas corrigidas, com N a rodada que terminou (o roteiro mostra `- Rodada: N de M`); as demais entram em "## Contexto". Com o roteiro, dispare o revisor de novo, com a mesma mensagem e a opção `--rodada`, e repita os itens 1 a 6. Com `Limite de M rodada(s) de revisão para task atingido.`, não há nova rodada: o que a última rodada apontou e não foi aplicado vai para o usuário na resposta. Com `Nenhum achado.`, a revisão termina.
 
 ### 8. Responder ao usuário
 

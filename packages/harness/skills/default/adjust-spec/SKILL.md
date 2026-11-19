@@ -3,7 +3,7 @@ name: adjust-spec
 description: "Ajusta uma especificação (spec) já refinada, com status refined ou approved. Aplica um ou vários ajustes pedidos numa mesma mensagem, em prosa, em lista ou citando o trecho exato, registra edições feitas à mão e mantém o histórico de ajustes da spec, validando-a com as mesmas regras do refinamento. Use quando o usuário pedir para ajustar, corrigir, mudar, alterar, acrescentar ou remover algo de uma spec refinada ou aprovada, ou comentar a spec logo depois de ela ser refinada ou ajustada."
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "1.4.0"
+  version: "1.5.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec adjust record-manual, vostok spec adjust validate, vostok spec adjust record, vostok review brief"
   templates: "templates/spec/sections"
@@ -200,7 +200,7 @@ Com a tabela de achados do revisor:
 3. Valide com `vostok spec adjust validate <SPEC_ID>` e registre com `vostok spec adjust record <SPEC_ID> "<resumo>" --revisor`. A correção que deixa a spec inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
 5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
-6. Se aplicou alguma correção, dispare o revisor uma segunda vez. O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+6. Se aplicou alguma correção, rode `vostok review brief spec <SPEC_ID> --rodada <N+1>`, com N a rodada que terminou (o roteiro mostra `- Rodada: N de M`). Com o roteiro, dispare o revisor de novo, com a mesma mensagem e a opção `--rodada`, e repita os itens 1 a 6. Com `Limite de M rodada(s) de revisão para spec atingido.`, não há nova rodada: o que a última rodada apontou e não foi aplicado vai para o usuário na resposta. Com `Nenhum achado.`, a revisão termina.
 
 ### 11. Responder ao usuário
 

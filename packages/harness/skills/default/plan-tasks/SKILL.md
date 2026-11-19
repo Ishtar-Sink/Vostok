@@ -3,7 +3,7 @@ name: plan-tasks
 description: "Planeja as tarefas de uma especificação (spec) aprovada, com status approved. Cria um plano para revisão em work/plans/, com a visão geral, a tabela de tarefas, as dependências, os IDs cobertos e o perfil de execução de cada tarefa, calculado pelo vostok. Use quando o usuário pedir para planejar, propor, granularizar ou quebrar em tarefas uma spec aprovada. Não use para ajustar um plano existente (skill adjust-plan) nem para aprová-lo (skill approve-plan)."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok spec list, vostok plan create, vostok plan score, vostok plan validate, vostok review brief"
   templates: "templates/plan/plan.md"
@@ -158,7 +158,7 @@ Com a tabela de achados do revisor:
 3. Valide com `vostok plan adjust validate <SPEC_ID>` e registre com `vostok plan adjust record <SPEC_ID> "<resumo>" --revisor`, que recalcula os perfis e as ondas. A correção que deixa o plano inválido e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
 5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
-6. Se aplicou alguma correção, dispare o revisor uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+6. Se aplicou alguma correção, rode `vostok review brief plan <SPEC_ID> --rodada <N+1>`, com N a rodada que terminou (o roteiro mostra `- Rodada: N de M`). Com o roteiro, dispare o revisor de novo, com a mesma mensagem e a opção `--rodada`, e repita os itens 1 a 6. Com `Limite de M rodada(s) de revisão para plan atingido.`, não há nova rodada: o que a última rodada apontou e não foi aplicado vai para o usuário na resposta. Com `Nenhum achado.`, a revisão termina.
 
 ### 8. Responder ao usuário
 

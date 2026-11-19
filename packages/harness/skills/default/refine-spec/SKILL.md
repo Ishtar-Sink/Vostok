@@ -3,7 +3,7 @@ name: refine-spec
 description: Refina uma especificação (spec) em rascunho. Investiga o projeto e a memória, identifica ambiguidades, conflitos e lacunas, resolve com o usuário em rodadas de perguntas e gera em `refined/` uma spec detalhada, com seções conforme o tipo (feature, improvement, fix, study, analysis). Use quando o usuário pedir para refinar, detalhar ou esclarecer uma spec em rascunho (status draft), ou perguntar quais specs em draft estão prontas para refinamento. Não use para specs já refinadas: ajustes nelas são feitos pela skill adjust-spec.
 allowed-tools: Read Edit Bash(vostok *)
 metadata:
-  version: "2.3.0"
+  version: "2.4.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok spec list, vostok memory search, vostok spec refine, vostok spec validate, vostok spec mark-refined, vostok review brief"
   templates: "templates/spec/refined.md templates/spec/sections"
@@ -173,7 +173,7 @@ Com a tabela de achados do revisor:
 3. Valide com `vostok spec adjust validate <SPEC_ID>` e registre com `vostok spec adjust record <SPEC_ID> "<resumo>" --revisor`. A correção que deixa a spec inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
 5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
-6. Se aplicou alguma correção, dispare o revisor uma segunda vez. O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+6. Se aplicou alguma correção, rode `vostok review brief spec <SPEC_ID> --rodada <N+1>`, com N a rodada que terminou (o roteiro mostra `- Rodada: N de M`). Com o roteiro, dispare o revisor de novo, com a mesma mensagem e a opção `--rodada`, e repita os itens 1 a 6. Com `Limite de M rodada(s) de revisão para spec atingido.`, não há nova rodada: o que a última rodada apontou e não foi aplicado vai para o usuário na resposta. Com `Nenhum achado.`, a revisão termina.
 
 ### 10. Responder ao usuário
 

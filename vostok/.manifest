@@ -1,4 +1,4 @@
-version: 0.8.0
+version: 0.9.0
 files:
   .gitignore: 4316524ecc23bf22672396e7b3fcd74218f889c59e18ef064c77932d80cf6348
   context/glossario.md: de6fcc0a90d618fd2b5ee8b80ec14045b584d9db5126886beb35f217d647734a
@@ -9,7 +9,7 @@ files:
   personas/planejador.md: 56dd29d831a658fd7c7d506d485fc8b9ab24415e86e53a2f4ed01163c669b042
   personas/qa-lead.md: f79053e80976521dc19caac9aa62b620dc02703225465d247459eca4d2e7cad0
   personas/qa.md: 88bb4231d0c692dde8b15edc763c98154ddd5495273f9987abd2f600aef30b0c
-  personas/revisor.md: b25198f63304ae9f75ab53821933a66dfd349dd508522232e70a7cf2b2597ae4
+  personas/revisor.md: 29241bbc9d302910a9a2e0f708bad12ff5fb9a1d767b1bfd88726fc343976f04
   personas/ui-ux-designer.md: aa78bdbd0351f58f2d2172a1fe418cbafec78252290effbca9acea9a3bbb819b
   rules/agent/anti-loop.md: 08eedac049dc5513c46f604f526bb790c7a54f91ddff58a81bacf1e823204bfc
   rules/agent/boundaries.md: 98bf3197bcbc8423e5b9605385a083496b0ad6c6454b9a3d3b5515b600530638
@@ -22,9 +22,9 @@ files:
   skills/default/adjust-plan/SKILL.md: 395c558dbbb16f51a573c6037d2f255a33dacda13716afb47faf6b71079a1e35
   skills/default/adjust-rules/SKILL.md: c7641a99c2758b90d635834eb3600691e7ec1e855a4f5cf2003bc8aecb98ad94
   skills/default/adjust-spec/SKILL.md: af4c0cc58770da9c1b8c98bf62d7269a6174351a6e5aee26556c7b7e7e40f45f
-  skills/default/adjust-task/SKILL.md: a805e9d68cca5e6e52b4bec653b9357aa6154e505f3d6cbe887cc0cd9bbb5938
+  skills/default/adjust-task/SKILL.md: 74befc08f52805bb048d5551543c44e8b473bd07a7dc346887b69eb391b1665d
   skills/default/approve-commit/SKILL.md: e8bf5175fcfef40148a364dbf03584cf5a51ff5194b3307374ed822d66eac443
-  skills/default/approve-plan/SKILL.md: 589a32830b0c367ab66c7ce777ee5f579812bb632896bab66234c39a1bee3380
+  skills/default/approve-plan/SKILL.md: 20231ddf19c299e1a67540ff3495916114476881e7b81377cab6c94275523fed
   skills/default/approve-spec/SKILL.md: 80dd53b384c95655b8d761e5804e2518c46ca8917f4ffc793c0f5f82c9013547
   skills/default/approve-task/SKILL.md: aa60060ebd981c4cb1696e82fe7bc50905f8da8a9d1ccd9dde18ec9f0d176dab
   skills/default/create-skill/SKILL.md: 600e4466aff0e628cc9cb3d90096a840edde2a3d5f95a1b6d9fb8460ec605501

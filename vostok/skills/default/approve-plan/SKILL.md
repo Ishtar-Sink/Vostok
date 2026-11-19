@@ -3,7 +3,7 @@ name: approve-plan
 description: "Aprova o plano de tarefas de uma especificação (spec) aprovada. Cria um arquivo por tarefa na pasta de tarefas da spec, em work/tasks/, detalha cada uma com a execução para o agente (arquivos, passos, verificação) e a descrição para pessoas (resumo executivo, detalhes técnicos e card para board), remove o plano e marca a spec como planned. Use quando o usuário pedir para aprovar o plano de tarefas ou disser que aprova o plano."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok plan approve create-tasks, vostok plan approve validate, vostok plan approve mark-planned, vostok task load, vostok task status, vostok review brief"
   templates: "templates/task/task.md"
@@ -215,24 +215,26 @@ O comando valida de novo, muda o status da spec para `planned` e remove o plano.
 
 A revisão vem depois do `mark-planned` porque o ajuste de tarefa exige a spec `planned`.
 
-Execute, uma vez por tarefa detalhada:
+Execute:
 
 ```bash
-vostok review brief task <SPEC_ID> <TASK_ID>
+vostok review brief task <SPEC_ID>
 ```
+
+Num plano de extensão, passe os IDs das tarefas do plano, os que o `vostok plan approve create-tasks` listou no passo 3 ou, numa aprovação retomada, os das tarefas existentes do plano que foram para o passo 4: `vostok review brief task <SPEC_ID> <TASK_ID>...`. As tarefas originais entram na seção "## Contexto" do roteiro.
 
 Com a saída `Revisão desligada para task.`, siga para o passo 8 e diga na resposta que a revisão está desligada.
 
-Senão, dispare um subagente `vostok-revisor` por tarefa, até `max_subagents` de `config/tasks.yml` ao mesmo tempo, com a mensagem "Rode `vostok review brief task <SPEC_ID> <TASK_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, tarefa por tarefa, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
+Senão, dispare um único subagente `vostok-revisor`, com a mensagem "Rode `<o comando acima>` e siga o que ele imprime.", sem a conversa. Ele lê a spec e todas as tarefas juntas e aponta também as inconsistências entre elas. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
 
-Com a tabela de achados de cada tarefa:
+Com a tabela de achados, que traz a coluna "Tarefa":
 
 1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
-2. Aplique nos arquivos da tarefa as correções com "Muda o escopo" igual a `não`, sem editar o front-matter (regra approve-plan-04).
-3. Valide com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
+2. Aplique nos arquivos da tarefa de cada achado as correções com "Muda o escopo" igual a `não`, sem editar o front-matter (regra approve-plan-04). Um achado entre tarefas corrige cada tarefa revisada que ele cita. Uma tarefa de "## Contexto" não recebe correção: o achado que só ela resolveria vai para o usuário.
+3. Valide cada tarefa alterada com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
-5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`, juntando as de todas as tarefas.
-6. Se aplicou alguma correção numa tarefa, dispare o revisor dela uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez com `vostok review brief task <SPEC_ID> <TASK_ID>...`, só com as tarefas corrigidas; as demais entram em "## Contexto". O que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
 
 ### 8. Responder ao usuário
 

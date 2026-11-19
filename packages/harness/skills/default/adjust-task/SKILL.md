@@ -3,7 +3,7 @@ name: adjust-task
 description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status, vostok review brief"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
@@ -39,7 +39,7 @@ Esta skill atua como Arquiteto, Engenheiro e QA Lead, carregada(s) no passo 1 pe
 [adjust-task-08]: Todos os ajustes de um pedido são registrados juntos, com um único `vostok task adjust record`.
 [adjust-task-09]: Não aprove nem execute a tarefa como parte do ajuste. A aprovação é feita pela skill `approve-task`, só a pedido do usuário.
 [adjust-task-10]: Numa tarefa em execução (`in_progress`, `executed`, `validating` ou `blocked`) com baseline coletado, não mude a subseção "Baseline": o baseline gravado deixaria de corresponder a ela. Pedido que a muda: responda com o template `blocker`. Exceção: com a decisão do usuário, mude a subseção e, depois do `vostok task adjust record`, recolete com `vostok task baseline <SPEC_ID> <TASK_ID> --recoletar --motivo "<decisão do usuário>"`. Sem mudar a subseção, ofereça a recoleta quando o baseline gravado deixou de valer por uma mudança fora da tarefa (como a de uma dependência), sempre com a decisão do usuário; o baseline anterior fica em `evidencias/baseline-anterior-N/`.
-[adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados, mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
+[adjust-task-11]: O ajuste de uma tarefa em execução não pede nova aprovação: o comando a deixa `in_progress`, com tentativas e resultados zerados (no ajuste leve, com testes e regressão mantidos, passo 9), mantém o baseline e o código e acrescenta a linha `ajuste` ao "Registro de execução".
 [adjust-task-12]: Ao ajustar "Verificação" ou "Evidências", use os formatos da skill `approve-plan`: comandos focados em "Mudar" e conferidos, rótulo `# evidência:`, `(automática)`, `(automática, da verificação)`, `(diff): caminho`, `(print): comando`, `(manual)`, o subitem `Espera:` e o subitem opcional `Como:`, uma frase de até 160 caracteres sobre o que o script ou o comando faz, só quando o comando não se explica sozinho; cada evidência leva o subitem `Título:`, um nome curto em linguagem simples com até 60 caracteres, antes de `Prova`, `Trecho` e `Falha`. A evidência mostra o comportamento entregue, nunca a leitura do texto da tarefa.
 [adjust-task-13]: Ao ajustar "Passos" ou "Baseline", todo comando de "Baseline" que mede algo que os passos renomeiam ou removem leva `(muda): motivo`, como na skill `approve-plan`.
 [adjust-task-14]: Recuse em "Concluída quando" o critério que só se comprova na finalização da spec. Se nenhum critério de aceite da spec o cobre, **PARE** e responda com o template `blocker`, propondo ajustar a spec pela skill `adjust-spec`, com `--ids` numa spec `planned`.
@@ -160,7 +160,7 @@ Execute, com um item por ajuste no resumo, separados por `; `:
 vostok task adjust record <SPEC_ID> <TASK_ID> "Passo de teste acrescentado; AGENTS.md removido de Mudar"
 ```
 
-O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`; o trabalho segue pela skill `execute-task`, sem nova aprovação. Ele mantém os testes e a regressão quando o Baseline, a Verificação e os arquivos de "Mudar" estão iguais aos da última execução dos testes, com o aviso `testes e regressão mantidos (Verificação igual)`, e zera tudo nos demais casos. Lista as conferências na linha `Conferências:`: "derrubada" quando o comando ou o tipo da evidência mudou e "mantida se a saída não mudar" nos demais. A conferência mantida com `Trecho:` ou `Falha:` trocados ganha a marca `conferida sob o trecho anterior (ajuste N)`. Se recusar o ajuste, volte ao passo 8.
+O comando valida de novo, incrementa `adjustments`, atualiza as datas e o hash e acrescenta uma linha ao histórico. Numa tarefa aprovada, ele a devolve para `pending` e avisa. Numa tarefa em execução, ele a deixa `in_progress`; o trabalho segue pela skill `execute-task`, sem nova aprovação. No ajuste leve, o que muda, em `execucao.md`, `criterios.md` e `verificacao.md`, só a subseção "Evidências" e os pares de rótulo `# evidência:` com o comando logo abaixo, com o código de "Mudar" igual e os testes aprovados, ele imprime `Ajuste leve: testes e regressão mantidos.`, zera só o resultado das evidências e mantém as conferências das evidências cujo nome, tipo e comando não mudaram. Mudar um passo, um critério, o Baseline ou um comando sem rótulo não é ajuste leve. A tarefa aprovada antes desta versão, sem a impressão da estrutura no estado, segue a regra anterior: com o Baseline, a Verificação e os arquivos de "Mudar" iguais aos da última execução dos testes, mantém testes e regressão com o aviso `testes e regressão mantidos (Verificação igual)`. Nos demais casos, zera tudo. Lista as conferências na linha `Conferências:`: "derrubada" quando o comando ou o tipo da evidência mudou e "mantida se a saída não mudar" nos demais. A conferência mantida com `Trecho:` ou `Falha:` trocados ganha a marca `conferida sob o trecho anterior (ajuste N)`. Se recusar o ajuste, volte ao passo 8.
 
 Dependência de tarefa em execução ([adjust-task-04]): sem editar a tarefa nem rodar `vostok task adjust record`, execute, com a decisão do usuário no motivo:
 
@@ -171,6 +171,8 @@ vostok task depends add <SPEC_ID> <TASK_ID> <DEPENDENCIA> --motivo "<decisão do
 O comando muda `depends_on`, grava a linha `ajuste`, que derruba as conferências de evidência anteriores, e, com a dependência fora de `done`, deixa a tarefa `blocked` com `waiting_on` e `waiting_reason` (linha `bloqueio`). Ele recusa, sem gravar, a própria tarefa, ciclo, tarefa de outra spec, dependência repetida e tarefa bloqueada por falha (nesta, rode antes o `vostok task resume`, com a decisão do usuário). Com `vostok task depends remove`, a tarefa que fica sem espera volta a `approved`. Quando a dependência é concluída, a tarefa volta a `approved` e o `vostok task start` a recomeça sem coletar o baseline de novo; se a regressão vier da dependência, a skill `finish-task` oferece a recoleta.
 
 ### 10. Revisar a tarefa ajustada
+
+Se a saída do `vostok task adjust record` do passo 9 tem a linha `Ajuste leve: testes e regressão mantidos.`, o ajuste mudou só as evidências: não rode o roteiro nem dispare o revisor, siga para o passo 11 e diga na resposta "Revisão dispensada (ajuste leve)". Os demais ajustes seguem com a revisão abaixo.
 
 Execute:
 
@@ -202,7 +204,7 @@ Responda com o template `completion`:
 - **O que foi feito:** o caminho da tarefa, o número do ajuste e a [tabela de ajustes](#tabela-de-ajustes).
 - Se houve ajuste manual no passo 3, informe o número dele.
 - Acrescente a lista de inferências, se houver, com a letra e o que foi inferido.
-- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado" ou "Revisão desligada"; e a pergunta das correções que mudam o escopo, se houver.
+- **Revisão:** depois de "O que foi feito", as correções aplicadas pelo revisor, uma por linha, ou "Nenhum achado", "Revisão desligada" ou "Revisão dispensada (ajuste leve)"; e a pergunta das correções que mudam o escopo, se houver.
 - **Pendências:** os ajustes que ficaram sem resposta. Se a tarefa voltou para `pending`, informe que precisa ser aprovada de novo; se estava em execução, informe que voltou para `in_progress`, sem nova aprovação. Se a tarefa ficou à espera de uma dependência, informe qual e que ela recomeça quando a dependência for concluída. Se o baseline foi recoletado, informe o motivo e onde ficou o anterior.
 - **Próximos passos:** novos ajustes ou a aprovação da tarefa (skill `approve-task`).
 - **Status das tarefas:** execute `vostok task status <SPEC_ID>` e cole a saída, sem alteração, na seção "Status das tarefas" ([agent/responses-07]).

@@ -3,9 +3,9 @@ name: execute-task
 description: "Executa uma tarefa aprovada de uma especificação (spec), em work/tasks/: confere se ela pode começar, coleta o baseline antes de qualquer mudança, implementa os testes pedidos em Verificação e depois o código, seguindo os passos, sem commit nem stage, e termina com a tarefa em execução, pronta para ser finalizada. Uma tarefa ou uma onda por pedido; o Coordenador executa na própria sessão a onda de uma tarefa e as tarefas em sequência, e dispara um subagente por tarefa só para as que rodam em paralelo. Use quando o usuário pedir para executar, implementar, fazer ou começar uma tarefa ou uma onda, citar um ID como TASK-03 para execução ou pedir para executar a onda N."
 allowed-tools: Read Edit Write Glob Grep Bash
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: "Victor Batalha"
-  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok task brief, vostok task check, vostok commit check"
+  scripts: "vostok context load, vostok task status, vostok task load, vostok task start, vostok task reuse candidates, vostok task reuse apply, vostok task brief, vostok task check, vostok commit check"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
 ---
 
@@ -45,6 +45,7 @@ Esta skill atua como Desenvolvedor, mais UI/UX Designer nas tarefas com interfac
 [execute-task-11]: Sem subagentes ou sem escolha de modelo na ferramenta, as tarefas rodam uma por vez na própria sessão, com o modelo da sessão (FA-01).
 [execute-task-12]: O Coordenador faz o máximo possível: a onda com uma tarefa e as tarefas em sequência são executadas na própria sessão, seguindo o `vostok task brief` de cada uma; subagente só existe para paralelismo real (RN-01).
 [execute-task-13]: A conferência das evidências é sempre do usuário: o Coordenador roda `--reviewed`, `--rejected --motivo` ou `--undo --motivo` só com o aceite ou a rejeição explícitos dele no chat, e só para as tarefas que ele citou, nunca por conta própria. A conferência, a recusa ou a retirada feita pelo usuário no painel já é dele e vale sem nova confirmação no chat (DEC-006).
+[execute-task-14]: O baseline de imagem ou vídeo vindo de outra tarefa ou spec só é copiado com a decisão explícita do usuário no chat: o Coordenador lista as candidatas, explica por que fazem sentido e as opções, e roda `vostok task reuse apply` só nas aceitas, com as palavras dele no `--motivo`. Nunca aplique uma candidata por conta própria.
 
 ## Checklist
 
@@ -121,6 +122,20 @@ Cada subagente recebe:
 - o modelo do passo 3.
 
 Se a ferramenta tem as definições de subagente das personas (`vostok-<persona>`), use a da persona.
+
+**Candidatas de baseline de imagem ([execute-task-14]).** Antes do primeiro `vostok task start` da spec, quando o `vostok task status <SPEC_ID>` não mostra nenhuma tarefa fora de `pending` e `approved`, execute:
+
+```bash
+vostok task reuse candidates <SPEC_ID>
+```
+
+Com a saída `Nenhuma evidência para reaproveitar.` ou `Reaproveitamento desligado em config/tasks.yml (evidence_reuse).`, não há candidatas: siga para o início das tarefas. Com candidatas, a saída traz o título `### Candidatas de baseline da <SPEC_ID>` e a tabela `| Tarefa | Evidência | Origem | Data | Entradas |`, só com as tarefas cujo baseline ainda não foi coletado. **PARE** e faça uma única pergunta, com o template `question`, com um item por linha da tabela: a tarefa e a evidência, a origem e a data, a coluna Entradas, por que faz sentido usá-la como baseline (com Entradas `iguais`, o mesmo comando já gravou essa imagem sobre os mesmos arquivos e a captura de hoje sairia igual; com Entradas `mudaram`, os arquivos que determinam a imagem mudaram desde a gravação, o que é motivo para não reaproveitar) e as opções: reaproveitar como baseline ou não reaproveitar, e a tarefa segue sem essa imagem de antes. Só com a decisão do usuário, execute, em cada candidata aceita:
+
+```bash
+vostok task reuse apply <SPEC_ID> <TASK_ID> <arquivo> --de <SPEC> <TASK> <EV-NN> --motivo "<palavras do usuário>"
+```
+
+A candidata recusada não é copiada. O `vostok task start` move as cópias aceitas para o baseline das evidências da tarefa ao coletar o baseline.
 
 Para iniciar cada tarefa:
 

@@ -11,6 +11,8 @@ use crate::models;
 use crate::support::config_get;
 
 const FLOWS: [&str; 3] = ["spec", "plan", "task"];
+const MAX_ROUNDS: u32 = 5;
+const DEFAULT_ROUNDS: u32 = 1;
 const TASK_PARTS: [&str; 4] = [
     "execucao.md",
     "verificacao.md",
@@ -42,6 +44,9 @@ pub enum ReviewCommand {
         spec_id: String,
         /// IDs das tarefas revisadas (só no fluxo task); sem ID, todas.
         task_ids: Vec<String>,
+        /// Rodada da revisão, a partir de 1; acima do limite de review_rounds, a revisão termina.
+        #[arg(long, value_name = "N", default_value_t = 1)]
+        rodada: u32,
     },
 }
 
@@ -52,16 +57,31 @@ pub fn run(command: ReviewCommand) -> Result<()> {
             flow,
             spec_id,
             task_ids,
-        } => brief(&harness, &flow, &spec_id, &task_ids),
+            rodada,
+        } => brief(&harness, &flow, &spec_id, &task_ids, rodada),
     }
 }
 
-fn brief(harness: &Harness, flow: &str, spec_id: &str, task_ids: &[String]) -> Result<()> {
+fn brief(
+    harness: &Harness,
+    flow: &str,
+    spec_id: &str,
+    task_ids: &[String],
+    round: u32,
+) -> Result<()> {
     if !FLOWS.contains(&flow) {
         bail!("fluxo inválido: '{flow}'; use spec, plan ou task");
     }
     if !enabled(harness, flow)? {
         println!("Revisão desligada para {flow}.");
+        return Ok(());
+    }
+    if round == 0 {
+        bail!("rodada inválida: {round}; use um número a partir de 1");
+    }
+    let limit = rounds(harness, flow)?;
+    if round > limit {
+        println!("Limite de {limit} rodada(s) de revisão para {flow} atingido.");
         return Ok(());
     }
     let task_ids = unique(task_ids);
@@ -98,7 +118,7 @@ fn brief(harness: &Harness, flow: &str, spec_id: &str, task_ids: &[String]) -> R
         DEFAULT_TABLE
     };
     println!(
-        "# Revisão de {flow} {target}\n\n## Modelo\n\n- Perfil: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n\n# Persona\n\n{}\n\n# Roteiro\n\n{ROUTE_START}{}\n{ROUTE_END}\n\n# Arquivos\n\n{listing}\n# Resposta\n\n{table}\n\nSem achados, responda só: Nenhum achado.",
+        "# Revisão de {flow} {target}\n\n## Modelo\n\n- Perfil: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n- Rodada: {round} de {limit}\n\n# Persona\n\n{}\n\n# Roteiro\n\n{ROUTE_START}{}\n{ROUTE_END}\n\n# Arquivos\n\n{listing}\n# Resposta\n\n{table}\n\nSem achados, responda só: Nenhum achado.",
         info.profile,
         info.tool.as_deref().unwrap_or("não configurada"),
         info.model,
@@ -113,6 +133,24 @@ fn lookup_of(flow: &str) -> &'static str {
         "spec" => SPEC_LOOKUP,
         "plan" => PLAN_LOOKUP,
         _ => TASK_LOOKUP,
+    }
+}
+
+/// Ausente ou vazia vale 1; fora de 1 a 5 é recusado.
+fn rounds(harness: &Harness, flow: &str) -> Result<u32> {
+    let key = format!("review_rounds.{flow}");
+    let Ok(value) = config_get(&harness.config_file("main.yml"), &key) else {
+        return Ok(DEFAULT_ROUNDS);
+    };
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(DEFAULT_ROUNDS);
+    }
+    match value.parse::<u32>() {
+        Ok(number) if (1..=MAX_ROUNDS).contains(&number) => Ok(number),
+        _ => bail!(
+            "valor inválido em config/main.yml ({key}): '{value}'; use um número de 1 a {MAX_ROUNDS}"
+        ),
     }
 }
 

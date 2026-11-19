@@ -40,6 +40,16 @@ fn set_review(project: &Project, block: &str) {
     fs::write(path, kept).unwrap();
 }
 
+fn set_rounds(project: &Project, block: &str) {
+    let path = project.harness().join("config/main.yml");
+    let current = fs::read_to_string(&path).unwrap();
+    let kept = current.split("\nreview_rounds:").next().unwrap();
+    let kept = kept.trim_end_matches('\n');
+    fs::write(path, format!("{kept}\n\n{block}\n")).unwrap();
+}
+
+const ALL_ON: &str = "review:\n  spec: true\n  plan: true\n  task: true";
+
 fn brief(project: &Project, args: &[&str]) -> String {
     let output = project
         .vostok()
@@ -333,4 +343,112 @@ fn revisao_artefato_inexistente_recusado() {
 
     assert!(err.contains("TASK-09"), "{err}");
     assert!(err.contains("não foi encontrada"), "{err}");
+}
+
+#[test]
+fn rodadas_padrao_uma() {
+    let project = Project::new();
+    artifacts(&project);
+
+    let first = brief(&project, &["task", "SPEC-001", "--rodada", "1"]);
+    assert!(first.contains("- Rodada: 1 de 1"), "{first}");
+    let second = brief(&project, &["task", "SPEC-001", "--rodada", "2"]);
+    assert_eq!(
+        second.trim(),
+        "Limite de 1 rodada(s) de revisão para task atingido."
+    );
+}
+
+#[test]
+fn rodadas_por_tipo_independentes() {
+    let project = Project::new();
+    artifacts(&project);
+    set_review(&project, ALL_ON);
+    set_rounds(&project, "review_rounds:\n  spec: 3\n  plan: 1\n  task: 2");
+
+    assert!(brief(&project, &["spec", "SPEC-001", "--rodada", "2"]).contains("- Rodada: 2 de 3"));
+    assert_eq!(
+        brief(&project, &["plan", "SPEC-001", "--rodada", "2"]).trim(),
+        "Limite de 1 rodada(s) de revisão para plan atingido."
+    );
+    assert!(brief(&project, &["task", "SPEC-001", "--rodada", "2"]).contains("- Rodada: 2 de 2"));
+    assert_eq!(
+        brief(&project, &["task", "SPEC-001", "--rodada", "3"]).trim(),
+        "Limite de 2 rodada(s) de revisão para task atingido."
+    );
+}
+
+#[test]
+fn rodadas_sem_opcao_vale_a_primeira() {
+    let project = Project::new();
+    artifacts(&project);
+
+    let out = brief(&project, &["task", "SPEC-001"]);
+    assert!(out.contains("- Rodada: 1 de 1"), "{out}");
+    assert!(out.contains("# Roteiro"), "{out}");
+}
+
+#[test]
+fn rodadas_valor_invalido_recusado() {
+    let project = Project::new();
+    artifacts(&project);
+
+    for value in ["0", "dois", "6"] {
+        set_rounds(&project, &format!("review_rounds:\n  task: {value}"));
+        let stderr = failure_stderr(
+            project
+                .vostok()
+                .args(["review", "brief", "task", "SPEC-001"]),
+        );
+        for expected in [
+            "review_rounds.task".to_string(),
+            format!("'{value}'"),
+            "use um número de 1 a 5".to_string(),
+        ] {
+            assert!(
+                stderr.contains(&expected),
+                "falta '{expected}' em:\n{stderr}"
+            );
+        }
+    }
+}
+
+#[test]
+fn rodadas_rodada_zero_recusada() {
+    let project = Project::new();
+    artifacts(&project);
+
+    let stderr = failure_stderr(
+        project
+            .vostok()
+            .args(["review", "brief", "task", "SPEC-001", "--rodada", "0"]),
+    );
+    assert!(stderr.contains("rodada inválida: 0"), "{stderr}");
+    assert!(!stderr.contains("# Roteiro"), "{stderr}");
+}
+
+#[test]
+fn rodadas_revisao_desligada() {
+    let project = Project::new();
+    artifacts(&project);
+
+    assert_eq!(
+        brief(&project, &["spec", "SPEC-001", "--rodada", "3"]).trim(),
+        "Revisão desligada para spec."
+    );
+}
+
+#[test]
+fn rodadas_chave_parcial_e_vazia() {
+    let project = Project::new();
+    artifacts(&project);
+    set_review(&project, ALL_ON);
+    set_rounds(&project, "review_rounds:\n  task: 2\n  plan:");
+
+    assert!(brief(&project, &["spec", "SPEC-001", "--rodada", "1"]).contains("- Rodada: 1 de 1"));
+    assert_eq!(
+        brief(&project, &["plan", "SPEC-001", "--rodada", "2"]).trim(),
+        "Limite de 1 rodada(s) de revisão para plan atingido."
+    );
+    assert!(brief(&project, &["task", "SPEC-001", "--rodada", "2"]).contains("- Rodada: 2 de 2"));
 }

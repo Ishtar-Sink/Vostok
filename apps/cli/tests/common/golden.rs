@@ -533,7 +533,8 @@ pub fn normalize(text: &str, root: &Path) -> String {
         .replace(GOLDEN_ROOT, "<ROOT>");
     let text = replace_volatile(&replace_tmp(&text));
     // Os scripts bash nunca gravaram o histórico de status, o commit do baseline nem as impressões
-    // dos testes (SPEC-057), que só a CLI grava.
+    // dos testes (SPEC-057), nem a impressão da estrutura e a do núcleo da Verificação (SPEC-075),
+    // que só a CLI grava.
     text.split_inclusive('\n')
         .filter(|line| {
             let line = line.trim_end_matches('\n');
@@ -547,6 +548,8 @@ const CLI_ONLY_FIELDS: &[&str] = &[
     "baseline_commit:",
     "tests_code_hash:",
     "tests_checks_hash:",
+    "structure_hash:",
+    "core_hash:",
     "approved_disk:",
     "baseline_dirty:",
 ];

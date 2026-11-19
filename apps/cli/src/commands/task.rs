@@ -1626,6 +1626,7 @@ impl Tasks {
             TaskDoc::at(file).set("status", &self.status.approved)?;
             TaskDoc::at(file).put(&approved_at, &now)?;
             TaskDoc::at(file).put(&approved_hash, &TaskDoc::at(file).get(&hash_field)?)?;
+            self.store_structure_hash(file)?;
         }
         Ok(())
     }
@@ -1804,7 +1805,7 @@ impl Tasks {
         } else {
             Vec::new()
         };
-        self.restart_execution(file, task, summary)?;
+        self.restart_after_task_adjustment(file, task, summary)?;
         if !forecast.is_empty() {
             println!("{}", forecast_line(&forecast));
             self.apply_forecast(file, &forecast, count)?;
@@ -1812,6 +1813,7 @@ impl Tasks {
         if running && self.has_baseline(file)? {
             self.save_previous_verification(file)?;
         }
+        self.store_structure_hash(file)?;
         Ok(())
     }
 
@@ -1978,35 +1980,51 @@ impl Tasks {
     /// Devolve uma tarefa em execução para in_progress, com tentativas e resultados zerados, mantendo o
     /// baseline e a aprovação. Não faz nada nas demais.
     fn restart_execution(&self, file: &Path, task: &str, summary: &str) -> Result<()> {
-        let status = status_of(file);
-        if !self.is_running(&status) {
+        if !self.is_running(&status_of(file)) {
             return Ok(());
         }
-        // A tarefa na fila ainda não começou: o ajuste a mantém na fila.
-        let in_progress = if status == self.status.queued {
-            &self.status.queued
-        } else {
-            &self.status.in_progress
-        };
         let tested = self.tested_code(file)?;
-        TaskDoc::at(file).set("status", in_progress)?;
-        if tested == TestedCode::Same {
-            TaskDoc::at(file).set("attempts", "0")?;
-            TaskDoc::at(file).set("evidence_result", "null")?;
-            self.record_step(
-                file,
-                "ajuste",
-                in_progress,
-                &format!("{summary}; testes mantidos"),
-            )?;
-            println!(
-                "Ajuste em execução: {task} voltou para '{in_progress}'; testes e regressão mantidos (Verificação igual)."
-            );
-            return Ok(());
+        if tested != TestedCode::Same {
+            return self.reset_execution(file, task, summary, tested == TestedCode::CodeChanged);
         }
+        let in_progress = self.running_status(file);
+        TaskDoc::at(file).set("status", &in_progress)?;
+        TaskDoc::at(file).set("attempts", "0")?;
+        TaskDoc::at(file).set("evidence_result", "null")?;
+        self.record_step(
+            file,
+            "ajuste",
+            &in_progress,
+            &format!("{summary}; testes mantidos"),
+        )?;
+        println!(
+            "Ajuste em execução: {task} voltou para '{in_progress}'; testes e regressão mantidos (Verificação igual)."
+        );
+        Ok(())
+    }
+
+    /// Status da tarefa em execução depois de um ajuste: a tarefa na fila ainda não começou e
+    /// continua na fila.
+    fn running_status(&self, file: &Path) -> String {
+        if status_of(file) == self.status.queued {
+            self.status.queued.clone()
+        } else {
+            self.status.in_progress.clone()
+        }
+    }
+
+    fn reset_execution(
+        &self,
+        file: &Path,
+        task: &str,
+        summary: &str,
+        code_changed: bool,
+    ) -> Result<()> {
+        let in_progress = self.running_status(file);
+        TaskDoc::at(file).set("status", &in_progress)?;
         reset_results(file)?;
-        self.record_step(file, "ajuste", in_progress, summary)?;
-        let code_changed = if tested == TestedCode::CodeChanged {
+        self.record_step(file, "ajuste", &in_progress, summary)?;
+        let code_changed = if code_changed {
             "; o código de \"Mudar\" mudou depois dos testes"
         } else {
             ""
@@ -2015,6 +2033,61 @@ impl Tasks {
             "Ajuste em execução: {task} voltou para '{in_progress}', com tentativas e resultados zerados e o baseline mantido{code_changed}."
         );
         Ok(())
+    }
+
+    /// Ajuste leve: a estrutura da tarefa (tudo menos as evidências e os pares rotulados) e o
+    /// código de "Mudar" são os mesmos dos testes aprovados. `None` na tarefa sem a impressão da
+    /// estrutura, aprovada antes da SPEC-075.
+    fn light_adjustment(&self, file: &Path) -> Result<Option<bool>> {
+        let doc = TaskDoc::at(file);
+        let Some(structure) = recorded_hash(&doc, "structure_hash") else {
+            return Ok(None);
+        };
+        // O `reset_results` não apaga o `tests_code_hash`: sem testes aprovados, não há o que manter.
+        if doc.get("tests_result").unwrap_or_default() != "passed" {
+            return Ok(Some(false));
+        }
+        if structure != self.structure_hash(&doc.text()?)? {
+            return Ok(Some(false));
+        }
+        let code = self.code_fingerprint(file)?;
+        Ok(Some(
+            recorded_hash(&doc, "tests_code_hash").is_some_and(|tested| tested == code),
+        ))
+    }
+
+    fn keep_tests_after_light_adjustment(
+        &self,
+        file: &Path,
+        task: &str,
+        summary: &str,
+    ) -> Result<()> {
+        let in_progress = self.running_status(file);
+        TaskDoc::at(file).set("status", &in_progress)?;
+        TaskDoc::at(file).set("evidence_result", "null")?;
+        self.record_step(
+            file,
+            "ajuste",
+            &in_progress,
+            &format!("ajuste leve: {summary}"),
+        )?;
+        println!("Ajuste em execução: {task} voltou para '{in_progress}'.");
+        println!("Ajuste leve: testes e regressão mantidos.");
+        Ok(())
+    }
+
+    fn restart_after_task_adjustment(&self, file: &Path, task: &str, summary: &str) -> Result<()> {
+        if !self.is_running(&status_of(file)) {
+            return Ok(());
+        }
+        match self.light_adjustment(file)? {
+            None => self.restart_execution(file, task, summary),
+            Some(true) => self.keep_tests_after_light_adjustment(file, task, summary),
+            Some(false) => {
+                let code_changed = self.code_changed_after_tests(file)?;
+                self.reset_execution(file, task, summary, code_changed)
+            }
+        }
     }
 
     /// Compara o que os testes aprovados testaram com a Verificação, o Baseline e o código de
@@ -2079,6 +2152,60 @@ impl Tasks {
             self.subsection(content, "verify_subsection")?
         );
         Ok(sha256_hex(text.as_bytes()))
+    }
+
+    /// Impressão da estrutura: a seção de Execução sem a subseção de evidências, sem os pares
+    /// rotulados da Verificação e com os critérios desmarcados (RF-01).
+    fn structure_hash(&self, content: &str) -> Result<String> {
+        let section =
+            markdown_section(content, &self.cfg("execution_section")?).unwrap_or_default();
+        let evidence = format!("### {}", self.cfg("evidence_subsection")?);
+        let verify = format!("### {}", self.cfg("verify_subsection")?);
+        let label = self.verify_label();
+        let mut parts: Vec<(String, Vec<&str>)> = vec![(String::new(), Vec::new())];
+        let mut in_code = false;
+        for line in section.lines() {
+            if line.trim_start().starts_with("```") {
+                in_code = !in_code;
+            } else if !in_code && line.starts_with("### ") {
+                parts.push((line.trim_end().to_string(), vec![line]));
+                continue;
+            }
+            if let Some((_, lines)) = parts.last_mut() {
+                lines.push(line);
+            }
+        }
+        let kept: Vec<String> = parts
+            .into_iter()
+            .filter(|(title, _)| *title != evidence)
+            .map(|(title, lines)| {
+                let text = lines.join("\n");
+                if title == verify {
+                    without_labeled_pairs(&text, &label)
+                } else {
+                    text
+                }
+            })
+            .collect();
+        Ok(sha256_hex(unchecked(&kept.join("\n")).as_bytes()))
+    }
+
+    /// SHA-256 do Baseline seguido da Verificação sem os pares rotulados (RF-04).
+    fn core_hash(&self, content: &str) -> Result<String> {
+        let text = format!(
+            "{}\n{}",
+            self.subsection(content, "baseline_subsection")?,
+            without_labeled_pairs(
+                &self.subsection(content, "verify_subsection")?,
+                &self.verify_label()
+            )
+        );
+        Ok(sha256_hex(text.as_bytes()))
+    }
+
+    fn store_structure_hash(&self, file: &Path) -> Result<()> {
+        let hash = self.structure_hash(&TaskDoc::at(file).text()?)?;
+        TaskDoc::at(file).put("structure_hash", &hash)
     }
 
     /// Impressão da árvore do projeto: os arquivos versionados e os não ignorados, fora da pasta de
@@ -2150,12 +2277,26 @@ impl Tasks {
         let root = self.project_root()?;
         let commit =
             git_text(&root, &["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "-".into());
+        let text = TaskDoc::at(file).text()?;
+        let labels: Vec<String> = labeled_commands(
+            &verify_block(&self.subsection(&text, "verify_subsection")?),
+            &self.verify_label(),
+        )
+        .into_iter()
+        .map(|(name, command)| format!("  {name}: {}\n", sha256_hex(command.as_bytes())))
+        .collect();
+        let labels = if labels.is_empty() {
+            "labels: {}\n".to_string()
+        } else {
+            format!("labels:\n{}", labels.concat())
+        };
         let record = format!(
-            "source: {source}\nat: {}\nexit_code: 0\ncommit: {commit}\nreuse: {}\nchecks_hash: {}\ncode_hash: {}\n",
+            "source: {source}\nat: {}\nexit_code: 0\ncommit: {commit}\nreuse: {}\nchecks_hash: {}\ncode_hash: {}\ncore_hash: {}\n{labels}",
             utc_now(),
             reuse.as_str(),
-            self.checks_hash(&TaskDoc::at(file).text()?)?,
-            self.run_code_hash(file, reuse)?
+            self.checks_hash(&text)?,
+            self.run_code_hash(file, reuse)?,
+            self.core_hash(&text)?
         );
         let path = self.run_record_path(file)?;
         if let Some(dir) = path.parent() {
@@ -2214,6 +2355,7 @@ impl Tasks {
         let checks = self.checks_hash(&TaskDoc::at(file).text()?)?;
         TaskDoc::at(file).put("tests_code_hash", &self.code_fingerprint(file)?)?;
         TaskDoc::at(file).put("tests_checks_hash", &checks)?;
+        TaskDoc::at(file).put("core_hash", &self.core_hash(&TaskDoc::at(file).text()?)?)?;
         let detail = format!(
             "testes reaproveitados da rodada de {} (Verificação, Baseline e {} iguais)",
             run.at, run.compared
@@ -2222,6 +2364,112 @@ impl Tasks {
         println!(
             "Testes de {task} reaproveitados da rodada de {} (Verificação, Baseline e {} iguais).",
             run.at, run.compared
+        );
+        Ok(())
+    }
+
+    /// A rodada que passou com o mesmo núcleo da Verificação e o mesmo código: só os rótulos
+    /// novos ou mudados desde ela precisam rodar (RF-04). Rodada antiga, sem `core_hash`, não vale.
+    fn label_run(&self, file: &Path) -> Result<Option<LabelRun>> {
+        let reuse = self.verification_reuse();
+        if reuse == VerificationReuse::Nunca {
+            return Ok(None);
+        }
+        let Ok(record) = fs::read_to_string(self.run_record_path(file)?) else {
+            return Ok(None);
+        };
+        let field = |key: &str| record_field(&record, key);
+        if field("exit_code") != "0" || field("reuse") != reuse.as_str() {
+            return Ok(None);
+        }
+        let text = TaskDoc::at(file).text()?;
+        let core = field("core_hash");
+        if core.is_empty()
+            || core != self.core_hash(&text)?
+            || field("code_hash") != self.run_code_hash(file, reuse)?
+        {
+            return Ok(None);
+        }
+        let Some(labels) = recorded_labels(&record) else {
+            return Ok(None);
+        };
+        let changed = labeled_commands(
+            &verify_block(&self.subsection(&text, "verify_subsection")?),
+            &self.verify_label(),
+        )
+        .into_iter()
+        .filter(|(name, command)| labels.get(name) != Some(&sha256_hex(command.as_bytes())))
+        .collect();
+        Ok(Some(LabelRun {
+            source: field("source"),
+            at: field("at"),
+            changed,
+        }))
+    }
+
+    /// Roda só os rótulos novos ou mudados e grava o resultado como o de testes que passaram,
+    /// mantendo as saídas dos rótulos que não mudaram.
+    fn rerun_labels(&self, file: &Path, task: &str, run: LabelRun) -> Result<()> {
+        let validation = self.evidence_dir(file)?.join("validation");
+        if !run.changed.is_empty() {
+            let verify_dir = self.verify_dir(file)?;
+            fs::create_dir_all(&verify_dir)?;
+            for (name, _) in &run.changed {
+                let output = verify_dir.join(name);
+                if output.exists() {
+                    fs::remove_file(output)?;
+                }
+            }
+            let label = self.verify_label();
+            let block = run
+                .changed
+                .iter()
+                .map(|(name, command)| format!("{label} {name}\n{command}"))
+                .collect::<Vec<String>>()
+                .join("\n");
+            let block = labeled_block(
+                &block,
+                &verify_labels(&block, &label),
+                &fs::canonicalize(&verify_dir)?,
+            );
+            let (code, path) = self.run_verification(file, &block, "labels.out")?;
+            if code != 0 {
+                return self.fail_tests(file, task, code, &path);
+            }
+        }
+        let source = validation.join(format!("{}.out", run.source));
+        let target = validation.join("tests.out");
+        if source != target && source.is_file() {
+            fs::copy(&source, &target)?;
+        }
+        TaskDoc::at(file).set("status", &self.status.validating)?;
+        TaskDoc::at(file).set("tests_result", "passed")?;
+        let text = TaskDoc::at(file).text()?;
+        TaskDoc::at(file).put("tests_code_hash", &self.code_fingerprint(file)?)?;
+        TaskDoc::at(file).put("tests_checks_hash", &self.checks_hash(&text)?)?;
+        TaskDoc::at(file).put("core_hash", &self.core_hash(&text)?)?;
+        self.record_run(file, "tests")?;
+        let names = if run.changed.is_empty() {
+            "nenhum".to_string()
+        } else {
+            run.changed
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<&str>>()
+                .join(", ")
+        };
+        self.record_step(
+            file,
+            "testes",
+            "passed",
+            &format!(
+                "testes reaproveitados da rodada de {}; rótulos rodados: {names}",
+                run.at
+            ),
+        )?;
+        println!(
+            "Testes de {task} reaproveitados da rodada de {}; rodados só os rótulos novos ou mudados: {names}.",
+            run.at
         );
         Ok(())
     }
@@ -2742,6 +2990,9 @@ impl Tasks {
             if let Some(run) = self.valid_run(&file)? {
                 return self.reuse_run(&file, task, &run);
             }
+            if let Some(run) = self.label_run(&file)? {
+                return self.rerun_labels(&file, task, run);
+            }
         }
         let block = self.block_recording_labels(&file, &block)?;
         let (code, output_path) = self.run_verification(&file, &block, "tests.out")?;
@@ -2753,6 +3004,7 @@ impl Tasks {
             let checks = self.checks_hash(&TaskDoc::at(&file).text()?)?;
             TaskDoc::at(&file).put("tests_code_hash", &self.code_fingerprint(&file)?)?;
             TaskDoc::at(&file).put("tests_checks_hash", &checks)?;
+            TaskDoc::at(&file).put("core_hash", &self.core_hash(&TaskDoc::at(&file).text()?)?)?;
             self.record_run(&file, "tests")?;
             self.record_step(
                 &file,
@@ -2767,29 +3019,34 @@ impl Tasks {
             return Ok(());
         }
 
-        self.forget_run(&file)?;
-        let attempts = number_or_zero(&TaskDoc::at(&file).get("attempts").unwrap_or_default()) + 1;
+        self.fail_tests(&file, task, code, &output_path)
+    }
+
+    fn fail_tests(&self, file: &Path, task: &str, code: i32, output_path: &Path) -> Result<()> {
+        self.forget_run(file)?;
+        let attempts = number_or_zero(&TaskDoc::at(file).get("attempts").unwrap_or_default()) + 1;
         let max_attempts = number_or_zero(&self.cfg("max_attempts")?);
-        TaskDoc::at(&file).set("tests_result", "failed")?;
-        TaskDoc::at(&file).put("tests_code_hash", "null")?;
-        TaskDoc::at(&file).put("tests_checks_hash", "null")?;
-        TaskDoc::at(&file).set("regression_result", "null")?;
-        TaskDoc::at(&file).set("evidence_result", "null")?;
-        TaskDoc::at(&file).set("attempts", &attempts.to_string())?;
+        TaskDoc::at(file).set("tests_result", "failed")?;
+        TaskDoc::at(file).put("tests_code_hash", "null")?;
+        TaskDoc::at(file).put("tests_checks_hash", "null")?;
+        TaskDoc::at(file).put("core_hash", "null")?;
+        TaskDoc::at(file).set("regression_result", "null")?;
+        TaskDoc::at(file).set("evidence_result", "null")?;
+        TaskDoc::at(file).set("attempts", &attempts.to_string())?;
         println!(
             "Testes de {task} falharam (código de saída {code}), tentativa {attempts} de {max_attempts}. Últimas linhas da saída ({}):",
             output_path.display()
         );
-        print!("{}", indented_tail(&fs::read(&output_path)?, 30));
+        print!("{}", indented_tail(&fs::read(output_path)?, 30));
         if attempts >= max_attempts {
-            TaskDoc::at(&file).set("status", &self.status.blocked)?;
+            TaskDoc::at(file).set("status", &self.status.blocked)?;
             let detail = format!("tentativa {attempts} de {max_attempts}; bloqueada");
-            self.record_step(&file, "testes", "failed", &detail)?;
+            self.record_step(file, "testes", "failed", &detail)?;
             bail!("a tarefa {task} ficou bloqueada depois de {attempts} tentativas. PARE: responda com o template `blocker`, mostrando as falhas, e aguarde a decisão do usuário");
         }
-        TaskDoc::at(&file).set("status", validating)?;
+        TaskDoc::at(file).set("status", &self.status.validating)?;
         let detail = format!("tentativa {attempts} de {max_attempts}");
-        self.record_step(&file, "testes", "failed", &detail)?;
+        self.record_step(file, "testes", "failed", &detail)?;
         bail!("os testes de {task} falharam; corrija e execute vostok task tests de novo")
     }
 
@@ -6375,6 +6632,14 @@ struct ValidRun {
     compared: &'static str,
 }
 
+/// Rodada gravada com o mesmo núcleo da Verificação e os rótulos que mudaram desde ela.
+struct LabelRun {
+    source: String,
+    at: String,
+    /// `(arquivo, comando)` dos rótulos novos ou com o comando mudado.
+    changed: Vec<(String, String)>,
+}
+
 /// O que a impressão da rodada da Verificação compara (`verification_reuse`).
 #[derive(Clone, Copy, PartialEq)]
 enum VerificationReuse {
@@ -8230,6 +8495,70 @@ struct VerifyLabel {
     name: String,
     line: usize,
     command_lines: usize,
+}
+
+/// Texto sem os pares de rótulo e comando; o rótulo sem comando fica.
+fn without_labeled_pairs(text: &str, label: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let mut dropped = vec![false; lines.len()];
+    for (index, line) in lines.iter().enumerate() {
+        if !line.trim().starts_with(label) {
+            continue;
+        }
+        let count = command_lines_after(&lines, index);
+        if count > 0 {
+            dropped[index..=index + count].fill(true);
+        }
+    }
+    lines
+        .iter()
+        .zip(dropped)
+        .filter(|(_, dropped)| !dropped)
+        .map(|(line, _)| *line)
+        .collect::<Vec<&str>>()
+        .join("\n")
+}
+
+/// Critérios desmarcados, para a marca feita na execução não mudar a estrutura da tarefa.
+fn unchecked(text: &str) -> String {
+    text.lines()
+        .map(|line| match line.strip_prefix("- [x] ") {
+            Some(rest) => format!("- [ ] {rest}"),
+            None => line.to_string(),
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+/// Valor de um campo de uma linha do `run.yml`; vazio quando falta.
+fn record_field(record: &str, key: &str) -> String {
+    record
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{key}: ")))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
+/// O hash do comando de cada rótulo gravado no `run.yml`; `None` na rodada sem o bloco `labels`.
+fn recorded_labels(record: &str) -> Option<HashMap<String, String>> {
+    let mut lines = record.lines();
+    loop {
+        match lines.next()? {
+            "labels: {}" => return Some(HashMap::new()),
+            "labels:" => break,
+            _ => {}
+        }
+    }
+    Some(
+        lines
+            .take_while(|line| line.starts_with("  "))
+            .filter_map(|line| {
+                let (name, hash) = line.trim_start().split_once(": ")?;
+                Some((name.to_string(), hash.to_string()))
+            })
+            .collect(),
+    )
 }
 
 /// Rótulos do bloco: a linha que começa por `label` liga o comando da linha seguinte, que

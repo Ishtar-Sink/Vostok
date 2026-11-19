@@ -4657,17 +4657,14 @@ fn ajuste_mantem_testes_com_verificacao_igual() {
     adjust_trecho(&project);
     let output = adjust_record(&project);
     assert!(
-        output.contains("testes e regressão mantidos (Verificação igual)"),
+        output.contains("Ajuste leve: testes e regressão mantidos."),
         "{output}"
     );
     assert_eq!(folder_field(&project, "tests_result"), "passed");
     assert_eq!(folder_field(&project, "attempts"), "0");
     assert_eq!(folder_field(&project, "evidence_result"), "null");
     let record = read(&project, &format!("{FOLDER}/registro.md"));
-    assert!(
-        record.contains("ajuste de teste; testes mantidos"),
-        "{record}"
-    );
+    assert!(record.contains("ajuste leve: ajuste de teste"), "{record}");
 }
 
 #[test]
@@ -5072,6 +5069,345 @@ fn part_hash_load_refuses_an_unknown_part() {
     let project = folder_started();
     let stderr = failure_stderr(&mut task(&project, &["load", "--part", "registro"]));
     assert!(stderr.contains("execucao"), "{stderr}");
+}
+
+// --- Ajuste leve de evidência (SPEC-075) ---
+
+const RUN_FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01/evidencias/validation/run.yml";
+
+const VERIFY_FOLDER: &str = "vostok/work/tasks/SPEC-001/TASK-01/evidencias/validation/verify";
+
+/// Tarefa em pasta com duas evidências conferidas e os testes e a regressão aprovados.
+fn leve_tested() -> Project {
+    let project = folder_forecast();
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["tests"]).assert().success();
+    task(&project, &["regression"]).assert().success();
+    project
+}
+
+/// Tarefa em pasta com um comando rotulado na Verificação e os testes aprovados.
+fn leve_labeled() -> Project {
+    let project = folder_task("pending");
+    replace_in(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        "```bash\ntrue\n```",
+        "```bash\necho rodou >> contador.txt\n# evidência: um.txt\necho um\n```",
+    );
+    append(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        &format!("{}\n", from_verify("um.txt")),
+    );
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["tests"]).assert().success();
+    assert_eq!(counter_lines(&project), 1);
+    project
+}
+
+fn add_label(project: &Project, name: &str, command: &str) {
+    replace_in(
+        project,
+        &format!("{FOLDER}/verificacao.md"),
+        "echo um\n```",
+        &format!("echo um\n# evidência: {name}\n{command}\n```"),
+    );
+    append(
+        project,
+        &format!("{FOLDER}/verificacao.md"),
+        &format!("{}\n", from_verify(name)),
+    );
+}
+
+fn run_folder_field(project: &Project, key: &str) -> Option<String> {
+    read(project, RUN_FOLDER)
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{key}: ")).map(str::to_string))
+}
+
+fn drop_state_line(project: &Project, relative: &str, prefix: &str) {
+    let text: String = read(project, relative)
+        .lines()
+        .filter(|line| !line.starts_with(prefix))
+        .map(|line| format!("{line}\n"))
+        .collect();
+    write(project, relative, &text);
+}
+
+#[test]
+fn ajuste_leve_mantem_testes_regressao_e_conferencia() {
+    let project = leve_tested();
+    append(
+        &project,
+        VERIFICATION,
+        &FIXED_EVIDENCE
+            .replace("outra.txt", "nova.txt")
+            .replace("echo fixo", "echo nova"),
+    );
+    let output = adjust_record(&project);
+    assert!(
+        output.contains("Ajuste leve: testes e regressão mantidos."),
+        "{output}"
+    );
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+    assert_eq!(folder_field(&project, "regression_result"), "passed");
+    assert_eq!(folder_field(&project, "evidence_result"), "null");
+    let record = read(&project, &format!("{FOLDER}/registro.md"));
+    assert!(
+        record.contains("| ajuste | in_progress | ajuste leve: ajuste de teste |"),
+        "{record}"
+    );
+    assert!(!review_line(&project, "saida.txt").is_empty());
+    assert!(!review_line(&project, "outra.txt").is_empty());
+}
+
+#[test]
+fn ajuste_leve_remove_evidencia_e_mantem_as_demais() {
+    let project = leve_tested();
+    replace_in(&project, VERIFICATION, FIXED_EVIDENCE, "");
+    let output = adjust_record(&project);
+    assert!(output.contains("Ajuste leve:"), "{output}");
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+    assert!(!review_line(&project, "saida.txt").is_empty());
+    let removed = review_line(&project, "outra.txt");
+    assert!(removed.contains("| removida |"), "{output}\n{removed}");
+}
+
+#[test]
+fn ajuste_leve_criterio_marcado_continua_leve() {
+    let project = folder_tested();
+    task(&project, &["mark-criteria", "1"]).assert().success();
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(output.contains("Ajuste leve:"), "{output}");
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+}
+
+fn assert_not_light(project: &Project) {
+    let output = adjust_record(project);
+    assert!(!output.contains("Ajuste leve:"), "{output}");
+    assert!(
+        output.contains("tentativas e resultados zerados"),
+        "{output}"
+    );
+    assert_eq!(folder_field(project, "tests_result"), "null");
+}
+
+#[test]
+fn ajuste_leve_nao_com_comando_sem_rotulo() {
+    let project = folder_tested();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        "```bash\ntrue\n```",
+        "```bash\ntrue\ntrue\n```",
+    );
+    assert_not_light(&project);
+}
+
+#[test]
+fn ajuste_leve_nao_com_passo_mudado() {
+    let project = folder_tested();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "1. Crie o arquivo.",
+        "1. Crie o arquivo novo.",
+    );
+    assert_not_light(&project);
+}
+
+#[test]
+fn ajuste_leve_nao_com_criterio_mudado() {
+    let project = folder_tested();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/criterios.md"),
+        "- [ ] Pronto (RF-01).",
+        "- [ ] Pronto e conferido (RF-01).",
+    );
+    assert_not_light(&project);
+}
+
+#[test]
+fn ajuste_leve_nao_sem_structure_hash() {
+    let project = folder_tested();
+    drop_state_line(&project, &format!("{FOLDER}/estado.yml"), "structure_hash:");
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(!output.contains("Ajuste leve:"), "{output}");
+    assert!(
+        output.contains("testes e regressão mantidos (Verificação igual)"),
+        "{output}"
+    );
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+}
+
+#[test]
+fn ajuste_leve_nao_sem_testes_aprovados() {
+    let project = folder_tested();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "1. Crie o arquivo.",
+        "1. Crie o arquivo novo.",
+    );
+    adjust_record(&project);
+    adjust_trecho(&project);
+    let output = adjust_record(&project);
+    assert!(!output.contains("Ajuste leve:"), "{output}");
+    assert_eq!(folder_field(&project, "tests_result"), "null");
+}
+
+#[test]
+fn ajuste_leve_arquivo_unico_mantem_testes() {
+    let project = task_with_evidence(
+        "pending",
+        "- `saida.txt` (automática): `echo saida`\n  - Título: Saída gravada\n  - Prova: a saída (RF-01).\n  - Trecho: a linha.\n  - Falha: se aparecer `erro-x`, quebrou.",
+    );
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    task(&project, &["start"]).assert().success();
+    write(&project, "novo.txt", "um\n");
+    task(&project, &["tests"]).assert().success();
+    let content = read(&project, TASK_PATH);
+    let stored = content
+        .lines()
+        .find_map(|line| line.strip_prefix("structure_hash: "))
+        .map(str::to_string);
+    assert!(is_sha256(stored), "{content}");
+    replace_in(
+        &project,
+        TASK_PATH,
+        "  - Trecho: a linha.",
+        "  - Trecho: a primeira linha.",
+    );
+    let output = adjust_record(&project);
+    assert!(output.contains("Ajuste leve:"), "{output}");
+    assert_eq!(field(&project, "tests_result"), "passed");
+}
+
+#[test]
+fn ajuste_leve_grava_structure_hash() {
+    let project = folder_task("pending");
+    nested(&project, "adjust", "record-manual")
+        .assert()
+        .success();
+    nested(&project, "approve", "approve").assert().success();
+    let before = folder_field(&project, "structure_hash");
+    assert!(
+        is_sha256(Some(before.clone())),
+        "{}",
+        folder_state(&project)
+    );
+    replace_in(
+        &project,
+        &format!("{FOLDER}/execucao.md"),
+        "1. Crie o arquivo.",
+        "1. Crie o arquivo novo.",
+    );
+    adjust_record(&project);
+    let after = folder_field(&project, "structure_hash");
+    assert!(is_sha256(Some(after.clone())), "{}", folder_state(&project));
+    assert_ne!(after, before);
+}
+
+#[test]
+fn ajuste_leve_rotulo_grava_core_hash_e_labels() {
+    let project = leve_labeled();
+    assert!(is_sha256(run_folder_field(&project, "core_hash")));
+    let record = read(&project, RUN_FOLDER);
+    assert!(
+        record.contains(&format!("  um.txt: {}", sha256_hex(b"echo um"))),
+        "{record}"
+    );
+    assert_eq!(
+        folder_field(&project, "core_hash"),
+        run_folder_field(&project, "core_hash").unwrap()
+    );
+}
+
+#[test]
+fn ajuste_leve_rotulo_novo_roda_so_ele() {
+    let project = leve_labeled();
+    add_label(
+        &project,
+        "dois.txt",
+        "echo rodou >> contador.txt && echo dois",
+    );
+    let output = adjust_record(&project);
+    assert!(output.contains("Ajuste leve:"), "{output}");
+    let tests = success_stdout(&mut task(&project, &["tests"]));
+    assert!(
+        tests.contains("rodados só os rótulos novos ou mudados: dois.txt."),
+        "{tests}"
+    );
+    assert_eq!(counter_lines(&project), 2);
+    assert_eq!(
+        read(&project, &format!("{VERIFY_FOLDER}/dois.txt")),
+        "dois\n"
+    );
+    assert_eq!(read(&project, &format!("{VERIFY_FOLDER}/um.txt")), "um\n");
+    assert_eq!(folder_field(&project, "tests_result"), "passed");
+    let record = read(&project, RUN_FOLDER);
+    assert!(record.contains("  dois.txt: "), "{record}");
+}
+
+#[test]
+fn ajuste_leve_rotulo_mudado_roda_so_ele() {
+    let project = leve_labeled();
+    replace_in(
+        &project,
+        &format!("{FOLDER}/verificacao.md"),
+        "echo um\n```",
+        "echo rodou >> contador.txt && echo um-mudado\n```",
+    );
+    adjust_record(&project);
+    let tests = success_stdout(&mut task(&project, &["tests"]));
+    assert!(
+        tests.contains("rodados só os rótulos novos ou mudados: um.txt."),
+        "{tests}"
+    );
+    assert_eq!(counter_lines(&project), 2);
+    assert_eq!(
+        read(&project, &format!("{VERIFY_FOLDER}/um.txt")),
+        "um-mudado\n"
+    );
+}
+
+#[test]
+fn ajuste_leve_rotulo_rodada_antiga_roda_tudo() {
+    let project = leve_labeled();
+    drop_state_line(&project, RUN_FOLDER, "core_hash:");
+    add_label(
+        &project,
+        "dois.txt",
+        "echo rodou >> contador.txt && echo dois",
+    );
+    adjust_record(&project);
+    let tests = success_stdout(&mut task(&project, &["tests"]));
+    assert!(tests.contains("Testes de TASK-01 passaram"), "{tests}");
+    assert!(!tests.contains("reaproveitados"), "{tests}");
+    assert_eq!(counter_lines(&project), 3);
+}
+
+#[test]
+fn ajuste_leve_rotulo_que_falha_conta_tentativa() {
+    let project = leve_labeled();
+    add_label(&project, "dois.txt", "false");
+    adjust_record(&project);
+    task(&project, &["tests"]).assert().failure();
+    assert_eq!(folder_field(&project, "tests_result"), "failed");
+    assert_eq!(folder_field(&project, "attempts"), "1");
+    assert!(!project.root().join(RUN_FOLDER).exists());
 }
 
 // --- Material do executivo e do técnico (SPEC-023) ---

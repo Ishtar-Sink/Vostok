@@ -37,3 +37,7 @@ review_rounds:
   spec: 1
   plan: 1
   task: 1
+
+# Ensaio das tarefas antes da revisão (vostok task rehearse): true liga, false desliga. Ausente: ligado.
+rehearsal:
+  task: true

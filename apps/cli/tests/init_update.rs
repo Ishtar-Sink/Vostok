@@ -1657,3 +1657,47 @@ fn update_adds_the_review_rounds() {
     assert_eq!(workspace.config("main.yml", "review_rounds.task"), "3");
     assert_eq!(workspace.config("main.yml", "review_rounds.spec"), "1");
 }
+
+#[test]
+fn init_installs_the_rehearsal_key() {
+    let workspace = installed("claude-code");
+
+    assert_eq!(workspace.config("main.yml", "rehearsal.task"), "true");
+}
+
+#[test]
+fn update_adds_the_rehearsal_key() {
+    let workspace = installed("claude-code");
+    let config = workspace.read("vostok/config/main.yml");
+    let before_rehearsal = config
+        .split("\n# Ensaio das tarefas")
+        .next()
+        .expect("config sem o comentário do ensaio");
+    workspace.write("vostok/config/main.yml", &format!("{before_rehearsal}\n"));
+    assert!(!workspace
+        .read("vostok/config/main.yml")
+        .contains("rehearsal"));
+
+    let out = workspace.update();
+
+    assert!(
+        out.contains("Configuração acrescentada: config/main.yml: rehearsal"),
+        "{out}"
+    );
+    assert_eq!(workspace.config("main.yml", "rehearsal.task"), "true");
+}
+
+#[test]
+fn update_keeps_the_rehearsal_key_false() {
+    let workspace = installed("claude-code");
+    workspace.replace(
+        "vostok/config/main.yml",
+        "rehearsal:\n  task: true\n",
+        "rehearsal:\n  task: false\n",
+    );
+
+    let out = workspace.update();
+
+    assert!(!out.contains("config/main.yml: rehearsal"), "{out}");
+    assert_eq!(workspace.config("main.yml", "rehearsal.task"), "false");
+}

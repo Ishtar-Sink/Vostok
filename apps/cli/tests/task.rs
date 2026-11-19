@@ -3324,7 +3324,7 @@ fn evidence_print_changed_after_the_review_is_pending_again() {
         &format!("{EVIDENCE_DIR}/tela.png"),
         "outra imagem",
     );
-    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let stdout = success_stdout(&mut task(&project, &["evidence", "--sem-reaproveitar"]));
     assert!(
         stdout.contains("Evidências sem conferência humana"),
         "{stdout}"
@@ -3480,7 +3480,7 @@ fn review_kept_dropped_by_an_adjustment() {
         .assert()
         .success();
     append_row(&project, "ajuste", "in_progress", "ajuste de teste");
-    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let stdout = success_stdout(&mut task(&project, &["evidence", "--sem-reaproveitar"]));
     assert!(
         stdout.contains("Evidências sem conferência humana"),
         "{stdout}"
@@ -7528,7 +7528,7 @@ fn review_hash_log_with_another_time_kept_after_an_adjustment() {
     reviewed(&project, "EV-01").assert().success();
     let reviewed_log = evidence_file(&project, "saida.txt");
     append_row(&project, "ajuste", "in_progress", "ajuste de teste");
-    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let stdout = success_stdout(&mut task(&project, &["evidence", "--sem-reaproveitar"]));
     assert_ne!(
         log_body(&evidence_file(&project, "saida.txt")),
         log_body(&reviewed_log)
@@ -7646,7 +7646,7 @@ fn review_hash_changed_output_asks_again() {
     task(&project, &["evidence"]).assert().success();
     reviewed(&project, "EV-01").assert().success();
     append_row(&project, "ajuste", "in_progress", "ajuste de teste");
-    let stdout = success_stdout(&mut task(&project, &["evidence"]));
+    let stdout = success_stdout(&mut task(&project, &["evidence", "--sem-reaproveitar"]));
     assert!(
         stdout.contains("a conferir de novo (mudou): EV-01 tela.png"),
         "{stdout}"

@@ -16,8 +16,9 @@ use super::task::{
     expected_change, falha_problems, grep_pipefail_commands, grep_pipefail_warning, init_layout,
     is_task_folder, layout, new_folders, new_kind_name, normalized_evidence_name,
     parse_evidence_entries, snippet_warnings, task_entries, task_template_dir, verify_block,
-    EvidenceKinds, TaskDoc, Which, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
+    EvidenceKinds, TaskDoc, Which, EVIDENCE_DEPENDS, EVIDENCE_REQUIRES, EVIDENCE_TIMEOUT,
 };
+use super::task::{depends_errors, work_dir_of};
 use crate::harness::Harness;
 use crate::support::{
     config_get, config_list, evidence_subitem_errors, frontmatter_get, frontmatter_lines,
@@ -236,6 +237,7 @@ impl Workspace {
             expect,
             EVIDENCE_REQUIRES.to_string(),
             EVIDENCE_TIMEOUT.to_string(),
+            EVIDENCE_DEPENDS.to_string(),
         ] {
             if !optional.contains(&field) {
                 optional.push(field);
@@ -1895,6 +1897,16 @@ impl Workspace {
             &self.verification(content)?,
             &changed,
             &created,
+        ));
+        let root = self.harness.path("root")?;
+        errors.extend(depends_errors(
+            &sub,
+            &text,
+            &self
+                .task_setting("evidence_from_verify")
+                .unwrap_or_default(),
+            &root,
+            work_dir_of(&self.harness.path("tasks")?, &root).as_deref(),
         ));
         let fields = self.evidence_fields();
         errors.extend(evidence_subitem_errors(&text, &sub, fields.as_ref(), true));

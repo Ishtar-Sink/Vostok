@@ -29,6 +29,9 @@ max_subagents: 3
 # O que a impressão da rodada da Verificação compara para reaproveitá-la: mudar (arquivos de "Mudar"), arvore (árvore do projeto, sem a pasta de trabalho do harness) ou nunca (sem reaproveitamento).
 verification_reuse: mudar
 
+# Reaproveitamento das evidências pela chave (comando e entradas): ligado ou desligado. Ausente: ligado.
+evidence_reuse: ligado
+
 # Trechos de texto ignorados pelo vostok task regression: as linhas que contêm algum deles saem da
 # comparação com o baseline, dos dois lados (hora, duração). O `NN.diff` continua com a saída inteira.
 regression_ignore:
@@ -242,7 +245,7 @@ evidence_fields:
 evidence_title_field: Título
 evidence_title_max: 60
 # Como: frase opcional, de até 160 caracteres, sobre o que o script ou comando faz; o painel a mostra em "Como foi feita".
-# Mostra: o que a evidência mostra, em linguagem de usuário; substitui Prova (com as duas, vale Mostra). Cobre: IDs separados por vírgula. Onde olhar: texto livre, tempos de vídeo em m:ss ou mm:ss. Reproduzir: um comando entre crases.
+# Mostra: o que a evidência mostra, em linguagem de usuário; substitui Prova (com as duas, vale Mostra). Cobre: IDs separados por vírgula. Onde olhar: texto livre, tempos de vídeo em m:ss ou mm:ss. Reproduzir: um comando entre crases. Depende: os caminhos de que a saída depende, entre crases e separados por vírgula, que formam a chave do reaproveitamento; sem ele, vale a árvore do projeto.
 evidence_optional_fields:
   - Artefato
   - Espera
@@ -251,6 +254,7 @@ evidence_optional_fields:
   - Cobre
   - Onde olhar
   - Reproduzir
+  - Depende
 
 # Subseção de "Execução" com os critérios de conclusão: um checkbox por critério ("- [ ] critério (IDs).")
 # seguido, numa citação recuada, da forma de comprová-lo em linguagem simples

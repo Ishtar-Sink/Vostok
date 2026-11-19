@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
 
+use crate::evidence_reuse::{self, Entry, ReuseIndex};
 use crate::harness::Harness;
 use crate::models;
 use crate::support::{
@@ -69,6 +70,9 @@ pub enum TaskCommand {
         /// Deixa a tarefa na fila, à espera do vostok task begin (onda com subagentes).
         #[arg(long)]
         fila: bool,
+        /// Roda todos os comandos das evidências, sem copiar do índice de reaproveitamento.
+        #[arg(long = "sem-reaproveitar")]
+        sem_reaproveitar: bool,
     },
     /// Tira a tarefa da fila e a põe em execução.
     Begin {
@@ -90,6 +94,9 @@ pub enum TaskCommand {
             requires = "recoletar"
         )]
         motivo: Option<String>,
+        /// Roda todos os comandos das evidências, sem copiar do índice de reaproveitamento.
+        #[arg(long = "sem-reaproveitar")]
+        sem_reaproveitar: bool,
     },
     /// Imprime o briefing do subagente.
     Brief {
@@ -140,6 +147,9 @@ pub enum TaskCommand {
         /// Gera as evidências no fim da execução, sem mudar status nem resultados.
         #[arg(long, conflicts_with_all = ["reviewed", "rejected"])]
         antecipada: bool,
+        /// Roda todos os comandos das evidências, sem copiar do índice de reaproveitamento.
+        #[arg(long = "sem-reaproveitar")]
+        sem_reaproveitar: bool,
     },
     /// Conclui a tarefa.
     Finish {
@@ -306,6 +316,7 @@ const DEFAULT_EVIDENCE_DIFF: &str = "diff";
 const DEFAULT_EVIDENCE_EXPECT: &str = "Espera";
 pub(super) const EVIDENCE_REQUIRES: &str = "Requer";
 pub(super) const EVIDENCE_TIMEOUT: &str = "Tempo-limite";
+pub(super) const EVIDENCE_DEPENDS: &str = "Depende";
 const DEFAULT_EVIDENCE_BASELINE_TIMEOUT: u64 = 120;
 /// Código gravado para uma evidência interrompida pelo tempo-limite, o mesmo do `timeout`.
 const TIMEOUT_EXIT: i32 = 124;
@@ -387,9 +398,10 @@ pub fn run(command: TaskCommand) -> Result<()> {
             task_id,
             model,
             fila,
+            sem_reaproveitar,
         } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
-            tasks.start(&spec, &task, model.as_deref(), fila)
+            tasks.start(&spec, &task, model.as_deref(), fila, sem_reaproveitar)
         }
         TaskCommand::Begin { spec_id, task_id } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
@@ -400,12 +412,13 @@ pub fn run(command: TaskCommand) -> Result<()> {
             task_id,
             recoletar,
             motivo,
+            sem_reaproveitar,
         } => {
             let (spec, task) = given(spec_id, task_id, EXECUTE_USAGE)?;
             if recoletar {
-                tasks.recollect_baseline(&spec, &task, motivo.as_deref())
+                tasks.recollect_baseline(&spec, &task, motivo.as_deref(), sem_reaproveitar)
             } else {
-                tasks.baseline(&spec, &task)
+                tasks.baseline(&spec, &task, sem_reaproveitar)
             }
         }
         TaskCommand::Brief { spec_id, task_id } => {
@@ -446,10 +459,11 @@ pub fn run(command: TaskCommand) -> Result<()> {
             undo,
             motivo,
             antecipada,
+            sem_reaproveitar,
         } => {
             let (spec, task) = given(spec_id, task_id, FINISH_USAGE)?;
             if antecipada {
-                return tasks.evidence_ahead(&spec, &task);
+                return tasks.evidence_ahead(&spec, &task, sem_reaproveitar);
             }
             tasks.evidence(
                 &spec,
@@ -458,6 +472,7 @@ pub fn run(command: TaskCommand) -> Result<()> {
                 rejected.as_deref(),
                 undo.as_deref(),
                 motivo.as_deref(),
+                sem_reaproveitar,
             )
         }
         TaskCommand::Finish { spec_id, task_id } => {
@@ -633,6 +648,38 @@ impl Tasks {
         }
     }
 
+    /// `evidence_reuse`: ausente vale `ligado`; inválido vale `ligado` com aviso.
+    fn evidence_reuse(&self) -> bool {
+        let Ok(value) = self.cfg("evidence_reuse") else {
+            return true;
+        };
+        match value.as_str() {
+            "ligado" => true,
+            "desligado" => false,
+            _ => {
+                eprintln!("Aviso: evidence_reuse '{value}' inválido em config/tasks.yml; use ligado ou desligado. Vale ligado.");
+                true
+            }
+        }
+    }
+
+    /// Modo do reaproveitamento: desligado na configuração, só gravando com `--sem-reaproveitar`, ou
+    /// copiando e gravando.
+    fn reuse_mode(&self, skip: bool) -> ReuseMode {
+        if !self.evidence_reuse() {
+            ReuseMode::Off
+        } else if skip {
+            ReuseMode::RecordOnly
+        } else {
+            ReuseMode::Full
+        }
+    }
+
+    /// Índice de reaproveitamento, na pasta de trabalho do harness.
+    fn reuse_index(&self) -> ReuseIndex {
+        ReuseIndex::at(self.tasks_root.parent().unwrap_or(&self.tasks_root))
+    }
+
     /// Trechos de `regression_ignore`; sem a chave (projetos antigos), lista vazia.
     /// Hashes da conferência de uma evidência, com os tempos de `regression_ignore` fora do log.
     fn review_hashes(&self, bytes: &[u8]) -> ReviewHashes {
@@ -770,6 +817,7 @@ impl Tasks {
             expect,
             EVIDENCE_REQUIRES.to_string(),
             EVIDENCE_TIMEOUT.to_string(),
+            EVIDENCE_DEPENDS.to_string(),
         ] {
             if !optional.contains(&field) {
                 optional.push(field);
@@ -2129,10 +2177,15 @@ impl Tasks {
     /// lido da raiz do projeto. A pasta entra com os arquivos dela; o arquivo ausente, como `<ausente>`.
     fn code_fingerprint(&self, file: &Path) -> Result<String> {
         let content = TaskDoc::at(file).text()?;
-        let mut paths: Vec<String> = change_items(&self.subsection(&content, "change_subsection")?)
+        let paths: Vec<String> = change_items(&self.subsection(&content, "change_subsection")?)
             .into_iter()
             .map(|(_, path)| path)
             .collect();
+        self.paths_fingerprint(paths)
+    }
+
+    /// SHA-256 de `caminho\0conteúdo\0` de cada caminho, em ordem e sem repetidos.
+    fn paths_fingerprint(&self, mut paths: Vec<String>) -> Result<String> {
         paths.sort();
         paths.dedup();
         let root = self.project_root()?;
@@ -2141,6 +2194,16 @@ impl Tasks {
             append_fingerprint(&mut data, &root, &path)?;
         }
         Ok(sha256_hex(&data))
+    }
+
+    /// Impressão das entradas de uma evidência: a árvore do projeto sem `Depende:`, senão os
+    /// caminhos dele.
+    fn inputs_fingerprint(&self, depends: &[String]) -> Result<String> {
+        if depends.is_empty() {
+            self.tree_fingerprint()
+        } else {
+            self.paths_fingerprint(depends.to_vec())
+        }
     }
 
     /// SHA-256 do Baseline seguido da Verificação, sem as Evidências, que um ajuste pode mudar
@@ -2249,10 +2312,7 @@ impl Tasks {
 
     /// Pasta de trabalho do harness (a que contém as tarefas), relativa à raiz do projeto.
     fn work_dir_relative(&self, root: &Path) -> Option<String> {
-        let work = fs::canonicalize(self.tasks_root.parent()?).ok()?;
-        let root = fs::canonicalize(root).ok()?;
-        let relative = work.strip_prefix(root).ok()?;
-        Some(relative.to_string_lossy().replace('\\', "/"))
+        work_dir_of(&self.tasks_root, root)
     }
 
     fn run_code_hash(&self, file: &Path, reuse: VerificationReuse) -> Result<String> {
@@ -2501,7 +2561,14 @@ impl Tasks {
         Ok(self.evidence_dir(file)?.join("baseline").is_dir())
     }
 
-    fn start(&self, spec: &str, task: &str, model: Option<&str>, fila: bool) -> Result<()> {
+    fn start(
+        &self,
+        spec: &str,
+        task: &str,
+        model: Option<&str>,
+        fila: bool,
+        skip_reuse: bool,
+    ) -> Result<()> {
         let model = match model.map(str::trim) {
             Some(value) if value.is_empty() || value.contains(['\n', '\r']) => {
                 bail!("informe o modelo em --model")
@@ -2540,8 +2607,10 @@ impl Tasks {
         TaskDoc::at(&file).store_document_hashes()?;
         let place = if fila { "na fila" } else { "em execução" };
         println!("Tarefa {task} {place}: status '{status}'. Coletando o baseline:");
-        let (dir, baseline_detail) = self.collect_baseline(&file, task)?;
+        let mode = self.reuse_mode(skip_reuse);
+        let (dir, baseline_detail, reused) = self.collect_baseline(&file, task, mode)?;
         self.record_step(&file, "baseline", "coletado", &baseline_detail)?;
+        self.record_reused(&file, &reused)?;
         println!(
             "Baseline de {task} coletado em {}: {baseline_detail}",
             dir.display()
@@ -2644,7 +2713,7 @@ impl Tasks {
         Ok(blockers)
     }
 
-    fn baseline(&self, spec: &str, task: &str) -> Result<()> {
+    fn baseline(&self, spec: &str, task: &str, skip_reuse: bool) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
         let (queued, in_progress) = (&self.status.queued, &self.status.in_progress);
@@ -2655,14 +2724,22 @@ impl Tasks {
         if !conflicts.is_empty() {
             bail!("{}", conflicts.join("\n"));
         }
-        let (dir, detail) = self.collect_baseline(&file, task)?;
+        let mode = self.reuse_mode(skip_reuse);
+        let (dir, detail, reused) = self.collect_baseline(&file, task, mode)?;
         self.record_step(&file, "baseline", "coletado", &detail)?;
+        self.record_reused(&file, &reused)?;
         println!("Baseline de {task} coletado em {}: {detail}", dir.display());
         Ok(())
     }
 
     /// Recoleta o baseline em execução; o anterior fica em `baseline-anterior-N`.
-    fn recollect_baseline(&self, spec: &str, task: &str, reason: Option<&str>) -> Result<()> {
+    fn recollect_baseline(
+        &self,
+        spec: &str,
+        task: &str,
+        reason: Option<&str>,
+        skip_reuse: bool,
+    ) -> Result<()> {
         let reason = normalized_reason(reason.unwrap_or_default());
         if reason.is_empty() {
             bail!("informe o motivo da recoleta em --motivo, com a decisão do usuário; nada foi alterado");
@@ -2697,7 +2774,8 @@ impl Tasks {
             .unwrap_or(1);
         let previous = evidence.join(format!("baseline-anterior-{number}"));
         fs::rename(&current, &previous)?;
-        let (dir, detail) = match self.collect_baseline(&file, task) {
+        let mode = self.reuse_mode(skip_reuse);
+        let (dir, detail, reused) = match self.collect_baseline(&file, task, mode) {
             Ok(collected) => collected,
             Err(error) => {
                 fs::rename(&previous, &current)?;
@@ -2720,12 +2798,168 @@ impl Tasks {
             &new_status,
             &format!("baseline anterior em baseline-anterior-{number}: {reason}; {detail}"),
         )?;
+        self.record_reused(&file, &reused)?;
         println!(
             "Baseline de {task} recoletado em {}: {detail}. Anterior guardado em {}. Status: '{new_status}'.",
             dir.display(),
             previous.display()
         );
         Ok(())
+    }
+
+    /// Avisa a cópia do índice, grava no histórico e leva a conferência da origem.
+    fn announce_reuse(&self, file: &Path, index: usize, name: &str, entry: &Entry) -> Result<()> {
+        println!(
+            "- [evidência {name}] reaproveitada de {} {} {} (chave {})",
+            entry.spec,
+            entry.task,
+            entry.evidence_id,
+            &entry.key[..entry.key.len().min(8)]
+        );
+        self.record_step(
+            file,
+            "reaproveitada",
+            &status_of(file),
+            &reuse_detail(name, entry),
+        )?;
+        self.carry_review(file, &evidence_id(index), name, entry)?;
+        Ok(())
+    }
+
+    /// Registra no histórico cada evidência copiada do índice no baseline.
+    fn record_reused(&self, file: &Path, reused: &[String]) -> Result<()> {
+        for detail in reused {
+            self.record_step(file, "reaproveitada", &status_of(file), detail)?;
+        }
+        Ok(())
+    }
+
+    /// Grava no índice de reaproveitamento as evidências que passaram; um erro só avisa.
+    fn record_candidates(&self, file: &Path, candidates: Vec<ReuseCandidate>) {
+        if candidates.is_empty() {
+            return;
+        }
+        let index = self.reuse_index();
+        for candidate in candidates {
+            let entry = Entry {
+                key: candidate.key,
+                command_hash: evidence_reuse::command_hash(&candidate.command),
+                depends: candidate.depends,
+                inputs: candidate.inputs,
+                content_sha256: sha256_hex(&candidate.content),
+                kind: candidate.kind,
+                exit_code: candidate.exit_code,
+                spec: spec_of(file),
+                task: task_id_of(file),
+                evidence_id: candidate.evidence_id,
+                date: utc_now(),
+            };
+            if let Err(error) = index.record(entry, &candidate.content) {
+                eprintln!(
+                    "Aviso: a evidência {} não foi gravada no índice de reaproveitamento: {error}",
+                    candidate.name
+                );
+            }
+        }
+    }
+
+    /// Entrada e conteúdo da chave no índice; um índice inválido só avisa e a evidência roda.
+    fn reuse_lookup(&self, name: &str, key: &str) -> Option<(Entry, Vec<u8>)> {
+        match self.reuse_index().lookup(key) {
+            Ok(found) => found,
+            Err(error) => {
+                eprintln!("Aviso: {error}; a evidência {name} roda sem reaproveitar.");
+                None
+            }
+        }
+    }
+
+    /// Caminhos do `Depende:` (ordenados, sem repetidos) e impressão das entradas de cada evidência;
+    /// a da árvore do projeto é calculada uma vez só.
+    fn reuse_inputs(
+        &self,
+        text: &str,
+        names: &[String],
+    ) -> Result<HashMap<String, (Vec<String>, String)>> {
+        let dependencies = evidence_dependencies(text, &self.evidence_from_verify());
+        let mut tree: Option<String> = None;
+        let mut inputs = HashMap::new();
+        for name in names {
+            let mut depends = dependencies.get(name).cloned().unwrap_or_default();
+            depends.sort();
+            depends.dedup();
+            let fingerprint = if depends.is_empty() {
+                match &tree {
+                    Some(fingerprint) => fingerprint.clone(),
+                    None => {
+                        let fingerprint = self.tree_fingerprint()?;
+                        tree = Some(fingerprint.clone());
+                        fingerprint
+                    }
+                }
+            } else {
+                self.inputs_fingerprint(&depends)?
+            };
+            inputs.insert(name.clone(), (depends, fingerprint));
+        }
+        Ok(inputs)
+    }
+
+    /// Leva a conferência aceita da evidência de origem quando o arquivo copiado tem o mesmo hash
+    /// (RN-03); devolve `true` se gravou.
+    fn carry_review(&self, file: &Path, id: &str, name: &str, entry: &Entry) -> Result<bool> {
+        if !is_task_folder(file) {
+            return Ok(false);
+        }
+        let active = self.tasks_root.join(&entry.spec).join(&entry.task);
+        let origin_dir = if active.join(REVIEWS_FILE).is_file() {
+            active
+        } else {
+            self.harness
+                .path("archive")?
+                .join(&entry.spec)
+                .join("tasks")
+                .join(&entry.task)
+        };
+        let Ok(text) = fs::read_to_string(origin_dir.join(REVIEWS_FILE)) else {
+            return Ok(false);
+        };
+        let Some(origin) = parse_reviews(&text, &entry.task)
+            .into_iter()
+            .find(|record| record.id == entry.evidence_id && record.mark == ReviewMark::Accepted)
+        else {
+            return Ok(false);
+        };
+        let dir = self.evidence_dir(file)?;
+        if !self
+            .review_hashes(&fs::read(dir.join(name))?)
+            .matches(&origin.hash)
+        {
+            return Ok(false);
+        }
+        let source = format!("{} {} {}", entry.spec, entry.task, entry.evidence_id);
+        let record = ReviewRecord {
+            id: id.to_string(),
+            name: name.to_string(),
+            mark: ReviewMark::Accepted,
+            hash: origin.hash,
+            date: utc_now(),
+            origin: ReviewOrigin::Reaproveitada.as_str().to_string(),
+            text: format!("reaproveitada de {source}"),
+        };
+        let mut records = self.reviews(file, &TaskDoc::at(file).text()?)?;
+        match records.iter().position(|other| other.name == record.name) {
+            Some(position) => records[position] = record,
+            None => records.push(record),
+        }
+        write_reviews(file, &records)?;
+        self.record_step(
+            file,
+            "conferência",
+            "usuário",
+            &format!("{id} reaproveitada de {source}"),
+        )?;
+        Ok(true)
     }
 
     /// Mensagens dos caminhos que a tarefa cria e que já existem no projeto.
@@ -2744,7 +2978,12 @@ impl Tasks {
     }
 
     /// Executa e grava o baseline; não grava registro nem status.
-    fn collect_baseline(&self, file: &Path, task: &str) -> Result<(PathBuf, String)> {
+    fn collect_baseline(
+        &self,
+        file: &Path,
+        task: &str,
+        mode: ReuseMode,
+    ) -> Result<(PathBuf, String, Vec<String>)> {
         let dir = self.evidence_dir(file)?.join("baseline");
         if dir.exists() {
             bail!(
@@ -2766,12 +3005,24 @@ impl Tasks {
         }
         // Evidências automáticas: a saída de antes da mudança; o código de saída não impede a coleta.
         let mut evidences = Vec::new();
+        let mut reused: Vec<String> = Vec::new();
+        let mut candidates: Vec<ReuseCandidate> = Vec::new();
         if let Some(evidence_dir) = self.evidence_baseline_dir() {
             let text = self.subsection(&content, "evidence_subsection")?;
-            let requirements = evidence_requirements(&text, &self.evidence_from_verify());
-            let timeouts = evidence_timeouts(&text, &self.evidence_from_verify());
+            let from_verify = self.evidence_from_verify();
+            let requirements = evidence_requirements(&text, &from_verify);
+            let timeouts = evidence_timeouts(&text, &from_verify);
             let default_timeout = self.evidence_baseline_timeout();
-            for (name, command) in self.automatic_evidences(&content)? {
+            let automatic = self.automatic_evidences(&content)?;
+            let entries = parse_evidence_entries(&text, &from_verify);
+            let expectations = self.evidence_expectations(&text);
+            let inputs = if mode == ReuseMode::Off {
+                HashMap::new()
+            } else {
+                let names: Vec<String> = automatic.iter().map(|(name, _)| name.clone()).collect();
+                self.reuse_inputs(&text, &names)?
+            };
+            for (name, command) in automatic {
                 let missing = requirements
                     .get(&name)
                     .and_then(|paths| paths.iter().find(|path| !root.join(path).exists()));
@@ -2781,6 +3032,30 @@ impl Tasks {
                     let record = format!("$ {command}\nexit: 1\n{reason}\n").into_bytes();
                     evidences.push((evidence_dir.clone(), name, record));
                     continue;
+                }
+                let input = inputs.get(&name);
+                let key =
+                    input.map(|(_, fingerprint)| evidence_reuse::reuse_key(&command, fingerprint));
+                let position = entries
+                    .iter()
+                    .position(|entry| entry.name == name)
+                    .unwrap_or_default();
+                if let (true, Some(key)) = (mode.reads(), &key) {
+                    if let Some((entry, bytes)) = self.reuse_lookup(&name, key) {
+                        let mut record =
+                            format!("$ {command}\nexit: {}\n", entry.exit_code).into_bytes();
+                        record.extend_from_slice(&bytes);
+                        println!(
+                            "- [evidência {name}] reaproveitada de {} {} {} (chave {})",
+                            entry.spec,
+                            entry.task,
+                            entry.evidence_id,
+                            &entry.key[..entry.key.len().min(8)]
+                        );
+                        reused.push(reuse_detail(&name, &entry));
+                        evidences.push((evidence_dir.clone(), name, record));
+                        continue;
+                    }
                 }
                 let seconds = timeouts
                     .get(&name)
@@ -2793,6 +3068,34 @@ impl Tasks {
                     println!("- [evidência {name}] {command} (tempo-limite {seconds} s)");
                 }
                 let record = recorded_run_with_timeout(&command, &root, seconds)?;
+                if let (true, Some(key), Some((depends, fingerprint))) = (mode.writes(), key, input)
+                {
+                    let output = record
+                        .splitn(3, |byte| *byte == b'\n')
+                        .nth(2)
+                        .unwrap_or_default()
+                        .to_vec();
+                    let expected = expectations.get(&name).is_none_or(|expected| {
+                        String::from_utf8_lossy(&output).contains(expected.as_str())
+                    });
+                    let falha = entries
+                        .get(position)
+                        .filter(|entry| entry.name == name)
+                        .is_some_and(|entry| falha_found(entry, &output));
+                    if recorded_exit_code(&record) == Some(0) && expected && !falha {
+                        candidates.push(ReuseCandidate {
+                            name: name.clone(),
+                            kind: "log".to_string(),
+                            command: command.clone(),
+                            key,
+                            depends: depends.clone(),
+                            inputs: fingerprint.clone(),
+                            exit_code: 0,
+                            content: output,
+                            evidence_id: evidence_id(position),
+                        });
+                    }
+                }
                 evidences.push((evidence_dir.clone(), name, record));
             }
         }
@@ -2805,6 +3108,7 @@ impl Tasks {
             fs::create_dir_all(&target)?;
             fs::write(target.join(name), output)?;
         }
+        self.record_candidates(file, candidates);
         let codes = results
             .iter()
             .map(|(code, _)| code.to_string())
@@ -2825,7 +3129,7 @@ impl Tasks {
                 evidences.len()
             ));
         }
-        Ok((dir, detail))
+        Ok((dir, detail, reused))
     }
 
     /// Motivo de cada comando de "Baseline" com mudança esperada, na ordem dos comandos.
@@ -3213,6 +3517,7 @@ impl Tasks {
         bail!("a tarefa {task} ficou bloqueada por regressão. PARE: responda com o template `blocker`, mostrando os comandos, e aguarde a decisão do usuário")
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn evidence(
         &self,
         spec: &str,
@@ -3221,6 +3526,7 @@ impl Tasks {
         rejected: Option<&str>,
         undo: Option<&str>,
         motivo: Option<&str>,
+        skip_reuse: bool,
     ) -> Result<()> {
         let file = self.find_task(spec, task)?;
         self.require_running(&file, task)?;
@@ -3296,7 +3602,14 @@ impl Tasks {
             kept,
             changed,
             ..
-        } = self.generate_evidences(&file, &content, &dir, reviewed, false)?;
+        } = self.generate_evidences(
+            &file,
+            &content,
+            &dir,
+            reviewed,
+            false,
+            self.reuse_mode(skip_reuse),
+        )?;
         if !failed.is_empty() {
             self.record_step(&file, "evidências", "erro", "evidência automática com erro")?;
             bail!("evidências automáticas de {task} com erro; corrija e execute vostok task evidence de novo:\n{failed}");
@@ -3457,7 +3770,7 @@ impl Tasks {
 
     /// Gera as evidências com a tarefa em execução, sem mudar os resultados, lista o que falta o
     /// usuário conferir e deixa a tarefa aguardando conferência ou pronta para finalizar.
-    fn evidence_ahead(&self, spec: &str, task: &str) -> Result<()> {
+    fn evidence_ahead(&self, spec: &str, task: &str, skip_reuse: bool) -> Result<()> {
         let file = self.find_task(spec, task)?;
         let status = status_of(&file);
         let running = [
@@ -3487,7 +3800,8 @@ impl Tasks {
             println!("Evidências antecipadas de {task}: {none}");
             return self.settle_reviews(&file, task, "sem evidências a gerar");
         }
-        let generated = self.generate_evidences(&file, &content, &dir, &[], true)?;
+        let mode = self.reuse_mode(skip_reuse);
+        let generated = self.generate_evidences(&file, &content, &dir, &[], true, mode)?;
         if !generated.failed.is_empty() {
             bail!(
                 "evidências antecipadas de {task} com erro; nada mudou nos resultados:\n{}",
@@ -3652,6 +3966,7 @@ impl Tasks {
         dir: &Path,
         reviewed: &[String],
         ahead: bool,
+        mode: ReuseMode,
     ) -> Result<Generated> {
         let text = self.subsection(content, "evidence_subsection")?;
         let items: Vec<&str> = text
@@ -3687,6 +4002,18 @@ impl Tasks {
             None => None,
         };
         let mut reused_at: Option<String> = None;
+        let entries = parse_evidence_entries(&text, &from_verify);
+        let inputs = if mode == ReuseMode::Off {
+            HashMap::new()
+        } else {
+            let names: Vec<String> = entries
+                .iter()
+                .filter(|entry| entry.kind == automatic || entry.kind == print)
+                .map(|entry| entry.name.clone())
+                .collect();
+            self.reuse_inputs(&text, &names)?
+        };
+        let mut candidates: Vec<ReuseCandidate> = Vec::new();
         for (index, item) in items.iter().enumerate() {
             if let Some(name) = evidence_name(item, &from_verify) {
                 match self.review_kept(&rows, &reviews, dir, &evidence_id(index), name)? {
@@ -3755,11 +4082,39 @@ impl Tasks {
                     .and_then(|rest| rest.strip_suffix('`'))
                     .filter(|command| !command.is_empty())
                     .ok_or_else(|| anyhow!("print sem comando: {item}"))?;
+                let input = inputs.get(name);
+                let key =
+                    input.map(|(_, fingerprint)| evidence_reuse::reuse_key(command, fingerprint));
+                if let (true, Some(key)) = (mode.reads(), &key) {
+                    if let Some((entry, bytes)) = self.reuse_lookup(name, key) {
+                        fs::write(&target, &bytes)?;
+                        self.announce_reuse(file, index, name, &entry)?;
+                        continue;
+                    }
+                }
                 if target.exists() {
                     fs::remove_file(&target)?;
                 }
                 let (code, output) =
                     shell_output_with(command, &root, &[("VOSTOK_EVIDENCE", dir)])?;
+                if code == 0 && mode.writes() {
+                    if let (Some(key), Some((depends, fingerprint))) = (key, input) {
+                        let content = fs::read(&target).unwrap_or_default();
+                        if !content.is_empty() {
+                            candidates.push(ReuseCandidate {
+                                name: name.to_string(),
+                                kind: index_kind(kind, name, &print).to_string(),
+                                command: command.to_string(),
+                                key,
+                                depends: depends.clone(),
+                                inputs: fingerprint.clone(),
+                                exit_code: 0,
+                                content,
+                                evidence_id: evidence_id(index),
+                            });
+                        }
+                    }
+                }
                 if code != 0 {
                     failed.push_str(&format!(
                         "- {name}: `{command}` terminou com erro\n{}\n",
@@ -3801,24 +4156,42 @@ impl Tasks {
                     .and_then(|rest| rest.strip_suffix('`'))
                     .filter(|command| !command.is_empty())
                     .ok_or_else(|| anyhow!("evidência automática sem comando: {item}"))?;
+                let input = inputs.get(name);
+                let key =
+                    input.map(|(_, fingerprint)| evidence_reuse::reuse_key(command, fingerprint));
+                if let (true, Some(key)) = (mode.reads(), &key) {
+                    if let Some((entry, bytes)) = self.reuse_lookup(name, key) {
+                        if same_as_baseline(baseline_dir.as_ref(), name, &bytes, &ignore) {
+                            same.push((name.to_string(), command.to_string()));
+                        }
+                        let mut log = log_header(command, entry.exit_code, &root);
+                        log.extend_from_slice(&bytes);
+                        fs::write(&target, log)?;
+                        outputs.push((name.to_string(), bytes));
+                        self.announce_reuse(file, index, name, &entry)?;
+                        continue;
+                    }
+                }
                 // A saída só vira evidência se o comando terminar sem erro; com erro, ela vai para a mensagem.
                 let (code, output) = shell_output(command, &root)?;
                 if code == 0 {
-                    if let Some(recorded) = baseline_dir
-                        .as_ref()
-                        .and_then(|base| fs::read(base.join(name)).ok())
+                    if same_as_baseline(baseline_dir.as_ref(), name, &output, &ignore) {
+                        same.push((name.to_string(), command.to_string()));
+                    }
+                    if let (true, Some(key), Some((depends, fingerprint))) =
+                        (mode.writes(), key, input)
                     {
-                        let before = recorded
-                            .splitn(3, |byte| *byte == b'\n')
-                            .nth(2)
-                            .unwrap_or_default();
-                        if recorded_exit_code(&recorded) == Some(0)
-                            && !before.starts_with(NOT_EXECUTED.as_bytes())
-                            && recorded_exit_code(&recorded) != Some(TIMEOUT_EXIT)
-                            && without_ignored(before, &ignore) == without_ignored(&output, &ignore)
-                        {
-                            same.push((name.to_string(), command.to_string()));
-                        }
+                        candidates.push(ReuseCandidate {
+                            name: name.to_string(),
+                            kind: index_kind(kind, name, &print).to_string(),
+                            command: command.to_string(),
+                            key,
+                            depends: depends.clone(),
+                            inputs: fingerprint.clone(),
+                            exit_code: 0,
+                            content: output.clone(),
+                            evidence_id: evidence_id(index),
+                        });
                     }
                     let mut log = log_header(command, code, &root);
                     log.extend_from_slice(&output);
@@ -3848,6 +4221,22 @@ impl Tasks {
                 }
             }
         }
+        candidates.retain(|candidate| {
+            if candidate.kind != "log" {
+                return true;
+            }
+            let expected = expectations.get(&candidate.name).is_none_or(|expected| {
+                String::from_utf8_lossy(&candidate.content).contains(expected.as_str())
+            });
+            let falha = entries
+                .iter()
+                .find(|entry| entry.name == candidate.name)
+                .is_some_and(|entry| falha_found(entry, &candidate.content));
+            expected && !falha
+        });
+        self.record_candidates(file, candidates);
+        // As conferências levadas de evidências copiadas entram na conta das mantidas.
+        let reviews = self.reviews(file, content)?;
         let (kept, changed) = self.reviews_after_generation(content, dir, &reviews)?;
         self.clear_changed_rejections(file, dir, &reviews)?;
         Ok(Generated {
@@ -5795,6 +6184,14 @@ impl Tasks {
             &changed,
             &created,
         ));
+        let root = self.project_root()?;
+        errors.extend(depends_errors(
+            &sub,
+            &text,
+            &self.evidence_from_verify(),
+            &root,
+            self.work_dir_relative(&root).as_deref(),
+        ));
         if count == 0 {
             errors.push(format!(
                 "'{sub}' sem nenhum item no formato e sem o texto '{none}'"
@@ -6686,6 +7083,110 @@ fn collect_files(root: &Path, dir: &Path, found: &mut Vec<String>) -> Result<()>
     Ok(())
 }
 
+/// A saída da evidência é igual à gravada no baseline, sem os trechos de `regression_ignore`.
+fn same_as_baseline(
+    baseline_dir: Option<&PathBuf>,
+    name: &str,
+    output: &[u8],
+    ignore: &[String],
+) -> bool {
+    let Some(recorded) = baseline_dir.and_then(|base| fs::read(base.join(name)).ok()) else {
+        return false;
+    };
+    let before = recorded
+        .splitn(3, |byte| *byte == b'\n')
+        .nth(2)
+        .unwrap_or_default();
+    recorded_exit_code(&recorded) == Some(0)
+        && !before.starts_with(NOT_EXECUTED.as_bytes())
+        && recorded_exit_code(&recorded) != Some(TIMEOUT_EXIT)
+        && without_ignored(before, ignore) == without_ignored(output, ignore)
+}
+
+/// Tipo da evidência no índice: `log` para a automática; `video` ou `print` para o print.
+fn index_kind(kind: &str, name: &str, print: &str) -> &'static str {
+    if kind != print {
+        return "log";
+    }
+    let lower = name.to_lowercase();
+    if [".webm", ".mp4", ".mov"]
+        .iter()
+        .any(|extension| lower.ends_with(extension))
+    {
+        "video"
+    } else {
+        "print"
+    }
+}
+
+/// A `Falha` da evidência aparece na saída.
+fn falha_found(entry: &EvidenceEntry, output: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(output);
+    let falha = entry.fields.get("Falha").map_or("", String::as_str);
+    snippets_of(falha)
+        .iter()
+        .filter(|snippet| unsearchable(snippet).is_empty())
+        .any(|snippet| !find_lines(&text, snippet).is_empty())
+}
+
+/// Spec da tarefa: a pasta pai da pasta `TASK-NN/` ou do arquivo `TASK-NN.md`.
+fn spec_of(file: &Path) -> String {
+    file.parent()
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+/// Linha do histórico de uma evidência copiada do índice.
+fn reuse_detail(name: &str, entry: &Entry) -> String {
+    format!(
+        "{name} de {} {} {} (chave {})",
+        entry.spec,
+        entry.task,
+        entry.evidence_id,
+        &entry.key[..entry.key.len().min(8)]
+    )
+}
+
+/// Evidência que passou e vai para o índice de reaproveitamento.
+struct ReuseCandidate {
+    name: String,
+    kind: String,
+    command: String,
+    key: String,
+    depends: Vec<String>,
+    inputs: String,
+    exit_code: i32,
+    content: Vec<u8>,
+    evidence_id: String,
+}
+
+/// Pasta de trabalho do harness (a pai de `tasks_root`), relativa à raiz do projeto.
+pub(super) fn work_dir_of(tasks_root: &Path, root: &Path) -> Option<String> {
+    let work = fs::canonicalize(tasks_root.parent()?).ok()?;
+    let root = fs::canonicalize(root).ok()?;
+    let relative = work.strip_prefix(root).ok()?;
+    Some(relative.to_string_lossy().replace('\\', "/"))
+}
+
+/// Reaproveitamento das evidências pela chave: desligado, só gravando no índice ou completo.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReuseMode {
+    Off,
+    RecordOnly,
+    Full,
+}
+
+impl ReuseMode {
+    fn reads(self) -> bool {
+        self == ReuseMode::Full
+    }
+
+    fn writes(self) -> bool {
+        self != ReuseMode::Off
+    }
+}
+
 fn append_fingerprint(data: &mut Vec<u8>, root: &Path, relative: &str) -> Result<()> {
     let full = root.join(relative);
     if full.is_dir() {
@@ -7429,7 +7930,57 @@ pub(super) fn evidence_timeouts(text: &str, from_verify: &str) -> HashMap<String
 
 /// Caminhos de `Requer:` de cada evidência: os trechos entre crases, separados por vírgula.
 pub(super) fn evidence_requirements(text: &str, from_verify: &str) -> HashMap<String, Vec<String>> {
-    evidence_subitem_values(text, EVIDENCE_REQUIRES, from_verify)
+    evidence_paths(text, EVIDENCE_REQUIRES, from_verify)
+}
+
+/// Caminhos de `Depende:` de cada evidência: os trechos entre crases, separados por vírgula.
+pub(super) fn evidence_dependencies(text: &str, from_verify: &str) -> HashMap<String, Vec<String>> {
+    evidence_paths(text, EVIDENCE_DEPENDS, from_verify)
+}
+
+/// Problemas dos caminhos de `Depende:`: fora do projeto, na pasta de trabalho do harness ou
+/// ausentes, por evidência em ordem de nome e por caminho na ordem escrita.
+pub(super) fn depends_errors(
+    sub: &str,
+    evidence: &str,
+    from_verify: &str,
+    root: &Path,
+    work: Option<&str>,
+) -> Vec<String> {
+    let mut depends: Vec<(String, Vec<String>)> = evidence_dependencies(evidence, from_verify)
+        .into_iter()
+        .collect();
+    depends.sort();
+    let mut errors = Vec::new();
+    for (name, paths) in depends {
+        for path in paths {
+            let normalized = crate::support::lexical(Path::new(&path))
+                .to_string_lossy()
+                .replace('\\', "/");
+            let problem = if Path::new(&path).is_absolute() || normalized.starts_with("..") {
+                Some("fica fora do projeto")
+            } else if work.is_some_and(|work| {
+                normalized == work || normalized.starts_with(&format!("{work}/"))
+            }) {
+                Some("fica na pasta de trabalho do harness")
+            } else if !root.join(&path).exists() {
+                Some("não existe no projeto")
+            } else {
+                None
+            };
+            if let Some(problem) = problem {
+                errors.push(format!(
+                    "'{sub}': a evidência {name} depende de '{path}', que {problem}"
+                ));
+            }
+        }
+    }
+    errors
+}
+
+/// Caminhos do subitem `field` de cada evidência: os trechos entre crases, separados por vírgula.
+fn evidence_paths(text: &str, field: &str, from_verify: &str) -> HashMap<String, Vec<String>> {
+    evidence_subitem_values(text, field, from_verify)
         .into_iter()
         .map(|(name, value)| {
             let paths = value
@@ -7745,6 +8296,8 @@ pub(crate) enum ReviewOrigin {
     // Construída pelo servidor do painel (TASK-03).
     #[allow(dead_code)]
     Painel,
+    /// Levada da evidência de origem copiada do índice de reaproveitamento (SPEC-075).
+    Reaproveitada,
 }
 
 impl ReviewOrigin {
@@ -7752,6 +8305,7 @@ impl ReviewOrigin {
         match self {
             Self::Chat => "chat",
             Self::Painel => "painel",
+            Self::Reaproveitada => "reaproveitada",
         }
     }
 }
@@ -8150,7 +8704,8 @@ fn parse_review_line(line: &str) -> Option<ReviewRecord> {
         || !is_valid_evidence_name(name)
         || !is_review_hash(hash)
         || !starts_with_date(date)
-        || !matches!(origin.as_str(), "chat" | "painel")
+        || !(matches!(origin.as_str(), "chat" | "painel")
+            || origin == ReviewOrigin::Reaproveitada.as_str())
     {
         return None;
     }

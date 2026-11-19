@@ -26,7 +26,12 @@ const ROUTE_END: &str =
 
 const SPEC_LOOKUP: &str = "3. Procure: requisito com duas leituras, caso de teste que não prova o requisito, componente afetado com caminho errado ou faltando, critério de aceite que não se verifica, seções que se contradizem.";
 const PLAN_LOOKUP: &str = "3. Procure: tarefa sem objetivo único, dependência que falta ou sobra, ID da spec sem tarefa, componente na tarefa errada, duas tarefas da mesma onda mudando o mesmo arquivo.";
-const TASK_LOOKUP: &str = "3. Procure: caminho de \"Ler\" ou \"Mudar\" que não existe ou que falta, passo ambíguo ou que deixa decisão, comando da \"Verificação\" que não roda ou não prova o requisito, texto do Trecho que não aparece na saída do comando, Baseline que mede a entrega, critério sem comprovação.";
+const TASK_LOOKUP: &str = "3. Procure: caminho de \"Ler\" ou \"Mudar\" que não existe ou que falta, passo ambíguo ou que deixa decisão, comando da \"Verificação\" que não roda ou não prova o requisito, texto do Trecho que não aparece na saída do comando, Baseline que mede a entrega, critério sem comprovação. Entre tarefas, procure: mesmo arquivo criado por duas tarefas, passo que usa o resultado de outra tarefa sem depender dela, duas tarefas da mesma onda mudando o mesmo arquivo, nome ou contrato diferente para a mesma coisa, ID da spec que nenhuma tarefa cobre.";
+
+const CONTEXT_INTRO: &str = "## Contexto\n\nLeia estas tarefas só para achar inconsistências com as revisadas; todo achado cita uma tarefa revisada.\n\n";
+const DEFAULT_TABLE: &str =
+    "| # | Local | Problema | Correção | Muda o escopo |\n|---|---|---|---|---|";
+const TASK_TABLE: &str = "| # | Tarefa | Local | Problema | Correção | Muda o escopo |\n|---|---|---|---|---|---|\n\nUm achado entre tarefas cita todas as envolvidas na coluna Tarefa.";
 
 #[derive(Debug, Subcommand)]
 pub enum ReviewCommand {
@@ -35,7 +40,8 @@ pub enum ReviewCommand {
         /// Fluxo revisado: spec, plan ou task.
         flow: String,
         spec_id: String,
-        task_id: Option<String>,
+        /// IDs das tarefas revisadas (só no fluxo task); sem ID, todas.
+        task_ids: Vec<String>,
     },
 }
 
@@ -45,23 +51,21 @@ pub fn run(command: ReviewCommand) -> Result<()> {
         ReviewCommand::Brief {
             flow,
             spec_id,
-            task_id,
-        } => brief(&harness, &flow, &spec_id, task_id.as_deref()),
+            task_ids,
+        } => brief(&harness, &flow, &spec_id, &task_ids),
     }
 }
 
-fn brief(harness: &Harness, flow: &str, spec_id: &str, task_id: Option<&str>) -> Result<()> {
+fn brief(harness: &Harness, flow: &str, spec_id: &str, task_ids: &[String]) -> Result<()> {
     if !FLOWS.contains(&flow) {
         bail!("fluxo inválido: '{flow}'; use spec, plan ou task");
-    }
-    if flow == "task" && task_id.is_none() {
-        bail!("o fluxo task exige o ID da tarefa: vostok review brief task {spec_id} <TASK_ID>");
     }
     if !enabled(harness, flow)? {
         println!("Revisão desligada para {flow}.");
         return Ok(());
     }
-    let files = files_of(harness, flow, spec_id, task_id)?;
+    let task_ids = unique(task_ids);
+    let (files, context) = files_of(harness, flow, spec_id, &task_ids)?;
     let info = models::for_profile(harness, "julgamento")?;
     if info.tool.is_none() {
         eprintln!("{}", models::tool_warning());
@@ -73,13 +77,28 @@ fn brief(harness: &Harness, flow: &str, spec_id: &str, task_id: Option<&str>) ->
         )
     })?;
     let project_root = harness.root.parent().unwrap_or(&harness.root);
-    let listing: String = files
-        .iter()
-        .map(|file| format!("- `{}`\n", relative(project_root, file)))
-        .collect();
-    let target = task_id.map_or(spec_id.to_string(), |task| format!("{spec_id} {task}"));
+    let listing_of = |files: &[PathBuf]| -> String {
+        files
+            .iter()
+            .map(|file| format!("- `{}`\n", relative(project_root, file)))
+            .collect()
+    };
+    let mut listing = listing_of(&files);
+    if !context.is_empty() {
+        listing.push_str(&format!("\n{CONTEXT_INTRO}{}", listing_of(&context)));
+    }
+    let target = match (flow, task_ids.is_empty()) {
+        ("task", true) => format!("{spec_id} (todas as tarefas)"),
+        ("task", false) => format!("{spec_id} {}", task_ids.join(" ")),
+        _ => spec_id.to_string(),
+    };
+    let table = if flow == "task" {
+        TASK_TABLE
+    } else {
+        DEFAULT_TABLE
+    };
     println!(
-        "# Revisão de {flow} {target}\n\n## Modelo\n\n- Perfil: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n\n# Persona\n\n{}\n\n# Roteiro\n\n{ROUTE_START}{}\n{ROUTE_END}\n\n# Arquivos\n\n{listing}\n# Resposta\n\n| # | Local | Problema | Correção | Muda o escopo |\n|---|---|---|---|---|\n\nSem achados, responda só: Nenhum achado.",
+        "# Revisão de {flow} {target}\n\n## Modelo\n\n- Perfil: {}\n- Ferramenta: {}\n- Apelido de reserva: {}\n\n# Persona\n\n{}\n\n# Roteiro\n\n{ROUTE_START}{}\n{ROUTE_END}\n\n# Arquivos\n\n{listing}\n# Resposta\n\n{table}\n\nSem achados, responda só: Nenhum achado.",
         info.profile,
         info.tool.as_deref().unwrap_or("não configurada"),
         info.model,
@@ -97,13 +116,14 @@ fn lookup_of(flow: &str) -> &'static str {
     }
 }
 
-/// Ausente ou `true` liga; `false` desliga; outro valor é recusado.
+/// Ausente ou vazia: só a revisão de task fica ligada; true liga; false desliga; outro valor é recusado.
 fn enabled(harness: &Harness, flow: &str) -> Result<bool> {
     let key = format!("review.{flow}");
     match config_get(&harness.config_file("main.yml"), &key) {
-        Err(_) => Ok(true),
+        Err(_) => Ok(flow == "task"),
         Ok(value) => match value.as_str() {
-            "" | "true" => Ok(true),
+            "" => Ok(flow == "task"),
+            "true" => Ok(true),
             "false" => Ok(false),
             other => {
                 bail!("valor inválido em config/main.yml ({key}): '{other}'; use true ou false")
@@ -112,28 +132,73 @@ fn enabled(harness: &Harness, flow: &str) -> Result<bool> {
     }
 }
 
+fn unique(ids: &[String]) -> Vec<String> {
+    let mut seen: Vec<String> = Vec::new();
+    for id in ids {
+        if !seen.contains(id) {
+            seen.push(id.clone());
+        }
+    }
+    seen
+}
+
+/// Devolve os arquivos revisados e os de contexto (só no fluxo task com tarefas indicadas).
 fn files_of(
     harness: &Harness,
     flow: &str,
     spec_id: &str,
-    task_id: Option<&str>,
-) -> Result<Vec<PathBuf>> {
+    task_ids: &[String],
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     match flow {
-        "spec" => Ok(vec![spec_file(harness, spec_id)?]),
+        "spec" => Ok((vec![spec_file(harness, spec_id)?], Vec::new())),
         "plan" => {
             let plan = existing(
                 harness.path("plans")?.join(format!("{spec_id}.md")),
                 &format!("o plano da {spec_id}"),
             )?;
-            Ok(vec![plan, spec_file(harness, spec_id)?])
+            Ok((vec![plan, spec_file(harness, spec_id)?], Vec::new()))
         }
         _ => {
-            let task = task_id.unwrap_or_default();
-            let mut files = task_files(harness, spec_id, task)?;
-            files.push(spec_file(harness, spec_id)?);
-            Ok(files)
+            let all = task_ids_of(harness, spec_id)?;
+            let reviewed_ids = if task_ids.is_empty() { &all } else { task_ids };
+            let mut reviewed = Vec::new();
+            for id in reviewed_ids {
+                reviewed.extend(task_files(harness, spec_id, id)?);
+            }
+            reviewed.push(spec_file(harness, spec_id)?);
+            let mut context = Vec::new();
+            if !task_ids.is_empty() {
+                for id in all.iter().filter(|id| !task_ids.contains(id)) {
+                    context.extend(task_files(harness, spec_id, id)?);
+                }
+            }
+            Ok((reviewed, context))
         }
     }
+}
+
+fn task_ids_of(harness: &Harness, spec_id: &str) -> Result<Vec<String>> {
+    let dir = harness.path("tasks")?.join(spec_id);
+    let prefix = config_get(&harness.config_file("tasks.yml"), "id.prefix")
+        .ok()
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "TASK".to_string());
+    let start = format!("{prefix}-");
+    let mut ids: Vec<String> = fs::read_dir(&dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .filter(|name| name.starts_with(&start))
+                .map(|name| name.strip_suffix(".md").unwrap_or(&name).to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    if ids.is_empty() {
+        bail!("a {spec_id} não tem tarefas: {}", dir.display());
+    }
+    ids.sort();
+    Ok(ids)
 }
 
 fn spec_file(harness: &Harness, spec_id: &str) -> Result<PathBuf> {

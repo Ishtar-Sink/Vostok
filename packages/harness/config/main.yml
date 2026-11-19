@@ -25,8 +25,9 @@ harness:
 # Porta fixa do painel. 0 ou ausente: uma porta livre. O --porta prevalece.
 panel_port: 0
 
-# Revisão sem contexto de cada fluxo (vostok review brief): true liga, false desliga. Ausente: ligada.
+# Revisão sem contexto de cada fluxo (vostok review brief): true liga, false desliga.
+# Ausente: spec e plan desligadas, task ligada.
 review:
-  spec: true
-  plan: true
+  spec: false
+  plan: false
   task: true

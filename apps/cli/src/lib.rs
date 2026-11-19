@@ -4,6 +4,7 @@ pub mod changes;
 pub mod cli;
 pub mod commands;
 pub mod embedded;
+pub mod evidence_reuse;
 pub mod harness;
 pub mod manifest;
 pub mod models;

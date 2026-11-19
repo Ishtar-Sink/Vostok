@@ -3,7 +3,7 @@ name: adjust-task
 description: "Ajusta uma tarefa de uma especificação (spec) planejada, em work/tasks/, em qualquer status menos done. Aplica um ou vários ajustes pedidos numa mesma mensagem (arquivos a ler ou mudar, passos, baseline, verificação, evidências, critérios de conclusão ou descrição), registra edições feitas à mão e mantém o histórico de ajustes da tarefa. Uma tarefa aprovada volta para aprovação; uma em execução volta para in_progress, sem nova aprovação. Use quando o usuário pedir para ajustar, corrigir, mudar ou detalhar algo de uma tarefa, ou comentar uma tarefa antes de executá-la."
 allowed-tools: Read Edit Glob Bash(vostok *)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: "Victor Batalha"
   scripts: "vostok context load, vostok memory search, vostok task load, vostok task adjust record-manual, vostok task adjust validate, vostok task adjust record, vostok task status, vostok review brief"
   templates: "templates/responses/question.md templates/responses/blocker.md templates/responses/completion.md"
@@ -178,6 +178,8 @@ Execute:
 vostok review brief task <SPEC_ID> <TASK_ID>
 ```
 
+O roteiro lista a tarefa ajustada em "# Arquivos" e as demais tarefas da spec em "## Contexto", para o revisor achar também o que deixou de bater entre elas.
+
 Com a saída `Revisão desligada para task.`, siga para o passo 11 e diga na resposta que a revisão está desligada.
 
 Senão, dispare o subagente `vostok-revisor` com a mensagem "Rode `vostok review brief task <SPEC_ID> <TASK_ID>` e siga o que ele imprime.", sem a conversa. Sem subagentes na ferramenta, faça a revisão na própria sessão, pelo roteiro impresso, e avise na resposta que ela não foi feita sem contexto.
@@ -187,11 +189,11 @@ Numa tarefa em execução, a revisão vale para o ajuste, e a correção registr
 Com a tabela de achados do revisor:
 
 1. Descarte o achado que não causaria retrabalho, como estilo ou preferência, sem registrar.
-2. Aplique nos arquivos da tarefa as correções com "Muda o escopo" igual a `não`, sem editar o front-matter nem o "Histórico de ajustes" (regra adjust-task-03).
+2. Aplique nos arquivos da tarefa as correções com "Muda o escopo" igual a `não`, sem editar o front-matter nem o "Histórico de ajustes" (regra adjust-task-03). Uma tarefa de "## Contexto" não recebe correção (regra adjust-task-01): o achado que só ela resolveria vai para o usuário.
 3. Valide com `vostok task adjust validate <SPEC_ID> <TASK_ID>` e registre com `vostok task adjust record <SPEC_ID> <TASK_ID> "<resumo>" --revisor`. A correção que deixa a tarefa inválida e não se acerta pela mensagem da validação é desfeita e vai para o usuário.
 4. Num achado com uma parte que muda o escopo e outra que não, aplique só a segunda.
 5. As correções com `sim` não são aplicadas: vão para o usuário numa única pergunta, com o template `question`.
-6. Se aplicou alguma correção, dispare o revisor uma segunda vez; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
+6. Se aplicou alguma correção, dispare o revisor uma segunda vez, com o mesmo comando; o que a segunda rodada ainda apontar vai para o usuário na resposta, sem terceira rodada. Com `Nenhum achado.`, não há segunda rodada.
 
 ### 11. Responder ao usuário
 

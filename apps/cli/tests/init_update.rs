@@ -1614,3 +1614,46 @@ fn tool_hooks_claude_code_is_unchanged() {
     );
     assert!(!workspace.exists(CODEX_HOOKS));
 }
+
+#[test]
+fn init_installs_one_review_round_per_flow() {
+    let workspace = installed("claude-code");
+
+    for flow in ["spec", "plan", "task"] {
+        assert_eq!(
+            workspace.config("main.yml", &format!("review_rounds.{flow}")),
+            "1"
+        );
+    }
+}
+
+#[test]
+fn update_adds_the_review_rounds() {
+    let workspace = installed("claude-code");
+    let config = workspace.read("vostok/config/main.yml");
+    let before_rounds = config
+        .split("\n# Rodadas da revisão")
+        .next()
+        .expect("config sem o comentário das rodadas");
+    workspace.write("vostok/config/main.yml", &format!("{before_rounds}\n"));
+    assert!(!workspace
+        .read("vostok/config/main.yml")
+        .contains("review_rounds"));
+
+    let out = workspace.update();
+    assert!(
+        out.contains("Configuração acrescentada: config/main.yml: review_rounds"),
+        "{out}"
+    );
+    assert_eq!(workspace.config("main.yml", "review_rounds.task"), "1");
+
+    workspace.replace("vostok/config/main.yml", "  task: 1\n", "  task: 3\n");
+    workspace.replace("vostok/config/main.yml", "  spec: 1\n", "");
+    let out = workspace.update();
+    assert!(
+        out.contains("Configuração acrescentada: config/main.yml: review_rounds.spec"),
+        "{out}"
+    );
+    assert_eq!(workspace.config("main.yml", "review_rounds.task"), "3");
+    assert_eq!(workspace.config("main.yml", "review_rounds.spec"), "1");
+}

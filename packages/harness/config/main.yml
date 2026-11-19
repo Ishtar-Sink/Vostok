@@ -31,3 +31,9 @@ review:
   spec: false
   plan: false
   task: true
+
+# Rodadas da revisão sem contexto de cada fluxo (vostok review brief --rodada), de 1 a 5. Ausente ou vazia: 1.
+review_rounds:
+  spec: 1
+  plan: 1
+  task: 1

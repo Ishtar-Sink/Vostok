@@ -10,6 +10,7 @@ pub mod init;
 pub mod memory;
 pub mod painel;
 pub mod plan;
+pub mod rehearsal;
 pub mod review;
 pub mod rules;
 pub mod skill;

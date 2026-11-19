@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Subcommand;
 
+use crate::commands::rehearsal::{self, Finding, Record, Recorded};
 use crate::evidence_reuse::{self, Entry, ReuseIndex};
 use crate::harness::Harness;
 use crate::models;
@@ -186,6 +187,11 @@ pub enum TaskCommand {
     /// Reaproveita prints e vídeos de outras tarefas como baseline, com a decisão do usuário.
     #[command(subcommand)]
     Reuse(ReuseCommand),
+    /// Ensaia as tarefas antes da revisão: roda Baseline, evidências e Verificação uma vez e aponta os achados.
+    Rehearse {
+        spec_id: Option<String>,
+        task_ids: Vec<String>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -287,6 +293,7 @@ pub enum ReuseCommand {
 }
 
 const REUSE_USAGE: &str = "Uso: vostok task reuse candidates <SPEC_ID> | apply <SPEC_ID> <TASK_ID> <arquivo> --de <SPEC> <TASK> <EV-NN> --motivo \"decisão\"";
+const REHEARSE_USAGE: &str = "Uso: vostok task rehearse <SPEC_ID> [<TASK_ID>...]";
 const BRIEF_USAGE: &str = "Uso: vostok task brief|check <SPEC_ID> <TASK_ID>";
 const DESCRIBE_USAGE: &str = "Uso: vostok task describe <SPEC_ID> <TASK_ID>";
 const MIGRATE_USAGE: &str = "Uso: vostok task migrate <SPEC_ID>";
@@ -531,6 +538,12 @@ pub fn run(command: TaskCommand) -> Result<()> {
             tasks.persist(&spec, &task, &options)
         }
         TaskCommand::Reuse(command) => tasks.run_reuse(command),
+        TaskCommand::Rehearse { spec_id, task_ids } => {
+            let spec = spec_id
+                .filter(|spec| !spec.is_empty())
+                .ok_or_else(|| usage(REHEARSE_USAGE))?;
+            tasks.rehearse(&spec, &task_ids)
+        }
     }
 }
 
@@ -3396,6 +3409,237 @@ impl Tasks {
             .filter(|line| baseline_command(line).is_some())
             .map(|line| expected_change(line).map(|(_, reason)| reason.to_string()))
             .collect())
+    }
+
+    // --- rehearse: ensaio antes da aprovação (SPEC-077) ---
+
+    /// Pasta do ensaio: `ensaio/` na tarefa em pasta, `evidence/<TASK_ID>/ensaio/` no arquivo único.
+    fn rehearsal_dir(&self, file: &Path) -> Result<PathBuf> {
+        if is_task_folder(file) {
+            return Ok(file.join(rehearsal::DIR));
+        }
+        Ok(self.evidence_dir(file)?.join(rehearsal::DIR))
+    }
+
+    /// A tarefa já passou do `vostok task start`: status fora de pending e approved ou baseline coletado.
+    fn rehearsal_started(&self, file: &Path) -> Result<bool> {
+        let status = status_of(file);
+        Ok(
+            (status != self.status.pending && status != self.status.approved)
+                || self.has_baseline(file)?,
+        )
+    }
+
+    /// Roda uma vez o Baseline, as evidências automáticas e a Verificação de cada tarefa ainda não
+    /// iniciada, grava a pasta `ensaio/` e imprime a tabela de achados.
+    fn rehearse(&self, spec: &str, task_ids: &[String]) -> Result<()> {
+        if !rehearsal::enabled(&self.harness.config_file("main.yml"))? {
+            println!("{}", rehearsal::DISABLED);
+            return Ok(());
+        }
+        if !is_spec_id(spec) {
+            bail!("ID de spec inválido: '{spec}'");
+        }
+        let spec_dir = self.tasks_root.join(spec);
+        let mut files: Vec<PathBuf> = Vec::new();
+        if task_ids.is_empty() {
+            let prefix = format!("{}-", self.cfg("id.prefix")?);
+            if spec_dir.is_dir() {
+                for file in task_entries(&spec_dir)? {
+                    let id = task_id_of(&file);
+                    if !id.starts_with(&prefix) || status_of(&file) == self.status.done {
+                        continue;
+                    }
+                    if self.rehearsal_started(&file)? {
+                        eprintln!(
+                            "- {id}: já iniciada (status '{}'); fora do ensaio",
+                            status_of(&file)
+                        );
+                        continue;
+                    }
+                    files.push(file);
+                }
+            }
+            if files.is_empty() {
+                bail!("a {spec} não tem tarefas para ensaiar antes do vostok task start");
+            }
+        } else {
+            for task in task_ids {
+                let file = self.find_task(spec, task)?;
+                if !files.contains(&file) {
+                    files.push(file);
+                }
+            }
+            for file in &files {
+                if self.rehearsal_started(file)? {
+                    bail!(
+                        "a tarefa {} já foi iniciada (status '{}'); o ensaio vale só antes do vostok task start; nenhum comando foi rodado",
+                        task_id_of(file),
+                        status_of(file)
+                    );
+                }
+            }
+        }
+        let mut created_elsewhere: Vec<String> = Vec::new();
+        if spec_dir.is_dir() {
+            let prefix = format!("{}-", self.cfg("id.prefix")?);
+            for file in task_entries(&spec_dir)? {
+                if task_id_of(&file).starts_with(&prefix) {
+                    created_elsewhere.extend(self.created_paths(&file)?);
+                }
+            }
+        }
+        let tree = self.tree_fingerprint()?;
+        let mut all: Vec<Finding> = Vec::new();
+        for file in &files {
+            let task = task_id_of(file);
+            all.extend(self.rehearse_task(file, &task, &tree, &created_elsewhere)?);
+        }
+        print!("{}", rehearsal::table(&all));
+        Ok(())
+    }
+
+    fn rehearse_task(
+        &self,
+        file: &Path,
+        task: &str,
+        tree: &str,
+        created_elsewhere: &[String],
+    ) -> Result<Vec<Finding>> {
+        let content = TaskDoc::at(file).text()?;
+        let root = self.project_root()?;
+        let mut found: Vec<Finding> = Vec::new();
+        let mut outputs: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut commands: Vec<Recorded> = Vec::new();
+        let changes = change_items(&self.subsection(&content, "change_subsection")?);
+        let created = created_of(&changes);
+        // 1. Caminhos `alterar` de "Mudar".
+        let elsewhere: Vec<String> = created_elsewhere
+            .iter()
+            .filter(|path| !created.contains(path))
+            .cloned()
+            .collect();
+        found.extend(rehearsal::missing_alter(task, &root, &changes, &elsewhere));
+        // 2. Baseline.
+        let ignore = self.regression_ignore();
+        let folders: Vec<String> = parent_folders(&created)
+            .into_iter()
+            .filter(|folder| root.join(folder).exists())
+            .collect();
+        for (index, command) in self.baseline_commands(&content)?.iter().enumerate() {
+            let number = index + 1;
+            eprintln!("- [{task} baseline {number}] {command}");
+            let (code, output) = shell_output(command, &root)?;
+            let place = format!("Baseline [{number}]");
+            found.extend(rehearsal::unstable_baseline(
+                task, &place, command, &output, &ignore,
+            ));
+            found.extend(rehearsal::measures_delivery(
+                task, &place, command, &created, &folders,
+            ));
+            let file_name = format!("{}/{}", rehearsal::BASELINE, output_name(number));
+            let mut record = format!("$ {command}\nexit: {code}\n").into_bytes();
+            record.extend(&output);
+            outputs.push((file_name.clone(), record));
+            commands.push(Recorded {
+                kind: rehearsal::BASELINE.to_string(),
+                name: format!("{number:02}"),
+                command: command.clone(),
+                key: evidence_reuse::reuse_key(command, tree),
+                exit_code: code,
+                file: file_name,
+            });
+        }
+        // 3. Evidências automáticas e 4. comandos rotulados da Verificação.
+        let text = self.subsection(&content, "evidence_subsection")?;
+        let from_verify = self.evidence_from_verify();
+        let requirements = evidence_requirements(&text, &from_verify);
+        let dependencies = evidence_dependencies(&text, &from_verify);
+        let timeouts = evidence_timeouts(&text, &from_verify);
+        let default_timeout = self.evidence_baseline_timeout();
+        let entries = parse_evidence_entries(&text, &from_verify);
+        let falha_of = |name: &str| {
+            entries
+                .iter()
+                .find(|entry| entry.name == name)
+                .and_then(|entry| entry.fields.get("Falha").cloned())
+        };
+        let mut jobs: Vec<(&str, String, String)> = Vec::new();
+        for (name, command) in self.automatic_evidences(&content)? {
+            jobs.push((rehearsal::EVIDENCE, name, command));
+        }
+        let block = verify_block(&self.subsection(&content, "verify_subsection")?);
+        for (name, command) in labeled_commands(&block, &self.verify_label()) {
+            jobs.push((rehearsal::VERIFICATION, name, command));
+        }
+        for (kind, name, command) in jobs {
+            let label = if kind == rehearsal::EVIDENCE {
+                "evidência"
+            } else {
+                "verificação"
+            };
+            let place = if kind == rehearsal::EVIDENCE {
+                format!("Evidência {name}")
+            } else {
+                format!("Verificação {name}")
+            };
+            let missing = requirements
+                .get(&name)
+                .into_iter()
+                .chain(dependencies.get(&name))
+                .flatten()
+                .find(|path| !root.join(path).exists());
+            if let Some(path) = missing {
+                found.push(rehearsal::not_run(task, &place, path));
+                continue;
+            }
+            eprintln!("- [{task} {label} {name}] {command}");
+            let seconds = timeouts
+                .get(&name)
+                .copied()
+                .flatten()
+                .unwrap_or(default_timeout);
+            let (code, output, shown) = if kind == rehearsal::EVIDENCE {
+                let (code, output) = run_with_timeout(&command, &root, seconds)?;
+                (code, output, command.clone())
+            } else {
+                let script = format!("set -eo pipefail\n{command}");
+                let (code, output) = run_with_timeout(&script, &root, seconds)?;
+                (code, output, command.replace('\n', " "))
+            };
+            if let Some(falha) = falha_of(&name) {
+                found.extend(rehearsal::falha_in_output(
+                    task, &place, &falha, &output, code,
+                ));
+            }
+            found.extend(rehearsal::failed_exit(task, &place, code, &output));
+            if kind == rehearsal::VERIFICATION {
+                found.extend(rehearsal::already_passes(task, &place, code));
+            }
+            let file_name = format!("evidencias/{name}");
+            let mut record = format!("$ {shown}\nexit: {code}\n").into_bytes();
+            record.extend(&output);
+            outputs.push((file_name.clone(), record));
+            commands.push(Recorded {
+                kind: kind.to_string(),
+                name: name.clone(),
+                command: command.clone(),
+                key: evidence_reuse::reuse_key(&command, tree),
+                exit_code: code,
+                file: file_name,
+            });
+        }
+        // 5. Pasta do ensaio.
+        let record = Record {
+            task: task.to_string(),
+            tree_fingerprint: tree.to_string(),
+            date: utc_now(),
+            commands,
+        };
+        let dir = self.rehearsal_dir(file)?;
+        rehearsal::write(&dir, &record, &outputs, &rehearsal::table(&found))?;
+        eprintln!("Ensaio de {task} gravado em {}", dir.display());
+        Ok(found)
     }
 
     /// Comandos de "Baseline", sem os acentos graves.
@@ -7853,7 +8097,7 @@ pub(super) fn cites_path(command: &str, path: &str) -> bool {
 }
 
 /// Pastas-pai dos caminhos `criar`, sem repetição e em ordem, de `a/b/c.rs`: `a` e `a/b`.
-fn parent_folders(created: &[String]) -> Vec<String> {
+pub(super) fn parent_folders(created: &[String]) -> Vec<String> {
     let mut folders: Vec<String> = Vec::new();
     for path in created {
         let parts: Vec<&str> = path.trim_end_matches('/').split('/').collect();
@@ -9711,17 +9955,17 @@ fn shell_output_with(command: &str, dir: &Path, vars: &[(&str, &Path)]) -> Resul
     Ok((exit_code(child.wait()?), output))
 }
 
-/// Como `recorded_run`, interrompendo o comando, com os processos que ele abriu, depois de
-/// `seconds` segundos (0 sem limite): a saída até ali, seguida de `interrompida após N s`.
-fn recorded_run_with_timeout(command: &str, dir: &Path, seconds: u64) -> Result<Vec<u8>> {
+/// Como `shell_output`, interrompendo o comando, com os processos que ele abriu, depois de
+/// `seconds` segundos (0 sem limite): o código e a saída até ali, seguida de `interrompida após N s`.
+fn run_with_timeout(script: &str, dir: &Path, seconds: u64) -> Result<(i32, Vec<u8>)> {
     if seconds == 0 {
-        return Ok(recorded_run(command, dir)?.1);
+        return shell_output(script, dir);
     }
     let (mut reader, writer) = std::io::pipe()?;
     let mut builder = Command::new("bash");
     builder
         .arg("-c")
-        .arg(command)
+        .arg(script)
         .current_dir(dir)
         .stdin(Stdio::null())
         .stdout(writer.try_clone()?)
@@ -9764,6 +10008,16 @@ fn recorded_run_with_timeout(command: &str, dir: &Path, seconds: u64) -> Result<
         }
         output.extend_from_slice(format!("interrompida após {seconds} s\n").as_bytes());
     }
+    Ok((code, output))
+}
+
+/// Como `recorded_run`, interrompendo o comando, com os processos que ele abriu, depois de
+/// `seconds` segundos (0 sem limite): a saída até ali, seguida de `interrompida após N s`.
+fn recorded_run_with_timeout(command: &str, dir: &Path, seconds: u64) -> Result<Vec<u8>> {
+    if seconds == 0 {
+        return Ok(recorded_run(command, dir)?.1);
+    }
+    let (code, output) = run_with_timeout(command, dir, seconds)?;
     let mut record = format!("$ {command}\nexit: {code}\n").into_bytes();
     record.extend(output);
     Ok(record)

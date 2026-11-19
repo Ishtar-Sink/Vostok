@@ -1,0 +1,13 @@
+[package]
+name = "fluxo"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Coletor e comparador do benchmark do fluxo do Vostok; não faz parte do binário distribuído."
+
+[dependencies]
+anyhow = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+[dev-dependencies]
+tempfile = "3.20"

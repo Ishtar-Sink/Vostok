@@ -9,5 +9,9 @@ vostok/work/**/evidencias
 apps/painel/node_modules/
 apps/painel/dist/
 
+# Benchmark do fluxo: resultados das repetições e build do coletor.
+benchmarks/*/resultados/
+benchmarks/fluxo/target/
+
 # Lista local dos projetos que usam o vostok (modelo em projetos-vostok.example.yml).
 projetos-vostok.yml

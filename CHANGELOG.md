@@ -2,6 +2,15 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.9.0] - 2026-11-19
+
+### Melhorias
+
+- A aprovação do plano dispara um único revisor sem contexto para todas as tarefas, no lugar de um por tarefa. Ele lê a spec e as tarefas juntas e aponta, além do que causaria retrabalho em cada uma, o que não bate entre elas: o mesmo arquivo criado por duas tarefas, um passo que usa o resultado de outra tarefa sem depender dela, duas tarefas da mesma onda mudando o mesmo arquivo, nomes ou contratos diferentes para a mesma coisa e IDs da spec sem tarefa. Num plano de extensão, só as tarefas novas são revisadas, e a segunda rodada revisa só as tarefas corrigidas. (SPEC-074)
+- O `vostok review brief task <SPEC_ID> [TASK_ID...]` aceita nenhuma ou várias tarefas. Sem ID, lista todas as tarefas da spec; com IDs, lista as demais na seção "## Contexto", só para achar inconsistências. A tabela de resposta ganhou a coluna "Tarefa". (SPEC-074)
+- O ajuste de tarefa (`adjust-task`) revisa a tarefa ajustada com as demais como contexto; o achado que só outra tarefa resolveria vai para o usuário. (SPEC-074)
+- O padrão distribuído revisa só as tarefas: `review.spec` e `review.plan` vêm em `false` e `review.task` em `true`, e a chave ausente ou vazia segue a mesma regra. Projetos já instalados mantêm o valor que têm em `config/main.yml`. (SPEC-074)
+
 ## [0.8.0] - 2026-11-18
 
 ### Recursos

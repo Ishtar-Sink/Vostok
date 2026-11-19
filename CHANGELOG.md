@@ -2,6 +2,19 @@
 
 Mudanças de cada versão publicada do vostok. A versão mais recente fica no topo.
 
+## [0.9.1] - 2026-11-19
+
+### Recursos
+
+- Logs, prints e vídeos de evidência já gravados com o mesmo comando sobre os mesmos arquivos são copiados em vez de gerados de novo, na mesma tarefa, entre tarefas e entre specs, inclusive no baseline do início da tarefa. A cópia guardada é conferida pelo SHA-256 antes de ser usada, a conferência já feita pelo usuário vem junto quando o arquivo é idêntico e o registro da tarefa ganha a linha `reaproveitada` com a origem. (SPEC-075)
+- O subitem novo `Depende:` diz de quais arquivos ou pastas a saída da evidência depende; sem ele, vale a árvore do projeto. A aprovação do plano e o ajuste de tarefa recusam o caminho que não existe, que fica fora do projeto ou na pasta de trabalho do harness, e a aprovação do plano pede o subitem em todo print e vídeo. (SPEC-075)
+- Os comandos novos `vostok task reuse candidates <SPEC_ID>` e `vostok task reuse apply` oferecem prints e vídeos de specs anteriores como baseline da tarefa nova, com a origem, a data e se os arquivos de que dependem mudaram, e só copiam com a decisão do usuário em `--motivo`. A skill `execute-task` faz essa pergunta antes do primeiro início da spec. (SPEC-075)
+- A opção `--sem-reaproveitar` em `vostok task start`, `vostok task baseline` e `vostok task evidence` roda todos os comandos, e a chave `evidence_reuse: desligado` em `config/tasks.yml` desliga o reaproveitamento. (SPEC-075)
+
+### Melhorias
+
+- O ajuste que muda só as evidências de uma tarefa já testada mantém os testes e a regressão aprovados, a skill `adjust-task` dispensa o revisor e o `vostok task tests` roda só os comandos rotulados novos ou mudados. Mudar passos, critérios, baseline ou código continua refazendo tudo. (SPEC-075)
+
 ## [0.9.0] - 2026-11-19
 
 ### Melhorias

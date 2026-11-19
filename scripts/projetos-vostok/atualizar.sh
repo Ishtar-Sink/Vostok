@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Roda `vostok update` em cada projeto de projetos-vostok.yml, ou só nos nomes informados.
 # Uso: scripts/projetos-vostok/atualizar.sh [nome...]
-# Um nome de pasta (ex.: ishtar-sink) vale para todos os projetos dela.
+# Um nome de pasta (ex.: exemplos) vale para todos os projetos dela.
 # Não faz commit, stage nem push. Código de saída 1 quando algum projeto falha.
 
 set -u

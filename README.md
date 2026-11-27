@@ -147,43 +147,166 @@ docs/           mapa do projeto, estudos, imagens do painel, débitos e document
 
 ## Instalação
 
-Pelo binário da [página de releases](https://github.com/Ishtar-Sink/Vostok/releases), com o painel embutido. Cada versão tem um `vostok-<versão>-<plataforma>.tar.gz` e o `.sha256` dele para `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu`, `x86_64-apple-darwin` e `aarch64-apple-darwin`. No Linux x86_64:
+A versão atual é a **0.9.2**. A CLI `vostok` é um binário único, com o harness e o painel embutidos, publicado na [página de releases](https://github.com/Ishtar-Sink/Vostok/releases) para quatro plataformas:
+
+| Sistema | Processador | Plataforma do arquivo |
+|---|---|---|
+| Linux | x86_64 (Intel e AMD) | `x86_64-unknown-linux-gnu` |
+| Linux | ARM64 | `aarch64-unknown-linux-gnu` |
+| macOS | Apple Silicon (M1 em diante) | `aarch64-apple-darwin` |
+| macOS | Intel | `x86_64-apple-darwin` |
+| Windows | x86_64, pelo WSL 2 | `x86_64-unknown-linux-gnu` |
+
+Cada versão traz, por plataforma, o `vostok-<versão>-<plataforma>.tar.gz` e o `.sha256` dele. Para descobrir a sua, use `uname -sm`: `Linux x86_64`, `Linux aarch64`, `Darwin arm64` (Apple Silicon) ou `Darwin x86_64` (Intel).
+
+### Pré-requisitos
+
+- **git**, usado para detectar as seções alteradas em edições manuais e verificar commits.
+- **curl** e **tar**, que já vêm no macOS e na maioria das distribuições Linux.
+- Um navegador, para o `vostok painel`.
+
+### Linux
+
+Os comandos abaixo valem para x86_64; no ARM64, troque `PLATAFORMA` por `aarch64-unknown-linux-gnu`.
 
 ```bash
-curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.5.0/vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz
+VERSAO=0.9.2
+PLATAFORMA=x86_64-unknown-linux-gnu
+ARQUIVO="vostok-${VERSAO}-${PLATAFORMA}.tar.gz"
 ```
+
+Baixe o arquivo e o hash:
 
 ```bash
-curl -fsSLO https://github.com/Ishtar-Sink/Vostok/releases/download/v0.5.0/vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+curl -fsSLO "https://github.com/Ishtar-Sink/Vostok/releases/download/v${VERSAO}/${ARQUIVO}"
+curl -fsSLO "https://github.com/Ishtar-Sink/Vostok/releases/download/v${VERSAO}/${ARQUIVO}.sha256"
 ```
+
+Confira o hash; a saída esperada é `<arquivo>: OK`:
 
 ```bash
-sha256sum -c vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+sha256sum -c "${ARQUIVO}.sha256"
 ```
+
+Extraia e instale em `~/.local/bin`:
 
 ```bash
-tar xzf vostok-0.5.0-x86_64-unknown-linux-gnu.tar.gz && install vostok ~/.local/bin/
+tar xzf "$ARQUIVO"
+mkdir -p ~/.local/bin
+install -m 755 vostok ~/.local/bin/vostok
 ```
 
-No macOS, troque a plataforma e use `shasum -a 256 -c` na conferência. Confira com `vostok --version`.
+Se `~/.local/bin` não estiver no `PATH`, acrescente ao `~/.bashrc` ou ao `~/.zshrc` e abra um terminal novo:
 
-Também dá para compilar a partir do código, com Rust estável, Node e pnpm (o build gera o painel):
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Para instalar para todos os usuários, use `sudo install -m 755 vostok /usr/local/bin/vostok`.
+
+### macOS
+
+Os comandos abaixo valem para Apple Silicon; num Mac Intel, troque `PLATAFORMA` por `x86_64-apple-darwin`.
+
+```bash
+VERSAO=0.9.2
+PLATAFORMA=aarch64-apple-darwin
+ARQUIVO="vostok-${VERSAO}-${PLATAFORMA}.tar.gz"
+```
+
+Baixe o arquivo e o hash:
+
+```bash
+curl -fsSLO "https://github.com/Ishtar-Sink/Vostok/releases/download/v${VERSAO}/${ARQUIVO}"
+curl -fsSLO "https://github.com/Ishtar-Sink/Vostok/releases/download/v${VERSAO}/${ARQUIVO}.sha256"
+```
+
+Confira o hash com o `shasum`, que vem no macOS no lugar do `sha256sum`; a saída esperada é `<arquivo>: OK`:
+
+```bash
+shasum -a 256 -c "${ARQUIVO}.sha256"
+```
+
+Extraia e instale em `~/.local/bin`:
+
+```bash
+tar xzf "$ARQUIVO"
+mkdir -p ~/.local/bin
+install -m 755 vostok ~/.local/bin/vostok
+```
+
+O zsh é o shell padrão do macOS. Se `~/.local/bin` não estiver no `PATH`, acrescente ao `~/.zshrc` e abra um terminal novo:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+O binário não é assinado pela Apple. Baixado pelo `curl`, ele roda direto; baixado pelo navegador, o macOS o bloqueia na primeira execução. Nesse caso, tire a marca de quarentena:
+
+```bash
+xattr -d com.apple.quarantine ~/.local/bin/vostok
+```
+
+### Windows
+
+Não há binário nativo para Windows: o Vostok roda no [WSL 2](https://learn.microsoft.com/windows/wsl/install), com a versão Linux x86_64.
+
+1. No PowerShell como administrador, instale o WSL com o Ubuntu: `wsl --install`, e reinicie quando ele pedir.
+2. Abra o Ubuntu, crie o usuário e instale o git: `sudo apt update && sudo apt install -y git curl`.
+3. Siga os passos de [Linux](#linux) dentro do Ubuntu.
+4. Guarde os projetos no sistema de arquivos do Linux (por exemplo, `~/projetos`), não em `/mnt/c/`: o acesso aos arquivos do Windows pelo WSL é bem mais lento.
+
+O `vostok painel` abre no navegador do Windows pelo endereço `127.0.0.1` que ele imprime; se o navegador não abrir sozinho, use `vostok painel --sem-navegador` e abra o endereço à mão.
+
+### Conferir a instalação
+
+```bash
+vostok --version
+```
+
+A saída esperada é `vostok 0.9.2`. Se aparecer uma versão antiga, há outro `vostok` antes no `PATH`; liste todos com:
+
+```bash
+which -a vostok
+```
+
+Remova ou substitua o que estiver antes do recém-instalado. Um `vostok` antigo em `~/.cargo/bin`, de uma compilação anterior, é a causa mais comum.
+
+### Compilar a partir do código
+
+Com Rust estável, Node e pnpm (o build gera o painel), na raiz deste repositório:
 
 ```bash
 cargo install --path apps/cli --features painel
 ```
 
-Sem Node, o `cargo install --path apps/cli` compila a CLI sem o painel, e o `vostok painel` explica como obtê-lo.
+O binário vai para `~/.cargo/bin`. Sem Node, o `cargo install --path apps/cli` compila a CLI sem o painel, e o `vostok painel` explica como obtê-lo.
 
-Depois, na raiz do projeto:
+### Instalar o harness num projeto
+
+Na raiz do projeto:
 
 ```bash
 vostok init
 ```
 
-O `init` instala o harness em `vostok/`, pergunta onde ficam os documentos e quais ferramentas você usa (Claude Code, Codex, Cursor) e gera o roteamento só para elas. Use `vostok init --yes --tools claude-code,codex` para não responder às perguntas. Para trazer uma versão nova do harness sem perder o que é do projeto, use `vostok update`.
+O `init` instala o harness em `vostok/`, pergunta onde ficam os documentos e quais ferramentas você usa (Claude Code, Codex, Cursor) e gera o roteamento só para elas. Para não responder às perguntas, use `vostok init --yes --tools claude-code,codex`. O `init` roda uma vez por projeto: num projeto que já tem `vostok/`, ele recusa e indica o `vostok update`.
 
-Requer git, para detectar as seções alteradas em edições manuais e verificar commits.
+O Cursor lê as skills de `.claude/skills` e `.agents/skills` e os subagentes de `.claude/agents`, então um projeto instalado para o Claude Code ou o Codex já funciona no Cursor. A pasta `.cursor/skills` fica desligada de propósito, para a skill não aparecer duplicada; para ligá-la, acrescente `.cursor/skills` em `redirect_dirs` de `vostok/config/skills.yml` e rode `vostok update`.
+
+### Atualizar para uma versão nova
+
+1. Instale o binário novo pelos passos do seu sistema, por cima do anterior.
+2. Confira com `vostok --version`.
+3. Em cada projeto com o harness, rode:
+
+```bash
+vostok update
+```
+
+O `update` traz as skills, os templates e as regras da versão nova, acrescenta as chaves novas de configuração e lista cada mudança; veja [o que ele preserva](#o-que-o-vostok-update-preserva). Com a mesma versão e nada a mudar, ele responde `O harness já está atualizado`. Um `vostok painel` aberto segue no binário antigo até ser reiniciado.
+
+Na 0.9.2, o `update` acrescenta `review_rounds` ao `config/main.yml`, com 1 rodada de revisão por tipo; para voltar às 2 rodadas de antes, troque o valor por `2` no tipo desejado.
 
 ### Atualizar da 0.4.0
 
